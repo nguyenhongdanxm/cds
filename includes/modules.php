@@ -5,14 +5,14 @@ function get_ecosystem_modules() {
         [
             'id' => 'tintuc', 'num' => 1,
             'title' => 'Tin tức',
-            'subtitle' => 'Website · tin bài · sự kiện nhà trường',
+            'subtitle' => 'Website · tin bài · thông báo sự kiện nhà trường',
             'icon' => 'bi-newspaper', 'color' => '#0d6efd',
             'status' => 'link', 'url' => URL_TIN_TUC, 'external' => true,
         ],
         [
             'id' => 'chuyenmon', 'num' => 2,
             'title' => 'Chuyên môn',
-            'subtitle' => 'Phân công · rà soát · thống kê tiết dạy',
+            'subtitle' => 'Phân công – kế hoạch – tiến độ - thống kê',
             'icon' => 'bi-journal-bookmark-fill', 'color' => '#198754',
             'status' => 'link', 'url' => URL_CHUYEN_MON, 'external' => false,
         ],
@@ -24,10 +24,10 @@ function get_ecosystem_modules() {
             'status' => 'soon', 'url' => '', 'external' => false,
         ],
         [
-            'id' => 'tuyentruyen', 'num' => 4,
-            'title' => 'Tuyên truyền',
-            'subtitle' => 'Tin nội bộ · banner · truyền thông số',
-            'icon' => 'bi-megaphone', 'color' => '#fd7e14',
+            'id' => 'truyenthong', 'num' => 4,
+            'title' => 'Truyền thông',
+            'subtitle' => 'Cuộc thi – dự án – chiến dịch hành động',
+            'icon' => 'bi-broadcast', 'color' => '#fd7e14',
             'status' => 'soon', 'url' => '', 'external' => false,
         ],
         [
@@ -47,7 +47,7 @@ function get_ecosystem_modules() {
         [
             'id' => 'noitru', 'num' => 7,
             'title' => 'Quản lý nội trú',
-            'subtitle' => 'Phòng · học sinh · nội trú · bán trú',
+            'subtitle' => 'KTX – điểm danh – chăm sóc nuôi dưỡng',
             'icon' => 'bi-building', 'color' => '#d63384',
             'status' => 'soon', 'url' => '', 'external' => false,
         ],
