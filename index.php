@@ -146,10 +146,11 @@ body{
   pointer-events:none;overflow:visible;z-index:1;
 }
 .orbit-svg text{
-  fill:rgba(255,255,255,.9);
+  fill:rgba(255,255,255,.92);
   font-size:10.5px;
-  font-weight:700;
-  letter-spacing:1.8px;
+  font-weight:800;
+  letter-spacing:2.2px;
+  text-transform:uppercase;
 }
 .orbit-spin{
   transform-origin:100px 100px;
@@ -159,7 +160,6 @@ body{
 
 /*
  * Module nodes – bán kính theo --size của .eco
- * (không dùng % trong translate vì % tính theo chính node)
  */
 .eco-node{
   position:absolute;
@@ -167,7 +167,6 @@ body{
   width:100px;
   margin-left:-50px;
   margin-top:-50px;
-  /* Bán kính ~ 40% cạnh hình vuông eco */
   --r: calc(var(--size) * 0.40);
   transform:
     rotate(var(--angle))
@@ -236,7 +235,7 @@ body{
   .eco-node .sub{display:none}
   .eco-node .label{font-size:.62rem;max-width:78px}
   .eco-core{width:36%;height:36%}
-  .orbit-svg text{font-size:9px;letter-spacing:1.2px}
+  .orbit-svg text{font-size:9px;letter-spacing:1.4px}
 }
 
 @media (min-width:900px){
@@ -302,7 +301,7 @@ body{
         <g class="orbit-spin">
           <text>
             <textPath href="#orbitPath" startOffset="0%">
-              Hệ sinh thái quản lý nhà trường · Hệ sinh thái quản lý nhà trường ·&nbsp;
+              HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG · HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG ·&nbsp;
             </textPath>
           </text>
         </g>
