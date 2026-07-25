@@ -37,40 +37,41 @@ body::after{
 }
 .topbar,.hero,.stage,.site-footer{position:relative;z-index:2}
 
+/* (1) Thu gọn khoảng trống trên/dưới */
 .topbar{
   display:flex;justify-content:space-between;align-items:center;
-  padding:clamp(.3rem,.8vh,.55rem) 1rem;flex-shrink:0;
+  padding:clamp(.2rem,.5vh,.4rem) .9rem;flex-shrink:0;
 }
 .clock{
-  font-size:clamp(.68rem,1.5vw,.85rem);font-weight:600;color:rgba(255,255,255,.92);
-  display:flex;align-items:center;gap:.35rem;
+  font-size:clamp(.65rem,1.4vw,.82rem);font-weight:600;color:rgba(255,255,255,.92);
+  display:flex;align-items:center;gap:.3rem;
   background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);
-  padding:.25rem .55rem;border-radius:999px;backdrop-filter:blur(8px);
+  padding:.2rem .5rem;border-radius:999px;backdrop-filter:blur(8px);
 }
 .auth-btn{
   display:inline-flex;align-items:center;gap:.3rem;
-  padding:.3rem .75rem;border-radius:999px;
+  padding:.28rem .7rem;border-radius:999px;
   background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);
-  color:#fff;font-weight:600;font-size:.8rem;text-decoration:none;backdrop-filter:blur(10px);transition:.2s;
+  color:#fff;font-weight:600;font-size:.78rem;text-decoration:none;backdrop-filter:blur(10px);transition:.2s;
 }
 .auth-btn:hover{background:rgba(255,255,255,.22);color:#fff}
 .auth-btn.admin{background:rgba(32,201,151,.25);border-color:rgba(32,201,151,.5)}
 
 .hero{
   text-align:center;
-  padding:0 1rem clamp(.15rem,.5vh,.35rem);
+  padding:0 .75rem 0;
   flex-shrink:0;
 }
 .hero .line1{
-  font-size:clamp(.65rem,1.9vw,.9rem);
+  font-size:clamp(.62rem,1.8vw,.85rem);
   font-weight:700;letter-spacing:.05em;
   color:rgba(255,255,255,.88);
   text-shadow:0 1px 8px rgba(0,0,0,.4);
 }
 .hero .line2{
-  margin-top:clamp(.08rem,.3vh,.2rem);
-  font-size:clamp(.95rem,3.2vw,1.7rem);
-  font-weight:800;letter-spacing:.03em;line-height:1.2;
+  margin-top:clamp(.05rem,.25vh,.15rem);
+  font-size:clamp(.9rem,3vw,1.55rem);
+  font-weight:800;letter-spacing:.03em;line-height:1.15;
   background:linear-gradient(90deg,#fff 0%,#b8dcff 45%,#fff 100%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 2px 10px rgba(0,40,100,.45));
@@ -81,7 +82,8 @@ body::after{
   display:flex;align-items:center;justify-content:center;padding:0;
 }
 .eco{
-  --size: min(96vw, calc(100dvh - 7.5rem), 720px);
+  /* Lấp đầy vùng giữa, ít khoảng trống trên/dưới diagram */
+  --size: min(98vw, calc(100dvh - 5.8rem), 760px);
   position:relative;width:var(--size);height:var(--size);
 }
 
@@ -89,22 +91,22 @@ body::after{
   position:absolute;left:50%;top:50%;border-radius:50%;pointer-events:none;
   border:1px solid rgba(140,200,255,.22);transform:translate(-50%,-50%);
 }
-.orbit-track.t1{width:58%;height:58%;border-style:dashed;border-color:rgba(160,210,255,.42);animation:spinOrbit 90s linear infinite}
-.orbit-track.t2{width:68%;height:68%;border-color:rgba(100,180,255,.32);box-shadow:0 0 24px rgba(60,150,255,.08) inset}
-.orbit-track.t3{width:48%;height:48%;border-color:rgba(120,190,255,.25)}
-.orbit-track.t4{width:78%;height:78%;border:1px dashed rgba(255,255,255,.1);animation:spinOrbit 130s linear infinite reverse}
+.orbit-track.t1{width:52%;height:52%;border-style:dashed;border-color:rgba(160,210,255,.42);animation:spinOrbit 90s linear infinite}
+.orbit-track.t2{width:64%;height:64%;border-color:rgba(100,180,255,.32);box-shadow:0 0 24px rgba(60,150,255,.08) inset}
+.orbit-track.t3{width:44%;height:44%;border-color:rgba(120,190,255,.25)}
+.orbit-track.t4{width:76%;height:76%;border:1px dashed rgba(255,255,255,.1);animation:spinOrbit 130s linear infinite reverse}
 @keyframes spinOrbit{to{transform:translate(-50%,-50%) rotate(360deg)}}
 
 .sun-rays{
-  position:absolute;left:50%;top:50%;width:56%;height:56%;
-  transform:translate(-50%,-50%);pointer-events:none;z-index:1;opacity:.28;border-radius:50%;
+  position:absolute;left:50%;top:50%;width:50%;height:50%;
+  transform:translate(-50%,-50%);pointer-events:none;z-index:1;opacity:.26;border-radius:50%;
   background:conic-gradient(from 0deg,
     transparent 0deg,rgba(100,180,255,.14) 6deg, transparent 14deg,
     transparent 45deg, rgba(100,180,255,.12) 52deg, transparent 60deg,
     transparent 90deg,rgba(100,180,255,.13) 97deg, transparent 105deg,
     transparent 135deg,rgba(100,180,255,.1) 142deg, transparent 150deg,
     transparent 180deg,rgba(100,180,255,.14) 187deg, transparent 195deg,
-    transparent 225deg, rgba(100,180,255,.11) 232deg, transparent 240deg,
+    transparent 225deg,rgba(100,180,255,.11) 232deg, transparent 240deg,
     transparent 270deg,rgba(100,180,255,.13) 277deg, transparent 285deg,
     transparent 315deg,rgba(100,180,255,.1) 322deg, transparent 330deg, transparent 360deg);
   animation:spinOrbit 70s linear infinite;
@@ -115,7 +117,7 @@ body::after{
   border-radius:50%;pointer-events:none;z-index:3;
   background:radial-gradient(circle,#fff 0%,#6ec8ff 45%,transparent 70%);
   box-shadow:0 0 10px #5eb8ff;
-  --pr: calc(var(--size) * 0.30);
+  --pr: calc(var(--size) * 0.34);
   animation:planetOrbit var(--dur,28s) linear infinite;
   transform:rotate(var(--a0,0deg)) translateY(calc(-1 * var(--pr)));
 }
@@ -125,16 +127,16 @@ body::after{
 
 .eco-core{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:36%;height:36%;z-index:5;display:flex;align-items:center;justify-content:center;
+  width:34%;height:34%;z-index:5;display:flex;align-items:center;justify-content:center;
 }
 .core-glow{
-  position:absolute;inset:-20%;border-radius:50%;pointer-events:none;
+  position:absolute;inset:-18%;border-radius:50%;pointer-events:none;
   background:radial-gradient(circle,rgba(100,190,255,.48) 0%, rgba(40,120,220,.16) 42%, transparent 70%);
   animation:pulseGlow 3.8s ease-in-out infinite;
 }
 @keyframes pulseGlow{0%,100%{opacity:.5;transform:scale(.94)}50%{opacity:1;transform:scale(1.06)}}
 .logo-wrap{
-  position:relative;z-index:2;width:84%;height:84%;border-radius:50%;
+  position:relative;z-index:2;width:86%;height:86%;border-radius:50%;
   background:radial-gradient(circle at 38% 28%,#fff 0%,#eaf4ff 50%,#cde4ff 100%);
   box-shadow:0 0 0 3px rgba(255,255,255,.7),0 0 0 9px rgba(70,160,255,.28),0 0 36px rgba(80,170,255,.4),0 10px 28px rgba(0,0,0,.4);
   overflow:hidden;display:flex;align-items:center;justify-content:center;
@@ -144,17 +146,20 @@ body::after{
 .logo-wrap img{width:94%;height:94%;object-fit:contain;border-radius:50%}
 .logo-fallback{font-size:clamp(1rem,3vw,1.6rem);font-weight:800;color:#c41e3a;text-align:center;line-height:1.1}
 
+/* (2) Chữ vòng sát logo hơn – không lấn vệ tinh */
 .orbit-svg{
-  position:absolute;left:50%;top:50%;width:122%;height:122%;
+  position:absolute;left:50%;top:50%;
+  width:108%;height:108%;
   transform:translate(-50%,-50%);pointer-events:none;overflow:visible;z-index:1;
 }
-.orbit-svg text{fill:rgba(255,255,255,.96);font-size:7.6px;font-weight:800;letter-spacing:.12px}
+.orbit-svg text{fill:rgba(255,255,255,.96);font-size:7.2px;font-weight:800;letter-spacing:.1px}
 .orbit-spin{transform-origin:100px 100px;animation:orbitSpin 48s linear infinite}
 @keyframes orbitSpin{to{transform:rotate(360deg)}}
 
+/* (2) Vệ tinh đẩy ra ngoài – chữ không đè chữ vòng */
 .eco-node{
   position:absolute;left:50%;top:50%;width:0;height:0;
-  --r: calc(var(--size) * 0.30);
+  --r: calc(var(--size) * 0.355);
   --b: 34px;
   transform:rotate(var(--angle)) translateY(calc(-1 * var(--r))) rotate(calc(-1 * var(--angle)));
   text-decoration:none;color:#fff;z-index:6;
@@ -169,7 +174,7 @@ body::after{
   display:flex;align-items:center;justify-content:center;
   background:linear-gradient(160deg,#fff 0%,#f0f7ff 50%,#e2efff 100%);
   color:var(--node-color,#0d6efd);
-  font-size:1.6rem;
+  font-size:1.55rem;
   box-shadow:0 8px 20px rgba(0,0,0,.35),0 0 0 3px rgba(255,255,255,.95),0 0 14px rgba(80,170,255,.28);
   transition:transform .2s,box-shadow .2s;
   animation:satFloat 4.5s ease-in-out infinite;
@@ -189,26 +194,25 @@ body::after{
   border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.3);
 }
 
-/* Khối chữ cạnh logo – tiêu đề 1 dòng, mô tả 1 dòng */
 .eco-node .text-block{
   position:absolute;top:50%;transform:translateY(-50%);
-  width:max(148px, min(22vw, 220px));
-  max-width:240px;
+  width:max(140px, min(20vw, 210px));
+  max-width:230px;
   pointer-events:none;
 }
-.eco-node.side-right .text-block{left:calc(var(--b) + 8px);text-align:left}
-.eco-node.side-left .text-block{right:calc(var(--b) + 8px);text-align:right}
+.eco-node.side-right .text-block{left:calc(var(--b) + 10px);text-align:left}
+.eco-node.side-left .text-block{right:calc(var(--b) + 10px);text-align:right}
 
 .eco-node .label{
-  font-size:clamp(.82rem,1.8vw,1.05rem);
+  font-size:clamp(.8rem,1.75vw,1.02rem);
   font-weight:900;line-height:1.15;
   text-shadow:0 2px 12px rgba(0,0,0,.85);
   letter-spacing:.03em;text-transform:uppercase;
   white-space:nowrap;
 }
 .eco-node .sub{
-  font-size:clamp(.58rem,1.2vw,.72rem);
-  font-weight:700;line-height:1.2;margin-top:.12rem;
+  font-size:clamp(.56rem,1.15vw,.7rem);
+  font-weight:700;line-height:1.2;margin-top:.1rem;
   opacity:.92;letter-spacing:.015em;
   text-transform:uppercase;
   text-shadow:0 1px 8px rgba(0,0,0,.75);
@@ -217,25 +221,25 @@ body::after{
 .eco-node.soon .bubble{opacity:.58;filter:grayscale(.35)}
 .eco-node.soon .badge-soon{
   display:inline-block;font-size:.48rem;background:rgba(0,0,0,.5);
-  border-radius:4px;padding:.06rem .28rem;margin-top:.1rem;font-weight:600;
+  border-radius:4px;padding:.06rem .28rem;margin-top:.08rem;font-weight:600;
   white-space:nowrap;
 }
 
 @media (min-width:960px){
-  .eco{--size:min(92vw, calc(100dvh - 7rem), 740px)}
-  .eco-node{--b:38px}
-  .eco-node .bubble{font-size:1.85rem}
-  .eco-node .text-block{width:max(170px, min(24vw, 250px));max-width:260px}
-  .eco-node .label{font-size:1.08rem}
-  .eco-node .sub{font-size:.76rem}
+  .eco{--size:min(94vw, calc(100dvh - 5.5rem), 780px)}
+  .eco-node{--b:36px;--r:calc(var(--size)*0.355)}
+  .eco-node .bubble{font-size:1.75rem}
+  .eco-node .text-block{width:max(160px, min(22vw, 240px));max-width:250px}
+  .eco-node .label{font-size:1.05rem}
+  .eco-node .sub{font-size:.74rem}
 }
 
 @media (max-width:768px){
   body{overflow-x:hidden;overflow-y:auto;height:auto;min-height:100dvh}
-  .eco{--size:min(98vw, calc(100dvh - 9rem), 460px)}
-  .eco-node{--b:28px;--r:calc(var(--size)*0.31)}
-  .eco-node .bubble{font-size:1.28rem}
-  .eco-core{width:38%;height:38%}
+  .eco{--size:min(98vw, calc(100dvh - 8rem), 460px)}
+  .eco-node{--b:28px;--r:calc(var(--size)*0.34)}
+  .eco-node .bubble{font-size:1.25rem}
+  .eco-core{width:36%;height:36%}
   .planet-dot{display:none}
   .eco-node .text-block{
     opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;z-index:8;
@@ -253,17 +257,17 @@ body::after{
 
 @media (max-width:400px){
   .eco-node{--b:24px}
-  .eco-node .bubble{font-size:1.12rem}
-  .hero .line2{font-size:clamp(.9rem,4.2vw,1.15rem)}
+  .eco-node .bubble{font-size:1.1rem}
+  .hero .line2{font-size:clamp(.88rem,4vw,1.1rem)}
 }
 
 .site-footer{
   flex-shrink:0;text-align:center;
-  padding:clamp(.35rem,.8vh,.65rem) 1rem;
-  font-size:clamp(.6rem,1.3vw,.78rem);line-height:1.35;color:rgba(255,255,255,.7);
+  padding:clamp(.25rem,.6vh,.5rem) 1rem;
+  font-size:clamp(.58rem,1.2vw,.75rem);line-height:1.3;color:rgba(255,255,255,.7);
   border-top:1px solid rgba(255,255,255,.08);background:rgba(0,10,30,.45);
 }
-.site-footer .line2{margin-top:.08rem}
+.site-footer .line2{margin-top:.06rem}
 .site-footer .line2 strong{font-weight:700;color:#fff}
 </style>
 </head>
@@ -294,19 +298,21 @@ body::after{
     <div class="orbit-track t3"></div>
     <div class="sun-rays"></div>
     <div class="planet-dot" style="--a0:30deg;--dur:26s"></div>
-    <div class="planet-dot" style="--a0:150deg;--dur:34s;--pr:calc(var(--size)*0.26)"></div>
-    <div class="planet-dot" style="--a0:260deg;--dur:22s;--pr:calc(var(--size)*0.23)"></div>
+    <div class="planet-dot" style="--a0:150deg;--dur:34s;--pr:calc(var(--size)*0.28)"></div>
+    <div class="planet-dot" style="--a0:260deg;--dur:22s;--pr:calc(var(--size)*0.24)"></div>
 
     <div class="eco-core">
       <div class="core-glow"></div>
       <svg class="orbit-svg" viewBox="0 0 200 200">
         <defs>
-          <path id="orbitPath" d="M100,100 m-82,0 a82,82 0 1,1 164,0 a82,82 0 1,1 -164,0" fill="none"/>
+          <!-- Bán kính nhỏ hơn → chữ vòng sát logo -->
+          <path id="orbitPath" d="M100,100 m-72,0 a72,72 0 1,1 144,0 a72,72 0 1,1 -144,0" fill="none"/>
         </defs>
         <g class="orbit-spin">
           <text>
-            <textPath href="#orbitPath" startOffset="0%" textLength="515" lengthAdjust="spacing">
-* CHUYỂN ĐỔI SỐ TRONG GIÁO DỤC * HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG
+            <!-- (3) * cách đều hai đầu và giữa; chu vi ~ 2π·72 ≈ 452 -->
+            <textPath href="#orbitPath" startOffset="0%" textLength="452" lengthAdjust="spacing">
+ *  CHUYỂN ĐỔI SỐ TRONG GIÁO DỤC  *  HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG  * 
             </textPath>
           </text>
         </g>
