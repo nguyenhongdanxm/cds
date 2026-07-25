@@ -36,19 +36,18 @@ body::after{
   background-size:80px 80px;
 }
 
-/* —— Nền số nhị phân 0101 chạy dọc —— */
 .binary-rain{
   position:fixed;inset:0;z-index:0;
   pointer-events:none;overflow:hidden;
-  opacity:.13;
+  opacity:.11;
 }
 .binary-col{
   position:absolute;top:0;
   font-family:'Courier New',Consolas,monospace;
   font-size:12px;line-height:1.15;font-weight:600;
-  color:rgba(150,210,255,.95);
+  color:rgba(150,210,255,.9);
   white-space:pre;
-  text-shadow:0 0 6px rgba(80,160,255,.35);
+  text-shadow:0 0 6px rgba(80,160,255,.3);
   animation:binaryFall linear infinite;
   will-change:transform;
 }
@@ -232,6 +231,7 @@ body::after{
 .orbit-spin{transform-origin:100px 100px;animation:orbitSpin 48s linear infinite}
 @keyframes orbitSpin{to{transform:rotate(360deg)}}
 
+/* —— Vệ tinh —— */
 .eco-node{
   position:absolute;left:50%;top:50%;width:0;height:0;
   --r:calc(var(--size)*0.34);
@@ -242,7 +242,6 @@ body::after{
 }
 .eco-node:hover,.eco-node:focus-within{color:#fff}
 
-/* —— Icon vệ tinh: glass + glow; hover nổi + toả sáng —— */
 .eco-node .bubble{
   position:absolute;z-index:2;
   left:calc(-1 * var(--b));
@@ -251,8 +250,7 @@ body::after{
   height:calc(var(--b)*2);
   border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  background:
-    radial-gradient(circle at 32% 28%, #fff 0%, #f5faff 45%, #e3f0ff 100%);
+  background:radial-gradient(circle at 32% 28%, #fff 0%, #f5faff 45%, #e3f0ff 100%);
   color:var(--node-color,#0d6efd);
   font-size:1.45rem;
   border:2.5px solid rgba(255,255,255,.95);
@@ -260,13 +258,10 @@ body::after{
     0 4px 0 rgba(0,40,100,.12),
     0 10px 24px rgba(0,0,0,.32),
     0 0 0 1px rgba(255,255,255,.5),
-    0 0 18px color-mix(in srgb, var(--node-color) 35%, transparent),
+    0 0 18px rgba(80,170,255,.3),
     inset 0 2px 10px rgba(255,255,255,.85),
     inset 0 -3px 8px rgba(0,60,140,.06);
-  transition:
-    transform .3s cubic-bezier(.34,1.4,.64,1),
-    box-shadow .3s ease,
-    filter .3s ease;
+  transition:transform .3s cubic-bezier(.34,1.4,.64,1), box-shadow .3s ease, filter .3s ease;
   animation:satBob 4.5s ease-in-out infinite;
   animation-delay:var(--delay,0s);
 }
@@ -288,44 +283,61 @@ body::after{
     0 18px 36px rgba(0,0,0,.35),
     0 0 0 3px #fff,
     0 0 22px var(--node-color),
-    0 0 48px color-mix(in srgb, var(--node-color) 70%, transparent),
-    0 0 80px color-mix(in srgb, var(--node-color) 35%, transparent),
+    0 0 48px var(--node-color),
+    0 0 72px rgba(80,170,255,.35),
     inset 0 2px 12px rgba(255,255,255,.95);
 }
-.eco-node:hover .bubble i{
-  transform:scale(1.08);
-}
+.eco-node:hover .bubble i{transform:scale(1.08)}
 .eco-node .bubble .num{
   position:absolute;top:-5px;right:-5px;
   min-width:22px;height:22px;padding:0 5px;border-radius:999px;
-  background:linear-gradient(160deg, var(--node-color), color-mix(in srgb, var(--node-color) 70%, #000));
+  background:var(--node-color);
   color:#fff;font-size:.58rem;font-weight:800;
   display:flex;align-items:center;justify-content:center;
   border:2px solid #fff;
-  box-shadow:0 2px 8px rgba(0,0,0,.3),0 0 8px color-mix(in srgb, var(--node-color) 50%, transparent);
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
   transition:transform .3s cubic-bezier(.34,1.4,.64,1);
 }
 .eco-node:hover .bubble .num{transform:scale(1.12)}
 
+/*
+ * Chữ: neo CHẮC từ mép bubble ra ngoài
+ *  Phải: left = +b+gap, translateY(-50%)
+ *  Trái: left = -b-gap, translate(-100%, -50%)  ← mép phải chữ = mép trái bubble
+ */
 .eco-node .text-block{
-  position:absolute;z-index:1;
+  position:absolute;
+  z-index:1;
   top:0;
-  transform:translateY(-50%);
   width:max-content;
   max-width:min(24vw, 260px);
   pointer-events:none;
-  transition:transform .3s ease;
+  white-space:nowrap;
 }
-.eco-node:hover .text-block{transform:translateY(calc(-50% - 4px))}
-.eco-node.side-right .text-block{left:calc(var(--b)+var(--gap));text-align:left}
-.eco-node.side-left .text-block{right:calc(var(--b)+var(--gap));left:auto;text-align:right}
+.eco-node.side-right .text-block{
+  left:calc(var(--b) + var(--gap));
+  transform:translateY(-50%);
+  text-align:left;
+}
+.eco-node.side-left .text-block{
+  left:calc(-1 * var(--b) - var(--gap));
+  transform:translate(-100%, -50%);
+  text-align:right;
+}
+.eco-node.side-right:hover .text-block,
+.eco-node.side-right.show-label .text-block{
+  transform:translateY(calc(-50% - 6px));
+}
+.eco-node.side-left:hover .text-block,
+.eco-node.side-left.show-label .text-block{
+  transform:translate(-100%, calc(-50% - 6px));
+}
 
 .eco-node .label{
   font-size:clamp(.78rem,1.7vw,1rem);
   font-weight:900;line-height:1.15;
   text-shadow:0 2px 12px rgba(0,0,0,.85);
   letter-spacing:.03em;text-transform:uppercase;
-  white-space:nowrap;
 }
 .eco-node .sub{
   font-size:clamp(.54rem,1.1vw,.68rem);
@@ -333,14 +345,12 @@ body::after{
   opacity:.92;letter-spacing:.015em;
   text-transform:uppercase;
   text-shadow:0 1px 8px rgba(0,0,0,.75);
-  white-space:nowrap;
 }
 .eco-node.soon .bubble{opacity:.78;filter:grayscale(.2)}
 .eco-node.soon:hover .bubble{opacity:1;filter:grayscale(0)}
 .eco-node.soon .badge-soon{
   display:inline-block;font-size:.48rem;background:rgba(0,0,0,.55);
   border-radius:4px;padding:.06rem .28rem;margin-top:.08rem;font-weight:600;
-  white-space:nowrap;
 }
 
 @media (min-width:960px){
@@ -370,6 +380,7 @@ body::after{
     border-radius:10px;padding:.4rem .5rem;
     backdrop-filter:blur(8px);box-shadow:0 8px 22px rgba(0,0,0,.35);
     max-width:min(70vw, 280px);
+    white-space:normal;
   }
   .eco-node:hover .text-block,
   .eco-node:focus-within .text-block,
@@ -542,7 +553,6 @@ body::after{
 
 <script>
 (function(){
-  /* Đồng hồ */
   var days = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
   function pad(n){ return n < 10 ? '0'+n : ''+n; }
   function tick(){
@@ -555,7 +565,6 @@ body::after{
   }
   tick(); setInterval(tick, 1000);
 
-  /* Mưa số nhị phân */
   (function binaryRain(){
     var host = document.getElementById('binaryRain');
     if (!host) return;
@@ -573,7 +582,6 @@ body::after{
     host.innerHTML = html;
   })();
 
-  /* Click / hover vệ tinh */
   var nodes = document.querySelectorAll('.eco-node');
   nodes.forEach(function(el){
     el.addEventListener('click', function(e){
