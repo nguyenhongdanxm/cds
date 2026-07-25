@@ -147,14 +147,14 @@ body{
 }
 .orbit-svg text{
   fill:rgba(255,255,255,.94);
-  font-size:9px;
+  font-size:8.5px;
   font-weight:800;
-  letter-spacing:1.6px;
+  letter-spacing:1.2px;
   text-transform:uppercase;
 }
 .orbit-spin{
   transform-origin:100px 100px;
-  animation:orbitSpin 36s linear infinite;
+  animation:orbitSpin 40s linear infinite;
 }
 @keyframes orbitSpin{to{transform:rotate(360deg)}}
 
@@ -235,14 +235,14 @@ body{
   .eco-node .sub{display:none}
   .eco-node .label{font-size:.62rem;max-width:78px}
   .eco-core{width:36%;height:36%}
-  .orbit-svg text{font-size:7.5px;letter-spacing:1.1px}
+  .orbit-svg text{font-size:7px;letter-spacing:.9px}
 }
 
 @media (min-width:900px){
   .eco-node{width:120px;margin-left:-60px;margin-top:-60px}
   .eco-node .bubble{width:70px;height:70px;font-size:1.7rem}
   .eco-node .label{font-size:.88rem;max-width:120px}
-  .orbit-svg text{font-size:9.5px;letter-spacing:1.8px}
+  .orbit-svg text{font-size:9px;letter-spacing:1.4px}
 }
 
 /* Footer */
@@ -301,8 +301,9 @@ body{
         </defs>
         <g class="orbit-spin">
           <text>
-            <textPath href="#orbitPath" startOffset="0%">
-              DỰ ÁN CHUYỂN ĐỔI SỐ HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG
+            <!-- Chu vi ~ 2π·82 ≈ 515: textLength để chữ kín vòng, 2 nửa + ký tự ngăn -->
+            <textPath href="#orbitPath" startOffset="0%" textLength="515" lengthAdjust="spacing">
+              🌐  DỰ ÁN CHUYỂN ĐỔI SỐ  ⚛  HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG  
             </textPath>
           </text>
         </g>
