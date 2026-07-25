@@ -23,6 +23,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . BASE_URL . 'csdl.php?tab=sync');
         exit;
     }
+    if ($action === 'sync_from_qlhs') {
+        $r = csdl_sync_from_qlhs();
+        flash($r['message'], $r['ok'] ? 'success' : 'danger');
+        header('Location: ' . BASE_URL . 'csdl.php?tab=sync');
+        exit;
+    }
 
     if ($action === 'teacher_save') {
         $group = trim($_POST['to_chuyen_mon'] ?? '');
@@ -197,15 +203,16 @@ body{background:#f0f4f8}
     <li class="nav-item"><a class="nav-link <?= $tab==='classes'?'active':'' ?>" href="?tab=classes"><i class="bi bi-building"></i> Lớp / khối</a></li>
     <li class="nav-item"><a class="nav-link <?= $tab==='students'?'active':'' ?>" href="?tab=students"><i class="bi bi-mortarboard"></i> Học sinh</a></li>
     <li class="nav-item"><a class="nav-link <?= $tab==='years'?'active':'' ?>" href="?tab=years"><i class="bi bi-calendar3"></i> Năm học</a></li>
-    <li class="nav-item"><a class="nav-link <?= $tab==='sync'?'active':'' ?>" href="?tab=sync"><i class="bi bi-arrow-left-right"></i> Đồng bộ PCCM</a></li>
+    <li class="nav-item"><a class="nav-link <?= $tab==='sync'?'active':'' ?>" href="?tab=sync"><i class="bi bi-arrow-left-right"></i> Đồng bộ</a></li>
   </ul>
 
 <?php if ($tab === 'sync'): ?>
   <div class="row g-4">
     <div class="col-lg-7">
+      <!-- ===== PCCM ===== -->
       <div class="card card-soft mb-3">
         <div class="card-body">
-          <h5 class="mb-3"><i class="bi bi-arrow-left-right text-primary"></i> Đồng bộ 2 chiều với Phân công chuyên môn</h5>
+          <h5 class="mb-3"><i class="bi bi-arrow-left-right text-primary"></i> Đồng bộ 2 chiều với Phân công chuyên môn (PCCM)</h5>
           <?php if (!$sync_info['ready']): ?>
             <div class="alert alert-warning">
               <strong>Chưa kết nối được thư mục data PCCM.</strong>
@@ -246,25 +253,31 @@ body{background:#f0f4f8}
           <?php endif; ?>
         </div>
       </div>
+
+      <!-- ===== QLHS ===== -->
+      <?php include __DIR__ . '/includes/csdl_sync_tab_qlhs.php'; ?>
+
+      <!-- ===== Ánh xạ ===== -->
       <div class="card card-soft">
         <div class="card-body">
           <h6 class="mb-2">Ánh xạ dữ liệu</h6>
           <table class="table table-sm mb-0">
-            <thead><tr><th>CDS</th><th></th><th>PCCM</th></tr></thead>
+            <thead><tr><th>CDS</th><th></th><th>Nguồn</th></tr></thead>
             <tbody>
-              <tr><td>Họ tên GV</td><td class="text-center sync-arrow">↔</td><td><code>teachers.json</code></td></tr>
-              <tr><td>Chuyên môn</td><td class="text-center sync-arrow">↔</td><td><code>teacher_meta.chuyen_mon</code></td></tr>
-              <tr><td>Tổ chuyên môn</td><td class="text-center sync-arrow">↔</td><td><code>teacher_meta.group</code></td></tr>
+              <tr><td>Họ tên GV</td><td class="text-center sync-arrow">↔</td><td><code>PCCM teachers.json</code></td></tr>
+              <tr><td>Chuyên môn / Tổ</td><td class="text-center sync-arrow">↔</td><td><code>teacher_meta</code></td></tr>
               <tr><td>Kiêm nhiệm / chức vụ</td><td class="text-center sync-arrow">↔</td><td><code>roles_{version}.json</code></td></tr>
               <tr><td>Tập sự / HT / PHT</td><td class="text-center sync-arrow">↔</td><td><code>tap_su / hieu_truong / pho_hieu_truong</code></td></tr>
-              <tr><td>Lớp + GVCN</td><td class="text-center sync-arrow">↔</td><td><code>classes.json</code> + role GVCN</td></tr>
+              <tr><td>Lớp + GVCN</td><td class="text-center sync-arrow">↔</td><td><code>PCCM classes + role GVCN</code></td></tr>
+              <tr><td>Lớp + Học sinh</td><td class="text-center sync-arrow">←</td><td><code>QLHS Supabase (classes / students)</code></td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
+
     <div class="col-lg-5">
-      <div class="card card-soft">
+      <div class="card card-soft mb-3">
         <div class="card-body">
           <h6>Hiện trạng CDS</h6>
           <ul class="mb-3">
@@ -272,7 +285,21 @@ body{background:#f0f4f8}
             <li>Lớp: <strong><?= (int)$stats['classes'] ?></strong></li>
             <li>Học sinh: <strong><?= (int)$stats['students'] ?></strong></li>
           </ul>
-          <p class="small text-muted mb-0">Sau khi kéo từ PCCM, mở tab <strong>Giáo viên</strong> để xem cột Tổ và Kiêm nhiệm.</p>
+          <p class="small text-muted mb-0">
+            Sau khi kéo từ <strong>PCCM</strong> → mở tab <em>Giáo viên</em> xem Tổ & Kiêm nhiệm.<br>
+            Sau khi kéo từ <strong>QLHS</strong> → mở tab <em>Học sinh</em> / <em>Lớp</em>.
+          </p>
+        </div>
+      </div>
+      <div class="card card-soft">
+        <div class="card-body">
+          <h6 class="mb-2">Thứ tự khuyến nghị</h6>
+          <ol class="small mb-0 ps-3">
+            <li>Kéo <strong>PCCM → CDS</strong> (GV + lớp + kiêm nhiệm)</li>
+            <li>Kéo <strong>QLHS → CDS</strong> (học sinh + bổ sung lớp)</li>
+            <li>Kiểm tra / chỉnh tay trên các tab</li>
+            <li>Nếu cần: <strong>CDS → PCCM</strong> để đẩy ngược</li>
+          </ol>
         </div>
       </div>
     </div>
@@ -289,8 +316,9 @@ body{background:#f0f4f8}
     <h5 class="mb-3">Vai trò CSDL</h5>
     <ul class="mb-0">
       <li>Giáo viên (chuyên môn, tổ, kiêm nhiệm) → PCCM, Thi đua</li>
-      <li>Lớp / khối → TKB, nội trú</li>
-      <li>Học sinh → Nội trú</li>
+      <li>Lớp / khối → TKB, nội trú, phân công</li>
+      <li>Học sinh → Nội trú (QLHS), thống kê</li>
+      <li>Đồng bộ 2 chiều với PCCM · Kéo 1 chiều từ QLHS (Supabase)</li>
     </ul>
   </div></div>
 
@@ -539,11 +567,11 @@ body{background:#f0f4f8}
             <thead><tr><th>STT</th><th>Họ tên</th><th>Lớp</th><th>GT</th><th>Nội trú</th><th>TT</th><th></th></tr></thead>
             <tbody>
             <?php if (!$students): ?>
-              <tr><td colspan="7" class="text-muted text-center py-4">Chưa có học sinh.</td></tr>
+              <tr><td colspan="7" class="text-muted text-center py-4">Chưa có học sinh — Kéo từ QLHS hoặc thêm bên trái.</td></tr>
             <?php else: foreach ($students as $i => $s): ?>
               <tr class="<?= empty($s['active'])?'table-secondary':'' ?>">
                 <td><?= $i+1 ?></td>
-                <td><strong><?= e($s['name'] ?? '') ?></strong></td>
+                <td><strong><?= e($s['name'] ?? '') ?></strong><?php if (!empty($s['code'])): ?><div class="small text-muted"><?= e($s['code']) ?></div><?php endif; ?></td>
                 <td><?= e(class_name_by_id($s['class_id'] ?? '', $classes)) ?></td>
                 <td><?= e($s['gender'] ?? '—') ?></td>
                 <td><?= !empty($s['boarder']) ? '<span class="badge bg-info">Có</span>' : '—' ?></td>
