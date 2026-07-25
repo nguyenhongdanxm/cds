@@ -83,9 +83,9 @@ body::after{
   border:1px solid rgba(140,200,255,.22);transform:translate(-50%,-50%);
 }
 .orbit-track.t1{width:42%;height:42%;border-style:dashed;border-color:rgba(160,210,255,.4);animation:spinOrbit 90s linear infinite}
-.orbit-track.t2{width:70%;height:70%;border-color:rgba(100,180,255,.28)}
+.orbit-track.t2{width:62%;height:62%;border-color:rgba(100,180,255,.28)}
 .orbit-track.t3{width:36%;height:36%;border-color:rgba(120,190,255,.22)}
-.orbit-track.t4{width:82%;height:82%;border:1px dashed rgba(255,255,255,.1);animation:spinOrbit 130s linear infinite reverse}
+.orbit-track.t4{width:74%;height:74%;border:1px dashed rgba(255,255,255,.1);animation:spinOrbit 130s linear infinite reverse}
 @keyframes spinOrbit{to{transform:translate(-50%,-50%) rotate(360deg)}}
 
 .sun-rays{
@@ -93,9 +93,9 @@ body::after{
   transform:translate(-50%,-50%);pointer-events:none;z-index:1;opacity:.24;border-radius:50%;
   background:conic-gradient(from 0deg,
     transparent 0deg,rgba(100,180,255,.14) 6deg, transparent 14deg,
-    transparent 45deg, rgba(100,180,255,.12) 52deg, transparent 60deg,
+    transparent 45deg,rgba(100,180,255,.12) 52deg, transparent 60deg,
     transparent 90deg, rgba(100,180,255,.13) 97deg, transparent 105deg,
-    transparent 135deg, rgba(100,180,255,.1) 142deg, transparent 150deg,
+    transparent 135deg,rgba(100,180,255,.1) 142deg, transparent 150deg,
     transparent 180deg, rgba(100,180,255,.14) 187deg, transparent 195deg,
     transparent 225deg, rgba(100,180,255,.11) 232deg, transparent 240deg,
     transparent 270deg, rgba(100,180,255,.13) 277deg, transparent 285deg,
@@ -108,7 +108,7 @@ body::after{
   border-radius:50%;pointer-events:none;z-index:3;
   background:radial-gradient(circle,#fff 0%,#6ec8ff 45%,transparent 70%);
   box-shadow:0 0 8px #5eb8ff;
-  --pr: calc(var(--size) * 0.36);
+  --pr: calc(var(--size) * 0.32);
   animation:planetOrbit var(--dur,28s) linear infinite;
   transform:rotate(var(--a0,0deg)) translateY(calc(-1 * var(--pr)));
 }
@@ -116,10 +116,9 @@ body::after{
   to{transform:rotate(calc(var(--a0,0deg) + 360deg)) translateY(calc(-1 * var(--pr)))}
 }
 
-/* Logo giữa */
 .eco-core{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:32%;height:32%;z-index:5;
+  width:34%;height:34%;z-index:5;
   display:flex;align-items:center;justify-content:center;
 }
 .core-glow{
@@ -139,7 +138,6 @@ body::after{
 .logo-wrap img{width:94%;height:94%;object-fit:contain;border-radius:50%}
 .logo-fallback{font-size:clamp(1rem,3vw,1.6rem);font-weight:800;color:#c41e3a;text-align:center;line-height:1.1}
 
-/* Chữ vòng logo giữa: nhỏ + sát */
 .orbit-svg{
   position:absolute;left:0;top:0;width:100%;height:100%;
   pointer-events:none;overflow:visible;z-index:4;
@@ -149,66 +147,41 @@ body::after{
 @keyframes orbitSpin{to{transform:rotate(360deg)}}
 
 /*
- * Logo vệ tinh
- * .sat = flex row: luôn [icon|chữ] hoặc [chữ|icon]
- * Tâm icon nằm đúng điểm quỹ đạo → chữ chỉ nằm ngoài mép icon
+ * Vệ tinh GẦN logo giữa hơn (--r 0.34)
+ * Bubble neo tại gốc; chữ neo bằng left/right ngoài mép bubble
  */
 .eco-node{
   position:absolute;left:50%;top:50%;width:0;height:0;
-  --r: calc(var(--size) * 0.41);
-  --b: 33px;
+  --r: calc(var(--size) * 0.34);
+  --b: 32px;
+  --gap: 14px;
   transform:rotate(var(--angle)) translateY(calc(-1 * var(--r))) rotate(calc(-1 * var(--angle)));
   text-decoration:none;color:#fff;z-index:6;
 }
 .eco-node:hover,.eco-node:focus-within{filter:brightness(1.08);color:#fff}
 
-.eco-node .sat{
-  position:absolute;
-  top:0;left:0;
-  display:flex;
-  align-items:center;
-  gap:12px;
-  animation:satFloat 4.5s ease-in-out infinite;
-  animation-delay:var(--delay,0s);
-}
-/* Phải: [bubble][chữ] — dịch trái nửa bubble để tâm bubble = gốc */
-.eco-node.side-right .sat{
-  flex-direction:row;
-  transform: translate(calc(-1 * var(--b)), -50%);
-}
-/* Trái: [chữ][bubble] — dịch để tâm bubble = gốc */
-.eco-node.side-left .sat{
-  flex-direction:row;
-  transform: translate(calc(-100% + var(--b)), -50%);
-}
-
-@keyframes satFloat{0%,100%{transform:translate(calc(-1 * var(--b)), -50%) translateY(0)}
-  50%{transform:translate(calc(-1 * var(--b)), -50%) translateY(-2px)}}
-/* float riêng từng bên — override bằng animation trên .sat sẽ conflict; dùng filter trên bubble thay */
-.eco-node .sat{animation:none}
+/* Icon: tâm = điểm quỹ đạo */
 .eco-node .bubble{
-  animation:satBob 4.5s ease-in-out infinite;
-  animation-delay:var(--delay,0s);
-}
-@keyframes satBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
-
-.eco-node .bubble{
-  flex-shrink:0;
-  width:calc(var(--b) * 2);height:calc(var(--b) * 2);
+  position:absolute;z-index:2;
+  left:calc(-1 * var(--b));
+  top:calc(-1 * var(--b));
+  width:calc(var(--b) * 2);
+  height:calc(var(--b) * 2);
   border-radius:50%;
   display:flex;align-items:center;justify-content:center;
   background:linear-gradient(160deg,#fff 0%,#f0f7ff 50%,#e2efff 100%);
   color:var(--node-color,#0d6efd);
-  font-size:1.5rem;
+  font-size:1.45rem;
   box-shadow:0 8px 20px rgba(0,0,0,.35),0 0 0 3px rgba(255,255,255,.95),0 0 14px rgba(80,170,255,.28);
-  position:relative;
   transition:transform .2s,box-shadow .2s;
+  animation:satBob 4.5s ease-in-out infinite;
+  animation-delay:var(--delay,0s);
 }
+@keyframes satBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
 .eco-node:hover .bubble,.eco-node.show-label .bubble{
   transform:scale(1.08);
   box-shadow:0 10px 24px rgba(0,0,0,.4),0 0 0 3px #fff,0 0 18px var(--node-color);
 }
-
 .eco-node .bubble .num{
   position:absolute;top:-4px;right:-4px;
   min-width:20px;height:20px;padding:0 4px;border-radius:999px;
@@ -217,12 +190,28 @@ body::after{
   border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.3);
 }
 
+/*
+ * Chữ: KHÔNG nằm trong bubble
+ *  Phải → left = mép phải bubble + gap, chữ mọc sang phải
+ *  Trái → right = mép trái bubble + gap, chữ mọc sang trái
+ */
 .eco-node .text-block{
-  flex-shrink:0;
-  max-width:min(22vw, 230px);
+  position:absolute;z-index:1;
+  top:0;
+  transform:translateY(-50%);
+  width:max-content;
+  max-width:min(24vw, 260px);
+  pointer-events:none;
 }
-.eco-node.side-right .text-block{text-align:left}
-.eco-node.side-left .text-block{text-align:right}
+.eco-node.side-right .text-block{
+  left:calc(var(--b) + var(--gap));
+  text-align:left;
+}
+.eco-node.side-left .text-block{
+  right:calc(var(--b) + var(--gap));
+  left:auto;
+  text-align:right;
+}
 
 .eco-node .label{
   font-size:clamp(.78rem,1.7vw,1rem);
@@ -239,18 +228,18 @@ body::after{
   text-shadow:0 1px 8px rgba(0,0,0,.75);
   white-space:nowrap;
 }
-.eco-node.soon .bubble{opacity:.58;filter:grayscale(.35)}
+.eco-node.soon .bubble{opacity:.72;filter:grayscale(.25)}
 .eco-node.soon .badge-soon{
-  display:inline-block;font-size:.48rem;background:rgba(0,0,0,.5);
+  display:inline-block;font-size:.48rem;background:rgba(0,0,0,.55);
   border-radius:4px;padding:.06rem .28rem;margin-top:.08rem;font-weight:600;
   white-space:nowrap;
 }
 
 @media (min-width:960px){
   .eco{--size:min(94vw, calc(100dvh - 5.5rem), 780px)}
-  .eco-node{--b:36px;--r:calc(var(--size)*0.41)}
-  .eco-node .bubble{font-size:1.7rem}
-  .eco-node .text-block{max-width:min(24vw, 250px)}
+  .eco-node{--b:35px;--r:calc(var(--size)*0.34);--gap:16px}
+  .eco-node .bubble{font-size:1.65rem}
+  .eco-node .text-block{max-width:min(26vw, 280px)}
   .eco-node .label{font-size:1.02rem}
   .eco-node .sub{font-size:.72rem}
 }
@@ -258,13 +247,12 @@ body::after{
 @media (max-width:768px){
   body{overflow-x:hidden;overflow-y:auto;height:auto;min-height:100dvh}
   .eco{--size:min(98vw, calc(100dvh - 8rem), 460px)}
-  .eco-node{--b:26px;--r:calc(var(--size)*0.39)}
+  .eco-node{--b:26px;--r:calc(var(--size)*0.34);--gap:10px}
   .eco-node .bubble{font-size:1.2rem}
-  .eco-node .sat{gap:8px}
-  .eco-core{width:34%;height:34%}
+  .eco-core{width:36%;height:36%}
   .planet-dot{display:none}
   .eco-node .text-block{
-    opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;
+    opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;z-index:8;
     background:rgba(4,24,55,.92);border:1px solid rgba(255,255,255,.22);
     border-radius:10px;padding:.4rem .5rem;
     backdrop-filter:blur(8px);box-shadow:0 8px 22px rgba(0,0,0,.35);
@@ -320,8 +308,8 @@ body::after{
     <div class="orbit-track t3"></div>
     <div class="sun-rays"></div>
     <div class="planet-dot" style="--a0:30deg;--dur:26s"></div>
-    <div class="planet-dot" style="--a0:150deg;--dur:34s;--pr:calc(var(--size)*0.30)"></div>
-    <div class="planet-dot" style="--a0:260deg;--dur:22s;--pr:calc(var(--size)*0.24)"></div>
+    <div class="planet-dot" style="--a0:150deg;--dur:34s;--pr:calc(var(--size)*0.28)"></div>
+    <div class="planet-dot" style="--a0:260deg;--dur:22s;--pr:calc(var(--size)*0.22)"></div>
 
     <svg class="orbit-svg" viewBox="0 0 200 200" aria-hidden="true">
       <defs>
@@ -369,27 +357,15 @@ body::after{
        style="--angle:<?= $angle ?>deg;--node-color:<?= e($m['color']) ?>;--delay:<?= $delay ?>"
        href="<?= e($href) ?>"<?= $target ?>
        title="<?= e($m['title'] . ' – ' . $m['subtitle']) ?>">
-      <div class="sat">
-        <?php if ($side === 'side-left'): ?>
-          <div class="text-block">
-            <div class="label"><?= e($m['title']) ?></div>
-            <div class="sub"><?= e($m['subtitle']) ?></div>
-            <?php if ($status === 'soon'): ?><div class="badge-soon">Sắp ra mắt</div><?php endif; ?>
-          </div>
-          <div class="bubble">
-            <i class="bi <?= e($m['icon']) ?>"></i>
-            <span class="num"><?= (int)$m['num'] ?></span>
-          </div>
-        <?php else: ?>
-          <div class="bubble">
-            <i class="bi <?= e($m['icon']) ?>"></i>
-            <span class="num"><?= (int)$m['num'] ?></span>
-          </div>
-          <div class="text-block">
-            <div class="label"><?= e($m['title']) ?></div>
-            <div class="sub"><?= e($m['subtitle']) ?></div>
-            <?php if ($status === 'soon'): ?><div class="badge-soon">Sắp ra mắt</div><?php endif; ?>
-          </div>
+      <div class="bubble">
+        <i class="bi <?= e($m['icon']) ?>"></i>
+        <span class="num"><?= (int)$m['num'] ?></span>
+      </div>
+      <div class="text-block">
+        <div class="label"><?= e($m['title']) ?></div>
+        <div class="sub"><?= e($m['subtitle']) ?></div>
+        <?php if ($status === 'soon'): ?>
+          <div class="badge-soon">Sắp ra mắt</div>
         <?php endif; ?>
       </div>
     </a>
