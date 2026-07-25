@@ -146,15 +146,15 @@ body{
   pointer-events:none;overflow:visible;z-index:1;
 }
 .orbit-svg text{
-  fill:rgba(255,255,255,.92);
-  font-size:10.5px;
+  fill:rgba(255,255,255,.94);
+  font-size:9px;
   font-weight:800;
-  letter-spacing:2.2px;
+  letter-spacing:1.6px;
   text-transform:uppercase;
 }
 .orbit-spin{
   transform-origin:100px 100px;
-  animation:orbitSpin 32s linear infinite;
+  animation:orbitSpin 36s linear infinite;
 }
 @keyframes orbitSpin{to{transform:rotate(360deg)}}
 
@@ -235,13 +235,14 @@ body{
   .eco-node .sub{display:none}
   .eco-node .label{font-size:.62rem;max-width:78px}
   .eco-core{width:36%;height:36%}
-  .orbit-svg text{font-size:9px;letter-spacing:1.4px}
+  .orbit-svg text{font-size:7.5px;letter-spacing:1.1px}
 }
 
 @media (min-width:900px){
   .eco-node{width:120px;margin-left:-60px;margin-top:-60px}
   .eco-node .bubble{width:70px;height:70px;font-size:1.7rem}
   .eco-node .label{font-size:.88rem;max-width:120px}
+  .orbit-svg text{font-size:9.5px;letter-spacing:1.8px}
 }
 
 /* Footer */
@@ -301,7 +302,7 @@ body{
         <g class="orbit-spin">
           <text>
             <textPath href="#orbitPath" startOffset="0%">
-              HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG · HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG ·&nbsp;
+              DỰ ÁN CHUYỂN ĐỔI SỐ HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG
             </textPath>
           </text>
         </g>
