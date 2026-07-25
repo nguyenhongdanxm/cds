@@ -92,14 +92,14 @@ body::after{
   position:absolute;left:50%;top:50%;width:40%;height:40%;
   transform:translate(-50%,-50%);pointer-events:none;z-index:1;opacity:.24;border-radius:50%;
   background:conic-gradient(from 0deg,
-    transparent 0deg, rgba(100,180,255,.14) 6deg, transparent 14deg,
+    transparent 0deg,rgba(100,180,255,.14) 6deg, transparent 14deg,
     transparent 45deg, rgba(100,180,255,.12) 52deg, transparent 60deg,
-    transparent 90deg,rgba(100,180,255,.13) 97deg, transparent 105deg,
-    transparent 135deg,rgba(100,180,255,.1) 142deg, transparent 150deg,
-    transparent 180deg,rgba(100,180,255,.14) 187deg, transparent 195deg,
+    transparent 90deg, rgba(100,180,255,.13) 97deg, transparent 105deg,
+    transparent 135deg, rgba(100,180,255,.1) 142deg, transparent 150deg,
+    transparent 180deg, rgba(100,180,255,.14) 187deg, transparent 195deg,
     transparent 225deg, rgba(100,180,255,.11) 232deg, transparent 240deg,
     transparent 270deg, rgba(100,180,255,.13) 277deg, transparent 285deg,
-    transparent 315deg,rgba(100,180,255,.1) 322deg, transparent 330deg, transparent 360deg);
+    transparent 315deg, rgba(100,180,255,.1) 322deg, transparent 330deg, transparent 360deg);
   animation:spinOrbit 70s linear infinite;
 }
 
@@ -116,7 +116,7 @@ body::after{
   to{transform:rotate(calc(var(--a0,0deg) + 360deg)) translateY(calc(-1 * var(--pr)))}
 }
 
-/* —— Logo giữa —— */
+/* Logo giữa */
 .eco-core{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   width:32%;height:32%;z-index:5;
@@ -139,38 +139,61 @@ body::after{
 .logo-wrap img{width:94%;height:94%;object-fit:contain;border-radius:50%}
 .logo-fallback{font-size:clamp(1rem,3vw,1.6rem);font-weight:800;color:#c41e3a;text-align:center;line-height:1.1}
 
-/*
- * (1) Chữ vòng logo giữa: nhỏ hơn + sát logo
- * viewBox 200 → r≈36 ≈ sát mép logo (core 32% → ~32 đơn vị)
- */
+/* Chữ vòng logo giữa: nhỏ + sát */
 .orbit-svg{
-  position:absolute;left:0;top:0;
-  width:100%;height:100%;
+  position:absolute;left:0;top:0;width:100%;height:100%;
   pointer-events:none;overflow:visible;z-index:4;
 }
-.orbit-svg text{
-  fill:#ffffff;
-  font-size:5px;
-  font-weight:800;
-  letter-spacing:.2px;
-}
+.orbit-svg text{fill:#fff;font-size:5px;font-weight:800;letter-spacing:.2px}
 .orbit-spin{transform-origin:100px 100px;animation:orbitSpin 48s linear infinite}
 @keyframes orbitSpin{to{transform:rotate(360deg)}}
 
-/* —— Logo vệ tinh —— */
+/*
+ * Logo vệ tinh
+ * .sat = flex row: luôn [icon|chữ] hoặc [chữ|icon]
+ * Tâm icon nằm đúng điểm quỹ đạo → chữ chỉ nằm ngoài mép icon
+ */
 .eco-node{
   position:absolute;left:50%;top:50%;width:0;height:0;
-  --r: calc(var(--size) * 0.40);
+  --r: calc(var(--size) * 0.41);
   --b: 33px;
-  --gap: 12px; /* khoảng cách chữ ↔ mép bubble */
   transform:rotate(var(--angle)) translateY(calc(-1 * var(--r))) rotate(calc(-1 * var(--angle)));
   text-decoration:none;color:#fff;z-index:6;
 }
 .eco-node:hover,.eco-node:focus-within{filter:brightness(1.08);color:#fff}
 
+.eco-node .sat{
+  position:absolute;
+  top:0;left:0;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  animation:satFloat 4.5s ease-in-out infinite;
+  animation-delay:var(--delay,0s);
+}
+/* Phải: [bubble][chữ] — dịch trái nửa bubble để tâm bubble = gốc */
+.eco-node.side-right .sat{
+  flex-direction:row;
+  transform: translate(calc(-1 * var(--b)), -50%);
+}
+/* Trái: [chữ][bubble] — dịch để tâm bubble = gốc */
+.eco-node.side-left .sat{
+  flex-direction:row;
+  transform: translate(calc(-100% + var(--b)), -50%);
+}
+
+@keyframes satFloat{0%,100%{transform:translate(calc(-1 * var(--b)), -50%) translateY(0)}
+  50%{transform:translate(calc(-1 * var(--b)), -50%) translateY(-2px)}}
+/* float riêng từng bên — override bằng animation trên .sat sẽ conflict; dùng filter trên bubble thay */
+.eco-node .sat{animation:none}
 .eco-node .bubble{
-  position:absolute;z-index:2;
-  left:calc(-1 * var(--b));top:calc(-1 * var(--b));
+  animation:satBob 4.5s ease-in-out infinite;
+  animation-delay:var(--delay,0s);
+}
+@keyframes satBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+
+.eco-node .bubble{
+  flex-shrink:0;
   width:calc(var(--b) * 2);height:calc(var(--b) * 2);
   border-radius:50%;
   display:flex;align-items:center;justify-content:center;
@@ -178,15 +201,13 @@ body::after{
   color:var(--node-color,#0d6efd);
   font-size:1.5rem;
   box-shadow:0 8px 20px rgba(0,0,0,.35),0 0 0 3px rgba(255,255,255,.95),0 0 14px rgba(80,170,255,.28);
+  position:relative;
   transition:transform .2s,box-shadow .2s;
-  animation:satFloat 4.5s ease-in-out infinite;
-  animation-delay:var(--delay,0s);
 }
 .eco-node:hover .bubble,.eco-node.show-label .bubble{
   transform:scale(1.08);
   box-shadow:0 10px 24px rgba(0,0,0,.4),0 0 0 3px #fff,0 0 18px var(--node-color);
 }
-@keyframes satFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
 
 .eco-node .bubble .num{
   position:absolute;top:-4px;right:-4px;
@@ -196,29 +217,12 @@ body::after{
   border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.3);
 }
 
-/*
- * (2) Chữ mô tả: neo từ MÉP bubble ra ngoài, không đè lên icon
- *  - Phải: left = mép phải bubble + gap
- *  - Trái: neo tại mép trái bubble, kéo khối chữ 100% sang trái
- */
 .eco-node .text-block{
-  position:absolute;
-  top:50%;
-  z-index:1;
-  width:max-content;
+  flex-shrink:0;
   max-width:min(22vw, 230px);
-  pointer-events:none;
 }
-.eco-node.side-right .text-block{
-  left: calc(var(--b) + var(--gap));
-  transform: translateY(-50%);
-  text-align:left;
-}
-.eco-node.side-left .text-block{
-  left: calc(-1 * var(--b) - var(--gap));
-  transform: translate(-100%, -50%);
-  text-align:right;
-}
+.eco-node.side-right .text-block{text-align:left}
+.eco-node.side-left .text-block{text-align:right}
 
 .eco-node .label{
   font-size:clamp(.78rem,1.7vw,1rem);
@@ -244,7 +248,7 @@ body::after{
 
 @media (min-width:960px){
   .eco{--size:min(94vw, calc(100dvh - 5.5rem), 780px)}
-  .eco-node{--b:36px;--r:calc(var(--size)*0.40)}
+  .eco-node{--b:36px;--r:calc(var(--size)*0.41)}
   .eco-node .bubble{font-size:1.7rem}
   .eco-node .text-block{max-width:min(24vw, 250px)}
   .eco-node .label{font-size:1.02rem}
@@ -254,12 +258,13 @@ body::after{
 @media (max-width:768px){
   body{overflow-x:hidden;overflow-y:auto;height:auto;min-height:100dvh}
   .eco{--size:min(98vw, calc(100dvh - 8rem), 460px)}
-  .eco-node{--b:26px;--r:calc(var(--size)*0.38);--gap:8px}
+  .eco-node{--b:26px;--r:calc(var(--size)*0.39)}
   .eco-node .bubble{font-size:1.2rem}
+  .eco-node .sat{gap:8px}
   .eco-core{width:34%;height:34%}
   .planet-dot{display:none}
   .eco-node .text-block{
-    opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;z-index:8;
+    opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;
     background:rgba(4,24,55,.92);border:1px solid rgba(255,255,255,.22);
     border-radius:10px;padding:.4rem .5rem;
     backdrop-filter:blur(8px);box-shadow:0 8px 22px rgba(0,0,0,.35);
@@ -318,7 +323,6 @@ body::after{
     <div class="planet-dot" style="--a0:150deg;--dur:34s;--pr:calc(var(--size)*0.30)"></div>
     <div class="planet-dot" style="--a0:260deg;--dur:22s;--pr:calc(var(--size)*0.24)"></div>
 
-    <!-- (1) Chữ vòng nhỏ, sát logo giữa (r=36, font 5px) -->
     <svg class="orbit-svg" viewBox="0 0 200 200" aria-hidden="true">
       <defs>
         <path id="orbitPath" d="M100,100 m-36,0 a36,36 0 1,1 72,0 a36,36 0 1,1 -72,0" fill="none"/>
@@ -365,15 +369,27 @@ body::after{
        style="--angle:<?= $angle ?>deg;--node-color:<?= e($m['color']) ?>;--delay:<?= $delay ?>"
        href="<?= e($href) ?>"<?= $target ?>
        title="<?= e($m['title'] . ' – ' . $m['subtitle']) ?>">
-      <div class="bubble">
-        <i class="bi <?= e($m['icon']) ?>"></i>
-        <span class="num"><?= (int)$m['num'] ?></span>
-      </div>
-      <div class="text-block">
-        <div class="label"><?= e($m['title']) ?></div>
-        <div class="sub"><?= e($m['subtitle']) ?></div>
-        <?php if ($status === 'soon'): ?>
-          <div class="badge-soon">Sắp ra mắt</div>
+      <div class="sat">
+        <?php if ($side === 'side-left'): ?>
+          <div class="text-block">
+            <div class="label"><?= e($m['title']) ?></div>
+            <div class="sub"><?= e($m['subtitle']) ?></div>
+            <?php if ($status === 'soon'): ?><div class="badge-soon">Sắp ra mắt</div><?php endif; ?>
+          </div>
+          <div class="bubble">
+            <i class="bi <?= e($m['icon']) ?>"></i>
+            <span class="num"><?= (int)$m['num'] ?></span>
+          </div>
+        <?php else: ?>
+          <div class="bubble">
+            <i class="bi <?= e($m['icon']) ?>"></i>
+            <span class="num"><?= (int)$m['num'] ?></span>
+          </div>
+          <div class="text-block">
+            <div class="label"><?= e($m['title']) ?></div>
+            <div class="sub"><?= e($m['subtitle']) ?></div>
+            <?php if ($status === 'soon'): ?><div class="badge-soon">Sắp ra mắt</div><?php endif; ?>
+          </div>
         <?php endif; ?>
       </div>
     </a>
