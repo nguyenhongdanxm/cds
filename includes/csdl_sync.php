@@ -2,12 +2,10 @@
 /**
  * Đồng bộ 2 chiều CSDL (CDS) ↔ PCCM
  *
- * PCCM format:
- *   teachers.json     = ["Họ tên 1", "Họ tên 2", ...]
- *   teacher_meta.json = { "Họ tên": { chuyen_mon, tap_su, hieu_truong, ... } }
- *   classes.json      = ["6A", "6B", ...]
- *
- * CDS format: objects with id (teachers.json / classes.json trong data/ CDS)
+ * PCCM:
+ *   teachers.json, teacher_meta.json, classes.json
+ *   roles_{version}.json  = kiêm nhiệm [{teacher, role, class, periods}]
+ *   active_version.json
  */
 require_once __DIR__ . '/csdl_store.php';
 
@@ -16,18 +14,75 @@ function csdl_sync_pccm_ready() {
 }
 
 function csdl_sync_pccm_path_info() {
+    $vid = csdl_pccm_active_version_id();
     return [
         'ready' => csdl_sync_pccm_ready(),
         'path' => PCCM_DATA_PATH,
         'teachers' => csdl_sync_pccm_ready() && file_exists(PCCM_DATA_PATH . '/teachers.json'),
         'meta' => csdl_sync_pccm_ready() && file_exists(PCCM_DATA_PATH . '/teacher_meta.json'),
         'classes' => csdl_sync_pccm_ready() && file_exists(PCCM_DATA_PATH . '/classes.json'),
+        'roles' => $vid && file_exists(csdl_pccm_roles_file($vid)),
+        'version' => $vid,
     ];
 }
 
 function csdl_norm_name($name) {
     $name = trim(preg_replace('/\s+/u', ' ', $name ?? ''));
     return mb_strtolower($name, 'UTF-8');
+}
+
+function csdl_pccm_active_version_id() {
+    if (!csdl_sync_pccm_ready()) return null;
+    $data = load_json(PCCM_DATA_PATH . '/active_version.json', []);
+    if (!empty($data['id'])) return $data['id'];
+    // fallback: phiên bản mới nhất trong versions.json
+    $versions = load_json(PCCM_DATA_PATH . '/versions.json', []);
+    if ($versions) {
+        $last = end($versions);
+        return $last['id'] ?? null;
+    }
+    return null;
+}
+
+function csdl_pccm_roles_file($vid) {
+    return PCCM_DATA_PATH . '/roles_' . $vid . '.json';
+}
+
+/** Đọc toàn bộ kiêm nhiệm theo tên GV */
+function csdl_pccm_load_roles_by_teacher() {
+    $vid = csdl_pccm_active_version_id();
+    if (!$vid) return [];
+    $items = load_json(csdl_pccm_roles_file($vid), []);
+    // legacy file
+    if (!$items && file_exists(PCCM_DATA_PATH . '/role_assignments.json')) {
+        $items = load_json(PCCM_DATA_PATH . '/role_assignments.json', []);
+    }
+    $by = [];
+    foreach ($items as $a) {
+        $t = trim($a['teacher'] ?? '');
+        if ($t === '') continue;
+        $key = csdl_norm_name($t);
+        if (!isset($by[$key])) $by[$key] = [];
+        $by[$key][] = [
+            'role' => trim($a['role'] ?? ''),
+            'class' => trim($a['class'] ?? ''),
+            'periods' => isset($a['periods']) ? floatval($a['periods']) : null,
+        ];
+    }
+    return $by;
+}
+
+/** Chuỗi hiển thị: GVCN (6A); TTCM */
+function csdl_format_kiem_nhiem($items) {
+    if (!is_array($items) || !$items) return '';
+    $parts = [];
+    foreach ($items as $a) {
+        $role = trim($a['role'] ?? '');
+        if ($role === '') continue;
+        $cls = trim($a['class'] ?? '');
+        $parts[] = $cls !== '' ? ($role . ' (' . $cls . ')') : $role;
+    }
+    return implode('; ', $parts);
 }
 
 /* ========== PCCM → CDS ========== */
@@ -40,8 +95,8 @@ function csdl_sync_from_pccm() {
     $pccm_teachers = load_json(PCCM_DATA_PATH . '/teachers.json', []);
     $pccm_meta = load_json(PCCM_DATA_PATH . '/teacher_meta.json', []);
     $pccm_classes = load_json(PCCM_DATA_PATH . '/classes.json', []);
+    $roles_by = csdl_pccm_load_roles_by_teacher();
 
-    // —— Giáo viên ——
     $cds = csdl_teachers_all();
     $by_name = [];
     foreach ($cds as $t) {
@@ -50,6 +105,10 @@ function csdl_sync_from_pccm() {
 
     $added_t = 0;
     $updated_t = 0;
+    $roles_count = 0;
+
+    // map tên GV → id CDS sau khi lưu (gắn GVCN cho lớp)
+    $name_to_id = [];
 
     foreach ($pccm_teachers as $name) {
         if (!is_string($name) || trim($name) === '') continue;
@@ -60,41 +119,62 @@ function csdl_sync_from_pccm() {
         if (!is_array($cm)) $cm = [];
         $specialty = implode(', ', array_filter(array_map('strval', $cm)));
 
+        $key = csdl_norm_name($name);
+        $kiem = $roles_by[$key] ?? [];
+        $roles_count += count($kiem);
+
         $payload = [
             'name' => $name,
             'specialty' => $specialty,
+            'to_chuyen_mon' => trim($meta['group'] ?? ''),
+            'kiem_nhiem' => $kiem,
             'role_flags' => [
                 'is_probation' => !empty($meta['tap_su']),
                 'is_principal' => !empty($meta['hieu_truong']),
                 'is_vice' => !empty($meta['pho_hieu_truong']),
             ],
             'pccm_group' => $meta['group'] ?? '',
-            'pccm_thcs' => !empty($meta['thcs']) || (($meta['level'] ?? '') !== 'THPT'),
-            'pccm_thpt' => !empty($meta['thpt']) || (($meta['level'] ?? '') === 'THPT'),
+            'pccm_thcs' => array_key_exists('thcs', $meta)
+                ? !empty($meta['thcs'])
+                : (($meta['level'] ?? '') !== 'THPT'),
+            'pccm_thpt' => array_key_exists('thpt', $meta)
+                ? !empty($meta['thpt'])
+                : (($meta['level'] ?? '') === 'THPT'),
             'active' => true,
             'source' => 'pccm',
         ];
 
-        $key = csdl_norm_name($name);
         if (isset($by_name[$key])) {
             $payload['id'] = $by_name[$key]['id'];
-            // giữ phone/email/code nếu đã có trên CDS
             if (!empty($by_name[$key]['phone'])) $payload['phone'] = $by_name[$key]['phone'];
             if (!empty($by_name[$key]['email'])) $payload['email'] = $by_name[$key]['email'];
             if (!empty($by_name[$key]['code'])) $payload['code'] = $by_name[$key]['code'];
-            csdl_teacher_save($payload);
+            if (!empty($by_name[$key]['note'])) $payload['note'] = $by_name[$key]['note'];
+            $id = csdl_teacher_save($payload);
             $updated_t++;
         } else {
-            csdl_teacher_save($payload);
+            $id = csdl_teacher_save($payload);
             $added_t++;
         }
+        $name_to_id[$key] = $id;
     }
 
-    // —— Lớp ——
+    // —— Lớp + gắn GVCN từ kiêm nhiệm ——
     $cds_cls = csdl_classes_all();
     $cls_by_name = [];
     foreach ($cds_cls as $c) {
         $cls_by_name[csdl_norm_name($c['name'] ?? '')] = $c;
+    }
+
+    // GVCN map: class name → teacher id
+    $gvcn_map = [];
+    foreach ($roles_by as $tkey => $items) {
+        foreach ($items as $a) {
+            $role = mb_strtoupper(trim($a['role'] ?? ''), 'UTF-8');
+            if ($role === 'GVCN' && !empty($a['class']) && isset($name_to_id[$tkey])) {
+                $gvcn_map[csdl_norm_name($a['class'])] = $name_to_id[$tkey];
+            }
+        }
     }
 
     $added_c = 0;
@@ -105,6 +185,8 @@ function csdl_sync_from_pccm() {
         $cname = trim($cname);
         $grade = (int)preg_replace('/\D/', '', $cname);
         if ($grade < 1) $grade = 6;
+        $ckey = csdl_norm_name($cname);
+
         $payload = [
             'name' => $cname,
             'grade' => $grade,
@@ -112,14 +194,18 @@ function csdl_sync_from_pccm() {
             'active' => true,
             'source' => 'pccm',
         ];
-        $key = csdl_norm_name($cname);
-        if (isset($cls_by_name[$key])) {
-            $payload['id'] = $cls_by_name[$key]['id'];
-            if (!empty($cls_by_name[$key]['homeroom_teacher_id'])) {
-                $payload['homeroom_teacher_id'] = $cls_by_name[$key]['homeroom_teacher_id'];
+
+        if (isset($gvcn_map[$ckey])) {
+            $payload['homeroom_teacher_id'] = $gvcn_map[$ckey];
+        }
+
+        if (isset($cls_by_name[$ckey])) {
+            $payload['id'] = $cls_by_name[$ckey]['id'];
+            if (empty($payload['homeroom_teacher_id']) && !empty($cls_by_name[$ckey]['homeroom_teacher_id'])) {
+                $payload['homeroom_teacher_id'] = $cls_by_name[$ckey]['homeroom_teacher_id'];
             }
-            if (!empty($cls_by_name[$key]['room'])) {
-                $payload['room'] = $cls_by_name[$key]['room'];
+            if (!empty($cls_by_name[$ckey]['room'])) {
+                $payload['room'] = $cls_by_name[$ckey]['room'];
             }
             csdl_class_save($payload);
             $updated_c++;
@@ -129,16 +215,18 @@ function csdl_sync_from_pccm() {
         }
     }
 
+    $vid = csdl_pccm_active_version_id();
     return [
         'ok' => true,
         'message' => sprintf(
-            'Đã kéo từ PCCM → CDS: GV +%d / cập nhật %d · Lớp +%d / cập nhật %d',
-            $added_t, $updated_t, $added_c, $updated_c
+            'Đã kéo từ PCCM → CDS: GV +%d / cập nhật %d · Lớp +%d / cập nhật %d · %d kiêm nhiệm (phiên bản %s)',
+            $added_t, $updated_t, $added_c, $updated_c, $roles_count, $vid ?: '—'
         ),
         'teachers_added' => $added_t,
         'teachers_updated' => $updated_t,
         'classes_added' => $added_c,
         'classes_updated' => $updated_c,
+        'roles' => $roles_count,
     ];
 }
 
@@ -155,9 +243,9 @@ function csdl_sync_to_pccm() {
     $teachers = csdl_teachers_all();
     $classes = csdl_classes_all();
 
-    // Danh sách tên (chỉ active)
     $names = [];
     $meta = load_json(PCCM_DATA_PATH . '/teacher_meta.json', []);
+    $role_items = [];
 
     foreach ($teachers as $t) {
         if (empty($t['active'])) continue;
@@ -167,7 +255,6 @@ function csdl_sync_to_pccm() {
 
         if (!isset($meta[$name]) || !is_array($meta[$name])) $meta[$name] = [];
 
-        // chuyên môn: chuỗi "Toán, Văn" → mảng
         $cm = [];
         if (!empty($t['specialty'])) {
             $cm = array_values(array_filter(array_map('trim', preg_split('/[,;|\/]+/u', $t['specialty']))));
@@ -179,25 +266,66 @@ function csdl_sync_to_pccm() {
         $meta[$name]['hieu_truong'] = !empty($flags['is_principal']);
         $meta[$name]['pho_hieu_truong'] = !empty($flags['is_vice']) && empty($flags['is_principal']);
 
-        if (isset($t['pccm_group'])) $meta[$name]['group'] = $t['pccm_group'];
+        $group = trim($t['to_chuyen_mon'] ?? $t['pccm_group'] ?? '');
+        if ($group !== '') $meta[$name]['group'] = $group;
+
         if (isset($t['pccm_thcs'])) $meta[$name]['thcs'] = !empty($t['pccm_thcs']);
         if (isset($t['pccm_thpt'])) $meta[$name]['thpt'] = !empty($t['pccm_thpt']);
-
-        // mặc định cấp nếu chưa có
         if (empty($meta[$name]['thcs']) && empty($meta[$name]['thpt'])) {
             $meta[$name]['thcs'] = true;
             $meta[$name]['thpt'] = true;
         }
+
+        // Kiêm nhiệm → roles_{vid}.json
+        $kiem = $t['kiem_nhiem'] ?? [];
+        if (is_array($kiem)) {
+            foreach ($kiem as $a) {
+                $role = trim($a['role'] ?? '');
+                if ($role === '') continue;
+                $role_items[] = [
+                    'id' => 'r_' . bin2hex(random_bytes(4)),
+                    'teacher' => $name,
+                    'role' => $role,
+                    'class' => trim($a['class'] ?? ''),
+                    'periods' => isset($a['periods']) && $a['periods'] !== null && $a['periods'] !== ''
+                        ? floatval($a['periods']) : 0,
+                ];
+            }
+        }
     }
 
-    // Lớp active
+    // Nếu CDS chưa có kiêm nhiệm nhưng lớp có GVCN → tạo bản ghi GVCN
+    $teacher_by_id = [];
+    foreach ($teachers as $t) {
+        $teacher_by_id[$t['id'] ?? ''] = $t;
+    }
+    $existing_gvcn = [];
+    foreach ($role_items as $ri) {
+        if (mb_strtoupper($ri['role'], 'UTF-8') === 'GVCN' && $ri['class'] !== '') {
+            $existing_gvcn[csdl_norm_name($ri['class'])] = true;
+        }
+    }
+    foreach ($classes as $c) {
+        if (empty($c['active']) || empty($c['homeroom_teacher_id'])) continue;
+        $cname = trim($c['name'] ?? '');
+        if ($cname === '' || isset($existing_gvcn[csdl_norm_name($cname)])) continue;
+        $ht = $teacher_by_id[$c['homeroom_teacher_id']] ?? null;
+        if (!$ht || empty($ht['active'])) continue;
+        $role_items[] = [
+            'id' => 'r_' . bin2hex(random_bytes(4)),
+            'teacher' => $ht['name'],
+            'role' => 'GVCN',
+            'class' => $cname,
+            'periods' => 3,
+        ];
+    }
+
     $class_names = [];
     foreach ($classes as $c) {
         if (empty($c['active'])) continue;
         $n = trim($c['name'] ?? '');
         if ($n !== '') $class_names[] = $n;
     }
-    // sắp xếp khối rồi tên
     usort($class_names, function ($a, $b) {
         $ga = (int)preg_replace('/\D/', '', $a);
         $gb = (int)preg_replace('/\D/', '', $b);
@@ -209,14 +337,50 @@ function csdl_sync_to_pccm() {
     save_json(PCCM_DATA_PATH . '/teacher_meta.json', $meta);
     save_json(PCCM_DATA_PATH . '/classes.json', array_values($class_names));
 
+    $vid = csdl_pccm_active_version_id();
+    $roles_written = 0;
+    if ($vid) {
+        save_json(csdl_pccm_roles_file($vid), $role_items);
+        $roles_written = count($role_items);
+    }
+
     return [
         'ok' => true,
         'message' => sprintf(
-            'Đã đẩy CDS → PCCM: %d giáo viên · %d lớp',
+            'Đã đẩy CDS → PCCM: %d GV · %d lớp · %d kiêm nhiệm%s',
             count($names),
-            count($class_names)
+            count($class_names),
+            $roles_written,
+            $vid ? " (phiên bản $vid)" : ' (chưa có phiên bản PCCM — bỏ qua roles)'
         ),
         'teachers' => count($names),
         'classes' => count($class_names),
+        'roles' => $roles_written,
     ];
+}
+
+/** Parse textarea kiêm nhiệm → mảng
+ *  Mỗi dòng: ROLE | ROLE|LỚP | ROLE|LỚP|TIẾT
+ */
+function csdl_parse_kiem_nhiem_text($text) {
+    $out = [];
+    $lines = preg_split('/\r\n|\r|\n/', $text ?? '');
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '') continue;
+        // hỗ trợ "GVCN (6A)" hoặc "GVCN|6A|3"
+        if (preg_match('/^(.+?)\s*\(([^)]+)\)\s*$/u', $line, $m)) {
+            $out[] = ['role' => trim($m[1]), 'class' => trim($m[2]), 'periods' => null];
+            continue;
+        }
+        $parts = array_map('trim', explode('|', $line));
+        $role = $parts[0] ?? '';
+        if ($role === '') continue;
+        $out[] = [
+            'role' => $role,
+            'class' => $parts[1] ?? '',
+            'periods' => isset($parts[2]) && $parts[2] !== '' ? floatval($parts[2]) : null,
+        ];
+    }
+    return $out;
 }
