@@ -37,11 +37,9 @@ body::after{
 }
 .topbar,.hero,.stage,.site-footer{position:relative;z-index:2}
 
-/* —— Khoảng cách dọc gọn, co giãn theo thiết bị —— */
 .topbar{
   display:flex;justify-content:space-between;align-items:center;
-  padding:clamp(.3rem,.8vh,.55rem) 1rem;
-  flex-shrink:0;
+  padding:clamp(.3rem,.8vh,.55rem) 1rem;flex-shrink:0;
 }
 .clock{
   font-size:clamp(.68rem,1.5vw,.85rem);font-weight:600;color:rgba(255,255,255,.92);
@@ -78,15 +76,11 @@ body::after{
   filter:drop-shadow(0 2px 10px rgba(0,40,100,.45));
 }
 
-/* Stage chiếm hết phần còn lại – không thừa khoảng trống */
 .stage{
-  flex:1 1 auto;
-  min-height:0;
-  display:flex;align-items:center;justify-content:center;
-  padding:0;
+  flex:1 1 auto;min-height:0;
+  display:flex;align-items:center;justify-content:center;padding:0;
 }
 .eco{
-  /* Ưu tiên chiều cao còn lại, tránh khoảng trống lớn trên/dưới */
   --size: min(96vw, calc(100dvh - 7.5rem), 720px);
   position:relative;width:var(--size);height:var(--size);
 }
@@ -107,10 +101,10 @@ body::after{
   background:conic-gradient(from 0deg,
     transparent 0deg,rgba(100,180,255,.14) 6deg, transparent 14deg,
     transparent 45deg, rgba(100,180,255,.12) 52deg, transparent 60deg,
-    transparent 90deg, rgba(100,180,255,.13) 97deg, transparent 105deg,
+    transparent 90deg,rgba(100,180,255,.13) 97deg, transparent 105deg,
     transparent 135deg,rgba(100,180,255,.1) 142deg, transparent 150deg,
     transparent 180deg,rgba(100,180,255,.14) 187deg, transparent 195deg,
-    transparent 225deg,rgba(100,180,255,.11) 232deg, transparent 240deg,
+    transparent 225deg, rgba(100,180,255,.11) 232deg, transparent 240deg,
     transparent 270deg,rgba(100,180,255,.13) 277deg, transparent 285deg,
     transparent 315deg,rgba(100,180,255,.1) 322deg, transparent 330deg, transparent 360deg);
   animation:spinOrbit 70s linear infinite;
@@ -195,41 +189,45 @@ body::after{
   border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.3);
 }
 
+/* Khối chữ cạnh logo – tiêu đề 1 dòng, mô tả 1 dòng */
 .eco-node .text-block{
   position:absolute;top:50%;transform:translateY(-50%);
-  width:168px;pointer-events:none;
+  width:max(148px, min(22vw, 220px));
+  max-width:240px;
+  pointer-events:none;
 }
 .eco-node.side-right .text-block{left:calc(var(--b) + 8px);text-align:left}
 .eco-node.side-left .text-block{right:calc(var(--b) + 8px);text-align:right}
 
-/* Tiêu đề vệ tinh: to + đậm */
 .eco-node .label{
-  font-size:clamp(.85rem,1.85vw,1.08rem);
-  font-weight:900;line-height:1.2;
+  font-size:clamp(.82rem,1.8vw,1.05rem);
+  font-weight:900;line-height:1.15;
   text-shadow:0 2px 12px rgba(0,0,0,.85);
   letter-spacing:.03em;text-transform:uppercase;
+  white-space:nowrap;
 }
-/* Mô tả phụ: dài hơn, in hoa */
 .eco-node .sub{
-  font-size:clamp(.62rem,1.35vw,.78rem);
-  font-weight:700;line-height:1.3;margin-top:.18rem;
-  opacity:.92;letter-spacing:.02em;
+  font-size:clamp(.58rem,1.2vw,.72rem);
+  font-weight:700;line-height:1.2;margin-top:.12rem;
+  opacity:.92;letter-spacing:.015em;
   text-transform:uppercase;
   text-shadow:0 1px 8px rgba(0,0,0,.75);
+  white-space:nowrap;
 }
 .eco-node.soon .bubble{opacity:.58;filter:grayscale(.35)}
 .eco-node.soon .badge-soon{
   display:inline-block;font-size:.48rem;background:rgba(0,0,0,.5);
-  border-radius:4px;padding:.08rem .28rem;margin-top:.1rem;font-weight:600;
+  border-radius:4px;padding:.06rem .28rem;margin-top:.1rem;font-weight:600;
+  white-space:nowrap;
 }
 
 @media (min-width:960px){
   .eco{--size:min(92vw, calc(100dvh - 7rem), 740px)}
   .eco-node{--b:38px}
   .eco-node .bubble{font-size:1.85rem}
-  .eco-node .text-block{width:190px}
-  .eco-node .label{font-size:1.12rem}
-  .eco-node .sub{font-size:.82rem}
+  .eco-node .text-block{width:max(170px, min(24vw, 250px));max-width:260px}
+  .eco-node .label{font-size:1.08rem}
+  .eco-node .sub{font-size:.76rem}
 }
 
 @media (max-width:768px){
@@ -241,16 +239,16 @@ body::after{
   .planet-dot{display:none}
   .eco-node .text-block{
     opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;z-index:8;
-    background:rgba(4,24,55,.9);border:1px solid rgba(255,255,255,.22);
-    border-radius:10px;padding:.45rem .55rem;
+    background:rgba(4,24,55,.92);border:1px solid rgba(255,255,255,.22);
+    border-radius:10px;padding:.4rem .5rem;
     backdrop-filter:blur(8px);box-shadow:0 8px 22px rgba(0,0,0,.35);
-    width:150px;
+    width:auto;max-width:min(70vw, 280px);
   }
   .eco-node:hover .text-block,
   .eco-node:focus-within .text-block,
   .eco-node.show-label .text-block{opacity:1;visibility:visible}
-  .eco-node .label{font-size:.78rem}
-  .eco-node .sub{font-size:.58rem}
+  .eco-node .label{font-size:.72rem}
+  .eco-node .sub{font-size:.55rem}
 }
 
 @media (max-width:400px){
