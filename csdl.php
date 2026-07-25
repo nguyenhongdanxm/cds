@@ -25,11 +25,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'teacher_save') {
+        $group = trim($_POST['to_chuyen_mon'] ?? '');
         csdl_teacher_save([
             'id' => trim($_POST['id'] ?? ''),
             'name' => trim($_POST['name'] ?? ''),
             'code' => trim($_POST['code'] ?? ''),
             'specialty' => trim($_POST['specialty'] ?? ''),
+            'to_chuyen_mon' => $group,
+            'pccm_group' => $group,
+            'kiem_nhiem' => csdl_parse_kiem_nhiem_text($_POST['kiem_nhiem_text'] ?? ''),
             'phone' => trim($_POST['phone'] ?? ''),
             'email' => trim($_POST['email'] ?? ''),
             'role_flags' => [
@@ -159,8 +163,9 @@ body{background:#f0f4f8}
 .nav-pills .nav-link{border-radius:999px;font-weight:600;color:#334}
 .nav-pills .nav-link.active{background:var(--primary)}
 .card-soft{background:#fff;border:none;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
-.table thead th{font-size:.8rem;text-transform:uppercase;letter-spacing:.03em;color:#667}
+.table thead th{font-size:.75rem;text-transform:uppercase;letter-spacing:.03em;color:#667}
 .sync-arrow{font-size:1.5rem;color:var(--primary)}
+.badge-kn{font-size:.7rem;font-weight:600;background:#e8f0fe;color:#1a56a8;margin:.1rem;display:inline-block}
 </style>
 </head>
 <body>
@@ -201,30 +206,27 @@ body{background:#f0f4f8}
       <div class="card card-soft mb-3">
         <div class="card-body">
           <h5 class="mb-3"><i class="bi bi-arrow-left-right text-primary"></i> Đồng bộ 2 chiều với Phân công chuyên môn</h5>
-
           <?php if (!$sync_info['ready']): ?>
             <div class="alert alert-warning">
-              <strong>Chưa kết nối được thư mục data PCCM.</strong><n></n>
-              <div class="small mt-2">Path hiện tại: <code><?= e($sync_info['path'] ?: '(trống)') ?></code></div>
-              <div class="small mt-2">Trên host, mở <code>includes/config.php</code> và đặt đúng đường dẫn, ví dụ:</div>
+              <strong>Chưa kết nối được thư mục data PCCM.</strong>
+              <div class="small mt-2">Path: <code><?= e($sync_info['path'] ?: '(trống)') ?></code></div>
               <pre class="bg-light p-2 rounded small mt-2 mb-0">define('PCCM_DATA_PATH', '/home/capnachi/public_html/pccm/data');</pre>
-              <div class="small mt-2">Tìm path thật bằng lệnh: <code>find /home/capnachi -type d -name pccm 2>/dev/null</code></div>
             </div>
           <?php else: ?>
             <div class="alert alert-success py-2 small mb-3">
-              <i class="bi bi-check-circle"></i> Đã thấy data PCCM:
-              <code><?= e($sync_info['path']) ?></code>
-              · teachers: <?= $sync_info['teachers'] ? '✓' : '—' ?>
-              · meta: <?= $sync_info['meta'] ? '✓' : '—' ?>
-              · classes: <?= $sync_info['classes'] ? '✓' : '—' ?>
+              <i class="bi bi-check-circle"></i> Data PCCM: <code><?= e($sync_info['path']) ?></code>
+              · GV <?= $sync_info['teachers']?'✓':'—' ?>
+              · meta <?= $sync_info['meta']?'✓':'—' ?>
+              · lớp <?= $sync_info['classes']?'✓':'—' ?>
+              · kiêm nhiệm <?= $sync_info['roles']?'✓':'—' ?>
+              <?php if (!empty($sync_info['version'])): ?>· phiên bản <code><?= e($sync_info['version']) ?></code><?php endif; ?>
             </div>
-
             <div class="row g-3">
               <div class="col-md-6">
                 <div class="border rounded-3 p-3 h-100 bg-light">
                   <div class="fw-bold mb-1"><i class="bi bi-download text-success"></i> PCCM → CDS</div>
-                  <p class="small text-muted mb-3">Kéo danh sách giáo viên + lớp từ Phân công chuyên môn vào CSDL dùng chung. Khớp theo họ tên / tên lớp; cập nhật nếu đã có.</p>
-                  <form method="post" onsubmit="return confirm('Kéo dữ liệu từ PCCM vào CDS?\nGiáo viên/lớp trùng tên sẽ được cập nhật.')">
+                  <p class="small text-muted mb-3">Kéo GV, lớp, <strong>tổ chuyên môn</strong>, <strong>kiêm nhiệm / chức vụ</strong> (GVCN, TTCM…).</p>
+                  <form method="post" onsubmit="return confirm('Kéo từ PCCM vào CDS?')">
                     <input type="hidden" name="action" value="sync_from_pccm">
                     <button class="btn btn-success w-100" type="submit"><i class="bi bi-cloud-download"></i> Kéo từ PCCM</button>
                   </form>
@@ -233,8 +235,8 @@ body{background:#f0f4f8}
               <div class="col-md-6">
                 <div class="border rounded-3 p-3 h-100 bg-light">
                   <div class="fw-bold mb-1"><i class="bi bi-upload text-primary"></i> CDS → PCCM</div>
-                  <p class="small text-muted mb-3">Đẩy giáo viên (đang công tác) + lớp (đang hoạt động) từ CSDL sang PCCM. Giữ nguyên phân công tiết đã có trong PCCM.</p>
-                  <form method="post" onsubmit="return confirm('Đẩy dữ liệu CDS sang PCCM?\nDanh sách GV/lớp trên PCCM sẽ được ghi đè theo CDS.')">
+                  <p class="small text-muted mb-3">Đẩy GV, lớp, tổ, kiêm nhiệm. <em>Không</em> ghi đè phân công tiết dạy.</p>
+                  <form method="post" onsubmit="return confirm('Đẩy CDS sang PCCM?')">
                     <input type="hidden" name="action" value="sync_to_pccm">
                     <button class="btn btn-primary w-100" type="submit"><i class="bi bi-cloud-upload"></i> Đẩy sang PCCM</button>
                   </form>
@@ -244,26 +246,23 @@ body{background:#f0f4f8}
           <?php endif; ?>
         </div>
       </div>
-
       <div class="card card-soft">
         <div class="card-body">
           <h6 class="mb-2">Ánh xạ dữ liệu</h6>
-          <div class="table-responsive">
-            <table class="table table-sm mb-0">
-              <thead><tr><th>CDS</th><th></th><th>PCCM</th></tr></thead>
-              <tbody>
-                <tr><td>Họ tên GV</td><td class="text-center sync-arrow">↔</td><td><code>teachers.json</code> (mảng tên)</td></tr>
-                <tr><td>Chuyên môn</td><td class="text-center sync-arrow">↔</td><td><code>teacher_meta.chuyen_mon</code></td></tr>
-                <tr><td>Tập sự / HT / PHT</td><td class="text-center sync-arrow">↔</td><td><code>tap_su / hieu_truong / pho_hieu_truong</code></td></tr>
-                <tr><td>Tên lớp</td><td class="text-center sync-arrow">↔</td><td><code>classes.json</code></td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="small text-muted mt-2 mb-0">Phân công tiết (<code>assignments_*.json</code>) <strong>không</strong> bị ghi đè khi đồng bộ danh mục.</p>
+          <table class="table table-sm mb-0">
+            <thead><tr><th>CDS</th><th></th><th>PCCM</th></tr></thead>
+            <tbody>
+              <tr><td>Họ tên GV</td><td class="text-center sync-arrow">↔</td><td><code>teachers.json</code></td></tr>
+              <tr><td>Chuyên môn</td><td class="text-center sync-arrow">↔</td><td><code>teacher_meta.chuyen_mon</code></td></tr>
+              <tr><td>Tổ chuyên môn</td><td class="text-center sync-arrow">↔</td><td><code>teacher_meta.group</code></td></tr>
+              <tr><td>Kiêm nhiệm / chức vụ</td><td class="text-center sync-arrow">↔</td><td><code>roles_{version}.json</code></td></tr>
+              <tr><td>Tập sự / HT / PHT</td><td class="text-center sync-arrow">↔</td><td><code>tap_su / hieu_truong / pho_hieu_truong</code></td></tr>
+              <tr><td>Lớp + GVCN</td><td class="text-center sync-arrow">↔</td><td><code>classes.json</code> + role GVCN</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
-
     <div class="col-lg-5">
       <div class="card card-soft">
         <div class="card-body">
@@ -271,15 +270,9 @@ body{background:#f0f4f8}
           <ul class="mb-3">
             <li>Giáo viên: <strong><?= (int)$stats['teachers'] ?></strong></li>
             <li>Lớp: <strong><?= (int)$stats['classes'] ?></strong></li>
-            <li>Học sinh: <strong><?= (int)$stats['students'] ?></strong> <span class="text-muted small">(không đồng bộ PCCM)</span></li>
+            <li>Học sinh: <strong><?= (int)$stats['students'] ?></strong></li>
           </ul>
-          <h6>Gợi ý quy trình</h6>
-          <ol class="small mb-0">
-            <li>Lần đầu: <strong>Kéo từ PCCM</strong> để đổ GV + lớp có sẵn.</li>
-            <li>Bổ sung SĐT, email, GVCN trên CDS.</li>
-            <li>Khi thêm/sửa GV trên CDS → <strong>Đẩy sang PCCM</strong>.</li>
-            <li>Khi thêm lớp trên PCCM → kéo lại về CDS.</li>
-          </ol>
+          <p class="small text-muted mb-0">Sau khi kéo từ PCCM, mở tab <strong>Giáo viên</strong> để xem cột Tổ và Kiêm nhiệm.</p>
         </div>
       </div>
     </div>
@@ -292,23 +285,32 @@ body{background:#f0f4f8}
     <div class="col-6 col-md-3"><div class="stat"><div class="n text-info"><?= (int)$stats['students'] ?></div><div class="text-muted small">Học sinh</div></div></div>
     <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= e($stats['year']) ?></div><div class="text-muted small">Năm học</div></div></div>
   </div>
-  <div class="card card-soft">
-    <div class="card-body">
-      <h5 class="mb-3">Vai trò CSDL trong hệ sinh thái</h5>
-      <ul class="mb-0">
-        <li><strong>Giáo viên</strong> → nguồn cho Phân công chuyên môn, Thi đua, tài khoản SSO</li>
-        <li><strong>Lớp / khối</strong> → nguồn cho thời khóa biểu, điểm danh nội trú, thống kê tiết</li>
-        <li><strong>Học sinh</strong> → nguồn cho Quản lý nội trú, học liệu, thi đua học sinh</li>
-        <li><strong>Đồng bộ PCCM</strong> → 2 chiều danh mục GV + lớp với module Chuyên môn</li>
-      </ul>
-    </div>
-  </div>
+  <div class="card card-soft"><div class="card-body">
+    <h5 class="mb-3">Vai trò CSDL</h5>
+    <ul class="mb-0">
+      <li>Giáo viên (chuyên môn, tổ, kiêm nhiệm) → PCCM, Thi đua</li>
+      <li>Lớp / khối → TKB, nội trú</li>
+      <li>Học sinh → Nội trú</li>
+    </ul>
+  </div></div>
 
 <?php elseif ($tab === 'teachers'): ?>
   <?php
     $editing = null;
     if ($edit_id) {
       foreach ($teachers as $t) if (($t['id'] ?? '') === $edit_id) { $editing = $t; break; }
+    }
+    $kn_text = '';
+    if ($editing && !empty($editing['kiem_nhiem']) && is_array($editing['kiem_nhiem'])) {
+      foreach ($editing['kiem_nhiem'] as $a) {
+        $role = trim($a['role'] ?? '');
+        if ($role === '') continue;
+        $cls = trim($a['class'] ?? '');
+        $per = $a['periods'] ?? null;
+        if ($cls !== '' && $per !== null && $per !== '') $kn_text .= $role . '|' . $cls . '|' . $per . "\n";
+        elseif ($cls !== '') $kn_text .= $role . ' (' . $cls . ")\n";
+        else $kn_text .= $role . "\n";
+      }
     }
   ?>
   <div class="row g-4">
@@ -324,6 +326,14 @@ body{background:#f0f4f8}
             <input type="text" name="code" class="form-control" value="<?= e($editing['code'] ?? '') ?>"></div>
           <div class="mb-2"><label class="form-label small">Chuyên môn</label>
             <input type="text" name="specialty" class="form-control" placeholder="Toán, Ngữ văn…" value="<?= e($editing['specialty'] ?? '') ?>"></div>
+          <div class="mb-2"><label class="form-label small">Tổ chuyên môn</label>
+            <input type="text" name="to_chuyen_mon" class="form-control" placeholder="Tổ Toán, Tổ Ngữ văn…"
+              value="<?= e($editing['to_chuyen_mon'] ?? $editing['pccm_group'] ?? '') ?>"></div>
+          <div class="mb-2">
+            <label class="form-label small">Kiêm nhiệm / chức vụ</label>
+            <textarea name="kiem_nhiem_text" class="form-control form-control-sm" rows="4" placeholder="Mỗi dòng một chức vụ, ví dụ:&#10;GVCN (6A)&#10;TTCM&#10;Tổng phụ trách Đội"><?= e(rtrim($kn_text)) ?></textarea>
+            <div class="form-text">Một dòng / chức vụ. Có lớp: <code>GVCN (6A)</code> hoặc <code>GVCN|6A|3</code></div>
+          </div>
           <div class="row g-2 mb-2">
             <div class="col-6"><label class="form-label small">Điện thoại</label>
               <input type="text" name="phone" class="form-control" value="<?= e($editing['phone'] ?? '') ?>"></div>
@@ -331,7 +341,7 @@ body{background:#f0f4f8}
               <input type="email" name="email" class="form-control" value="<?= e($editing['email'] ?? '') ?>"></div>
           </div>
           <div class="mb-2">
-            <label class="form-label small d-block">Vai trò đặc biệt</label>
+            <label class="form-label small d-block">Cờ đặc biệt</label>
             <div class="form-check form-check-inline">
               <input class="form-check-input" type="checkbox" name="is_probation" id="isp" <?= !empty($editing['role_flags']['is_probation'])?'checked':'' ?>>
               <label class="form-check-label small" for="isp">Tập sự</label></div>
@@ -357,20 +367,39 @@ body{background:#f0f4f8}
         <h5 class="mb-2">Danh sách giáo viên (<?= count($teachers) ?>)</h5>
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
-            <thead><tr><th>STT</th><th>Họ tên</th><th>Chuyên môn</th><th>Vai trò</th><th>TT</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>STT</th><th>Họ tên</th><th>Chuyên môn</th><th>Tổ</th><th>Kiêm nhiệm</th><th>Cờ</th><th>TT</th><th></th>
+              </tr>
+            </thead>
             <tbody>
             <?php if (!$teachers): ?>
-              <tr><td colspan="6" class="text-muted text-center py-4">Chưa có — thêm bên trái hoặc Đồng bộ PCCM.</td></tr>
+              <tr><td colspan="8" class="text-muted text-center py-4">Chưa có — Đồng bộ PCCM hoặc thêm bên trái.</td></tr>
             <?php else: foreach ($teachers as $i => $t):
               $flags = [];
               if (!empty($t['role_flags']['is_principal'])) $flags[] = 'HT';
               if (!empty($t['role_flags']['is_vice'])) $flags[] = 'PHT';
               if (!empty($t['role_flags']['is_probation'])) $flags[] = 'Tập sự';
+              $kn = csdl_format_kiem_nhiem($t['kiem_nhiem'] ?? []);
+              $to = $t['to_chuyen_mon'] ?? $t['pccm_group'] ?? '';
             ?>
               <tr class="<?= empty($t['active'])?'table-secondary':'' ?>">
                 <td><?= $i+1 ?></td>
-                <td><strong><?= e($t['name'] ?? '') ?></strong><?php if (!empty($t['code'])): ?><div class="small text-muted"><?= e($t['code']) ?></div><?php endif; ?></td>
-                <td><?= e($t['specialty'] ?? '—') ?></td>
+                <td>
+                  <strong><?= e($t['name'] ?? '') ?></strong>
+                  <?php if (!empty($t['code'])): ?><div class="small text-muted"><?= e($t['code']) ?></div><?php endif; ?>
+                </td>
+                <td class="small"><?= e($t['specialty'] ?? '—') ?></td>
+                <td class="small"><?= $to !== '' ? e($to) : '—' ?></td>
+                <td class="small">
+                  <?php if ($kn === ''): ?>—
+                  <?php else:
+                    foreach (explode('; ', $kn) as $piece):
+                      if ($piece === '') continue;
+                  ?>
+                    <span class="badge badge-kn"><?= e($piece) ?></span>
+                  <?php endforeach; endif; ?>
+                </td>
                 <td class="small"><?= $flags ? e(implode(', ', $flags)) : '—' ?></td>
                 <td><?= !empty($t['active']) ? '<span class="badge bg-success">Có</span>' : '<span class="badge bg-secondary">Nghỉ</span>' ?></td>
                 <td class="text-end text-nowrap">
