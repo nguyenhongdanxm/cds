@@ -46,19 +46,20 @@ if (!defined('PCCM_DATA_PATH')) {
 
 /*
  * —— QLHS / Supabase (đồng bộ học sinh · lớp) ——
- * Lấy từ project qlhshost. Service role key (nếu có) chỉ để trên server,
- * không commit public. Anon key có thể đủ nếu RLS cho phép.
+ * service_role key: chỉ đặt trên host (bỏ qua RLS), KHÔNG commit public.
+ * Trên GitHub giữ anon key; trên host thay bằng service_role.
  *
- * school_id: UUID trường trong bảng schools của Supabase.
- * Để trống → tự lấy trường đầu tiên khi kéo dữ liệu.
+ * school_id: UUID trường Xín Mần trong bảng schools.
  */
 if (!defined('SUPABASE_URL')) {
     define('SUPABASE_URL', 'https://qrxvkbcuggeitgxbbgrd.supabase.co');
 }
 if (!defined('SUPABASE_KEY')) {
-    // Anon / publishable key (từ .env qlhshost)
+    // Mặc định: anon key (bị RLS chặn students).
+    // Trên host: thay bằng service_role key từ Supabase → Settings → API.
     define('SUPABASE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyeHZrYmN1Z2dlaXRneGJiZ3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3NzUwNDYsImV4cCI6MjA4NDM1MTA0Nn0.pqKM_DeS0nUzbzgqGJfbjILAUrKOoaKbgeOESSktFTc');
 }
 if (!defined('QLHS_SCHOOL_ID')) {
-    define('QLHS_SCHOOL_ID', ''); // điền UUID trường nếu đã biết
+    // PTDTNT THCS&THPT Xín Mần
+    define('QLHS_SCHOOL_ID', '584c3e94-ff37-43fe-9185-86d3cc59b858');
 }
