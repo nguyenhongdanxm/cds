@@ -2,6 +2,7 @@
 require_once 'includes/auth.php';
 require_once 'includes/csdl_store.php';
 require_once 'includes/csdl_sync.php';
+require_once 'includes/csdl_import_teachers.php';
 require_login();
 $user = current_user();
 $tab = $_GET['tab'] ?? 'overview';
@@ -21,6 +22,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $r = csdl_sync_to_pccm();
         flash($r['message'], $r['ok'] ? 'success' : 'danger');
         header('Location: ' . BASE_URL . 'csdl.php?tab=sync');
+        exit;
+    }
+
+    if ($action === 'teacher_import_csv') {
+        if (empty($_FILES['csv']['tmp_name']) || !is_uploaded_file($_FILES['csv']['tmp_name'])) {
+            flash('Chưa chọn file CSV.', 'danger');
+        } else {
+            $r = csdl_import_teachers_from_csv_file($_FILES['csv']['tmp_name']);
+            flash($r['message'], $r['ok'] ? 'success' : 'danger');
+        }
+        header('Location: ' . BASE_URL . 'csdl.php?tab=teachers');
         exit;
     }
 
@@ -281,9 +293,9 @@ body{background:#f0f4f8}
           <h6 class="mb-2">Thứ tự khuyến nghị</h6>
           <ol class="small mb-0 ps-3">
             <li>Kéo <strong>PCCM → CDS</strong> (GV + lớp + kiêm nhiệm)</li>
-            <li>Bổ sung / chỉnh học sinh trên tab <em>Học sinh</em></li>
-            <li>Kiểm tra trên các tab</li>
-            <li>Nếu cần: <strong>CDS → PCCM</strong> để đẩy ngược</li>
+            <li>Nhập hồ sơ hành chính từ CSV (tab Giáo viên) — không đè PCCM</li>
+            <li>Bổ sung học sinh trên tab <em>Học sinh</em></li>
+            <li>Nếu cần: <strong>CDS → PCCM</strong></li>
           </ol>
         </div>
       </div>
@@ -304,6 +316,7 @@ body{background:#f0f4f8}
       <li>Lớp / khối → TKB, nội trú, phân công</li>
       <li>Học sinh → Nội trú, thống kê</li>
       <li>Đồng bộ 2 chiều với Phân công chuyên môn (PCCM)</li>
+      <li>Nhập CSV hồ sơ GV: gộp theo tên, giữ dữ liệu PCCM</li>
     </ul>
   </div></div>
 
@@ -326,6 +339,29 @@ body{background:#f0f4f8}
       }
     }
   ?>
+
+  <div class="card card-soft mb-4">
+    <div class="card-body">
+      <h5 class="mb-2"><i class="bi bi-file-earmark-excel text-success"></i> Nhập cán bộ / GV / NV từ CSV</h5>
+      <p class="small text-muted mb-3">
+        Excel → <strong>Lưu thành CSV UTF-8</strong> (cột giống mẫu: STT, Họ và tên, Ngày sinh, Giới tính, Dân tộc, SĐT, Email, Quê quán, Địa chỉ, Cấp học, Môn dạy, Chức vụ…).
+        Hệ thống <strong>ghép theo họ tên</strong>: bổ sung hồ sơ hành chính;
+        <strong>không xóa</strong> chuyên môn đã có, tổ chuyên môn, kiêm nhiệm, cờ HT/PHT/tập sự từ PCCM.
+        Môn dạy Excel chỉ đổ vào khi chuyên môn đang trống. Chức vụ Excel lưu riêng (<code>chuc_vu</code>), không đè kiêm nhiệm.
+      </p>
+      <form method="post" enctype="multipart/form-data" class="row g-2 align-items-end" onsubmit="return confirm('Nhập CSV? Dữ liệu PCCM (tổ, kiêm nhiệm, chuyên môn đã có) sẽ được giữ.')">
+        <input type="hidden" name="action" value="teacher_import_csv">
+        <div class="col-md-8">
+          <label class="form-label small">File CSV</label>
+          <input type="file" name="csv" class="form-control" accept=".csv,text/csv" required>
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-success w-100"><i class="bi bi-upload"></i> Nhập & gộp</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="row g-4">
     <div class="col-lg-4">
       <div class="card card-soft"><div class="card-body">
@@ -387,7 +423,7 @@ body{background:#f0f4f8}
             </thead>
             <tbody>
             <?php if (!$teachers): ?>
-              <tr><td colspan="8" class="text-muted text-center py-4">Chưa có — Đồng bộ PCCM hoặc thêm bên trái.</td></tr>
+              <tr><td colspan="8" class="text-muted text-center py-4">Chưa có — Đồng bộ PCCM, nhập CSV hoặc thêm bên trái.</td></tr>
             <?php else: foreach ($teachers as $i => $t):
               $flags = [];
               if (!empty($t['role_flags']['is_principal'])) $flags[] = 'HT';
@@ -401,6 +437,7 @@ body{background:#f0f4f8}
                 <td>
                   <strong><?= e($t['name'] ?? '') ?></strong>
                   <?php if (!empty($t['code'])): ?><div class="small text-muted"><?= e($t['code']) ?></div><?php endif; ?>
+                  <?php if (!empty($t['chuc_vu'])): ?><div class="small text-secondary"><?= e($t['chuc_vu']) ?></div><?php endif; ?>
                 </td>
                 <td class="small"><?= e($t['specialty'] ?? '—') ?></td>
                 <td class="small"><?= $to !== '' ? e($to) : '—' ?></td>
