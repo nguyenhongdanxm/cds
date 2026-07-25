@@ -31,10 +31,32 @@ body::before{
     radial-gradient(circle at 82% 75%, rgba(70,130,255,.14) 0%, transparent 38%);
 }
 body::after{
-  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.18;
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.14;
   background-image:url("data:image/svg+xml,%3Csvg width='70' height='70' viewBox='0 0 70 70' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M35 2 L68 18 L68 52 L35 68 L2 52 L2 18 Z' fill='none' stroke='%2350a0ff' stroke-width='0.5'/%3E%3C/svg%3E");
   background-size:80px 80px;
 }
+
+/* —— Nền số nhị phân 0101 chạy dọc —— */
+.binary-rain{
+  position:fixed;inset:0;z-index:0;
+  pointer-events:none;overflow:hidden;
+  opacity:.13;
+}
+.binary-col{
+  position:absolute;top:0;
+  font-family:'Courier New',Consolas,monospace;
+  font-size:12px;line-height:1.15;font-weight:600;
+  color:rgba(150,210,255,.95);
+  white-space:pre;
+  text-shadow:0 0 6px rgba(80,160,255,.35);
+  animation:binaryFall linear infinite;
+  will-change:transform;
+}
+@keyframes binaryFall{
+  0%{transform:translateY(-120%)}
+  100%{transform:translateY(120vh)}
+}
+
 .topbar,.hero,.stage,.site-footer{position:relative;z-index:2}
 
 .topbar{
@@ -88,11 +110,6 @@ body::after{
 .orbit-track.t3{width:36%;height:36%;border-color:rgba(120,190,255,.05)}
 .orbit-track.t4{width:74%;height:74%;border:1px dashed rgba(255,255,255,.04)}
 
-/*
- * Vòng kết nối dưới icon vệ tinh
- * --r vệ tinh ≈ 34% → đường kính vòng ≈ 68%
- * Vệt sáng (conic) xoay nhẹ → cảm giác liên kết
- */
 .sat-link{
   position:absolute;left:50%;top:50%;
   width:68%;height:68%;
@@ -100,15 +117,11 @@ body::after{
   border-radius:50%;
   pointer-events:none;z-index:2;
 }
-/* Nền vòng mảnh, đều */
 .sat-link::before{
   content:'';position:absolute;inset:0;border-radius:50%;
   border:1.5px solid rgba(140,200,255,.22);
-  box-shadow:
-    0 0 12px rgba(80,160,255,.12),
-    inset 0 0 12px rgba(80,160,255,.06);
+  box-shadow:0 0 12px rgba(80,160,255,.12),inset 0 0 12px rgba(80,160,255,.06);
 }
-/* Vệt hơi sáng xoay chậm */
 .sat-link .trail{
   position:absolute;inset:-2px;border-radius:50%;
   background:conic-gradient(
@@ -132,10 +145,7 @@ body::after{
   opacity:.9;
 }
 .sat-link .trail.t2{
-  animation-duration:42s;
-  animation-direction:reverse;
-  opacity:.55;
-  filter:blur(0.5px);
+  animation-duration:42s;animation-direction:reverse;opacity:.55;filter:blur(.5px);
 }
 @keyframes trailSpin{to{transform:rotate(360deg)}}
 
@@ -145,30 +155,21 @@ body::after{
   transform:translate(-50%,-50%);
   pointer-events:none;z-index:3;
 }
-.unlock-layer .gear-ring{
-  position:absolute;inset:0;
-  animation:spinReverse 56s linear infinite;
-}
-.unlock-layer .globe-ring{
-  position:absolute;inset:0;
-  animation:spinReverse 72s linear infinite;
-}
+.unlock-layer .gear-ring{position:absolute;inset:0;animation:spinReverse 56s linear infinite}
+.unlock-layer .globe-ring{position:absolute;inset:0;animation:spinReverse 72s linear infinite}
 @keyframes spinReverse{to{transform:rotate(-360deg)}}
-
 .unlock-layer .gear-ring svg{
-  width:100%;height:100%;
-  opacity:.28;
+  width:100%;height:100%;opacity:.28;
   filter:drop-shadow(0 0 6px rgba(100,180,255,.25));
 }
 .unlock-layer .globe-dot{
   position:absolute;left:50%;top:50%;
   width:22px;height:22px;margin:-11px;
   display:flex;align-items:center;justify-content:center;
-  color:rgba(180,220,255,.55);
-  font-size:1rem;
+  color:rgba(180,220,255,.55);font-size:1rem;
   filter:drop-shadow(0 0 4px rgba(80,160,255,.35));
   transform:rotate(var(--a)) translateY(calc(-1 * var(--gr))) rotate(calc(-1 * var(--a)));
-  --gr: 46%;
+  --gr:46%;
 }
 .unlock-layer .globe-dot i{font-size:1.05rem}
 
@@ -177,13 +178,13 @@ body::after{
   transform:translate(-50%,-50%);pointer-events:none;z-index:1;opacity:.18;border-radius:50%;
   background:conic-gradient(from 0deg,
     transparent 0deg,rgba(100,180,255,.12) 6deg, transparent 14deg,
-    transparent 45deg, rgba(100,180,255,.1) 52deg, transparent 60deg,
-    transparent 90deg, rgba(100,180,255,.11) 97deg, transparent 105deg,
-    transparent 135deg, rgba(100,180,255,.08) 142deg, transparent 150deg,
+    transparent 45deg,rgba(100,180,255,.1) 52deg, transparent 60deg,
+    transparent 90deg,rgba(100,180,255,.11) 97deg, transparent 105deg,
+    transparent 135deg,rgba(100,180,255,.08) 142deg, transparent 150deg,
     transparent 180deg,rgba(100,180,255,.12) 187deg, transparent 195deg,
-    transparent 225deg, rgba(100,180,255,.09) 232deg, transparent 240deg,
+    transparent 225deg,rgba(100,180,255,.09) 232deg, transparent 240deg,
     transparent 270deg,rgba(100,180,255,.11) 277deg, transparent 285deg,
-    transparent 315deg, rgba(100,180,255,.08) 322deg, transparent 330deg, transparent 360deg);
+    transparent 315deg,rgba(100,180,255,.08) 322deg, transparent 330deg, transparent 360deg);
   animation:spinOrbit 70s linear infinite;
 }
 @keyframes spinOrbit{to{transform:translate(-50%,-50%) rotate(360deg)}}
@@ -193,12 +194,12 @@ body::after{
   border-radius:50%;pointer-events:none;z-index:3;
   background:radial-gradient(circle,#fff 0%,#6ec8ff 45%,transparent 70%);
   box-shadow:0 0 8px #5eb8ff;opacity:.7;
-  --pr: calc(var(--size) * 0.32);
+  --pr:calc(var(--size)*0.32);
   animation:planetOrbit var(--dur,28s) linear infinite;
   transform:rotate(var(--a0,0deg)) translateY(calc(-1 * var(--pr)));
 }
 @keyframes planetOrbit{
-  to{transform:rotate(calc(var(--a0,0deg) + 360deg)) translateY(calc(-1 * var(--pr)))}
+  to{transform:rotate(calc(var(--a0,0deg)+360deg)) translateY(calc(-1 * var(--pr)))}
 }
 
 .eco-core{
@@ -233,42 +234,78 @@ body::after{
 
 .eco-node{
   position:absolute;left:50%;top:50%;width:0;height:0;
-  --r: calc(var(--size) * 0.34);
-  --b: 32px;
-  --gap: 14px;
+  --r:calc(var(--size)*0.34);
+  --b:32px;
+  --gap:14px;
   transform:rotate(var(--angle)) translateY(calc(-1 * var(--r))) rotate(calc(-1 * var(--angle)));
   text-decoration:none;color:#fff;z-index:6;
 }
-.eco-node:hover,.eco-node:focus-within{filter:brightness(1.08);color:#fff}
+.eco-node:hover,.eco-node:focus-within{color:#fff}
 
+/* —— Icon vệ tinh: glass + glow; hover nổi + toả sáng —— */
 .eco-node .bubble{
   position:absolute;z-index:2;
   left:calc(-1 * var(--b));
   top:calc(-1 * var(--b));
-  width:calc(var(--b) * 2);
-  height:calc(var(--b) * 2);
+  width:calc(var(--b)*2);
+  height:calc(var(--b)*2);
   border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(160deg,#fff 0%,#f0f7ff 50%,#e2efff 100%);
+  background:
+    radial-gradient(circle at 32% 28%, #fff 0%, #f5faff 45%, #e3f0ff 100%);
   color:var(--node-color,#0d6efd);
   font-size:1.45rem;
-  box-shadow:0 8px 20px rgba(0,0,0,.35),0 0 0 3px rgba(255,255,255,.95),0 0 14px rgba(80,170,255,.28);
-  transition:transform .2s,box-shadow .2s;
+  border:2.5px solid rgba(255,255,255,.95);
+  box-shadow:
+    0 4px 0 rgba(0,40,100,.12),
+    0 10px 24px rgba(0,0,0,.32),
+    0 0 0 1px rgba(255,255,255,.5),
+    0 0 18px color-mix(in srgb, var(--node-color) 35%, transparent),
+    inset 0 2px 10px rgba(255,255,255,.85),
+    inset 0 -3px 8px rgba(0,60,140,.06);
+  transition:
+    transform .3s cubic-bezier(.34,1.4,.64,1),
+    box-shadow .3s ease,
+    filter .3s ease;
   animation:satBob 4.5s ease-in-out infinite;
   animation-delay:var(--delay,0s);
 }
-@keyframes satBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
-.eco-node:hover .bubble,.eco-node.show-label .bubble{
+.eco-node .bubble i{
+  filter:drop-shadow(0 1px 2px rgba(0,40,100,.15));
+  transition:transform .3s cubic-bezier(.34,1.4,.64,1);
+}
+@keyframes satBob{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-2px)}
+}
+.eco-node:hover .bubble,
+.eco-node.show-label .bubble{
+  animation:none;
+  transform:translateY(-9px) scale(1.14);
+  filter:brightness(1.06);
+  box-shadow:
+    0 8px 0 rgba(0,40,100,.1),
+    0 18px 36px rgba(0,0,0,.35),
+    0 0 0 3px #fff,
+    0 0 22px var(--node-color),
+    0 0 48px color-mix(in srgb, var(--node-color) 70%, transparent),
+    0 0 80px color-mix(in srgb, var(--node-color) 35%, transparent),
+    inset 0 2px 12px rgba(255,255,255,.95);
+}
+.eco-node:hover .bubble i{
   transform:scale(1.08);
-  box-shadow:0 10px 24px rgba(0,0,0,.4),0 0 0 3px #fff,0 0 18px var(--node-color);
 }
 .eco-node .bubble .num{
-  position:absolute;top:-4px;right:-4px;
-  min-width:20px;height:20px;padding:0 4px;border-radius:999px;
-  background:var(--node-color);color:#fff;font-size:.58rem;font-weight:800;
+  position:absolute;top:-5px;right:-5px;
+  min-width:22px;height:22px;padding:0 5px;border-radius:999px;
+  background:linear-gradient(160deg, var(--node-color), color-mix(in srgb, var(--node-color) 70%, #000));
+  color:#fff;font-size:.58rem;font-weight:800;
   display:flex;align-items:center;justify-content:center;
-  border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.3);
+  border:2px solid #fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.3),0 0 8px color-mix(in srgb, var(--node-color) 50%, transparent);
+  transition:transform .3s cubic-bezier(.34,1.4,.64,1);
 }
+.eco-node:hover .bubble .num{transform:scale(1.12)}
 
 .eco-node .text-block{
   position:absolute;z-index:1;
@@ -277,16 +314,11 @@ body::after{
   width:max-content;
   max-width:min(24vw, 260px);
   pointer-events:none;
+  transition:transform .3s ease;
 }
-.eco-node.side-right .text-block{
-  left:calc(var(--b) + var(--gap));
-  text-align:left;
-}
-.eco-node.side-left .text-block{
-  right:calc(var(--b) + var(--gap));
-  left:auto;
-  text-align:right;
-}
+.eco-node:hover .text-block{transform:translateY(calc(-50% - 4px))}
+.eco-node.side-right .text-block{left:calc(var(--b)+var(--gap));text-align:left}
+.eco-node.side-left .text-block{right:calc(var(--b)+var(--gap));left:auto;text-align:right}
 
 .eco-node .label{
   font-size:clamp(.78rem,1.7vw,1rem);
@@ -303,7 +335,8 @@ body::after{
   text-shadow:0 1px 8px rgba(0,0,0,.75);
   white-space:nowrap;
 }
-.eco-node.soon .bubble{opacity:.72;filter:grayscale(.25)}
+.eco-node.soon .bubble{opacity:.78;filter:grayscale(.2)}
+.eco-node.soon:hover .bubble{opacity:1;filter:grayscale(0)}
 .eco-node.soon .badge-soon{
   display:inline-block;font-size:.48rem;background:rgba(0,0,0,.55);
   border-radius:4px;padding:.06rem .28rem;margin-top:.08rem;font-weight:600;
@@ -330,6 +363,7 @@ body::after{
   .planet-dot{display:none}
   .unlock-layer{width:50%;height:50%;opacity:.85}
   .sat-link{width:68%;height:68%}
+  .binary-rain{opacity:.08}
   .eco-node .text-block{
     opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;z-index:8;
     background:rgba(4,24,55,.92);border:1px solid rgba(255,255,255,.22);
@@ -362,6 +396,8 @@ body::after{
 </head>
 <body>
 
+<div class="binary-rain" id="binaryRain" aria-hidden="true"></div>
+
 <div class="topbar">
   <div class="clock" id="liveClock"><i class="bi bi-clock"></i> <span id="clockText">—</span></div>
   <div>
@@ -390,7 +426,6 @@ body::after{
     <div class="planet-dot" style="--a0:150deg;--dur:34s;--pr:calc(var(--size)*0.28)"></div>
     <div class="planet-dot" style="--a0:260deg;--dur:22s;--pr:calc(var(--size)*0.22)"></div>
 
-    <!-- Vòng kết nối dưới icon vệ tinh: đường mảnh + vệt sáng xoay -->
     <div class="sat-link" aria-hidden="true">
       <div class="trail"></div>
       <div class="trail t2"></div>
@@ -507,6 +542,7 @@ body::after{
 
 <script>
 (function(){
+  /* Đồng hồ */
   var days = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
   function pad(n){ return n < 10 ? '0'+n : ''+n; }
   function tick(){
@@ -519,6 +555,25 @@ body::after{
   }
   tick(); setInterval(tick, 1000);
 
+  /* Mưa số nhị phân */
+  (function binaryRain(){
+    var host = document.getElementById('binaryRain');
+    if (!host) return;
+    var cols = Math.min(28, Math.max(12, Math.floor(window.innerWidth / 48)));
+    var html = '';
+    for (var i = 0; i < cols; i++) {
+      var len = 18 + Math.floor(Math.random() * 28);
+      var bits = '';
+      for (var j = 0; j < len; j++) bits += (Math.random() > 0.5 ? '1' : '0') + '\n';
+      var left = (i / cols) * 100 + (Math.random() * 2);
+      var dur = 14 + Math.random() * 18;
+      var delay = -Math.random() * dur;
+      html += '<div class="binary-col" style="left:'+left+'%;animation-duration:'+dur+'s;animation-delay:'+delay+'s">'+bits+'</div>';
+    }
+    host.innerHTML = html;
+  })();
+
+  /* Click / hover vệ tinh */
   var nodes = document.querySelectorAll('.eco-node');
   nodes.forEach(function(el){
     el.addEventListener('click', function(e){
