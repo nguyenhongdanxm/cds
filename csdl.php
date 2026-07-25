@@ -1,15 +1,28 @@
 <?php
 require_once 'includes/auth.php';
 require_once 'includes/csdl_store.php';
+require_once 'includes/csdl_sync.php';
 require_login();
 $user = current_user();
 $tab = $_GET['tab'] ?? 'overview';
-$allowed = ['overview', 'teachers', 'classes', 'students', 'years'];
+$allowed = ['overview', 'teachers', 'classes', 'students', 'years', 'sync'];
 if (!in_array($tab, $allowed, true)) $tab = 'overview';
 
-/* —— Xử lý POST —— */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+
+    if ($action === 'sync_from_pccm') {
+        $r = csdl_sync_from_pccm();
+        flash($r['message'], $r['ok'] ? 'success' : 'danger');
+        header('Location: ' . BASE_URL . 'csdl.php?tab=sync');
+        exit;
+    }
+    if ($action === 'sync_to_pccm') {
+        $r = csdl_sync_to_pccm();
+        flash($r['message'], $r['ok'] ? 'success' : 'danger');
+        header('Location: ' . BASE_URL . 'csdl.php?tab=sync');
+        exit;
+    }
 
     if ($action === 'teacher_save') {
         csdl_teacher_save([
@@ -99,7 +112,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'is_current' => !empty($_POST['is_current']),
         ]);
         if (!empty($_POST['is_current'])) {
-            // đảm bảo chỉ 1 năm current
             $id = trim($_POST['id'] ?? '');
             if ($id) csdl_year_set_current($id);
         }
@@ -115,6 +127,7 @@ $classes = csdl_classes_all();
 $students = csdl_students_all();
 $years = csdl_years_all();
 $edit_id = $_GET['edit'] ?? '';
+$sync_info = csdl_sync_pccm_path_info();
 
 function teacher_name_by_id($id, $teachers) {
     foreach ($teachers as $t) {
@@ -147,6 +160,7 @@ body{background:#f0f4f8}
 .nav-pills .nav-link.active{background:var(--primary)}
 .card-soft{background:#fff;border:none;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
 .table thead th{font-size:.8rem;text-transform:uppercase;letter-spacing:.03em;color:#667}
+.sync-arrow{font-size:1.5rem;color:var(--primary)}
 </style>
 </head>
 <body>
@@ -178,9 +192,100 @@ body{background:#f0f4f8}
     <li class="nav-item"><a class="nav-link <?= $tab==='classes'?'active':'' ?>" href="?tab=classes"><i class="bi bi-building"></i> Lớp / khối</a></li>
     <li class="nav-item"><a class="nav-link <?= $tab==='students'?'active':'' ?>" href="?tab=students"><i class="bi bi-mortarboard"></i> Học sinh</a></li>
     <li class="nav-item"><a class="nav-link <?= $tab==='years'?'active':'' ?>" href="?tab=years"><i class="bi bi-calendar3"></i> Năm học</a></li>
+    <li class="nav-item"><a class="nav-link <?= $tab==='sync'?'active':'' ?>" href="?tab=sync"><i class="bi bi-arrow-left-right"></i> Đồng bộ PCCM</a></li>
   </ul>
 
-<?php if ($tab === 'overview'): ?>
+<?php if ($tab === 'sync'): ?>
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="card card-soft mb-3">
+        <div class="card-body">
+          <h5 class="mb-3"><i class="bi bi-arrow-left-right text-primary"></i> Đồng bộ 2 chiều với Phân công chuyên môn</h5>
+
+          <?php if (!$sync_info['ready']): ?>
+            <div class="alert alert-warning">
+              <strong>Chưa kết nối được thư mục data PCCM.</strong><n></n>
+              <div class="small mt-2">Path hiện tại: <code><?= e($sync_info['path'] ?: '(trống)') ?></code></div>
+              <div class="small mt-2">Trên host, mở <code>includes/config.php</code> và đặt đúng đường dẫn, ví dụ:</div>
+              <pre class="bg-light p-2 rounded small mt-2 mb-0">define('PCCM_DATA_PATH', '/home/capnachi/public_html/pccm/data');</pre>
+              <div class="small mt-2">Tìm path thật bằng lệnh: <code>find /home/capnachi -type d -name pccm 2>/dev/null</code></div>
+            </div>
+          <?php else: ?>
+            <div class="alert alert-success py-2 small mb-3">
+              <i class="bi bi-check-circle"></i> Đã thấy data PCCM:
+              <code><?= e($sync_info['path']) ?></code>
+              · teachers: <?= $sync_info['teachers'] ? '✓' : '—' ?>
+              · meta: <?= $sync_info['meta'] ? '✓' : '—' ?>
+              · classes: <?= $sync_info['classes'] ? '✓' : '—' ?>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="border rounded-3 p-3 h-100 bg-light">
+                  <div class="fw-bold mb-1"><i class="bi bi-download text-success"></i> PCCM → CDS</div>
+                  <p class="small text-muted mb-3">Kéo danh sách giáo viên + lớp từ Phân công chuyên môn vào CSDL dùng chung. Khớp theo họ tên / tên lớp; cập nhật nếu đã có.</p>
+                  <form method="post" onsubmit="return confirm('Kéo dữ liệu từ PCCM vào CDS?\nGiáo viên/lớp trùng tên sẽ được cập nhật.')">
+                    <input type="hidden" name="action" value="sync_from_pccm">
+                    <button class="btn btn-success w-100" type="submit"><i class="bi bi-cloud-download"></i> Kéo từ PCCM</button>
+                  </form>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="border rounded-3 p-3 h-100 bg-light">
+                  <div class="fw-bold mb-1"><i class="bi bi-upload text-primary"></i> CDS → PCCM</div>
+                  <p class="small text-muted mb-3">Đẩy giáo viên (đang công tác) + lớp (đang hoạt động) từ CSDL sang PCCM. Giữ nguyên phân công tiết đã có trong PCCM.</p>
+                  <form method="post" onsubmit="return confirm('Đẩy dữ liệu CDS sang PCCM?\nDanh sách GV/lớp trên PCCM sẽ được ghi đè theo CDS.')">
+                    <input type="hidden" name="action" value="sync_to_pccm">
+                    <button class="btn btn-primary w-100" type="submit"><i class="bi bi-cloud-upload"></i> Đẩy sang PCCM</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <div class="card card-soft">
+        <div class="card-body">
+          <h6 class="mb-2">Ánh xạ dữ liệu</h6>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>CDS</th><th></th><th>PCCM</th></tr></thead>
+              <tbody>
+                <tr><td>Họ tên GV</td><td class="text-center sync-arrow">↔</td><td><code>teachers.json</code> (mảng tên)</td></tr>
+                <tr><td>Chuyên môn</td><td class="text-center sync-arrow">↔</td><td><code>teacher_meta.chuyen_mon</code></td></tr>
+                <tr><td>Tập sự / HT / PHT</td><td class="text-center sync-arrow">↔</td><td><code>tap_su / hieu_truong / pho_hieu_truong</code></td></tr>
+                <tr><td>Tên lớp</td><td class="text-center sync-arrow">↔</td><td><code>classes.json</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small text-muted mt-2 mb-0">Phân công tiết (<code>assignments_*.json</code>) <strong>không</strong> bị ghi đè khi đồng bộ danh mục.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card card-soft">
+        <div class="card-body">
+          <h6>Hiện trạng CDS</h6>
+          <ul class="mb-3">
+            <li>Giáo viên: <strong><?= (int)$stats['teachers'] ?></strong></li>
+            <li>Lớp: <strong><?= (int)$stats['classes'] ?></strong></li>
+            <li>Học sinh: <strong><?= (int)$stats['students'] ?></strong> <span class="text-muted small">(không đồng bộ PCCM)</span></li>
+          </ul>
+          <h6>Gợi ý quy trình</h6>
+          <ol class="small mb-0">
+            <li>Lần đầu: <strong>Kéo từ PCCM</strong> để đổ GV + lớp có sẵn.</li>
+            <li>Bổ sung SĐT, email, GVCN trên CDS.</li>
+            <li>Khi thêm/sửa GV trên CDS → <strong>Đẩy sang PCCM</strong>.</li>
+            <li>Khi thêm lớp trên PCCM → kéo lại về CDS.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<?php elseif ($tab === 'overview'): ?>
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$stats['teachers'] ?></div><div class="text-muted small">Giáo viên</div></div></div>
     <div class="col-6 col-md-3"><div class="stat"><div class="n text-success"><?= (int)$stats['classes'] ?></div><div class="text-muted small">Lớp học</div></div></div>
@@ -194,10 +299,8 @@ body{background:#f0f4f8}
         <li><strong>Giáo viên</strong> → nguồn cho Phân công chuyên môn, Thi đua, tài khoản SSO</li>
         <li><strong>Lớp / khối</strong> → nguồn cho thời khóa biểu, điểm danh nội trú, thống kê tiết</li>
         <li><strong>Học sinh</strong> → nguồn cho Quản lý nội trú, học liệu, thi đua học sinh</li>
-        <li><strong>Năm học</strong> → khung thời gian dùng chung mọi module</li>
+        <li><strong>Đồng bộ PCCM</strong> → 2 chiều danh mục GV + lớp với module Chuyên môn</li>
       </ul>
-      <hr>
-      <p class="small text-muted mb-0">Dữ liệu lưu tại thư mục <code>data/</code> (JSON). Có thể chuyển MySQL sau mà không đổi giao diện.</p>
     </div>
   </div>
 
@@ -210,365 +313,275 @@ body{background:#f0f4f8}
   ?>
   <div class="row g-4">
     <div class="col-lg-4">
-      <div class="card card-soft">
-        <div class="card-body">
-          <h5 class="mb-3"><?= $editing ? 'Sửa giáo viên' : 'Thêm giáo viên' ?></h5>
-          <form method="post">
-            <input type="hidden" name="action" value="teacher_save">
-            <input type="hidden" name="id" value="<?= e($editing['id'] ?? '') ?>">
-            <div class="mb-2">
-              <label class="form-label small">Họ và tên *</label>
-              <input type="text" name="name" class="form-control" required value="<?= e($editing['name'] ?? '') ?>">
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Mã GV</label>
-              <input type="text" name="code" class="form-control" value="<?= e($editing['code'] ?? '') ?>">
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Chuyên môn</label>
-              <input type="text" name="specialty" class="form-control" placeholder="Toán, Ngữ văn…" value="<?= e($editing['specialty'] ?? '') ?>">
-            </div>
-            <div class="row g-2 mb-2">
-              <div class="col-6">
-                <label class="form-label small">Điện thoại</label>
-                <input type="text" name="phone" class="form-control" value="<?= e($editing['phone'] ?? '') ?>">
-              </div>
-              <div class="col-6">
-                <label class="form-label small">Email</label>
-                <input type="email" name="email" class="form-control" value="<?= e($editing['email'] ?? '') ?>">
-              </div>
-            </div>
-            <div class="mb-2">
-              <label class="form-label small d-block">Vai trò đặc biệt</label>
-              <div class="form-check form-check-inline">
-                <input class="form-check-input" type="checkbox" name="is_probation" id="isp" <?= !empty($editing['role_flags']['is_probation'])?'checked':'' ?>>
-                <label class="form-check-label small" for="isp">Tập sự (−2 tiết)</label>
-              </div>
-              <div class="form-check form-check-inline">
-                <input class="form-check-input" type="checkbox" name="is_principal" id="iht" <?= !empty($editing['role_flags']['is_principal'])?'checked':'' ?>>
-                <label class="form-check-label small" for="iht">Hiệu trưởng</label>
-              </div>
-              <div class="form-check form-check-inline">
-                <input class="form-check-input" type="checkbox" name="is_vice" id="ivc" <?= !empty($editing['role_flags']['is_vice'])?'checked':'' ?>>
-                <label class="form-check-label small" for="ivc">Phó HT</label>
-              </div>
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Ghi chú</label>
-              <input type="text" name="note" class="form-control" value="<?= e($editing['note'] ?? '') ?>">
-            </div>
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" name="active" id="tact" <?= ($editing === null || !empty($editing['active']))?'checked':'' ?>>
-              <label class="form-check-label" for="tact">Đang công tác</label>
-            </div>
-            <button class="btn btn-primary w-100" type="submit"><i class="bi bi-save"></i> Lưu</button>
-            <?php if ($editing): ?>
-              <a href="?tab=teachers" class="btn btn-outline-secondary w-100 mt-2">Hủy</a>
-            <?php endif; ?>
-          </form>
-        </div>
-      </div>
+      <div class="card card-soft"><div class="card-body">
+        <h5 class="mb-3"><?= $editing ? 'Sửa giáo viên' : 'Thêm giáo viên' ?></h5>
+        <form method="post">
+          <input type="hidden" name="action" value="teacher_save">
+          <input type="hidden" name="id" value="<?= e($editing['id'] ?? '') ?>">
+          <div class="mb-2"><label class="form-label small">Họ và tên *</label>
+            <input type="text" name="name" class="form-control" required value="<?= e($editing['name'] ?? '') ?>"></div>
+          <div class="mb-2"><label class="form-label small">Mã GV</label>
+            <input type="text" name="code" class="form-control" value="<?= e($editing['code'] ?? '') ?>"></div>
+          <div class="mb-2"><label class="form-label small">Chuyên môn</label>
+            <input type="text" name="specialty" class="form-control" placeholder="Toán, Ngữ văn…" value="<?= e($editing['specialty'] ?? '') ?>"></div>
+          <div class="row g-2 mb-2">
+            <div class="col-6"><label class="form-label small">Điện thoại</label>
+              <input type="text" name="phone" class="form-control" value="<?= e($editing['phone'] ?? '') ?>"></div>
+            <div class="col-6"><label class="form-label small">Email</label>
+              <input type="email" name="email" class="form-control" value="<?= e($editing['email'] ?? '') ?>"></div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small d-block">Vai trò đặc biệt</label>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" name="is_probation" id="isp" <?= !empty($editing['role_flags']['is_probation'])?'checked':'' ?>>
+              <label class="form-check-label small" for="isp">Tập sự</label></div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" name="is_principal" id="iht" <?= !empty($editing['role_flags']['is_principal'])?'checked':'' ?>>
+              <label class="form-check-label small" for="iht">Hiệu trưởng</label></div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" name="is_vice" id="ivc" <?= !empty($editing['role_flags']['is_vice'])?'checked':'' ?>>
+              <label class="form-check-label small" for="ivc">Phó HT</label></div>
+          </div>
+          <div class="mb-2"><label class="form-label small">Ghi chú</label>
+            <input type="text" name="note" class="form-control" value="<?= e($editing['note'] ?? '') ?>"></div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="active" id="tact" <?= ($editing === null || !empty($editing['active']))?'checked':'' ?>>
+            <label class="form-check-label" for="tact">Đang công tác</label></div>
+          <button class="btn btn-primary w-100" type="submit"><i class="bi bi-save"></i> Lưu</button>
+          <?php if ($editing): ?><a href="?tab=teachers" class="btn btn-outline-secondary w-100 mt-2">Hủy</a><?php endif; ?>
+        </form>
+      </div></div>
     </div>
     <div class="col-lg-8">
-      <div class="card card-soft">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <h5 class="mb-0">Danh sách giáo viên (<?= count($teachers) ?>)</h5>
-          </div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead><tr><th>STT</th><th>Họ tên</th><th>Chuyên môn</th><th>Vai trò</th><th>TT</th><th></th></tr></thead>
-              <tbody>
-              <?php if (!$teachers): ?>
-                <tr><td colspan="6" class="text-muted text-center py-4">Chưa có giáo viên — hãy thêm bên trái.</td></tr>
-              <?php else: foreach ($teachers as $i => $t):
-                $flags = [];
-                if (!empty($t['role_flags']['is_principal'])) $flags[] = 'HT';
-                if (!empty($t['role_flags']['is_vice'])) $flags[] = 'PHT';
-                if (!empty($t['role_flags']['is_probation'])) $flags[] = 'Tập sự';
-              ?>
-                <tr class="<?= empty($t['active'])?'table-secondary':'' ?>">
-                  <td><?= $i+1 ?></td>
-                  <td>
-                    <strong><?= e($t['name'] ?? '') ?></strong>
-                    <?php if (!empty($t['code'])): ?><div class="small text-muted"><?= e($t['code']) ?></div><?php endif; ?>
-                  </td>
-                  <td><?= e($t['specialty'] ?? '—') ?></td>
-                  <td class="small"><?= $flags ? e(implode(', ', $flags)) : '—' ?></td>
-                  <td><?= !empty($t['active']) ? '<span class="badge bg-success">Có</span>' : '<span class="badge bg-secondary">Nghỉ</span>' ?></td>
-                  <td class="text-end text-nowrap">
-                    <a class="btn btn-sm btn-outline-primary" href="?tab=teachers&edit=<?= urlencode($t['id']) ?>"><i class="bi bi-pencil"></i></a>
-                    <form method="post" class="d-inline" onsubmit="return confirm('Xóa giáo viên này?')">
-                      <input type="hidden" name="action" value="teacher_delete">
-                      <input type="hidden" name="id" value="<?= e($t['id']) ?>">
-                      <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
-                    </form>
-                  </td>
-                </tr>
-              <?php endforeach; endif; ?>
-              </tbody>
-            </table>
-          </div>
+      <div class="card card-soft"><div class="card-body">
+        <h5 class="mb-2">Danh sách giáo viên (<?= count($teachers) ?>)</h5>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>STT</th><th>Họ tên</th><th>Chuyên môn</th><th>Vai trò</th><th>TT</th><th></th></tr></thead>
+            <tbody>
+            <?php if (!$teachers): ?>
+              <tr><td colspan="6" class="text-muted text-center py-4">Chưa có — thêm bên trái hoặc Đồng bộ PCCM.</td></tr>
+            <?php else: foreach ($teachers as $i => $t):
+              $flags = [];
+              if (!empty($t['role_flags']['is_principal'])) $flags[] = 'HT';
+              if (!empty($t['role_flags']['is_vice'])) $flags[] = 'PHT';
+              if (!empty($t['role_flags']['is_probation'])) $flags[] = 'Tập sự';
+            ?>
+              <tr class="<?= empty($t['active'])?'table-secondary':'' ?>">
+                <td><?= $i+1 ?></td>
+                <td><strong><?= e($t['name'] ?? '') ?></strong><?php if (!empty($t['code'])): ?><div class="small text-muted"><?= e($t['code']) ?></div><?php endif; ?></td>
+                <td><?= e($t['specialty'] ?? '—') ?></td>
+                <td class="small"><?= $flags ? e(implode(', ', $flags)) : '—' ?></td>
+                <td><?= !empty($t['active']) ? '<span class="badge bg-success">Có</span>' : '<span class="badge bg-secondary">Nghỉ</span>' ?></td>
+                <td class="text-end text-nowrap">
+                  <a class="btn btn-sm btn-outline-primary" href="?tab=teachers&edit=<?= urlencode($t['id']) ?>"><i class="bi bi-pencil"></i></a>
+                  <form method="post" class="d-inline" onsubmit="return confirm('Xóa giáo viên này?')">
+                    <input type="hidden" name="action" value="teacher_delete">
+                    <input type="hidden" name="id" value="<?= e($t['id']) ?>">
+                    <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+            <?php endforeach; endif; ?>
+            </tbody>
+          </table>
         </div>
-      </div>
+      </div></div>
     </div>
   </div>
 
 <?php elseif ($tab === 'classes'): ?>
   <?php
     $editing = null;
-    if ($edit_id) {
-      foreach ($classes as $c) if (($c['id'] ?? '') === $edit_id) { $editing = $c; break; }
-    }
+    if ($edit_id) { foreach ($classes as $c) if (($c['id'] ?? '') === $edit_id) { $editing = $c; break; } }
     usort($classes, fn($a,$b) => ($a['grade'] ?? 0) <=> ($b['grade'] ?? 0) ?: strcmp($a['name'] ?? '', $b['name'] ?? ''));
   ?>
   <div class="row g-4">
     <div class="col-lg-4">
-      <div class="card card-soft">
-        <div class="card-body">
-          <h5 class="mb-3"><?= $editing ? 'Sửa lớp' : 'Thêm lớp' ?></h5>
-          <form method="post">
-            <input type="hidden" name="action" value="class_save">
-            <input type="hidden" name="id" value="<?= e($editing['id'] ?? '') ?>">
-            <div class="mb-2">
-              <label class="form-label small">Tên lớp *</label>
-              <input type="text" name="name" class="form-control" required placeholder="6A, 10B…" value="<?= e($editing['name'] ?? '') ?>">
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Khối (số) *</label>
-              <input type="number" name="grade" class="form-control" min="6" max="12" required value="<?= e((string)($editing['grade'] ?? 6)) ?>">
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">GVCN</label>
-              <select name="homeroom_teacher_id" class="form-select">
-                <option value="">— Chọn —</option>
-                <?php foreach ($teachers as $t): if (empty($t['active'])) continue; ?>
-                  <option value="<?= e($t['id']) ?>" <?= (($editing['homeroom_teacher_id'] ?? '') === $t['id'])?'selected':'' ?>><?= e($t['name']) ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Phòng học</label>
-              <input type="text" name="room" class="form-control" value="<?= e($editing['room'] ?? '') ?>">
-            </div>
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" name="active" id="cact" <?= ($editing === null || !empty($editing['active']))?'checked':'' ?>>
-              <label class="form-check-label" for="cact">Đang hoạt động</label>
-            </div>
-            <button class="btn btn-primary w-100" type="submit"><i class="bi bi-save"></i> Lưu</button>
-            <?php if ($editing): ?>
-              <a href="?tab=classes" class="btn btn-outline-secondary w-100 mt-2">Hủy</a>
-            <?php endif; ?>
-          </form>
-        </div>
-      </div>
+      <div class="card card-soft"><div class="card-body">
+        <h5 class="mb-3"><?= $editing ? 'Sửa lớp' : 'Thêm lớp' ?></h5>
+        <form method="post">
+          <input type="hidden" name="action" value="class_save">
+          <input type="hidden" name="id" value="<?= e($editing['id'] ?? '') ?>">
+          <div class="mb-2"><label class="form-label small">Tên lớp *</label>
+            <input type="text" name="name" class="form-control" required value="<?= e($editing['name'] ?? '') ?>"></div>
+          <div class="mb-2"><label class="form-label small">Khối *</label>
+            <input type="number" name="grade" class="form-control" min="6" max="12" required value="<?= e((string)($editing['grade'] ?? 6)) ?>"></div>
+          <div class="mb-2"><label class="form-label small">GVCN</label>
+            <select name="homeroom_teacher_id" class="form-select">
+              <option value="">—</option>
+              <?php foreach ($teachers as $t): if (empty($t['active'])) continue; ?>
+                <option value="<?= e($t['id']) ?>" <?= (($editing['homeroom_teacher_id'] ?? '') === $t['id'])?'selected':'' ?>><?= e($t['name']) ?></option>
+              <?php endforeach; ?>
+            </select></div>
+          <div class="mb-2"><label class="form-label small">Phòng</label>
+            <input type="text" name="room" class="form-control" value="<?= e($editing['room'] ?? '') ?>"></div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="active" id="cact" <?= ($editing === null || !empty($editing['active']))?'checked':'' ?>>
+            <label class="form-check-label" for="cact">Đang hoạt động</label></div>
+          <button class="btn btn-primary w-100" type="submit">Lưu</button>
+          <?php if ($editing): ?><a href="?tab=classes" class="btn btn-outline-secondary w-100 mt-2">Hủy</a><?php endif; ?>
+        </form>
+      </div></div>
     </div>
     <div class="col-lg-8">
-      <div class="card card-soft">
-        <div class="card-body">
-          <h5 class="mb-2">Danh sách lớp (<?= count($classes) ?>)</h5>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead><tr><th>STT</th><th>Lớp</th><th>Cấp</th><th>GVCN</th><th>Phòng</th><th>TT</th><th></th></tr></thead>
-              <tbody>
-              <?php foreach ($classes as $i => $c): ?>
-                <tr class="<?= empty($c['active'])?'table-secondary':'' ?>">
-                  <td><?= $i+1 ?></td>
-                  <td><strong><?= e($c['name'] ?? '') ?></strong></td>
-                  <td><span class="badge <?= ($c['level']??'')==='THPT'?'bg-primary':'bg-success' ?>"><?= e($c['level'] ?? '') ?></span></td>
-                  <td class="small"><?= e(teacher_name_by_id($c['homeroom_teacher_id'] ?? '', $teachers)) ?></td>
-                  <td><?= e($c['room'] ?? '—') ?></td>
-                  <td><?= !empty($c['active']) ? '<span class="badge bg-success">Có</span>' : '<span class="badge bg-secondary">Ẩn</span>' ?></td>
-                  <td class="text-end text-nowrap">
-                    <a class="btn btn-sm btn-outline-primary" href="?tab=classes&edit=<?= urlencode($c['id']) ?>"><i class="bi bi-pencil"></i></a>
-                    <form method="post" class="d-inline" onsubmit="return confirm('Xóa lớp này?')">
-                      <input type="hidden" name="action" value="class_delete">
-                      <input type="hidden" name="id" value="<?= e($c['id']) ?>">
-                      <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
-                    </form>
-                  </td>
-                </tr>
-              <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
+      <div class="card card-soft"><div class="card-body">
+        <h5 class="mb-2">Danh sách lớp (<?= count($classes) ?>)</h5>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>STT</th><th>Lớp</th><th>Cấp</th><th>GVCN</th><th>Phòng</th><th>TT</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($classes as $i => $c): ?>
+              <tr class="<?= empty($c['active'])?'table-secondary':'' ?>">
+                <td><?= $i+1 ?></td>
+                <td><strong><?= e($c['name'] ?? '') ?></strong></td>
+                <td><span class="badge <?= ($c['level']??'')==='THPT'?'bg-primary':'bg-success' ?>"><?= e($c['level'] ?? '') ?></span></td>
+                <td class="small"><?= e(teacher_name_by_id($c['homeroom_teacher_id'] ?? '', $teachers)) ?></td>
+                <td><?= e($c['room'] ?? '—') ?></td>
+                <td><?= !empty($c['active']) ? '<span class="badge bg-success">Có</span>' : '<span class="badge bg-secondary">Ẩn</span>' ?></td>
+                <td class="text-end text-nowrap">
+                  <a class="btn btn-sm btn-outline-primary" href="?tab=classes&edit=<?= urlencode($c['id']) ?>"><i class="bi bi-pencil"></i></a>
+                  <form method="post" class="d-inline" onsubmit="return confirm('Xóa lớp?')">
+                    <input type="hidden" name="action" value="class_delete">
+                    <input type="hidden" name="id" value="<?= e($c['id']) ?>">
+                    <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+            </tbody>
+          </table>
         </div>
-      </div>
+      </div></div>
     </div>
   </div>
 
 <?php elseif ($tab === 'students'): ?>
   <?php
     $editing = null;
-    if ($edit_id) {
-      foreach ($students as $s) if (($s['id'] ?? '') === $edit_id) { $editing = $s; break; }
-    }
+    if ($edit_id) { foreach ($students as $s) if (($s['id'] ?? '') === $edit_id) { $editing = $s; break; } }
   ?>
   <div class="row g-4">
     <div class="col-lg-4">
-      <div class="card card-soft">
-        <div class="card-body">
-          <h5 class="mb-3"><?= $editing ? 'Sửa học sinh' : 'Thêm học sinh' ?></h5>
-          <form method="post">
-            <input type="hidden" name="action" value="student_save">
-            <input type="hidden" name="id" value="<?= e($editing['id'] ?? '') ?>">
-            <div class="mb-2">
-              <label class="form-label small">Họ và tên *</label>
-              <input type="text" name="name" class="form-control" required value="<?= e($editing['name'] ?? '') ?>">
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Mã HS</label>
-              <input type="text" name="code" class="form-control" value="<?= e($editing['code'] ?? '') ?>">
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Lớp</label>
-              <select name="class_id" class="form-select">
-                <option value="">— Chọn lớp —</option>
-                <?php foreach ($classes as $c): if (empty($c['active'])) continue; ?>
-                  <option value="<?= e($c['id']) ?>" <?= (($editing['class_id'] ?? '') === $c['id'])?'selected':'' ?>><?= e($c['name']) ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="row g-2 mb-2">
-              <div class="col-6">
-                <label class="form-label small">Giới tính</label>
-                <select name="gender" class="form-select">
-                  <option value="">—</option>
-                  <option value="Nam" <?= (($editing['gender'] ?? '')==='Nam')?'selected':'' ?>>Nam</option>
-                  <option value="Nữ" <?= (($editing['gender'] ?? '')==='Nữ')?'selected':'' ?>>Nữ</option>
-                </select>
-              </div>
-              <div class="col-6">
-                <label class="form-label small">Ngày sinh</label>
-                <input type="date" name="dob" class="form-control" value="<?= e($editing['dob'] ?? '') ?>">
-              </div>
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">SĐT liên hệ</label>
-              <input type="text" name="phone" class="form-control" value="<?= e($editing['phone'] ?? '') ?>">
-            </div>
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="checkbox" name="boarder" id="brd" <?= !empty($editing['boarder'])?'checked':'' ?>>
-              <label class="form-check-label" for="brd">Nội trú</label>
-            </div>
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" name="active" id="sact" <?= ($editing === null || !empty($editing['active']))?'checked':'' ?>>
-              <label class="form-check-label" for="sact">Đang học</label>
-            </div>
-            <button class="btn btn-primary w-100" type="submit"><i class="bi bi-save"></i> Lưu</button>
-            <?php if ($editing): ?>
-              <a href="?tab=students" class="btn btn-outline-secondary w-100 mt-2">Hủy</a>
-            <?php endif; ?>
-          </form>
-        </div>
-      </div>
+      <div class="card card-soft"><div class="card-body">
+        <h5 class="mb-3"><?= $editing ? 'Sửa học sinh' : 'Thêm học sinh' ?></h5>
+        <form method="post">
+          <input type="hidden" name="action" value="student_save">
+          <input type="hidden" name="id" value="<?= e($editing['id'] ?? '') ?>">
+          <div class="mb-2"><label class="form-label small">Họ và tên *</label>
+            <input type="text" name="name" class="form-control" required value="<?= e($editing['name'] ?? '') ?>"></div>
+          <div class="mb-2"><label class="form-label small">Mã HS</label>
+            <input type="text" name="code" class="form-control" value="<?= e($editing['code'] ?? '') ?>"></div>
+          <div class="mb-2"><label class="form-label small">Lớp</label>
+            <select name="class_id" class="form-select">
+              <option value="">—</option>
+              <?php foreach ($classes as $c): if (empty($c['active'])) continue; ?>
+                <option value="<?= e($c['id']) ?>" <?= (($editing['class_id'] ?? '') === $c['id'])?'selected':'' ?>><?= e($c['name']) ?></option>
+              <?php endforeach; ?>
+            </select></div>
+          <div class="row g-2 mb-2">
+            <div class="col-6"><label class="form-label small">Giới tính</label>
+              <select name="gender" class="form-select">
+                <option value="">—</option>
+                <option value="Nam" <?= (($editing['gender'] ?? '')==='Nam')?'selected':'' ?>>Nam</option>
+                <option value="Nữ" <?= (($editing['gender'] ?? '')==='Nữ')?'selected':'' ?>>Nữ</option>
+              </select></div>
+            <div class="col-6"><label class="form-label small">Ngày sinh</label>
+              <input type="date" name="dob" class="form-control" value="<?= e($editing['dob'] ?? '') ?>"></div>
+          </div>
+          <div class="mb-2"><label class="form-label small">SĐT</label>
+            <input type="text" name="phone" class="form-control" value="<?= e($editing['phone'] ?? '') ?>"></div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" name="boarder" id="brd" <?= !empty($editing['boarder'])?'checked':'' ?>>
+            <label class="form-check-label" for="brd">Nội trú</label></div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="active" id="sact" <?= ($editing === null || !empty($editing['active']))?'checked':'' ?>>
+            <label class="form-check-label" for="sact">Đang học</label></div>
+          <button class="btn btn-primary w-100" type="submit">Lưu</button>
+          <?php if ($editing): ?><a href="?tab=students" class="btn btn-outline-secondary w-100 mt-2">Hủy</a><?php endif; ?>
+        </form>
+      </div></div>
     </div>
     <div class="col-lg-8">
-      <div class="card card-soft">
-        <div class="card-body">
-          <h5 class="mb-2">Danh sách học sinh (<?= count($students) ?>)</h5>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead><tr><th>STT</th><th>Họ tên</th><th>Lớp</th><th>GT</th><th>Nội trú</th><th>TT</th><th></th></tr></thead>
-              <tbody>
-              <?php if (!$students): ?>
-                <tr><td colspan="7" class="text-muted text-center py-4">Chưa có học sinh.</td></tr>
-              <?php else: foreach ($students as $i => $s): ?>
-                <tr class="<?= empty($s['active'])?'table-secondary':'' ?>">
-                  <td><?= $i+1 ?></td>
-                  <td>
-                    <strong><?= e($s['name'] ?? '') ?></strong>
-                    <?php if (!empty($s['code'])): ?><div class="small text-muted"><?= e($s['code']) ?></div><?php endif; ?>
-                  </td>
-                  <td><?= e(class_name_by_id($s['class_id'] ?? '', $classes)) ?></td>
-                  <td><?= e($s['gender'] ?? '—') ?></td>
-                  <td><?= !empty($s['boarder']) ? '<span class="badge bg-info">Có</span>' : '—' ?></td>
-                  <td><?= !empty($s['active']) ? '<span class="badge bg-success">Học</span>' : '<span class="badge bg-secondary">Nghỉ</span>' ?></td>
-                  <td class="text-end text-nowrap">
-                    <a class="btn btn-sm btn-outline-primary" href="?tab=students&edit=<?= urlencode($s['id']) ?>"><i class="bi bi-pencil"></i></a>
-                    <form method="post" class="d-inline" onsubmit="return confirm('Xóa học sinh này?')">
-                      <input type="hidden" name="action" value="student_delete">
-                      <input type="hidden" name="id" value="<?= e($s['id']) ?>">
-                      <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
-                    </form>
-                  </td>
-                </tr>
-              <?php endforeach; endif; ?>
-              </tbody>
-            </table>
-          </div>
+      <div class="card card-soft"><div class="card-body">
+        <h5 class="mb-2">Học sinh (<?= count($students) ?>)</h5>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>STT</th><th>Họ tên</th><th>Lớp</th><th>GT</th><th>Nội trú</th><th>TT</th><th></th></tr></thead>
+            <tbody>
+            <?php if (!$students): ?>
+              <tr><td colspan="7" class="text-muted text-center py-4">Chưa có học sinh.</td></tr>
+            <?php else: foreach ($students as $i => $s): ?>
+              <tr class="<?= empty($s['active'])?'table-secondary':'' ?>">
+                <td><?= $i+1 ?></td>
+                <td><strong><?= e($s['name'] ?? '') ?></strong></td>
+                <td><?= e(class_name_by_id($s['class_id'] ?? '', $classes)) ?></td>
+                <td><?= e($s['gender'] ?? '—') ?></td>
+                <td><?= !empty($s['boarder']) ? '<span class="badge bg-info">Có</span>' : '—' ?></td>
+                <td><?= !empty($s['active']) ? '<span class="badge bg-success">Học</span>' : '<span class="badge bg-secondary">Nghỉ</span>' ?></td>
+                <td class="text-end text-nowrap">
+                  <a class="btn btn-sm btn-outline-primary" href="?tab=students&edit=<?= urlencode($s['id']) ?>"><i class="bi bi-pencil"></i></a>
+                  <form method="post" class="d-inline" onsubmit="return confirm('Xóa?')">
+                    <input type="hidden" name="action" value="student_delete">
+                    <input type="hidden" name="id" value="<?= e($s['id']) ?>">
+                    <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+            <?php endforeach; endif; ?>
+            </tbody>
+          </table>
         </div>
-      </div>
+      </div></div>
     </div>
   </div>
 
 <?php elseif ($tab === 'years'): ?>
   <div class="row g-4">
     <div class="col-lg-4">
-      <div class="card card-soft">
-        <div class="card-body">
-          <h5 class="mb-3">Thêm / sửa năm học</h5>
-          <form method="post">
-            <input type="hidden" name="action" value="year_save">
-            <input type="hidden" name="id" value="">
-            <div class="mb-2">
-              <label class="form-label small">Nhãn *</label>
-              <input type="text" name="label" class="form-control" required placeholder="2025–2026">
-            </div>
-            <div class="row g-2 mb-2">
-              <div class="col-6">
-                <label class="form-label small">Bắt đầu</label>
-                <input type="date" name="start" class="form-control">
-              </div>
-              <div class="col-6">
-                <label class="form-label small">Kết thúc</label>
-                <input type="date" name="end" class="form-control">
-              </div>
-            </div>
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" name="is_current" id="yc">
-              <label class="form-check-label" for="yc">Đặt làm năm hiện hành</label>
-            </div>
-            <button class="btn btn-primary w-100" type="submit"><i class="bi bi-save"></i> Lưu</button>
-          </form>
-        </div>
-      </div>
+      <div class="card card-soft"><div class="card-body">
+        <h5 class="mb-3">Thêm năm học</h5>
+        <form method="post">
+          <input type="hidden" name="action" value="year_save">
+          <input type="hidden" name="id" value="">
+          <div class="mb-2"><label class="form-label small">Nhãn *</label>
+            <input type="text" name="label" class="form-control" required placeholder="2025–2026"></div>
+          <div class="row g-2 mb-2">
+            <div class="col-6"><label class="form-label small">Bắt đầu</label><input type="date" name="start" class="form-control"></div>
+            <div class="col-6"><label class="form-label small">Kết thúc</label><input type="date" name="end" class="form-control"></div>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_current" id="yc">
+            <label class="form-check-label" for="yc">Năm hiện hành</label></div>
+          <button class="btn btn-primary w-100" type="submit">Lưu</button>
+        </form>
+      </div></div>
     </div>
     <div class="col-lg-8">
-      <div class="card card-soft">
-        <div class="card-body">
-          <h5 class="mb-2">Các năm học</h5>
-          <div class="table-responsive">
-            <table class="table align-middle mb-0">
-              <thead><tr><th>Nhãn</th><th>Thời gian</th><th>Trạng thái</th><th></th></tr></thead>
-              <tbody>
-              <?php foreach ($years as $y): ?>
-                <tr>
-                  <td><strong><?= e($y['label'] ?? '') ?></strong></td>
-                  <td class="small"><?= e(($y['start'] ?? '') . ' → ' . ($y['end'] ?? '')) ?></td>
-                  <td>
-                    <?php if (!empty($y['is_current'])): ?>
-                      <span class="badge bg-success">Hiện hành</span>
-                    <?php else: ?>
-                      <span class="badge bg-secondary">—</span>
-                    <?php endif; ?>
-                  </td>
-                  <td class="text-end">
-                    <?php if (empty($y['is_current'])): ?>
-                    <form method="post" class="d-inline">
-                      <input type="hidden" name="action" value="year_set_current">
-                      <input type="hidden" name="id" value="<?= e($y['id']) ?>">
-                      <button class="btn btn-sm btn-outline-success" type="submit">Đặt hiện hành</button>
-                    </form>
-                    <?php endif; ?>
-                  </td>
-                </tr>
-              <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      <div class="card card-soft"><div class="card-body">
+        <h5 class="mb-2">Các năm học</h5>
+        <table class="table align-middle mb-0">
+          <thead><tr><th>Nhãn</th><th>Thời gian</th><th>TT</th><th></th></tr></thead>
+          <tbody>
+          <?php foreach ($years as $y): ?>
+            <tr>
+              <td><strong><?= e($y['label'] ?? '') ?></strong></td>
+              <td class="small"><?= e(($y['start'] ?? '') . ' → ' . ($y['end'] ?? '')) ?></td>
+              <td><?= !empty($y['is_current']) ? '<span class="badge bg-success">Hiện hành</span>' : '—' ?></td>
+              <td class="text-end">
+                <?php if (empty($y['is_current'])): ?>
+                <form method="post" class="d-inline">
+                  <input type="hidden" name="action" value="year_set_current">
+                  <input type="hidden" name="id" value="<?= e($y['id']) ?>">
+                  <button class="btn btn-sm btn-outline-success" type="submit">Đặt hiện hành</button>
+                </form>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div></div>
     </div>
   </div>
 <?php endif; ?>
