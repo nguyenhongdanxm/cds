@@ -6,11 +6,8 @@
  *   teachers.json, teacher_meta.json, classes.json
  *   roles_{version}.json  = kiêm nhiệm [{teacher, role, class, periods}]
  *   active_version.json
- *
- * QLHS (Supabase) → includes/csdl_qlhs.php
  */
 require_once __DIR__ . '/csdl_store.php';
-require_once __DIR__ . '/csdl_qlhs.php';
 
 function csdl_sync_pccm_ready() {
     return PCCM_DATA_PATH !== '' && is_dir(PCCM_DATA_PATH);
