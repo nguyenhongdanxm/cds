@@ -78,36 +78,73 @@ body::after{
   position:relative;width:var(--size);height:var(--size);
 }
 
+/* Vòng đứt nét: mờ gần như ẩn */
 .orbit-track{
   position:absolute;left:50%;top:50%;border-radius:50%;pointer-events:none;
-  border:1px solid rgba(140,200,255,.22);transform:translate(-50%,-50%);
+  border:1px solid rgba(140,200,255,.06);transform:translate(-50%,-50%);
+  opacity:.35;
 }
-.orbit-track.t1{width:42%;height:42%;border-style:dashed;border-color:rgba(160,210,255,.4);animation:spinOrbit 90s linear infinite}
-.orbit-track.t2{width:62%;height:62%;border-color:rgba(100,180,255,.28)}
-.orbit-track.t3{width:36%;height:36%;border-color:rgba(120,190,255,.22)}
-.orbit-track.t4{width:74%;height:74%;border:1px dashed rgba(255,255,255,.1);animation:spinOrbit 130s linear infinite reverse}
-@keyframes spinOrbit{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.orbit-track.t1{width:42%;height:42%;border-style:dashed;border-color:rgba(160,210,255,.08)}
+.orbit-track.t2{width:62%;height:62%;border-color:rgba(100,180,255,.05)}
+.orbit-track.t3{width:36%;height:36%;border-color:rgba(120,190,255,.05)}
+.orbit-track.t4{width:74%;height:74%;border:1px dashed rgba(255,255,255,.04)}
+
+/* —— Bánh răng + địa cầu xoay ngược chữ (cảm giác mở khóa CĐS) —— */
+.unlock-layer{
+  position:absolute;left:50%;top:50%;
+  width:48%;height:48%;
+  transform:translate(-50%,-50%);
+  pointer-events:none;z-index:3;
+}
+.unlock-layer .gear-ring{
+  position:absolute;inset:0;
+  animation:spinReverse 56s linear infinite;
+}
+.unlock-layer .globe-ring{
+  position:absolute;inset:0;
+  animation:spinReverse 72s linear infinite;
+}
+@keyframes spinReverse{to{transform:rotate(-360deg)}}
+
+.unlock-layer .gear-ring svg{
+  width:100%;height:100%;
+  opacity:.28;
+  filter:drop-shadow(0 0 6px rgba(100,180,255,.25));
+}
+.unlock-layer .globe-dot{
+  position:absolute;left:50%;top:50%;
+  width:22px;height:22px;margin:-11px;
+  display:flex;align-items:center;justify-content:center;
+  color:rgba(180,220,255,.55);
+  font-size:1rem;
+  filter:drop-shadow(0 0 4px rgba(80,160,255,.35));
+  /* đặt trên vòng: rotate rồi dịch lên */
+  transform:rotate(var(--a)) translateY(calc(-1 * var(--gr))) rotate(calc(-1 * var(--a)));
+  --gr: 46%;
+}
+.unlock-layer .globe-dot i{font-size:1.05rem}
 
 .sun-rays{
   position:absolute;left:50%;top:50%;width:40%;height:40%;
-  transform:translate(-50%,-50%);pointer-events:none;z-index:1;opacity:.24;border-radius:50%;
+  transform:translate(-50%,-50%);pointer-events:none;z-index:1;opacity:.18;border-radius:50%;
   background:conic-gradient(from 0deg,
-    transparent 0deg,rgba(100,180,255,.14) 6deg, transparent 14deg,
-    transparent 45deg,rgba(100,180,255,.12) 52deg, transparent 60deg,
-    transparent 90deg, rgba(100,180,255,.13) 97deg, transparent 105deg,
-    transparent 135deg,rgba(100,180,255,.1) 142deg, transparent 150deg,
-    transparent 180deg, rgba(100,180,255,.14) 187deg, transparent 195deg,
-    transparent 225deg, rgba(100,180,255,.11) 232deg, transparent 240deg,
-    transparent 270deg, rgba(100,180,255,.13) 277deg, transparent 285deg,
-    transparent 315deg, rgba(100,180,255,.1) 322deg, transparent 330deg, transparent 360deg);
+    transparent 0deg,rgba(100,180,255,.12) 6deg, transparent 14deg,
+    transparent 45deg,rgba(100,180,255,.1) 52deg, transparent 60deg,
+    transparent 90deg, rgba(100,180,255,.11) 97deg, transparent 105deg,
+    transparent 135deg, rgba(100,180,255,.08) 142deg, transparent 150deg,
+    transparent 180deg,rgba(100,180,255,.12) 187deg, transparent 195deg,
+    transparent 225deg, rgba(100,180,255,.09) 232deg, transparent 240deg,
+    transparent 270deg,rgba(100,180,255,.11) 277deg, transparent 285deg,
+    transparent 315deg, rgba(100,180,255,.08) 322deg, transparent 330deg, transparent 360deg);
   animation:spinOrbit 70s linear infinite;
 }
+@keyframes spinOrbit{to{transform:translate(-50%,-50%) rotate(360deg)}}
 
 .planet-dot{
   position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px;
   border-radius:50%;pointer-events:none;z-index:3;
   background:radial-gradient(circle,#fff 0%,#6ec8ff 45%,transparent 70%);
-  box-shadow:0 0 8px #5eb8ff;
+  box-shadow:0 0 8px #5eb8ff;opacity:.7;
   --pr: calc(var(--size) * 0.32);
   animation:planetOrbit var(--dur,28s) linear infinite;
   transform:rotate(var(--a0,0deg)) translateY(calc(-1 * var(--pr)));
@@ -146,10 +183,6 @@ body::after{
 .orbit-spin{transform-origin:100px 100px;animation:orbitSpin 48s linear infinite}
 @keyframes orbitSpin{to{transform:rotate(360deg)}}
 
-/*
- * Vệ tinh GẦN logo giữa hơn (--r 0.34)
- * Bubble neo tại gốc; chữ neo bằng left/right ngoài mép bubble
- */
 .eco-node{
   position:absolute;left:50%;top:50%;width:0;height:0;
   --r: calc(var(--size) * 0.34);
@@ -160,7 +193,6 @@ body::after{
 }
 .eco-node:hover,.eco-node:focus-within{filter:brightness(1.08);color:#fff}
 
-/* Icon: tâm = điểm quỹ đạo */
 .eco-node .bubble{
   position:absolute;z-index:2;
   left:calc(-1 * var(--b));
@@ -190,11 +222,6 @@ body::after{
   border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.3);
 }
 
-/*
- * Chữ: KHÔNG nằm trong bubble
- *  Phải → left = mép phải bubble + gap, chữ mọc sang phải
- *  Trái → right = mép trái bubble + gap, chữ mọc sang trái
- */
 .eco-node .text-block{
   position:absolute;z-index:1;
   top:0;
@@ -242,6 +269,7 @@ body::after{
   .eco-node .text-block{max-width:min(26vw, 280px)}
   .eco-node .label{font-size:1.02rem}
   .eco-node .sub{font-size:.72rem}
+  .unlock-layer{width:46%;height:46%}
 }
 
 @media (max-width:768px){
@@ -251,6 +279,7 @@ body::after{
   .eco-node .bubble{font-size:1.2rem}
   .eco-core{width:36%;height:36%}
   .planet-dot{display:none}
+  .unlock-layer{width:50%;height:50%;opacity:.85}
   .eco-node .text-block{
     opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;z-index:8;
     background:rgba(4,24,55,.92);border:1px solid rgba(255,255,255,.22);
@@ -302,6 +331,7 @@ body::after{
 
 <div class="stage">
   <div class="eco" id="ecoStage">
+    <!-- Vòng cũ: gần như ẩn -->
     <div class="orbit-track t4"></div>
     <div class="orbit-track t2"></div>
     <div class="orbit-track t1"></div>
@@ -310,6 +340,51 @@ body::after{
     <div class="planet-dot" style="--a0:30deg;--dur:26s"></div>
     <div class="planet-dot" style="--a0:150deg;--dur:34s;--pr:calc(var(--size)*0.28)"></div>
     <div class="planet-dot" style="--a0:260deg;--dur:22s;--pr:calc(var(--size)*0.22)"></div>
+
+    <!-- Bánh răng + địa cầu: xoay NGƯỢC chiều chữ vòng -->
+    <div class="unlock-layer" aria-hidden="true">
+      <div class="gear-ring">
+        <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Vành bánh răng (24 răng) -->
+          <circle cx="100" cy="100" r="78" stroke="rgba(160,210,255,0.55)" stroke-width="1.2" stroke-dasharray="6 4.5"/>
+          <circle cx="100" cy="100" r="70" stroke="rgba(140,200,255,0.35)" stroke-width="0.8"/>
+          <circle cx="100" cy="100" r="62" stroke="rgba(120,180,255,0.25)" stroke-width="0.6" stroke-dasharray="2 3"/>
+          <!-- Răng bánh răng -->
+          <g stroke="rgba(180,220,255,0.5)" stroke-width="2.2" stroke-linecap="round">
+            <line x1="100" y1="18" x2="100" y2="28"/><line x1="100" y1="172" x2="100" y2="182"/>
+            <line x1="18" y1="100" x2="28" y2="100"/><line x1="172" y1="100" x2="182" y2="100"/>
+            <line x1="41.5" y1="41.5" x2="48.5" y2="48.5"/><line x1="151.5" y1="151.5" x2="158.5" y2="158.5"/>
+            <line x1="158.5" y1="41.5" x2="151.5" y2="48.5"/><line x1="48.5" y1="151.5" x2="41.5" y2="158.5"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(15 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(30 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(45 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(60 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(75 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(105 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(120 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(135 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(150 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(165 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(195 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(210 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(225 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(240 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(255 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(285 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(300 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(315 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(330 100 100)"/>
+            <line x1="100" y1="22" x2="100" y2="30" transform="rotate(345 100 100)"/>
+          </g>
+        </svg>
+      </div>
+      <div class="globe-ring">
+        <div class="globe-dot" style="--a:0deg"><i class="bi bi-globe2"></i></div>
+        <div class="globe-dot" style="--a:90deg"><i class="bi bi-globe-americas"></i></div>
+        <div class="globe-dot" style="--a:180deg"><i class="bi bi-globe-asia-australia"></i></div>
+        <div class="globe-dot" style="--a:270deg"><i class="bi bi-globe-europe-africa"></i></div>
+      </div>
+    </div>
 
     <svg class="orbit-svg" viewBox="0 0 200 200" aria-hidden="true">
       <defs>
