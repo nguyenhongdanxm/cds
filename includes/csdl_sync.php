@@ -6,8 +6,11 @@
  *   teachers.json, teacher_meta.json, classes.json
  *   roles_{version}.json  = kiêm nhiệm [{teacher, role, class, periods}]
  *   active_version.json
+ *
+ * QLHS (Supabase) → includes/csdl_qlhs.php
  */
 require_once __DIR__ . '/csdl_store.php';
+require_once __DIR__ . '/csdl_qlhs.php';
 
 function csdl_sync_pccm_ready() {
     return PCCM_DATA_PATH !== '' && is_dir(PCCM_DATA_PATH);
@@ -35,7 +38,6 @@ function csdl_pccm_active_version_id() {
     if (!csdl_sync_pccm_ready()) return null;
     $data = load_json(PCCM_DATA_PATH . '/active_version.json', []);
     if (!empty($data['id'])) return $data['id'];
-    // fallback: phiên bản mới nhất trong versions.json
     $versions = load_json(PCCM_DATA_PATH . '/versions.json', []);
     if ($versions) {
         $last = end($versions);
@@ -53,7 +55,6 @@ function csdl_pccm_load_roles_by_teacher() {
     $vid = csdl_pccm_active_version_id();
     if (!$vid) return [];
     $items = load_json(csdl_pccm_roles_file($vid), []);
-    // legacy file
     if (!$items && file_exists(PCCM_DATA_PATH . '/role_assignments.json')) {
         $items = load_json(PCCM_DATA_PATH . '/role_assignments.json', []);
     }
@@ -106,8 +107,6 @@ function csdl_sync_from_pccm() {
     $added_t = 0;
     $updated_t = 0;
     $roles_count = 0;
-
-    // map tên GV → id CDS sau khi lưu (gắn GVCN cho lớp)
     $name_to_id = [];
 
     foreach ($pccm_teachers as $name) {
@@ -159,14 +158,12 @@ function csdl_sync_from_pccm() {
         $name_to_id[$key] = $id;
     }
 
-    // —— Lớp + gắn GVCN từ kiêm nhiệm ——
     $cds_cls = csdl_classes_all();
     $cls_by_name = [];
     foreach ($cds_cls as $c) {
         $cls_by_name[csdl_norm_name($c['name'] ?? '')] = $c;
     }
 
-    // GVCN map: class name → teacher id
     $gvcn_map = [];
     foreach ($roles_by as $tkey => $items) {
         foreach ($items as $a) {
@@ -276,7 +273,6 @@ function csdl_sync_to_pccm() {
             $meta[$name]['thpt'] = true;
         }
 
-        // Kiêm nhiệm → roles_{vid}.json
         $kiem = $t['kiem_nhiem'] ?? [];
         if (is_array($kiem)) {
             foreach ($kiem as $a) {
@@ -294,7 +290,6 @@ function csdl_sync_to_pccm() {
         }
     }
 
-    // Nếu CDS chưa có kiêm nhiệm nhưng lớp có GVCN → tạo bản ghi GVCN
     $teacher_by_id = [];
     foreach ($teachers as $t) {
         $teacher_by_id[$t['id'] ?? ''] = $t;
@@ -368,7 +363,6 @@ function csdl_parse_kiem_nhiem_text($text) {
     foreach ($lines as $line) {
         $line = trim($line);
         if ($line === '') continue;
-        // hỗ trợ "GVCN (6A)" hoặc "GVCN|6A|3"
         if (preg_match('/^(.+?)\s*\(([^)]+)\)\s*$/u', $line, $m)) {
             $out[] = ['role' => trim($m[1]), 'class' => trim($m[2]), 'periods' => null];
             continue;
