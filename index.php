@@ -78,7 +78,6 @@ body::after{
   position:relative;width:var(--size);height:var(--size);
 }
 
-/* Vòng đứt nét: mờ gần như ẩn */
 .orbit-track{
   position:absolute;left:50%;top:50%;border-radius:50%;pointer-events:none;
   border:1px solid rgba(140,200,255,.06);transform:translate(-50%,-50%);
@@ -89,7 +88,57 @@ body::after{
 .orbit-track.t3{width:36%;height:36%;border-color:rgba(120,190,255,.05)}
 .orbit-track.t4{width:74%;height:74%;border:1px dashed rgba(255,255,255,.04)}
 
-/* —— Bánh răng + địa cầu xoay ngược chữ (cảm giác mở khóa CĐS) —— */
+/*
+ * Vòng kết nối dưới icon vệ tinh
+ * --r vệ tinh ≈ 34% → đường kính vòng ≈ 68%
+ * Vệt sáng (conic) xoay nhẹ → cảm giác liên kết
+ */
+.sat-link{
+  position:absolute;left:50%;top:50%;
+  width:68%;height:68%;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  pointer-events:none;z-index:2;
+}
+/* Nền vòng mảnh, đều */
+.sat-link::before{
+  content:'';position:absolute;inset:0;border-radius:50%;
+  border:1.5px solid rgba(140,200,255,.22);
+  box-shadow:
+    0 0 12px rgba(80,160,255,.12),
+    inset 0 0 12px rgba(80,160,255,.06);
+}
+/* Vệt hơi sáng xoay chậm */
+.sat-link .trail{
+  position:absolute;inset:-2px;border-radius:50%;
+  background:conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(160,210,255,.05) 20deg,
+    rgba(180,220,255,.45) 40deg,
+    rgba(255,255,255,.55) 48deg,
+    rgba(180,220,255,.35) 58deg,
+    transparent 85deg,
+    transparent 140deg,
+    rgba(140,200,255,.08) 160deg,
+    rgba(160,210,255,.3) 175deg,
+    rgba(200,230,255,.4) 185deg,
+    transparent 210deg,
+    transparent 360deg
+  );
+  -webkit-mask:radial-gradient(farthest-side, transparent calc(50% - 2px), #000 calc(50% - 1px), #000 calc(50% + 1px), transparent calc(50% + 2.5px));
+  mask:radial-gradient(farthest-side, transparent calc(50% - 2px), #000 calc(50% - 1px), #000 calc(50% + 1px), transparent calc(50% + 2.5px));
+  animation:trailSpin 28s linear infinite;
+  opacity:.9;
+}
+.sat-link .trail.t2{
+  animation-duration:42s;
+  animation-direction:reverse;
+  opacity:.55;
+  filter:blur(0.5px);
+}
+@keyframes trailSpin{to{transform:rotate(360deg)}}
+
 .unlock-layer{
   position:absolute;left:50%;top:50%;
   width:48%;height:48%;
@@ -118,7 +167,6 @@ body::after{
   color:rgba(180,220,255,.55);
   font-size:1rem;
   filter:drop-shadow(0 0 4px rgba(80,160,255,.35));
-  /* đặt trên vòng: rotate rồi dịch lên */
   transform:rotate(var(--a)) translateY(calc(-1 * var(--gr))) rotate(calc(-1 * var(--a)));
   --gr: 46%;
 }
@@ -129,7 +177,7 @@ body::after{
   transform:translate(-50%,-50%);pointer-events:none;z-index:1;opacity:.18;border-radius:50%;
   background:conic-gradient(from 0deg,
     transparent 0deg,rgba(100,180,255,.12) 6deg, transparent 14deg,
-    transparent 45deg,rgba(100,180,255,.1) 52deg, transparent 60deg,
+    transparent 45deg, rgba(100,180,255,.1) 52deg, transparent 60deg,
     transparent 90deg, rgba(100,180,255,.11) 97deg, transparent 105deg,
     transparent 135deg, rgba(100,180,255,.08) 142deg, transparent 150deg,
     transparent 180deg,rgba(100,180,255,.12) 187deg, transparent 195deg,
@@ -270,6 +318,7 @@ body::after{
   .eco-node .label{font-size:1.02rem}
   .eco-node .sub{font-size:.72rem}
   .unlock-layer{width:46%;height:46%}
+  .sat-link{width:68%;height:68%}
 }
 
 @media (max-width:768px){
@@ -280,6 +329,7 @@ body::after{
   .eco-core{width:36%;height:36%}
   .planet-dot{display:none}
   .unlock-layer{width:50%;height:50%;opacity:.85}
+  .sat-link{width:68%;height:68%}
   .eco-node .text-block{
     opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;z-index:8;
     background:rgba(4,24,55,.92);border:1px solid rgba(255,255,255,.22);
@@ -331,7 +381,6 @@ body::after{
 
 <div class="stage">
   <div class="eco" id="ecoStage">
-    <!-- Vòng cũ: gần như ẩn -->
     <div class="orbit-track t4"></div>
     <div class="orbit-track t2"></div>
     <div class="orbit-track t1"></div>
@@ -341,15 +390,18 @@ body::after{
     <div class="planet-dot" style="--a0:150deg;--dur:34s;--pr:calc(var(--size)*0.28)"></div>
     <div class="planet-dot" style="--a0:260deg;--dur:22s;--pr:calc(var(--size)*0.22)"></div>
 
-    <!-- Bánh răng + địa cầu: xoay NGƯỢC chiều chữ vòng -->
+    <!-- Vòng kết nối dưới icon vệ tinh: đường mảnh + vệt sáng xoay -->
+    <div class="sat-link" aria-hidden="true">
+      <div class="trail"></div>
+      <div class="trail t2"></div>
+    </div>
+
     <div class="unlock-layer" aria-hidden="true">
       <div class="gear-ring">
         <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- Vành bánh răng (24 răng) -->
           <circle cx="100" cy="100" r="78" stroke="rgba(160,210,255,0.55)" stroke-width="1.2" stroke-dasharray="6 4.5"/>
           <circle cx="100" cy="100" r="70" stroke="rgba(140,200,255,0.35)" stroke-width="0.8"/>
           <circle cx="100" cy="100" r="62" stroke="rgba(120,180,255,0.25)" stroke-width="0.6" stroke-dasharray="2 3"/>
-          <!-- Răng bánh răng -->
           <g stroke="rgba(180,220,255,0.5)" stroke-width="2.2" stroke-linecap="round">
             <line x1="100" y1="18" x2="100" y2="28"/><line x1="100" y1="172" x2="100" y2="182"/>
             <line x1="18" y1="100" x2="28" y2="100"/><line x1="172" y1="100" x2="182" y2="100"/>
