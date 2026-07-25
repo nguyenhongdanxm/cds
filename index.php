@@ -57,7 +57,6 @@ body::after{
   position:relative;width:var(--size);height:var(--size);
 }
 
-/* Quỹ đạo */
 .orbit-track{
   position:absolute;left:50%;top:50%;border-radius:50%;pointer-events:none;
   border:1px solid rgba(140,200,255,.22);transform:translate(-50%,-50%);
@@ -74,12 +73,12 @@ body::after{
   background:conic-gradient(from 0deg,
     transparent 0deg,rgba(100,180,255,.14) 6deg, transparent 14deg,
     transparent 45deg, rgba(100,180,255,.12) 52deg, transparent 60deg,
-    transparent 90deg, rgba(100,180,255,.13) 97deg, transparent 105deg,
+    transparent 90deg,rgba(100,180,255,.13) 97deg, transparent 105deg,
     transparent 135deg, rgba(100,180,255,.1) 142deg, transparent 150deg,
-    transparent 180deg, rgba(100,180,255,.14) 187deg, transparent 195deg,
+    transparent 180deg,rgba(100,180,255,.14) 187deg, transparent 195deg,
     transparent 225deg, rgba(100,180,255,.11) 232deg, transparent 240deg,
     transparent 270deg,rgba(100,180,255,.13) 277deg, transparent 285deg,
-    transparent 315deg, rgba(100,180,255,.1) 322deg, transparent 330deg, transparent 360deg);
+    transparent 315deg,rgba(100,180,255,.1) 322deg, transparent 330deg, transparent 360deg);
   animation:spinOrbit 70s linear infinite;
 }
 
@@ -90,13 +89,12 @@ body::after{
   box-shadow:0 0 10px #5eb8ff;
   --pr: calc(var(--size) * 0.42);
   animation:planetOrbit var(--dur,28s) linear infinite;
+  transform:rotate(var(--a0,0deg)) translateY(calc(-1 * var(--pr)));
 }
 @keyframes planetOrbit{
   to{transform:rotate(calc(var(--a0,0deg) + 360deg)) translateY(calc(-1 * var(--pr)))}
 }
-.planet-dot{transform:rotate(var(--a0,0deg)) translateY(calc(-1 * var(--pr)))}
 
-/* Tâm */
 .eco-core{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   width:34%;height:34%;z-index:5;display:flex;align-items:center;justify-content:center;
@@ -118,29 +116,25 @@ body::after{
 .logo-wrap img{width:94%;height:94%;object-fit:contain;border-radius:50%}
 .logo-fallback{font-size:clamp(1.2rem,3.5vw,1.9rem);font-weight:800;color:#c41e3a;text-align:center;line-height:1.1}
 
-/* Chữ quanh logo – khoảng cách tự nhiên, * ngăn cách */
+/* Chữ quanh logo */
 .orbit-svg{
   position:absolute;left:50%;top:50%;width:124%;height:124%;
   transform:translate(-50%,-50%);pointer-events:none;overflow:visible;z-index:1;
 }
 .orbit-svg text{
   fill:rgba(255,255,255,.96);
-  font-size:7.8px;
+  font-size:8px;
   font-weight:800;
-  letter-spacing:.35px;
+  letter-spacing:0.2px;
 }
 .orbit-spin{transform-origin:100px 100px;animation:orbitSpin 48s linear infinite}
 @keyframes orbitSpin{to{transform:rotate(360deg)}}
 
-/*
- * Vệ tinh: điểm neo = TÂM icon (đều trên vòng tròn)
- * Chữ tuyệt đối trái/phải, không đẩy lệch icon
- */
 .eco-node{
   position:absolute;left:50%;top:50%;
   width:0;height:0;
   --r: calc(var(--size) * 0.42);
-  --b: 36px; /* bán kính bubble / 2 */
+  --b: 36px;
   transform:
     rotate(var(--angle))
     translateY(calc(-1 * var(--r)))
@@ -179,7 +173,6 @@ body::after{
   border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);
 }
 
-/* Chữ thống nhất: luôn cạnh icon, cùng cỡ */
 .eco-node .text-block{
   position:absolute;
   top:50%;
@@ -272,9 +265,13 @@ body::after{
         </defs>
         <g class="orbit-spin">
           <text>
-            <!-- Không giãn chữ quá mức: khoảng cách đều nhờ dấu * giữa 2 khối -->
-            <textPath href="#orbitPath" startOffset="0%">
-              *  CHUYỂN ĐỔI SỐ TRONG GIÁO DỤC  *  HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG  *  CHUYỂN ĐỔI SỐ TRONG GIÁO DỤC  *  HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG  *
+            <!--
+              Chỉ 1 lần pattern. textLength = chu vi đường tròn (~515).
+              lengthAdjust=spacing: giãn chủ yếu khoảng trống (gồm trước/sau dấu *)
+              cho kín vòng, không lặp lại câu.
+            -->
+            <textPath id="orbitTextPath" href="#orbitPath" startOffset="0%" textLength="515" lengthAdjust="spacing">
+* CHUYỂN ĐỔI SỐ TRONG GIÁO DỤC * HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG *
             </textPath>
           </text>
         </g>
@@ -289,11 +286,6 @@ body::after{
     </div>
 
     <?php
-    /*
-     * 8 logo: chia đều 360° (mỗi cái 45°).
-     * Lệch 22.5° để không nằm đúng đỉnh/đáy → 4 trái + 4 phải rõ ràng.
-     * Tâm icon nằm đúng vòng tròn; chữ tuyệt đối trái/phải.
-     */
     foreach ($modules as $i => $m):
       $angle = 22.5 + ($i * (360 / max($nModules, 1)));
       $sin = sin(deg2rad($angle));
