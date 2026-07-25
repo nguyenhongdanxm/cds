@@ -49,7 +49,7 @@ function get_ecosystem_modules() {
             'title' => 'Quản lý nội trú',
             'subtitle' => 'KTX – điểm danh – chăm sóc nuôi dưỡng',
             'icon' => 'bi-building', 'color' => '#d63384',
-            'status' => 'link', 'url' => URL_QLHS, 'external' => true,
+            'status' => 'soon', 'url' => '', 'external' => false,
         ],
         [
             'id' => 'thidua', 'num' => 8,
