@@ -47,7 +47,6 @@ body::after{
 
 .topbar,.stage,.site-footer{position:relative;z-index:2}
 
-/* Top bar */
 .topbar{
   display:flex;justify-content:space-between;align-items:center;
   padding:.7rem 1.25rem;flex-shrink:0;
@@ -81,7 +80,6 @@ body::after{
 }
 .auth-btn.admin{background:rgba(32,201,151,.25);border-color:rgba(32,201,151,.5)}
 
-/* Stage */
 .stage{
   flex:1;display:flex;align-items:center;justify-content:center;
   padding:.5rem 0 0;min-height:0;
@@ -93,7 +91,6 @@ body::after{
   height:var(--size);
 }
 
-/* Rings */
 .eco-ring{
   position:absolute;inset:18%;
   border-radius:50%;
@@ -122,7 +119,6 @@ body::after{
   background:radial-gradient(circle, transparent 62%, rgba(60,150,255,.08) 78%, transparent 88%);
 }
 
-/* Center core */
 .eco-core{
   position:absolute;left:50%;top:50%;
   transform:translate(-50%,-50%);
@@ -167,7 +163,6 @@ body::after{
   text-align:center;line-height:1.1;
 }
 
-/* Orbit text */
 .orbit-svg{
   position:absolute;left:50%;top:50%;
   width:122%;height:122%;
@@ -187,14 +182,12 @@ body::after{
 }
 @keyframes orbitSpin{to{transform:rotate(360deg)}}
 
-/* Module nodes – lớn hơn, chữ rõ */
 .eco-node{
   position:absolute;
   left:50%;top:50%;
   width:128px;
   margin-left:-64px;
   margin-top:-64px;
-  --r: calc(var(--size) * 0. greplace);
   --r: calc(var(--size) * 0.42);
   transform:
     rotate(var(--angle))
@@ -217,7 +210,7 @@ body::after{
   box-shadow:
     0 10px 28px rgba(0,0,0,.32),
     0 0 0 4px rgba(255,255,255,.95),
-    0 0 0 6px rgba(var(--node-rgb, 13,110,253), .25);
+    0 0 18px rgba(80,160,255,.2);
   position:relative;
   transition:transform .22s,box-shadow .22s;
 }
@@ -281,7 +274,6 @@ body::after{
   .orbit-svg text{font-size:9px;letter-spacing:1.3px}
 }
 
-/* Footer */
 .site-footer{
   flex-shrink:0;
   text-align:center;
