@@ -13,6 +13,10 @@ if (!in_array($tab, $allowed, true)) $tab = 'overview';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
+    if ($action === 'bulk_delete') {
+        require __DIR__ . '/includes/csdl_post_extra.php';
+    }
+
     if ($action === 'sync_from_pccm') {
         $r = csdl_sync_from_pccm();
         flash($r['message'], $r['ok'] ? 'success' : 'danger');
@@ -253,7 +257,7 @@ body{background:#f0f4f8}
   <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
     <div>
       <h3 class="mb-0">Cơ sở dữ liệu dùng chung</h3>
-      <div class="text-muted small">Nguồn chuẩn — nhập/xuất CSV thống nhất · sửa qua popup đầy đủ</div>
+      <div class="text-muted small">CSV Excel VN (dấu <code>;</code>) · chọn nhiều để xóa/xuất · popup sửa đầy đủ</div>
     </div>
     <div class="text-muted small">Năm học: <strong><?= e($stats['year']) ?></strong></div>
   </div>
@@ -280,10 +284,9 @@ body{background:#f0f4f8}
   <div class="card card-soft"><div class="card-body">
     <h5 class="mb-3">CSDL là nguồn chuẩn</h5>
     <ul class="mb-0">
-      <li>Bảng đầy đủ GV · Lớp · HS (có <strong>CCCD</strong>)</li>
-      <li>Sửa bằng <strong>popup</strong> đầy đủ thông tin</li>
-      <li>Nhập CSV: gộp theo Mã / CCCD / Họ tên — không xóa dữ liệu PCCM</li>
-      <li>Mẫu xuất: cột STT + tiêu đề rõ, dùng chung mọi module</li>
+      <li>Mẫu CSV dùng dấu <strong>;</strong> (Excel tiếng Việt) — mỗi trường một cột</li>
+      <li>Chọn nhiều dòng → xuất hoặc xóa hàng loạt</li>
+      <li>Sửa bằng popup đầy đủ (có CCCD)</li>
     </ul>
   </div></div>
 
@@ -296,6 +299,8 @@ body{background:#f0f4f8}
     $kn_text = kn_text_from($editing);
     $io_entity = 'teachers';
     include __DIR__ . '/includes/csdl_io_panel.php';
+    $bulk_entity = 'teachers';
+    include __DIR__ . '/includes/csdl_bulk_bar.php';
   ?>
   <div class="d-flex justify-content-between align-items-center mb-2">
     <h5 class="mb-0">Bảng giáo viên (<?= count($teachers) ?>)</h5>
@@ -308,18 +313,20 @@ body{background:#f0f4f8}
       <table class="table table-hover table-full table-sm align-middle mb-0">
         <thead>
           <tr>
+            <th style="width:2rem"></th>
             <th>STT</th><th>Mã</th><th>Họ tên</th><th>CCCD</th><th>GT</th><th>Ngày sinh</th>
             <th>SĐT</th><th>Chuyên môn</th><th>Tổ</th><th>Kiêm nhiệm</th><th>TT</th><th></th>
           </tr>
         </thead>
         <tbody>
         <?php if (!$teachers): ?>
-          <tr><td colspan="12" class="text-muted text-center py-4">Chưa có — nhập CSV hoặc thêm mới.</td></tr>
+          <tr><td colspan="13" class="text-muted text-center py-4">Chưa có — nhập CSV hoặc thêm mới.</td></tr>
         <?php else: foreach ($teachers as $i => $t):
           $kn = csdl_format_kiem_nhiem($t['kiem_nhiem'] ?? []);
           $to = $t['to_chuyen_mon'] ?? $t['pccm_group'] ?? '';
         ?>
           <tr class="<?= empty($t['active'])?'table-secondary':'' ?>">
+            <td><input type="checkbox" class="form-check-input row-chk row-chk-teachers" value="<?= e($t['id']) ?>"></td>
             <td><?= $i+1 ?></td>
             <td class="small"><?= e($t['code'] ?? '') ?></td>
             <td><strong><?= e($t['name'] ?? '') ?></strong></td>
@@ -346,87 +353,7 @@ body{background:#f0f4f8}
     </div>
   </div></div>
 
-  <!-- Modal GV -->
-  <div class="modal fade" id="modalTeacher" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-      <div class="modal-content">
-        <form method="post">
-          <input type="hidden" name="action" value="teacher_save">
-          <input type="hidden" name="id" id="t_id" value="<?= e($editing['id'] ?? '') ?>">
-          <div class="modal-header">
-            <h5 class="modal-title" id="modalTeacherTitle"><?= $editing ? 'Sửa giáo viên' : 'Thêm giáo viên' ?></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div class="row g-3">
-              <div class="col-md-4"><label class="form-label small">Họ và tên *</label>
-                <input type="text" name="name" id="t_name" class="form-control" required value="<?= e($editing['name'] ?? '') ?>"></div>
-              <div class="col-md-2"><label class="form-label small">Mã GV</label>
-                <input type="text" name="code" id="t_code" class="form-control" value="<?= e($editing['code'] ?? '') ?>"></div>
-              <div class="col-md-3"><label class="form-label small">CCCD</label>
-                <input type="text" name="cccd" id="t_cccd" class="form-control" value="<?= e($editing['cccd'] ?? '') ?>"></div>
-              <div class="col-md-3"><label class="form-label small">Ngày sinh</label>
-                <input type="date" name="dob" id="t_dob" class="form-control" value="<?= e($editing['dob'] ?? '') ?>"></div>
-              <div class="col-md-2"><label class="form-label small">Giới tính</label>
-                <select name="gender" id="t_gender" class="form-select">
-                  <option value="">—</option>
-                  <option value="Nam" <?= (($editing['gender'] ?? '')==='Nam')?'selected':'' ?>>Nam</option>
-                  <option value="Nữ" <?= (($editing['gender'] ?? '')==='Nữ')?'selected':'' ?>>Nữ</option>
-                </select></div>
-              <div class="col-md-2"><label class="form-label small">Dân tộc</label>
-                <input type="text" name="ethnicity" class="form-control" value="<?= e($editing['ethnicity'] ?? '') ?>"></div>
-              <div class="col-md-4"><label class="form-label small">SĐT</label>
-                <input type="text" name="phone" class="form-control" value="<?= e($editing['phone'] ?? '') ?>"></div>
-              <div class="col-md-4"><label class="form-label small">Email</label>
-                <input type="email" name="email" class="form-control" value="<?= e($editing['email'] ?? '') ?>"></div>
-              <div class="col-md-6"><label class="form-label small">Quê quán</label>
-                <input type="text" name="hometown" class="form-control" value="<?= e($editing['hometown'] ?? '') ?>"></div>
-              <div class="col-md-6"><label class="form-label small">Địa chỉ</label>
-                <input type="text" name="address" class="form-control" value="<?= e($editing['address'] ?? '') ?>"></div>
-              <div class="col-md-3"><label class="form-label small">Cấp học</label>
-                <input type="text" name="teaching_level" class="form-control" placeholder="THCS / THPT" value="<?= e($editing['teaching_level'] ?? '') ?>"></div>
-              <div class="col-md-3"><label class="form-label small">Chuyên môn</label>
-                <input type="text" name="specialty" class="form-control" value="<?= e($editing['specialty'] ?? '') ?>"></div>
-              <div class="col-md-3"><label class="form-label small">Tổ chuyên môn</label>
-                <input type="text" name="to_chuyen_mon" class="form-control" value="<?= e($editing['to_chuyen_mon'] ?? $editing['pccm_group'] ?? '') ?>"></div>
-              <div class="col-md-3"><label class="form-label small">Chức vụ (hành chính)</label>
-                <input type="text" name="chuc_vu" class="form-control" value="<?= e($editing['chuc_vu'] ?? '') ?>"></div>
-              <div class="col-12"><label class="form-label small">Kiêm nhiệm (mỗi dòng 1 chức vụ)</label>
-                <textarea name="kiem_nhiem_text" class="form-control form-control-sm" rows="3" placeholder="GVCN (6A)&#10;TTCM"><?= e($kn_text) ?></textarea></div>
-              <div class="col-md-3"><label class="form-label small">Ngày vào ngành</label>
-                <input type="date" name="join_date" class="form-control" value="<?= e($editing['join_date'] ?? '') ?>"></div>
-              <div class="col-md-2"><label class="form-label small">Bậc</label>
-                <input type="text" name="bac" class="form-control" value="<?= e($editing['bac'] ?? '') ?>"></div>
-              <div class="col-md-2"><label class="form-label small">Hạng</label>
-                <input type="text" name="hang" class="form-control" value="<?= e($editing['hang'] ?? '') ?>"></div>
-              <div class="col-md-2"><label class="form-label small">Cấp</label>
-                <input type="text" name="cap_luong" class="form-control" value="<?= e($editing['cap_luong'] ?? '') ?>"></div>
-              <div class="col-md-1"><label class="form-label small">Hệ số</label>
-                <input type="text" name="he_so" class="form-control" value="<?= e($editing['he_so'] ?? '') ?>"></div>
-              <div class="col-md-2"><label class="form-label small">Hưởng từ</label>
-                <input type="date" name="he_so_from" class="form-control" value="<?= e($editing['he_so_from'] ?? '') ?>"></div>
-              <div class="col-md-8"><label class="form-label small">Ghi chú</label>
-                <input type="text" name="note" class="form-control" value="<?= e($editing['note'] ?? '') ?>"></div>
-              <div class="col-md-4">
-                <label class="form-label small d-block">Cờ</label>
-                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="is_probation" id="isp" <?= !empty($editing['role_flags']['is_probation'])?'checked':'' ?>><label class="form-check-label small" for="isp">Tập sự</label></div>
-                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="is_principal" id="iht" <?= !empty($editing['role_flags']['is_principal'])?'checked':'' ?>><label class="form-check-label small" for="iht">HT</label></div>
-                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="is_vice" id="ivc" <?= !empty($editing['role_flags']['is_vice'])?'checked':'' ?>><label class="form-check-label small" for="ivc">PHT</label></div>
-                <div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="active" id="tact" <?= ($editing === null || !empty($editing['active']))?'checked':'' ?>><label class="form-check-label small" for="tact">Đang công tác</label></div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Lưu</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-  <?php if ($editing): ?>
-  <script>document.addEventListener('DOMContentLoaded',()=>{new bootstrap.Modal('#modalTeacher').show()});</script>
-  <?php endif; ?>
+  <?php include __DIR__ . '/includes/csdl_modal_teacher.php'; ?>
 
 <?php elseif ($tab === 'classes'): ?>
   <?php
@@ -435,6 +362,8 @@ body{background:#f0f4f8}
     usort($classes, fn($a,$b) => ($a['grade'] ?? 0) <=> ($b['grade'] ?? 0) ?: strcmp($a['name'] ?? '', $b['name'] ?? ''));
     $io_entity = 'classes';
     include __DIR__ . '/includes/csdl_io_panel.php';
+    $bulk_entity = 'classes';
+    include __DIR__ . '/includes/csdl_bulk_bar.php';
   ?>
   <div class="d-flex justify-content-between align-items-center mb-2">
     <h5 class="mb-0">Bảng lớp (<?= count($classes) ?>)</h5>
@@ -445,10 +374,11 @@ body{background:#f0f4f8}
   <div class="card card-soft"><div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-hover table-full table-sm align-middle mb-0">
-        <thead><tr><th>STT</th><th>Lớp</th><th>Khối</th><th>Cấp</th><th>GVCN</th><th>Phòng</th><th>Định mức</th><th>TT</th><th></th></tr></thead>
+        <thead><tr><th></th><th>STT</th><th>Lớp</th><th>Khối</th><th>Cấp</th><th>GVCN</th><th>Phòng</th><th>Định mức</th><th>TT</th><th></th></tr></thead>
         <tbody>
         <?php foreach ($classes as $i => $c): ?>
           <tr class="<?= empty($c['active'])?'table-secondary':'' ?>">
+            <td><input type="checkbox" class="form-check-input row-chk row-chk-classes" value="<?= e($c['id']) ?>"></td>
             <td><?= $i+1 ?></td>
             <td><strong><?= e($c['name'] ?? '') ?></strong></td>
             <td><?= e((string)($c['grade'] ?? '')) ?></td>
@@ -471,53 +401,7 @@ body{background:#f0f4f8}
       </table>
     </div>
   </div></div>
-
-  <div class="modal fade" id="modalClass" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <form method="post">
-          <input type="hidden" name="action" value="class_save">
-          <input type="hidden" name="id" id="c_id" value="<?= e($editing['id'] ?? '') ?>">
-          <div class="modal-header">
-            <h5 class="modal-title" id="modalClassTitle"><?= $editing ? 'Sửa lớp' : 'Thêm lớp' ?></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div class="row g-3">
-              <div class="col-md-4"><label class="form-label small">Tên lớp *</label>
-                <input type="text" name="name" class="form-control" required value="<?= e($editing['name'] ?? '') ?>"></div>
-              <div class="col-md-2"><label class="form-label small">Khối *</label>
-                <input type="number" name="grade" class="form-control" min="6" max="12" required value="<?= e((string)($editing['grade'] ?? 6)) ?>"></div>
-              <div class="col-md-6"><label class="form-label small">GVCN</label>
-                <select name="homeroom_teacher_id" class="form-select">
-                  <option value="">—</option>
-                  <?php foreach ($teachers as $t): if (empty($t['active'])) continue; ?>
-                    <option value="<?= e($t['id']) ?>" <?= (($editing['homeroom_teacher_id'] ?? '') === $t['id'])?'selected':'' ?>><?= e($t['name']) ?></option>
-                  <?php endforeach; ?>
-                </select></div>
-              <div class="col-md-4"><label class="form-label small">Phòng</label>
-                <input type="text" name="room" class="form-control" value="<?= e($editing['room'] ?? '') ?>"></div>
-              <div class="col-md-4"><label class="form-label small">Sĩ số định mức</label>
-                <input type="text" name="capacity" class="form-control" value="<?= e((string)($editing['capacity'] ?? '')) ?>"></div>
-              <div class="col-md-4"><label class="form-label small">Ghi chú</label>
-                <input type="text" name="note" class="form-control" value="<?= e($editing['note'] ?? '') ?>"></div>
-              <div class="col-12">
-                <div class="form-check"><input class="form-check-input" type="checkbox" name="active" id="cact" <?= ($editing === null || !empty($editing['active']))?'checked':'' ?>>
-                <label class="form-check-label" for="cact">Đang hoạt động</label></div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
-            <button type="submit" class="btn btn-primary">Lưu</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-  <?php if ($editing): ?>
-  <script>document.addEventListener('DOMContentLoaded',()=>{new bootstrap.Modal('#modalClass').show()});</script>
-  <?php endif; ?>
+  <?php include __DIR__ . '/includes/csdl_modal_class.php'; ?>
 
 <?php elseif ($tab === 'students'): ?>
   <?php
@@ -525,6 +409,8 @@ body{background:#f0f4f8}
     if ($edit_id) { foreach ($students as $s) if (($s['id'] ?? '') === $edit_id) { $editing = $s; break; } }
     $io_entity = 'students';
     include __DIR__ . '/includes/csdl_io_panel.php';
+    $bulk_entity = 'students';
+    include __DIR__ . '/includes/csdl_bulk_bar.php';
   ?>
   <div class="d-flex justify-content-between align-items-center mb-2">
     <h5 class="mb-0">Bảng học sinh (<?= count($students) ?>)</h5>
@@ -537,15 +423,16 @@ body{background:#f0f4f8}
       <table class="table table-hover table-full table-sm align-middle mb-0">
         <thead>
           <tr>
-            <th>STT</th><th>Mã</th><th>Họ tên</th><th>CCCD</th><th>Lớp</th><th>GT</th><th>Ngày sinh</th>
+            <th></th><th>STT</th><th>Mã</th><th>Họ tên</th><th>CCCD</th><th>Lớp</th><th>GT</th><th>Ngày sinh</th>
             <th>SĐT</th><th>PH</th><th>Nội trú</th><th>P.KTX</th><th>TT</th><th></th>
           </tr>
         </thead>
         <tbody>
         <?php if (!$students): ?>
-          <tr><td colspan="13" class="text-muted text-center py-4">Chưa có — tải mẫu CSV hoặc thêm mới.</td></tr>
+          <tr><td colspan="14" class="text-muted text-center py-4">Chưa có — tải mẫu CSV hoặc thêm mới.</td></tr>
         <?php else: foreach ($students as $i => $s): ?>
           <tr class="<?= empty($s['active'])?'table-secondary':'' ?>">
+            <td><input type="checkbox" class="form-check-input row-chk row-chk-students" value="<?= e($s['id']) ?>"></td>
             <td><?= $i+1 ?></td>
             <td class="small"><?= e($s['code'] ?? '') ?></td>
             <td><strong><?= e($s['name'] ?? '') ?></strong></td>
@@ -572,75 +459,7 @@ body{background:#f0f4f8}
       </table>
     </div>
   </div></div>
-
-  <div class="modal fade" id="modalStudent" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-      <div class="modal-content">
-        <form method="post">
-          <input type="hidden" name="action" value="student_save">
-          <input type="hidden" name="id" id="s_id" value="<?= e($editing['id'] ?? '') ?>">
-          <div class="modal-header">
-            <h5 class="modal-title" id="modalStudentTitle"><?= $editing ? 'Sửa học sinh' : 'Thêm học sinh' ?></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div class="row g-3">
-              <div class="col-md-4"><label class="form-label small">Họ và tên *</label>
-                <input type="text" name="name" class="form-control" required value="<?= e($editing['name'] ?? '') ?>"></div>
-              <div class="col-md-2"><label class="form-label small">Mã HS</label>
-                <input type="text" name="code" class="form-control" value="<?= e($editing['code'] ?? '') ?>"></div>
-              <div class="col-md-3"><label class="form-label small">CCCD</label>
-                <input type="text" name="cccd" class="form-control" value="<?= e($editing['cccd'] ?? '') ?>"></div>
-              <div class="col-md-3"><label class="form-label small">Lớp</label>
-                <select name="class_id" class="form-select">
-                  <option value="">—</option>
-                  <?php foreach ($classes as $c): if (empty($c['active'])) continue; ?>
-                    <option value="<?= e($c['id']) ?>" <?= (($editing['class_id'] ?? '') === $c['id'])?'selected':'' ?>><?= e($c['name']) ?></option>
-                  <?php endforeach; ?>
-                </select></div>
-              <div class="col-md-2"><label class="form-label small">Giới tính</label>
-                <select name="gender" class="form-select">
-                  <option value="">—</option>
-                  <option value="Nam" <?= (($editing['gender'] ?? '')==='Nam')?'selected':'' ?>>Nam</option>
-                  <option value="Nữ" <?= (($editing['gender'] ?? '')==='Nữ')?'selected':'' ?>>Nữ</option>
-                </select></div>
-              <div class="col-md-3"><label class="form-label small">Ngày sinh</label>
-                <input type="date" name="dob" class="form-control" value="<?= e($editing['dob'] ?? '') ?>"></div>
-              <div class="col-md-3"><label class="form-label small">Dân tộc</label>
-                <input type="text" name="ethnicity" class="form-control" value="<?= e($editing['ethnicity'] ?? '') ?>"></div>
-              <div class="col-md-4"><label class="form-label small">SĐT HS</label>
-                <input type="text" name="phone" class="form-control" value="<?= e($editing['phone'] ?? '') ?>"></div>
-              <div class="col-md-6"><label class="form-label small">Quê quán</label>
-                <input type="text" name="hometown" class="form-control" value="<?= e($editing['hometown'] ?? '') ?>"></div>
-              <div class="col-md-6"><label class="form-label small">Địa chỉ</label>
-                <input type="text" name="address" class="form-control" value="<?= e($editing['address'] ?? '') ?>"></div>
-              <div class="col-md-4"><label class="form-label small">Họ tên phụ huynh</label>
-                <input type="text" name="parent_name" class="form-control" value="<?= e($editing['parent_name'] ?? '') ?>"></div>
-              <div class="col-md-4"><label class="form-label small">SĐT phụ huynh</label>
-                <input type="text" name="parent_phone" class="form-control" value="<?= e($editing['parent_phone'] ?? '') ?>"></div>
-              <div class="col-md-2"><label class="form-label small">Phòng KTX</label>
-                <input type="text" name="room_ktx" class="form-control" value="<?= e($editing['room_ktx'] ?? '') ?>"></div>
-              <div class="col-md-2"><label class="form-label small">Nhóm ăn</label>
-                <input type="text" name="meal_group" class="form-control" value="<?= e($editing['meal_group'] ?? '') ?>"></div>
-              <div class="col-md-8"><label class="form-label small">Ghi chú</label>
-                <input type="text" name="note" class="form-control" value="<?= e($editing['note'] ?? '') ?>"></div>
-              <div class="col-md-4">
-                <div class="form-check"><input class="form-check-input" type="checkbox" name="boarder" id="brd" <?= !empty($editing['boarder'])?'checked':'' ?>><label class="form-check-label" for="brd">Nội trú</label></div>
-                <div class="form-check"><input class="form-check-input" type="checkbox" name="active" id="sact" <?= ($editing === null || !empty($editing['active']))?'checked':'' ?>><label class="form-check-label" for="sact">Đang học</label></div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
-            <button type="submit" class="btn btn-primary">Lưu</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-  <?php if ($editing): ?>
-  <script>document.addEventListener('DOMContentLoaded',()=>{new bootstrap.Modal('#modalStudent').show()});</script>
-  <?php endif; ?>
+  <?php include __DIR__ . '/includes/csdl_modal_student.php'; ?>
 
 <?php elseif ($tab === 'years'): ?>
   <?php include __DIR__ . '/includes/csdl_tab_years.php'; ?>
@@ -648,23 +467,25 @@ body{background:#f0f4f8}
 <?php endif; ?>
 
 </div>
+<script>window.CSDL_BASE = <?= json_encode(BASE_URL) ?>;</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= BASE_URL ?>assets/csdl-bulk.js"></script>
 <script>
 function resetTeacherForm(){
   var f=document.querySelector('#modalTeacher form');
   if(!f)return;
   f.reset();
-  document.getElementById('t_id').value='';
-  document.getElementById('modalTeacherTitle').textContent='Thêm giáo viên';
-  document.getElementById('tact').checked=true;
+  var id=document.getElementById('t_id'); if(id) id.value='';
+  var t=document.getElementById('modalTeacherTitle'); if(t) t.textContent='Thêm giáo viên';
+  var a=document.getElementById('tact'); if(a) a.checked=true;
 }
 function resetStudentForm(){
   var f=document.querySelector('#modalStudent form');
   if(!f)return;
   f.reset();
-  document.getElementById('s_id').value='';
-  document.getElementById('modalStudentTitle').textContent='Thêm học sinh';
-  document.getElementById('sact').checked=true;
+  var id=document.getElementById('s_id'); if(id) id.value='';
+  var t=document.getElementById('modalStudentTitle'); if(t) t.textContent='Thêm học sinh';
+  var a=document.getElementById('sact'); if(a) a.checked=true;
 }
 </script>
 </body>
