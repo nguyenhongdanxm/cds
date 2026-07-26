@@ -17,8 +17,10 @@ define('SCHOOL_SO', 'Sở GD&ĐT Tuyên Quang');
 define('SCHOOL_YEAR', '2025–2026');
 
 define('URL_TIN_TUC', 'https://noitruxinman.edu.vn');
-define('URL_CHUYEN_MON', 'https://noitruxinman.edu.vn/pccm/');
-define('URL_CSDL', '');
+/* Chuyên môn (PCCM) – module thư mục trên cùng domain CDS */
+define('URL_CHUYEN_MON', BASE_URL . 'chuyenmon/');
+define('URL_CSDL', BASE_URL . 'csdl.php');
+define('URL_NOITRU', BASE_URL . 'noitru.php');
 
 define('USERS_FILE', DATA_PATH . '/users.json');
 define('SETTINGS_FILE', DATA_PATH . '/settings.json');
@@ -26,12 +28,12 @@ define('SETTINGS_FILE', DATA_PATH . '/settings.json');
 define('DEFAULT_ADMIN_USER', 'admin');
 define('DEFAULT_ADMIN_PASS', 'Xinman@2021');
 
-/* —— PCCM data path (file JSON cùng server) —— */
+/* Data PCCM khi đã copy vào CDS/chuyenmon/data */
 if (!defined('PCCM_DATA_PATH')) {
     $candidates = [
+        BASE_PATH . '/chuyenmon/data',
         dirname(BASE_PATH) . '/public_html/pccm/data',
         dirname(BASE_PATH) . '/noitruxinman.edu.vn/pccm/data',
-        dirname(BASE_PATH) . '/public_html/pccm/pccm/data',
         '/home/capnachi/public_html/pccm/data',
         '/home/capnachi/noitruxinman.edu.vn/pccm/data',
         BASE_PATH . '/../pccm/data',
