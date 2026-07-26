@@ -1,25 +1,16 @@
 <?php
 /**
- * Nhập danh sách cán bộ / GV / NV từ CSV (Excel → Lưu dạng CSV UTF-8)
- *
- * Chiến lược MERGE theo họ tên (không phân biệt hoa thường, gộp khoảng trắng):
- *  - Cập nhật hồ sơ hành chính (ngày sinh, GT, SĐT, email, địa chỉ…)
- *  - KHÔNG ghi đè: chuyên môn (nếu đã có), tổ chuyên môn, kiêm nhiệm, cờ HT/PHT/tập sự
- *  - Môn dạy từ Excel chỉ đổ vào specialty khi specialty đang trống
- *  - Chức vụ Excel → trường chuc_vu riêng (không đụng kiem_nhiem PCCM)
+ * Nhập GV/NV từ CSV — merge theo họ tên, giữ PCCM.
  */
-
 require_once __DIR__ . '/csdl_store.php';
-require_once __DIR__ . '/csdl_sync.php'; // csdl_norm_name
+require_once __DIR__ . '/csdl_sync.php';
 
 function csdl_import_parse_date($s) {
     $s = trim((string)$s);
     if ($s === '') return '';
-    // d/m/Y hoặc d-m-Y
     if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $s, $m)) {
         return sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]);
     }
-    // Y-m-d
     if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $s)) return $s;
     return $s;
 }
@@ -29,8 +20,10 @@ function csdl_import_header_map($headers) {
     foreach ($headers as $i => $h) {
         $h = mb_strtolower(trim((string)$h), 'UTF-8');
         $h = preg_replace('/\s+/u', ' ', $h);
+        if ($h === 'stt') continue;
         $aliases = [
             'name' => ['họ và tên', 'ho va ten', 'họ tên', 'hoten', 'họ tên giáo viên', 'tên'],
+            'cccd' => ['cccd', 'cmnd', 'số cccd', 'so cccd'],
             'dob' => ['ngày sinh', 'ngay sinh'],
             'gender' => ['giới tính', 'gioi tinh'],
             'ethnicity' => ['dân tộc', 'dan toc'],
@@ -39,8 +32,8 @@ function csdl_import_header_map($headers) {
             'hometown' => ['quê quán', 'que quan'],
             'address' => ['địa chỉ', 'dia chi'],
             'teaching_level' => ['cấp học', 'cap hoc'],
-            'specialty' => ['môn dạy', 'mon day', 'chuyên môn', 'chuyen mon'],
-            'chuc_vu' => ['chức vụ', 'chuc vu'],
+            'specialty' => ['môn dạy', 'mon day', 'chuyên môn', 'chuyen mon', 'môn dạy / chuyên môn'],
+            'chuc_vu' => ['chức vụ', 'chuc vu', 'chức vụ (hành chính)'],
             'join_date' => ['ngày vào ngành', 'ngay vao nganh'],
             'bac' => ['bậc', 'bac'],
             'hang' => ['hạng', 'hang'],
@@ -66,15 +59,11 @@ function csdl_import_row_get($row, $map, $key) {
     return isset($row[$i]) ? trim((string)$row[$i]) : '';
 }
 
-/**
- * @return array{ok:bool,message:string,added:int,updated:int,skipped:int,errors:array}
- */
 function csdl_import_teachers_from_csv_file($tmpPath) {
     $raw = file_get_contents($tmpPath);
     if ($raw === false || $raw === '') {
         return ['ok' => false, 'message' => 'Không đọc được file.', 'added' => 0, 'updated' => 0, 'skipped' => 0, 'errors' => []];
     }
-    // Bỏ BOM UTF-8
     if (substr($raw, 0, 3) === "\xEF\xBB\xBF") $raw = substr($raw, 3);
 
     $lines = preg_split('/\r\n|\r|\n/', $raw);
@@ -83,14 +72,13 @@ function csdl_import_teachers_from_csv_file($tmpPath) {
         return ['ok' => false, 'message' => 'File trống hoặc thiếu dòng dữ liệu.', 'added' => 0, 'updated' => 0, 'skipped' => 0, 'errors' => []];
     }
 
-    // Tách CSV (hỗ trợ dấu phẩy / chấm phẩy)
     $delimiter = (substr_count($lines[0], ';') > substr_count($lines[0], ',')) ? ';' : ',';
     $headers = str_getcsv($lines[0], $delimiter);
     $map = csdl_import_header_map($headers);
     if (!isset($map['name'])) {
         return [
             'ok' => false,
-            'message' => 'Không tìm thấy cột «Họ và tên». Kiểm tra dòng tiêu đề (STT, Họ và tên, …).',
+            'message' => 'Không tìm thấy cột «Họ và tên». Dòng 1 phải là tiêu đề cột chuẩn.',
             'added' => 0, 'updated' => 0, 'skipped' => 0, 'errors' => [],
         ];
     }
@@ -116,33 +104,18 @@ function csdl_import_teachers_from_csv_file($tmpPath) {
 
         $key = csdl_norm_name($name);
         $old = $by_name[$key] ?? null;
-
         $payload = ['name' => $name, 'active' => true];
 
-        // Hồ sơ hành chính — chỉ ghi nếu Excel có giá trị
         $dob = csdl_import_parse_date(csdl_import_row_get($row, $map, 'dob'));
         if ($dob !== '') $payload['dob'] = $dob;
 
-        $gender = csdl_import_row_get($row, $map, 'gender');
-        if ($gender !== '') $payload['gender'] = $gender;
+        foreach (['gender', 'ethnicity', 'phone', 'email', 'hometown', 'address', 'code', 'chuc_vu', 'bac', 'hang', 'cap_luong', 'he_so'] as $f) {
+            $v = csdl_import_row_get($row, $map, $f);
+            if ($v !== '') $payload[$f] = $v;
+        }
 
-        $eth = csdl_import_row_get($row, $map, 'ethnicity');
-        if ($eth !== '') $payload['ethnicity'] = $eth;
-
-        $phone = csdl_import_row_get($row, $map, 'phone');
-        if ($phone !== '') $payload['phone'] = $phone;
-
-        $email = csdl_import_row_get($row, $map, 'email');
-        if ($email !== '') $payload['email'] = $email;
-
-        $hometown = csdl_import_row_get($row, $map, 'hometown');
-        if ($hometown !== '') $payload['hometown'] = $hometown;
-
-        $address = csdl_import_row_get($row, $map, 'address');
-        if ($address !== '') $payload['address'] = $address;
-
-        $code = csdl_import_row_get($row, $map, 'code');
-        if ($code !== '') $payload['code'] = $code;
+        $cccd = preg_replace('/\s+/', '', csdl_import_row_get($row, $map, 'cccd'));
+        if ($cccd !== '') $payload['cccd'] = $cccd;
 
         $level = csdl_import_row_get($row, $map, 'teaching_level');
         if ($level !== '') {
@@ -160,33 +133,19 @@ function csdl_import_teachers_from_csv_file($tmpPath) {
             }
         }
 
-        // Môn dạy → specialty CHỈ khi chưa có (giữ PCCM)
         $mon = csdl_import_row_get($row, $map, 'specialty');
-        if ($mon !== '') {
-            if (!$old || trim($old['specialty'] ?? '') === '') {
-                $payload['specialty'] = $mon;
-            }
-            // nếu đã có specialty PCCM → bỏ qua, không đè
+        if ($mon !== '' && (!$old || trim($old['specialty'] ?? '') === '')) {
+            $payload['specialty'] = $mon;
         }
-
-        // Chức vụ Excel → chuc_vu (không đụng kiem_nhiem)
-        $cv = csdl_import_row_get($row, $map, 'chuc_vu');
-        if ($cv !== '') $payload['chuc_vu'] = $cv;
 
         $jd = csdl_import_parse_date(csdl_import_row_get($row, $map, 'join_date'));
         if ($jd !== '') $payload['join_date'] = $jd;
-
-        foreach (['bac', 'hang', 'cap_luong', 'he_so'] as $f) {
-            $v = csdl_import_row_get($row, $map, $f);
-            if ($v !== '') $payload[$f] = $v;
-        }
         $hsf = csdl_import_parse_date(csdl_import_row_get($row, $map, 'he_so_from'));
         if ($hsf !== '') $payload['he_so_from'] = $hsf;
 
         $note_ex = csdl_import_row_get($row, $map, 'note');
         if ($note_ex !== '') {
             if ($old && trim($old['note'] ?? '') !== '' && trim($old['note']) !== $note_ex) {
-                // giữ note cũ, thêm note Excel nếu khác
                 $payload['note'] = trim($old['note']) . ' | ' . $note_ex;
             } else {
                 $payload['note'] = $note_ex;
@@ -195,11 +154,8 @@ function csdl_import_teachers_from_csv_file($tmpPath) {
 
         if ($old) {
             $payload['id'] = $old['id'];
-            // Bảo toàn tuyệt đối các trường PCCM nếu payload không cố ý sửa
-            // (specialty đã xử lý ở trên; các trường dưới không nằm trong payload → array_merge giữ cũ trong csdl_teacher_save)
             csdl_teacher_save($payload);
             $updated++;
-            // refresh index
             $by_name[$key] = array_merge($old, $payload);
         } else {
             $payload['source'] = 'excel';
@@ -219,7 +175,7 @@ function csdl_import_teachers_from_csv_file($tmpPath) {
     return [
         'ok' => true,
         'message' => sprintf(
-            'Nhập xong: thêm mới %d · cập nhật %d · bỏ qua %d dòng. Dữ liệu PCCM (chuyên môn đã có, tổ, kiêm nhiệm, cờ HT/PHT) được giữ nguyên.',
+            'Nhập xong: thêm mới %d · cập nhật %d · bỏ qua %d. Giữ nguyên chuyên môn/tổ/kiêm nhiệm PCCM đã có.',
             $added, $updated, $skipped
         ),
         'added' => $added,
