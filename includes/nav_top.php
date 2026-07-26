@@ -3,8 +3,8 @@
  * Thanh menu trên cùng – dùng chung CSDL, Nội trú, Quản trị…
  *
  * Biến tùy chọn trước khi include:
- *   $nav_title   – tên module hiện tại (vd: Cơ sở dữ liệu)
- *   $nav_icon    – class bi (vd: bi-database)
+ *   $nav_title   – tên module hiện tại
+ *   $nav_icon    – class bi
  *   $nav_color   – màu nền navbar (hex)
  *   $nav_module  – id module đang active: csdl|noitru|chuyenmon|admin|…
  */
@@ -18,7 +18,6 @@ $nav_module = $nav_module ?? '';
 $nav_user = function_exists('current_user') ? current_user() : null;
 $nav_modules = get_ecosystem_modules();
 
-// Mục cố định thêm
 $nav_extra = [
     [
         'id' => 'home',
@@ -40,15 +39,17 @@ $nav_extra = [
 ?>
 <style>
 .cds-nav{background:<?= htmlspecialchars($nav_color, ENT_QUOTES) ?>!important}
-.cds-nav .dropdown-menu{min-width:240px;max-height:70vh;overflow-y:auto}
+.cds-nav .dropdown-menu{min-width:260px;max-height:70vh;overflow-y:auto}
 .cds-nav .dropdown-item.active,
 .cds-nav .dropdown-item:active{background:#e8f0fe;color:#1a56a8}
 .cds-nav .dropdown-item .bi{width:1.25rem;display:inline-block}
 .cds-nav .nav-mod-soon{opacity:.55}
+/* Ẩn navbar cũ 1 dòng (nếu trang chưa gỡ hết) */
+body > nav.navbar-dark:not(.cds-nav){display:none!important}
 </style>
 <nav class="navbar navbar-expand-lg navbar-dark cds-nav mb-4">
   <div class="container-fluid px-3 px-lg-4">
-    <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="<?= BASE_URL ?>">
+    <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="<?= e(($nav_modules[0]['url'] ?? BASE_URL)) === BASE_URL ? BASE_URL : BASE_URL ?>">
       <i class="bi <?= e($nav_icon) ?>"></i>
       <span><?= e($nav_title) ?></span>
     </a>
