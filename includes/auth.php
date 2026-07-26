@@ -2,6 +2,12 @@
 require_once __DIR__ . '/config.php';
 
 if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 
@@ -62,7 +68,7 @@ function attempt_login($username, $password) {
         'name' => $u['name'] ?? $u['username'],
         'role' => $u['role'] ?? 'user',
     ];
-    // Cầu nối tạm với PCCM (cùng domain, path cookie mặc định)
+    // Cầu nối PCCM / chuyên môn (cùng domain, cookie path=/)
     $_SESSION['pccm_admin'] = in_array($u['role'] ?? '', ['admin', 'bgh'], true);
     return true;
 }
