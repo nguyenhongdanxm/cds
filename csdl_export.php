@@ -1,9 +1,10 @@
 <?php
 /**
- * Xuất CSV hoặc tải mẫu nhập — theo schema CSDL chuẩn.
+ * Xuất CSV hoặc tải mẫu nhập — schema CSDL chuẩn (delimiter ; cho Excel VN).
  * ?entity=teachers|classes|students
  * &mode=export|template
- * &fields[]=name&fields[]=code… (export)
+ * &fields[]=...
+ * &ids[]=... (chỉ xuất các bản ghi chọn)
  */
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_io.php';
@@ -23,4 +24,8 @@ if ($mode === 'template') {
 
 $fields = $_GET['fields'] ?? $_POST['fields'] ?? [];
 if (!is_array($fields)) $fields = [];
-csdl_io_export($entity, $fields);
+
+$ids = $_GET['ids'] ?? $_POST['ids'] ?? null;
+if (!is_array($ids)) $ids = null;
+
+csdl_io_export($entity, $fields, $ids);
