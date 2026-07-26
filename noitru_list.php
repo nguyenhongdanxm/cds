@@ -1,5 +1,5 @@
 <?php
-/** Danh sách nội trú – 4 view: students, classes, rooms, meals */
+/** Danh sách nội trú – Học sinh / Lớp / Phòng / Mâm ăn */
 require_once 'includes/auth.php';
 require_once 'includes/noitru_store.php';
 require_login();
@@ -7,17 +7,13 @@ require_login();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sync_from_csdl') {
     $r = noitru_sync_from_csdl();
     flash($r['message'], $r['ok'] ? 'success' : 'danger');
-    header('Location: ' . BASE_URL . 'noitru_list.php?' . http_build_query(array_filter([
-        'view' => $_GET['view'] ?? 'students',
-        'class' => $_GET['class'] ?? null,
-        'room' => $_GET['room'] ?? null,
-        'meal' => $_GET['meal'] ?? null,
-    ])));
+    $qs = $_SERVER['QUERY_STRING'] ?? '';
+    header('Location: ' . BASE_URL . 'noitru_list.php' . ($qs ? '?' . $qs : ''));
     exit;
 }
 
 $boarders = noitru_boarders_live();
-$stats = noitru_stats();
+$nt_list_base = BASE_URL . 'noitru_list.php';
 
 $tabs = [
     'overview' => ['Tổng quan', 'bi-grid', BASE_URL . 'noitru.php?tab=overview'],
@@ -46,14 +42,14 @@ body{background:#f8f0f4}
 .nav-pills .nav-link{border-radius:999px;font-weight:600;color:#445;font-size:.85rem}
 .nav-pills .nav-link.active{background:var(--primary);color:#fff}
 .nav-tabs .nav-link{color:#a61e5c;font-weight:600}
-.nav-tabs .nav-link.active{color:#fff;background:var(--primary);border-color:var(--primary)}
+.nav-tabs .nav-link.active{color:#fff!important;background:var(--primary)!important;border-color:var(--primary)!important}
 .card-soft{background:#fff;border:none;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
 .table thead th{font-size:.7rem;text-transform:uppercase;color:#667;background:#fce8f0;white-space:nowrap}
 .btn-nt{background:var(--primary);border-color:var(--primary);color:#fff}
 .btn-nt:hover{background:var(--pd);color:#fff}
 .badge-room{background:#fce8f0;color:#a61e5c}
 .badge-meal{background:#e8f5e9;color:#2e7d32}
-a .card-soft:hover{box-shadow:0 4px 16px rgba(214,51,132,.2);transform:translateY(-2px);transition:.15s}
+a .card-soft:hover{box-shadow:0 4px 16px rgba(214,51,132,.18);transform:translateY(-1px);transition:.15s}
 </style>
 </head>
 <body>
@@ -92,18 +88,7 @@ a .card-soft:hover{box-shadow:0 4px 16px rgba(214,51,132,.2);transform:translate
   <?php endforeach; ?>
 </ul>
 
-<?php
-// noitru_tab_boarders.php expects $boarders and builds links with ?tab=boarders&
-// Override base links: rewrite via output buffer? Simpler: set $_GET['tab']=boarders for include
-$_GET['tab'] = 'boarders';
-ob_start();
-require __DIR__ . '/includes/noitru_tab_boarders.php';
-$html = ob_get_clean();
-// Đổi link nội bộ cho khớp noitru_list.php
-$html = str_replace('?tab=boarders&', '?', $html);
-$html = str_replace('?tab=boarders', '?', $html);
-echo $html;
-?>
+<?php require __DIR__ . '/includes/noitru_tab_boarders.php'; ?>
 
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
