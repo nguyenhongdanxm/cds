@@ -14,7 +14,7 @@ function get_ecosystem_modules() {
             'title' => 'Chuyên môn',
             'subtitle' => 'Phân công – kế hoạch – tiến độ - thống kê',
             'icon' => 'bi-journal-bookmark-fill', 'color' => '#198754',
-            'status' => 'link', 'url' => URL_CHUYEN_MON, 'external' => false,
+            'status' => 'live', 'url' => URL_CHUYEN_MON, 'external' => false,
         ],
         [
             'id' => 'vanban', 'num' => 3,
@@ -35,7 +35,7 @@ function get_ecosystem_modules() {
             'title' => 'Cơ sở dữ liệu',
             'subtitle' => 'Nguồn chuẩn · tìm kiếm · module khác đồng bộ 1 chiều',
             'icon' => 'bi-database', 'color' => '#20c997',
-            'status' => 'live', 'url' => BASE_URL . 'csdl.php', 'external' => false,
+            'status' => 'live', 'url' => URL_CSDL, 'external' => false,
         ],
         [
             'id' => 'hoclieu', 'num' => 6,
@@ -49,7 +49,7 @@ function get_ecosystem_modules() {
             'title' => 'Quản lý nội trú',
             'subtitle' => 'KTX · điểm danh · báo ăn · xin ra vào',
             'icon' => 'bi-building', 'color' => '#d63384',
-            'status' => 'live', 'url' => BASE_URL . 'noitru.php', 'external' => false,
+            'status' => 'live', 'url' => URL_NOITRU, 'external' => false,
         ],
         [
             'id' => 'thidua', 'num' => 8,
