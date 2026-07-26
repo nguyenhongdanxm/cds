@@ -31,6 +31,12 @@ function init_users() {
             'password_hash' => password_hash(DEFAULT_ADMIN_PASS, PASSWORD_DEFAULT),
             'name' => 'Quản trị hệ thống',
             'role' => 'admin',
+            'modules' => [
+                'chuyenmon' => 'admin', 'csdl' => 'admin', 'noitru' => 'admin',
+                'vanban' => 'admin', 'thidua' => 'admin',
+            ],
+            'perms' => [], // admin: full qua role
+            'classes' => [],
             'active' => true,
             'created_at' => date('c'),
         ]];
@@ -43,9 +49,20 @@ function get_users() {
     return load_json(USERS_FILE, []);
 }
 
+function save_users(array $users) {
+    save_json(USERS_FILE, array_values($users));
+}
+
 function find_user($username) {
     foreach (get_users() as $u) {
         if (strcasecmp($u['username'] ?? '', $username) === 0) return $u;
+    }
+    return null;
+}
+
+function find_user_by_id($id) {
+    foreach (get_users() as $u) {
+        if (($u['id'] ?? '') === $id) return $u;
     }
     return null;
 }
@@ -58,18 +75,34 @@ function current_user() {
     return $_SESSION['cds_user'] ?? null;
 }
 
+function session_user_from_record(array $u) {
+    return [
+        'id' => $u['id'] ?? '',
+        'username' => $u['username'] ?? '',
+        'name' => $u['name'] ?? ($u['username'] ?? ''),
+        'role' => $u['role'] ?? 'gv',
+        'modules' => is_array($u['modules'] ?? null) ? $u['modules'] : [],
+        'perms' => is_array($u['perms'] ?? null) ? $u['perms'] : [],
+        'classes' => is_array($u['classes'] ?? null) ? $u['classes'] : [],
+        'teacher_name' => $u['teacher_name'] ?? '',
+    ];
+}
+
 function attempt_login($username, $password) {
     $u = find_user($username);
     if (!$u || empty($u['active'])) return false;
     if (!password_verify($password, $u['password_hash'] ?? '')) return false;
-    $_SESSION['cds_user'] = [
-        'id' => $u['id'],
-        'username' => $u['username'],
-        'name' => $u['name'] ?? $u['username'],
-        'role' => $u['role'] ?? 'user',
-    ];
-    // Cầu nối PCCM / chuyên môn (cùng domain, cookie path=/)
-    $_SESSION['pccm_admin'] = in_array($u['role'] ?? '', ['admin', 'bgh'], true);
+
+    $_SESSION['cds_user'] = session_user_from_record($u);
+
+    // Cầu nối Chuyên môn (PCCM)
+    $role = $u['role'] ?? '';
+    $cmLevel = $u['modules']['chuyenmon'] ?? 'none';
+    $_SESSION['pccm_admin'] = ($role === 'admin')
+        || in_array($role, ['bgh', 'totruong'], true)
+        || in_array($cmLevel, ['edit', 'admin'], true)
+        || in_array('cm.pccm', $u['perms'] ?? [], true);
+
     return true;
 }
 
@@ -80,6 +113,16 @@ function logout_user() {
 function require_login() {
     if (!is_logged_in()) {
         header('Location: ' . BASE_URL . 'login.php?next=' . urlencode($_SERVER['REQUEST_URI'] ?? ''));
+        exit;
+    }
+}
+
+function require_admin() {
+    require_login();
+    $u = current_user();
+    if (($u['role'] ?? '') !== 'admin') {
+        flash('Chỉ quản trị hệ thống được truy cập.', 'danger');
+        header('Location: ' . BASE_URL . 'admin.php');
         exit;
     }
 }
@@ -104,3 +147,4 @@ function show_flash() {
 }
 
 init_users();
+require_once __DIR__ . '/permissions.php';
