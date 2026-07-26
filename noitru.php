@@ -8,6 +8,12 @@ $tab = $_GET['tab'] ?? 'overview';
 $allowed = ['overview','boarders','exits','meals','attendance','duty','health','menu','stats'];
 if (!in_array($tab, $allowed, true)) $tab = 'overview';
 
+/* Danh sách → trang 4 tab riêng */
+if ($tab === 'boarders') {
+    header('Location: ' . BASE_URL . 'noitru_list.php');
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
@@ -205,15 +211,15 @@ $boarders = noitru_boarders_live();
 $teachers = array_values(array_filter(csdl_teachers_all(), fn($t) => !empty($t['active'])));
 
 $tabs = [
-    'overview' => ['Tổng quan', 'bi-grid'],
-    'boarders' => ['Danh sách', 'bi-people'],
-    'exits' => ['Xin ra/vào KTX', 'bi-door-open'],
-    'meals' => ['Báo ăn', 'bi-egg-fried'],
-    'attendance' => ['Điểm danh', 'bi-clipboard-check'],
-    'duty' => ['Lịch trực', 'bi-calendar2-week'],
-    'health' => ['Y tế', 'bi-heart-pulse'],
-    'menu' => ['Thực đơn', 'bi-journal-text'],
-    'stats' => ['Thống kê', 'bi-bar-chart'],
+    'overview' => ['Tổng quan', 'bi-grid', BASE_URL . 'noitru.php?tab=overview'],
+    'boarders' => ['Danh sách', 'bi-people', BASE_URL . 'noitru_list.php'],
+    'exits' => ['Xin ra/vào KTX', 'bi-door-open', BASE_URL . 'noitru.php?tab=exits'],
+    'meals' => ['Báo ăn', 'bi-egg-fried', BASE_URL . 'noitru.php?tab=meals'],
+    'attendance' => ['Điểm danh', 'bi-clipboard-check', BASE_URL . 'noitru.php?tab=attendance'],
+    'duty' => ['Lịch trực', 'bi-calendar2-week', BASE_URL . 'noitru.php?tab=duty'],
+    'health' => ['Y tế', 'bi-heart-pulse', BASE_URL . 'noitru.php?tab=health'],
+    'menu' => ['Thực đơn', 'bi-journal-text', BASE_URL . 'noitru.php?tab=menu'],
+    'stats' => ['Thống kê', 'bi-bar-chart', BASE_URL . 'noitru.php?tab=stats'],
 ];
 
 function nt_meal_label($v) {
@@ -276,7 +282,7 @@ body{background:#f8f0f4}
 <ul class="nav nav-pills gap-1 mb-4 flex-wrap">
   <?php foreach ($tabs as $k => $info): ?>
     <li class="nav-item">
-      <a class="nav-link <?= $tab===$k?'active':'' ?>" href="?tab=<?= urlencode($k) ?>">
+      <a class="nav-link <?= $tab===$k?'active':'' ?>" href="<?= e($info[2]) ?>">
         <i class="bi <?= e($info[1]) ?>"></i> <?= e($info[0]) ?>
       </a>
     </li>
@@ -303,40 +309,6 @@ body{background:#f8f0f4}
       <?php foreach ($st['by_meal'] as $k=>$n): ?><div class="d-flex justify-content-between small border-bottom py-1"><span><?= e($k) ?></span><strong><?= $n ?></strong></div><?php endforeach; ?>
     </div></div></div>
   </div>
-
-<?php elseif ($tab === 'boarders'): ?>
-  <?php
-    $q = trim($_GET['q'] ?? '');
-    $list = $boarders;
-    if ($q !== '') {
-      $qq = mb_strtolower($q, 'UTF-8');
-      $list = array_values(array_filter($list, fn($s) => mb_strpos(mb_strtolower(implode(' ', $s), 'UTF-8'), $qq) !== false));
-    }
-  ?>
-  <form class="row g-2 mb-3" method="get">
-    <input type="hidden" name="tab" value="boarders">
-    <div class="col-md-8"><input type="search" name="q" class="form-control" value="<?= e($q) ?>" placeholder="Tìm tên, lớp, phòng, nhóm ăn…"></div>
-    <div class="col-md-2"><button class="btn btn-nt w-100">Tìm</button></div>
-    <div class="col-md-2"><a href="?tab=boarders" class="btn btn-outline-secondary w-100">Xóa</a></div>
-  </form>
-  <div class="card card-soft"><div class="table-responsive">
-    <table class="table table-sm table-hover mb-0 align-middle">
-      <thead><tr><th>STT</th><th>Họ tên</th><th>Lớp</th><th>Phòng</th><th>Nhóm ăn</th><th>PH / SĐT</th></tr></thead>
-      <tbody>
-      <?php if (!$list): ?><tr><td colspan="6" class="text-center text-muted py-4">Chưa có HS nội trú — tick Nội trú trên CSDL rồi đồng bộ.</td></tr>
-      <?php else: foreach ($list as $i=>$s): ?>
-        <tr>
-          <td><?= $i+1 ?></td>
-          <td><strong><?= e($s['name']) ?></strong></td>
-          <td><?= e($s['class_name']) ?></td>
-          <td><?= $s['room_ktx']!==''?'<span class="badge badge-room">'.e($s['room_ktx']).'</span>':'—' ?></td>
-          <td><?= $s['meal_group']!==''?'<span class="badge badge-meal">'.e($s['meal_group']).'</span>':'—' ?></td>
-          <td class="small"><?= e($s['parent_name']) ?><?= $s['parent_phone']!==''?' · '.e($s['parent_phone']):'' ?></td>
-        </tr>
-      <?php endforeach; endif; ?>
-      </tbody>
-    </table>
-  </div></div>
 
 <?php elseif ($tab === 'exits'): ?>
   <?php
@@ -439,7 +411,7 @@ body{background:#f8f0f4}
             <td class="small"><?= e($s['class_name']) ?></td>
             <?php foreach (['sang','trua','toi'] as $b): ?>
             <td>
-              <select name="<?= $b ?>[]" class="form-select form-select-sm" <?= $locked?'':''; ?>>
+              <select name="<?= $b ?>[]" class="form-select form-select-sm">
                 <?php foreach ($opts as $ov=>$ol): ?>
                   <option value="<?= $ov ?>" <?= (($m[$b]??'yes')===$ov)?'selected':'' ?>><?= $ol ?></option>
                 <?php endforeach; ?>
