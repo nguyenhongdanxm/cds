@@ -18,7 +18,6 @@ $soon = count($modules) - $live;
 <style>
 :root{--primary:#1F4E79}
 body{background:#f0f4f8}
-.navbar{background:var(--primary)!important}
 .stat{background:#fff;border-radius:12px;padding:1.25rem;box-shadow:0 2px 12px rgba(0,0,0,.06);text-align:center}
 .stat .n{font-size:1.75rem;font-weight:800;color:var(--primary)}
 .mod-card{background:#fff;border-radius:12px;padding:1rem;box-shadow:0 2px 10px rgba(0,0,0,.06);height:100%;border-left:4px solid #ccc}
@@ -28,21 +27,18 @@ body{background:#f0f4f8}
 </style>
 </head>
 <body>
-<nav class="navbar navbar-dark mb-4">
-  <div class="container">
-    <a class="navbar-brand fw-bold" href="<?= BASE_URL ?>"><i class="bi bi-hexagon-fill"></i> CDS Quản trị</a>
-    <div class="d-flex align-items-center gap-3 text-white">
-      <span class="small opacity-75"><?= e($user['name'] ?? '') ?> (<?= e($user['role'] ?? '') ?>)</span>
-      <a href="<?= BASE_URL ?>" class="btn btn-outline-light btn-sm">Hệ sinh thái</a>
-      <a href="<?= BASE_URL ?>logout.php" class="btn btn-warning btn-sm text-dark">Thoát</a>
-    </div>
-  </div>
-</nav>
+<?php
+$nav_title = 'CDS Quản trị';
+$nav_icon = 'bi-speedometer2';
+$nav_color = '#1F4E79';
+$nav_module = 'admin';
+include __DIR__ . '/includes/nav_top.php';
+?>
 
 <div class="container pb-5">
   <?php show_flash(); ?>
   <h3 class="mb-1">Bảng điều khiển tập trung</h3>
-  <p class="text-muted mb-4">Một tài khoản · Theo dõi các nhánh hệ sinh thái · Thống kê mở rộng khi thêm module</p>
+  <p class="text-muted mb-4">Một tài khoản · Chuyển nhanh module trên menu · Theo dõi hệ sinh thái</p>
 
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= count($modules) ?></div><div class="text-muted small">Tổng module</div></div></div>
@@ -72,15 +68,7 @@ body{background:#f0f4f8}
     </div>
     <?php endforeach; ?>
   </div>
-
-  <div class="alert alert-info mt-4">
-    <strong>Bước tiếp theo:</strong>
-    <ul class="mb-0 mt-1">
-      <li>Gắn đăng nhập CDS với PCCM (cùng session domain)</li>
-      <li>Module Văn bản, Tuyên truyền, Nội trú, Thi đua lần lượt</li>
-      <li>Đưa danh sách GV–lớp lên “Cơ sở dữ liệu dùng chung”</li>
-    </ul>
-  </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
