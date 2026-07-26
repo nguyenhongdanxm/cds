@@ -1,5 +1,14 @@
 <?php
 /** Tab Danh sách nội trú: Học sinh | Lớp | Phòng | Mâm ăn */
+if (!isset($nt_list_base)) {
+    $nt_list_base = BASE_URL . 'noitru_list.php';
+}
+function nt_list_url($params = []) {
+    global $nt_list_base;
+    $params = array_filter($params, fn($v) => $v !== '' && $v !== null);
+    return $nt_list_base . ($params ? ('?' . http_build_query($params)) : '');
+}
+
 $view = $_GET['view'] ?? 'students';
 if (!in_array($view, ['students', 'classes', 'rooms', 'meals'], true)) $view = 'students';
 
@@ -8,7 +17,6 @@ $f_class = trim($_GET['class'] ?? '');
 $f_room = trim($_GET['room'] ?? '');
 $f_meal = trim($_GET['meal'] ?? '');
 
-// Group indexes
 $byClass = [];
 $byRoom = [];
 $byMeal = [];
@@ -60,8 +68,7 @@ $subTabs = [
 <ul class="nav nav-tabs mb-3 flex-wrap">
   <?php foreach ($subTabs as $vk => $vi): ?>
   <li class="nav-item">
-    <a class="nav-link <?= $view === $vk ? 'active' : '' ?>"
-       href="?tab=boarders&view=<?= urlencode($vk) ?>">
+    <a class="nav-link <?= $view === $vk ? 'active' : '' ?>" href="<?= e(nt_list_url(['view' => $vk])) ?>">
       <i class="bi <?= e($vi[1]) ?>"></i> <?= e($vi[0]) ?>
       <?php if ($vk === 'students'): ?><span class="badge bg-secondary ms-1"><?= count($boarders) ?></span><?php endif; ?>
       <?php if ($vk === 'classes'): ?><span class="badge bg-secondary ms-1"><?= count($byClass) ?></span><?php endif; ?>
@@ -107,8 +114,7 @@ $subTabs = [
     $classKeys = array_keys($byClass);
   ?>
 
-  <form method="get" class="card card-soft mb-3"><div class="card-body py-2">
-    <input type="hidden" name="tab" value="boarders">
+  <form method="get" class="card card-soft mb-3" action="<?= e($nt_list_base) ?>"><div class="card-body py-2">
     <input type="hidden" name="view" value="students">
     <div class="row g-2 align-items-end">
       <div class="col-md-4">
@@ -144,16 +150,16 @@ $subTabs = [
       </div>
       <div class="col-md-2 d-flex gap-1">
         <button class="btn btn-nt btn-sm flex-grow-1" type="submit">Lọc</button>
-        <a href="?tab=boarders&view=students" class="btn btn-outline-secondary btn-sm">Xóa</a>
+        <a href="<?= e(nt_list_url(['view' => 'students'])) ?>" class="btn btn-outline-secondary btn-sm">Xóa</a>
       </div>
     </div>
   </div></form>
 
   <?php if ($classKeys): ?>
   <div class="mb-2 d-flex flex-wrap gap-1">
-    <a href="?tab=boarders&view=students" class="btn btn-sm <?= $f_class === '' && $q === '' && $f_room === '' && $f_meal === '' ? 'btn-nt' : 'btn-outline-secondary' ?>">Tất cả</a>
+    <a href="<?= e(nt_list_url(['view' => 'students'])) ?>" class="btn btn-sm <?= $f_class === '' && $q === '' && $f_room === '' && $f_meal === '' ? 'btn-nt' : 'btn-outline-secondary' ?>">Tất cả</a>
     <?php foreach ($classKeys as $ck): ?>
-    <a href="?tab=boarders&view=students&class=<?= urlencode($ck) ?>"
+    <a href="<?= e(nt_list_url(['view' => 'students', 'class' => $ck])) ?>"
        class="btn btn-sm <?= $f_class === $ck ? 'btn-nt' : 'btn-outline-secondary' ?>"><?= e($ck) ?> <span class="opacity-75"><?= count($byClass[$ck]) ?></span></a>
     <?php endforeach; ?>
   </div>
@@ -172,7 +178,7 @@ $subTabs = [
 <?php elseif ($view === 'classes'): ?>
   <?php if ($f_class !== '' && isset($byClass[$f_class])): ?>
     <div class="mb-2">
-      <a href="?tab=boarders&view=classes" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Tất cả lớp</a>
+      <a href="<?= e(nt_list_url(['view' => 'classes'])) ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Tất cả lớp</a>
       <span class="ms-2 fw-semibold">Lớp <?= e($f_class) ?></span>
       <span class="badge bg-secondary"><?= count($byClass[$f_class]) ?> HS</span>
     </div>
@@ -181,8 +187,8 @@ $subTabs = [
     <div class="row g-2">
       <?php foreach ($byClass as $ck => $arr): ?>
       <div class="col-6 col-md-4 col-lg-3">
-        <a href="?tab=boarders&view=classes&class=<?= urlencode($ck) ?>" class="text-decoration-none">
-          <div class="card card-soft h-100 hover-card">
+        <a href="<?= e(nt_list_url(['view' => 'classes', 'class' => $ck])) ?>" class="text-decoration-none">
+          <div class="card card-soft h-100">
             <div class="card-body text-center py-3">
               <div class="fw-bold" style="color:var(--primary);font-size:1.15rem"><?= e($ck) ?></div>
               <div class="text-muted small"><?= count($arr) ?> học sinh</div>
@@ -191,16 +197,14 @@ $subTabs = [
         </a>
       </div>
       <?php endforeach; ?>
-      <?php if (!$byClass): ?>
-      <div class="col-12"><div class="text-muted text-center py-4">Chưa có HS nội trú.</div></div>
-      <?php endif; ?>
+      <?php if (!$byClass): ?><div class="col-12"><div class="text-muted text-center py-4">Chưa có HS nội trú.</div></div><?php endif; ?>
     </div>
   <?php endif; ?>
 
 <?php elseif ($view === 'rooms'): ?>
   <?php if ($f_room !== '' && isset($byRoom[$f_room])): ?>
     <div class="mb-2">
-      <a href="?tab=boarders&view=rooms" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Tất cả phòng</a>
+      <a href="<?= e(nt_list_url(['view' => 'rooms'])) ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Tất cả phòng</a>
       <span class="ms-2 fw-semibold">Phòng <?= e($f_room) ?></span>
       <span class="badge badge-room"><?= count($byRoom[$f_room]) ?> HS</span>
     </div>
@@ -209,7 +213,7 @@ $subTabs = [
     <div class="row g-2">
       <?php foreach ($byRoom as $rk => $arr): ?>
       <div class="col-6 col-md-4 col-lg-3">
-        <a href="?tab=boarders&view=rooms&room=<?= urlencode($rk) ?>" class="text-decoration-none">
+        <a href="<?= e(nt_list_url(['view' => 'rooms', 'room' => $rk])) ?>" class="text-decoration-none">
           <div class="card card-soft h-100">
             <div class="card-body text-center py-3">
               <i class="bi bi-door-closed fs-4" style="color:var(--primary)"></i>
@@ -220,16 +224,14 @@ $subTabs = [
         </a>
       </div>
       <?php endforeach; ?>
-      <?php if (!$byRoom): ?>
-      <div class="col-12"><div class="text-muted text-center py-4">Chưa có dữ liệu phòng.</div></div>
-      <?php endif; ?>
+      <?php if (!$byRoom): ?><div class="col-12"><div class="text-muted text-center py-4">Chưa có dữ liệu phòng.</div></div><?php endif; ?>
     </div>
   <?php endif; ?>
 
 <?php elseif ($view === 'meals'): ?>
   <?php if ($f_meal !== '' && isset($byMeal[$f_meal])): ?>
     <div class="mb-2">
-      <a href="?tab=boarders&view=meals" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Tất cả mâm</a>
+      <a href="<?= e(nt_list_url(['view' => 'meals'])) ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Tất cả mâm</a>
       <span class="ms-2 fw-semibold"><?= e($f_meal) ?></span>
       <span class="badge badge-meal"><?= count($byMeal[$f_meal]) ?> HS</span>
     </div>
@@ -238,7 +240,7 @@ $subTabs = [
     <div class="row g-2">
       <?php foreach ($byMeal as $mk => $arr): ?>
       <div class="col-6 col-md-4 col-lg-3">
-        <a href="?tab=boarders&view=meals&meal=<?= urlencode($mk) ?>" class="text-decoration-none">
+        <a href="<?= e(nt_list_url(['view' => 'meals', 'meal' => $mk])) ?>" class="text-decoration-none">
           <div class="card card-soft h-100">
             <div class="card-body text-center py-3">
               <i class="bi bi-egg-fried fs-4 text-success"></i>
@@ -249,9 +251,7 @@ $subTabs = [
         </a>
       </div>
       <?php endforeach; ?>
-      <?php if (!$byMeal): ?>
-      <div class="col-12"><div class="text-muted text-center py-4">Chưa có mâm / nhóm ăn.</div></div>
-      <?php endif; ?>
+      <?php if (!$byMeal): ?><div class="col-12"><div class="text-muted text-center py-4">Chưa có mâm / nhóm ăn.</div></div><?php endif; ?>
     </div>
   <?php endif; ?>
 
