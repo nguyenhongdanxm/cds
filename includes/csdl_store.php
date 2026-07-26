@@ -1,7 +1,6 @@
 <?php
 /**
  * CSDL dùng chung – lớp lưu trữ (JSON)
- * Sau này có thể thay bằng MySQL mà giữ cùng API hàm.
  */
 require_once __DIR__ . '/auth.php';
 
@@ -11,7 +10,6 @@ define('CSDL_STUDENTS', DATA_PATH . '/students.json');
 define('CSDL_YEARS', DATA_PATH . '/school_years.json');
 define('CSDL_SUBJECTS', DATA_PATH . '/subjects.json');
 
-/* —— Helpers —— */
 function csdl_uid($prefix = 'id') {
     return $prefix . '_' . bin2hex(random_bytes(4));
 }
@@ -73,11 +71,24 @@ function csdl_year_save($data) {
     return $data['id'] ?? $id;
 }
 
+function csdl_year_delete($id) {
+    $years = csdl_years_all();
+    $years = array_values(array_filter($years, fn($y) => ($y['id'] ?? '') !== $id));
+    // Nếu xóa năm hiện hành → đặt năm đầu tiên làm hiện hành
+    $hasCurrent = false;
+    foreach ($years as $y) {
+        if (!empty($y['is_current'])) { $hasCurrent = true; break; }
+    }
+    if (!$hasCurrent && $years) {
+        $years[0]['is_current'] = true;
+    }
+    save_json(CSDL_YEARS, $years);
+}
+
 /* —— Lớp / khối —— */
 function csdl_classes_all() {
     $rows = load_json(CSDL_CLASSES, []);
     if (!$rows) {
-        // Seed mẫu THCS + THPT
         $seed = [];
         $map = [
             6 => ['A','B'], 7 => ['A','B'], 8 => ['A','B'], 9 => ['A','B'],
@@ -222,7 +233,6 @@ function csdl_student_delete($id) {
     save_json(CSDL_STUDENTS, $rows);
 }
 
-/* —— Thống kê nhanh —— */
 function csdl_stats() {
     $teachers = csdl_teachers_all();
     $classes = csdl_classes_all();
