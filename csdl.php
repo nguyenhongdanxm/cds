@@ -1,13 +1,13 @@
 <?php
 require_once 'includes/auth.php';
 require_once 'includes/csdl_store.php';
-require_once 'includes/csdl_sync.php';
+require_once 'includes/csdl_sync.php'; // API cho module khác kéo 1 chiều từ CSDL
 require_once 'includes/csdl_import_teachers.php';
 require_once 'includes/csdl_io.php';
 require_login();
 $user = current_user();
 $tab = $_GET['tab'] ?? 'overview';
-$allowed = ['overview', 'teachers', 'classes', 'students', 'years', 'sync'];
+$allowed = ['overview', 'teachers', 'classes', 'students', 'years'];
 if (!in_array($tab, $allowed, true)) $tab = 'overview';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -15,19 +15,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'bulk_delete') {
         require __DIR__ . '/includes/csdl_post_extra.php';
-    }
-
-    if ($action === 'sync_from_pccm') {
-        $r = csdl_sync_from_pccm();
-        flash($r['message'], $r['ok'] ? 'success' : 'danger');
-        header('Location: ' . BASE_URL . 'csdl.php?tab=sync');
-        exit;
-    }
-    if ($action === 'sync_to_pccm') {
-        $r = csdl_sync_to_pccm();
-        flash($r['message'], $r['ok'] ? 'success' : 'danger');
-        header('Location: ' . BASE_URL . 'csdl.php?tab=sync');
-        exit;
     }
 
     if ($action === 'io_import') {
@@ -185,7 +172,6 @@ $classes = csdl_classes_all();
 $students = csdl_students_all();
 $years = csdl_years_all();
 $edit_id = $_GET['edit'] ?? '';
-$sync_info = csdl_sync_pccm_path_info();
 
 function teacher_name_by_id($id, $teachers) {
     foreach ($teachers as $t) {
@@ -257,7 +243,7 @@ body{background:#f0f4f8}
   <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
     <div>
       <h3 class="mb-0">Cơ sở dữ liệu dùng chung</h3>
-      <div class="text-muted small">CSV Excel VN (dấu <code>;</code>) · chọn nhiều để xóa/xuất · popup sửa đầy đủ</div>
+      <div class="text-muted small">Nguồn chuẩn hệ sinh thái — module khác đồng bộ <strong>một chiều từ đây</strong></div>
     </div>
     <div class="text-muted small">Năm học: <strong><?= e($stats['year']) ?></strong></div>
   </div>
@@ -268,27 +254,10 @@ body{background:#f0f4f8}
     <li class="nav-item"><a class="nav-link <?= $tab==='classes'?'active':'' ?>" href="?tab=classes"><i class="bi bi-building"></i> Lớp / khối</a></li>
     <li class="nav-item"><a class="nav-link <?= $tab==='students'?'active':'' ?>" href="?tab=students"><i class="bi bi-mortarboard"></i> Học sinh</a></li>
     <li class="nav-item"><a class="nav-link <?= $tab==='years'?'active':'' ?>" href="?tab=years"><i class="bi bi-calendar3"></i> Năm học</a></li>
-    <li class="nav-item"><a class="nav-link <?= $tab==='sync'?'active':'' ?>" href="?tab=sync"><i class="bi bi-arrow-left-right"></i> Đồng bộ PCCM</a></li>
   </ul>
 
-<?php if ($tab === 'sync'): ?>
-  <?php include __DIR__ . '/includes/csdl_tab_sync.php'; ?>
-
-<?php elseif ($tab === 'overview'): ?>
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$stats['teachers'] ?></div><div class="text-muted small">Giáo viên</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n text-success"><?= (int)$stats['classes'] ?></div><div class="text-muted small">Lớp học</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n text-info"><?= (int)$stats['students'] ?></div><div class="text-muted small">Học sinh</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= e($stats['year']) ?></div><div class="text-muted small">Năm học</div></div></div>
-  </div>
-  <div class="card card-soft"><div class="card-body">
-    <h5 class="mb-3">CSDL là nguồn chuẩn</h5>
-    <ul class="mb-0">
-      <li>Mẫu CSV dùng dấu <strong>;</strong> (Excel tiếng Việt) — mỗi trường một cột</li>
-      <li>Chọn nhiều dòng → xuất hoặc xóa hàng loạt</li>
-      <li>Sửa bằng popup đầy đủ (có CCCD)</li>
-    </ul>
-  </div></div>
+<?php if ($tab === 'overview'): ?>
+  <?php include __DIR__ . '/includes/csdl_tab_overview.php'; ?>
 
 <?php elseif ($tab === 'teachers'): ?>
   <?php
@@ -352,7 +321,6 @@ body{background:#f0f4f8}
       </table>
     </div>
   </div></div>
-
   <?php include __DIR__ . '/includes/csdl_modal_teacher.php'; ?>
 
 <?php elseif ($tab === 'classes'): ?>
