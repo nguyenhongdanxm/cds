@@ -1,7 +1,7 @@
 <?php
 /**
  * Nhập / xuất / mẫu CSV theo schema CSDL chuẩn.
- * Module khác tái sử dụng cùng hàm + cùng nhãn cột.
+ * Dòng 1 = tiêu đề cột (rõ ràng). Cột đầu = STT.
  */
 require_once __DIR__ . '/csdl_store.php';
 require_once __DIR__ . '/csdl_schema.php';
@@ -46,7 +46,7 @@ function csdl_io_send_csv($filename, array $headers, array $rows) {
     header('Content-Type: text/csv; charset=UTF-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Pragma: no-cache');
-    echo "\xEF\xBB\xBF"; // BOM UTF-8 cho Excel
+    echo "\xEF\xBB\xBF";
     $line = [];
     foreach ($headers as $h) $line[] = csdl_io_csv_escape($h);
     echo implode(',', $line) . "\r\n";
@@ -58,17 +58,13 @@ function csdl_io_send_csv($filename, array $headers, array $rows) {
     exit;
 }
 
-/* ========== Flat row helpers ========== */
-
 function csdl_io_teacher_flat(array $t) {
-    $kn = '';
-    if (function_exists('csdl_format_kiem_nhiem')) {
-        $kn = csdl_format_kiem_nhiem($t['kiem_nhiem'] ?? []);
-    }
+    $kn = function_exists('csdl_format_kiem_nhiem') ? csdl_format_kiem_nhiem($t['kiem_nhiem'] ?? []) : '';
     $flags = $t['role_flags'] ?? [];
     return [
         'code' => $t['code'] ?? '',
         'name' => $t['name'] ?? '',
+        'cccd' => $t['cccd'] ?? '',
         'dob' => csdl_io_fmt_date($t['dob'] ?? ''),
         'gender' => $t['gender'] ?? '',
         'ethnicity' => $t['ethnicity'] ?? '',
@@ -122,6 +118,7 @@ function csdl_io_student_flat(array $s, array $classes) {
     return [
         'code' => $s['code'] ?? '',
         'name' => $s['name'] ?? '',
+        'cccd' => $s['cccd'] ?? '',
         'class_name' => $cn,
         'dob' => csdl_io_fmt_date($s['dob'] ?? ''),
         'gender' => $s['gender'] ?? '',
@@ -139,26 +136,21 @@ function csdl_io_student_flat(array $s, array $classes) {
     ];
 }
 
-/* ========== Template & Export ========== */
-
 function csdl_io_template($entity) {
     $schema = csdl_schema_entity($entity);
-    $headers = array_values(array_map(fn($m) => $m['label'], $schema));
-    $keys = array_keys($schema);
-    $sample = array_fill(0, count($keys), '');
-    // vài gợi ý mẫu
+    $headers = array_merge(['STT'], array_values(array_map(fn($m) => $m['label'], $schema)));
+    $n = count($schema);
     if ($entity === 'teachers') {
-        $sample = ['GV001', 'Nguyễn Văn A', '15/03/1985', 'Nam', 'Kinh', '0901234567', 'a@example.com', 'Hà Giang', '', 'THCS&THPT', 'Toán', 'Tổ Toán', 'Giáo viên', '', '01/09/2010', '3', 'II', 'THCS', '3', '01/01/2024', '', '', '', 'Có', ''];
+        $sample = [1, 'GV001', 'Nguyễn Văn A', '001234567890', '15/03/1985', 'Nam', 'Kinh', '0901234567', 'a@example.com', 'Hà Giang', '', 'THCS&THPT', 'Toán', 'Tổ Toán', 'Giáo viên', '', '01/09/2010', '3', 'II', 'THCS', '3', '01/01/2024', '', '', '', 'Có', ''];
     } elseif ($entity === 'classes') {
-        $sample = ['6A', '6', 'THCS', 'Nguyễn Văn A', 'P101', '35', 'Có', ''];
-    } elseif ($entity === 'students') {
-        $sample = ['HS001', 'Lý Thị B', '6A', '01/01/2012', 'Nữ', 'Tày', 'Xín Mần', '', '', 'Phạm Văn C', '0909999999', 'Có', 'A1', '1', 'Có', ''];
+        $sample = [1, '6A', '6', 'THCS', 'Nguyễn Văn A', 'P101', '35', 'Có', ''];
+    } else {
+        $sample = [1, 'HS001', 'Lý Thị B', '001098765432', '6A', '01/01/2012', 'Nữ', 'Tày', 'Xín Mần', '', '', 'Phạm Văn C', '0909999999', 'Có', 'A1', '1', 'Có', ''];
     }
-    // căn độ dài
     while (count($sample) < count($headers)) $sample[] = '';
     $sample = array_slice($sample, 0, count($headers));
-    $names = ['teachers' => 'mau-giao-vien', 'classes' => 'mau-lop', 'students' => 'mau-hoc-sinh'];
-    csdl_io_send_csv(($names[$entity] ?? 'mau') . '-csdl.csv', $headers, [$sample]);
+    $names = ['teachers' => 'mau-giao-vien-csdl', 'classes' => 'mau-lop-csdl', 'students' => 'mau-hoc-sinh-csdl'];
+    csdl_io_send_csv(($names[$entity] ?? 'mau-csdl') . '.csv', $headers, [$sample]);
 }
 
 function csdl_io_export($entity, array $fieldKeys) {
@@ -167,14 +159,15 @@ function csdl_io_export($entity, array $fieldKeys) {
     $fieldKeys = array_values(array_filter($fieldKeys, fn($k) => isset($schema[$k])));
     if (!$fieldKeys) $fieldKeys = array_keys($schema);
 
-    $headers = [];
-    foreach ($fieldKeys as $k) $headers[] = $schema[$k]['label'];
-
+    $headers = array_merge(['STT'], array_map(fn($k) => $schema[$k]['label'], $fieldKeys));
     $rows = [];
+    $i = 0;
+
     if ($entity === 'teachers') {
         foreach (csdl_teachers_all() as $t) {
+            $i++;
             $flat = csdl_io_teacher_flat($t);
-            $row = [];
+            $row = [$i];
             foreach ($fieldKeys as $k) $row[] = $flat[$k] ?? '';
             $rows[] = $row;
         }
@@ -184,8 +177,9 @@ function csdl_io_export($entity, array $fieldKeys) {
         $list = csdl_classes_all();
         usort($list, fn($a, $b) => ($a['grade'] ?? 0) <=> ($b['grade'] ?? 0) ?: strcmp($a['name'] ?? '', $b['name'] ?? ''));
         foreach ($list as $c) {
+            $i++;
             $flat = csdl_io_class_flat($c, $teachers);
-            $row = [];
+            $row = [$i];
             foreach ($fieldKeys as $k) $row[] = $flat[$k] ?? '';
             $rows[] = $row;
         }
@@ -193,8 +187,9 @@ function csdl_io_export($entity, array $fieldKeys) {
     } else {
         $classes = csdl_classes_all();
         foreach (csdl_students_all() as $s) {
+            $i++;
             $flat = csdl_io_student_flat($s, $classes);
-            $row = [];
+            $row = [$i];
             foreach ($fieldKeys as $k) $row[] = $flat[$k] ?? '';
             $rows[] = $row;
         }
@@ -202,8 +197,6 @@ function csdl_io_export($entity, array $fieldKeys) {
     }
     csdl_io_send_csv($fname, $headers, $rows);
 }
-
-/* ========== Import ========== */
 
 function csdl_io_read_csv_file($tmpPath) {
     $raw = file_get_contents($tmpPath);
@@ -218,7 +211,7 @@ function csdl_io_read_csv_file($tmpPath) {
     for ($i = 1; $i < count($lines); $i++) {
         $rows[] = str_getcsv($lines[$i], $delimiter);
     }
-    return [['headers' => $headers, 'rows' => $rows, 'delimiter' => $delimiter], null];
+    return [['headers' => $headers, 'rows' => $rows], null];
 }
 
 function csdl_io_map_headers(array $headers, array $schema) {
@@ -226,10 +219,11 @@ function csdl_io_map_headers(array $headers, array $schema) {
     foreach ($schema as $key => $meta) {
         $labelToKey[mb_strtolower(trim($meta['label']), 'UTF-8')] = $key;
     }
-    // alias thêm
     $extra = [
+        'stt' => null,
         'họ tên' => 'name', 'ho va ten' => 'name', 'tên' => 'name',
         'mã' => 'code', 'ma hs' => 'code', 'mã hs' => 'code', 'ma gv' => 'code',
+        'cccd' => 'cccd', 'cmnd' => 'cccd', 'số cccd' => 'cccd',
         'lớp' => 'class_name', 'lop' => 'class_name',
         'gvcn' => 'homeroom_teacher_name',
         'môn dạy' => 'specialty', 'chuyên môn' => 'specialty',
@@ -238,13 +232,13 @@ function csdl_io_map_headers(array $headers, array $schema) {
         'nội trú' => 'boarder',
     ];
     foreach ($extra as $a => $k) {
-        if (!isset($labelToKey[$a]) && isset($schema[$k])) $labelToKey[$a] = $k;
+        if ($k && !isset($labelToKey[$a]) && isset($schema[$k])) $labelToKey[$a] = $k;
     }
-
     $map = [];
     foreach ($headers as $i => $h) {
         $h = mb_strtolower(trim((string)$h), 'UTF-8');
         $h = preg_replace('/\s+/u', ' ', $h);
+        if ($h === 'stt') continue;
         if (isset($labelToKey[$h])) $map[$labelToKey[$h]] = $i;
     }
     return $map;
@@ -257,61 +251,31 @@ function csdl_io_cell(array $row, array $map, $key) {
 }
 
 function csdl_io_import_teachers($tmpPath) {
-    // Giữ logic merge an toàn PCCM (delegate file cũ nếu còn)
     if (function_exists('csdl_import_teachers_from_csv_file')) {
-        return csdl_import_teachers_from_csv_file($tmpPath);
+        // vẫn dùng merge PCCM-safe; bổ sung CCCD sau khi map
+        $r = csdl_import_teachers_from_csv_file($tmpPath);
+        // cập nhật thêm cccd nếu file có cột
+        list($data, $err) = csdl_io_read_csv_file($tmpPath);
+        if (!$err && $data) {
+            $map = csdl_io_map_headers($data['headers'], csdl_schema_teachers());
+            if (isset($map['cccd']) || isset($map['name'])) {
+                $by = [];
+                foreach (csdl_teachers_all() as $t) $by[csdl_norm_name($t['name'] ?? '')] = $t;
+                foreach ($data['rows'] as $row) {
+                    $name = csdl_io_cell($row, $map, 'name');
+                    if ($name === '') continue;
+                    $old = $by[csdl_norm_name($name)] ?? null;
+                    if (!$old) continue;
+                    $cccd = csdl_io_cell($row, $map, 'cccd');
+                    if ($cccd !== '') {
+                        csdl_teacher_save(['id' => $old['id'], 'cccd' => $cccd]);
+                    }
+                }
+            }
+        }
+        return $r;
     }
-    list($data, $err) = csdl_io_read_csv_file($tmpPath);
-    if ($err) return ['ok' => false, 'message' => $err];
-    $schema = csdl_schema_teachers();
-    $map = csdl_io_map_headers($data['headers'], $schema);
-    if (!isset($map['name'])) return ['ok' => false, 'message' => 'Thiếu cột Họ và tên.'];
-
-    $by = [];
-    foreach (csdl_teachers_all() as $t) $by[csdl_norm_name($t['name'] ?? '')] = $t;
-    $added = 0; $updated = 0; $skipped = 0;
-
-    foreach ($data['rows'] as $row) {
-        $name = csdl_io_cell($row, $map, 'name');
-        if ($name === '') { $skipped++; continue; }
-        $key = csdl_norm_name($name);
-        $old = $by[$key] ?? null;
-        $p = ['name' => $name, 'active' => true];
-
-        foreach (['code','gender','ethnicity','phone','email','hometown','address','teaching_level','chuc_vu','bac','hang','cap_luong','he_so','note'] as $f) {
-            $v = csdl_io_cell($row, $map, $f);
-            if ($v !== '') $p[$f] = $v;
-        }
-        foreach (['dob','join_date','he_so_from'] as $f) {
-            $v = csdl_io_parse_date(csdl_io_cell($row, $map, $f));
-            if ($v !== '') $p[$f] = $v;
-        }
-        $mon = csdl_io_cell($row, $map, 'specialty');
-        if ($mon !== '' && (!$old || trim($old['specialty'] ?? '') === '')) $p['specialty'] = $mon;
-
-        $to = csdl_io_cell($row, $map, 'to_chuyen_mon');
-        if ($to !== '' && (!$old || trim($old['to_chuyen_mon'] ?? $old['pccm_group'] ?? '') === '')) {
-            $p['to_chuyen_mon'] = $to;
-            $p['pccm_group'] = $to;
-        }
-
-        if (isset($map['active'])) $p['active'] = csdl_io_bool_in(csdl_io_cell($row, $map, 'active')) || csdl_io_cell($row, $map, 'active') === '';
-
-        if ($old) {
-            $p['id'] = $old['id'];
-            csdl_teacher_save($p);
-            $updated++;
-        } else {
-            $p['source'] = 'csv';
-            $p['kiem_nhiem'] = [];
-            $p['role_flags'] = ['is_probation'=>false,'is_principal'=>false,'is_vice'=>false];
-            $id = csdl_teacher_save($p);
-            $p['id'] = $id;
-            $by[$key] = $p;
-            $added++;
-        }
-    }
-    return ['ok'=>true,'message'=>"GV: +$added / cập nhật $updated / bỏ $skipped", 'added'=>$added,'updated'=>$updated,'skipped'=>$skipped];
+    return ['ok' => false, 'message' => 'Thiếu module nhập GV'];
 }
 
 function csdl_io_import_classes($tmpPath) {
@@ -324,9 +288,8 @@ function csdl_io_import_classes($tmpPath) {
     $tBy = [];
     foreach ($teachers as $t) $tBy[csdl_norm_name($t['name'] ?? '')] = $t['id'] ?? '';
 
-    $classes = csdl_classes_all();
     $cBy = [];
-    foreach ($classes as $c) $cBy[csdl_norm_name($c['name'] ?? '')] = $c;
+    foreach (csdl_classes_all() as $c) $cBy[csdl_norm_name($c['name'] ?? '')] = $c;
 
     $added = 0; $updated = 0; $skipped = 0;
     foreach ($data['rows'] as $row) {
@@ -334,37 +297,25 @@ function csdl_io_import_classes($tmpPath) {
         if ($name === '') { $skipped++; continue; }
         $key = csdl_norm_name($name);
         $old = $cBy[$key] ?? null;
-
         $grade = (int)csdl_io_cell($row, $map, 'grade');
         if ($grade < 1) $grade = (int)preg_replace('/\D/', '', $name);
         if ($grade < 1) $grade = 6;
-
         $level = csdl_io_cell($row, $map, 'level');
         if ($level === '') $level = $grade <= 9 ? 'THCS' : 'THPT';
-
-        $p = [
-            'name' => $name,
-            'grade' => $grade,
-            'level' => $level,
-            'active' => true,
-        ];
-        $room = csdl_io_cell($row, $map, 'room');
-        if ($room !== '') $p['room'] = $room;
-        $cap = csdl_io_cell($row, $map, 'capacity');
-        if ($cap !== '') $p['capacity'] = $cap;
-        $note = csdl_io_cell($row, $map, 'note');
-        if ($note !== '') $p['note'] = $note;
+        $p = ['name' => $name, 'grade' => $grade, 'level' => $level, 'active' => true];
+        foreach (['room', 'capacity', 'note'] as $f) {
+            $v = csdl_io_cell($row, $map, $f);
+            if ($v !== '') $p[$f] = $v;
+        }
         if (isset($map['active'])) {
             $av = csdl_io_cell($row, $map, 'active');
             $p['active'] = ($av === '') ? true : csdl_io_bool_in($av);
         }
-
         $tn = csdl_io_cell($row, $map, 'homeroom_teacher_name');
         if ($tn !== '') {
             $tid = $tBy[csdl_norm_name($tn)] ?? '';
             if ($tid !== '') $p['homeroom_teacher_id'] = $tid;
         }
-
         if ($old) {
             $p['id'] = $old['id'];
             csdl_class_save($p);
@@ -376,7 +327,7 @@ function csdl_io_import_classes($tmpPath) {
             $added++;
         }
     }
-    return ['ok'=>true,'message'=>"Lớp: +$added / cập nhật $updated / bỏ $skipped", 'added'=>$added,'updated'=>$updated,'skipped'=>$skipped];
+    return ['ok' => true, 'message' => "Lớp: thêm $added · cập nhật $updated · bỏ $skipped", 'added' => $added, 'updated' => $updated, 'skipped' => $skipped];
 }
 
 function csdl_io_import_students($tmpPath) {
@@ -385,15 +336,15 @@ function csdl_io_import_students($tmpPath) {
     $map = csdl_io_map_headers($data['headers'], csdl_schema_students());
     if (!isset($map['name'])) return ['ok' => false, 'message' => 'Thiếu cột Họ và tên.'];
 
-    $classes = csdl_classes_all();
     $cBy = [];
-    foreach ($classes as $c) $cBy[csdl_norm_name($c['name'] ?? '')] = $c['id'] ?? '';
+    foreach (csdl_classes_all() as $c) $cBy[csdl_norm_name($c['name'] ?? '')] = $c['id'] ?? '';
 
-    $students = csdl_students_all();
     $byCode = [];
+    $byCccd = [];
     $byNameClass = [];
-    foreach ($students as $s) {
+    foreach (csdl_students_all() as $s) {
         if (!empty($s['code'])) $byCode[mb_strtolower(trim($s['code']), 'UTF-8')] = $s;
+        if (!empty($s['cccd'])) $byCccd[preg_replace('/\s+/', '', $s['cccd'])] = $s;
         $nk = csdl_norm_name($s['name'] ?? '') . '|' . ($s['class_id'] ?? '');
         $byNameClass[$nk] = $s;
     }
@@ -405,27 +356,30 @@ function csdl_io_import_students($tmpPath) {
 
         $className = csdl_io_cell($row, $map, 'class_name');
         $classId = $className !== '' ? ($cBy[csdl_norm_name($className)] ?? '') : '';
-
         $code = csdl_io_cell($row, $map, 'code');
+        $cccd = preg_replace('/\s+/', '', csdl_io_cell($row, $map, 'cccd'));
+
+        // Khớp ưu tiên: Mã HS → CCCD → Họ tên + Lớp
         $old = null;
         if ($code !== '' && isset($byCode[mb_strtolower($code, 'UTF-8')])) {
             $old = $byCode[mb_strtolower($code, 'UTF-8')];
+        } elseif ($cccd !== '' && isset($byCccd[$cccd])) {
+            $old = $byCccd[$cccd];
         } elseif ($classId !== '') {
-            $nk = csdl_norm_name($name) . '|' . $classId;
-            $old = $byNameClass[$nk] ?? null;
+            $old = $byNameClass[csdl_norm_name($name) . '|' . $classId] ?? null;
         }
 
         $p = ['name' => $name, 'active' => true];
         if ($code !== '') $p['code'] = $code;
+        if ($cccd !== '') $p['cccd'] = $cccd;
         if ($classId !== '') $p['class_id'] = $classId;
 
-        foreach (['gender','ethnicity','hometown','address','phone','parent_name','parent_phone','room_ktx','meal_group','note'] as $f) {
+        foreach (['gender', 'ethnicity', 'hometown', 'address', 'phone', 'parent_name', 'parent_phone', 'room_ktx', 'meal_group', 'note'] as $f) {
             $v = csdl_io_cell($row, $map, $f);
             if ($v !== '') $p[$f] = $v;
         }
         $dob = csdl_io_parse_date(csdl_io_cell($row, $map, 'dob'));
         if ($dob !== '') $p['dob'] = $dob;
-
         if (isset($map['boarder'])) $p['boarder'] = csdl_io_bool_in(csdl_io_cell($row, $map, 'boarder'));
         if (isset($map['active'])) {
             $av = csdl_io_cell($row, $map, 'active');
@@ -436,13 +390,22 @@ function csdl_io_import_students($tmpPath) {
             $p['id'] = $old['id'];
             csdl_student_save($p);
             $updated++;
+            if ($code !== '') $byCode[mb_strtolower($code, 'UTF-8')] = array_merge($old, $p);
+            if ($cccd !== '') $byCccd[$cccd] = array_merge($old, $p);
         } else {
             $p['source'] = 'csv';
             $id = csdl_student_save($p);
             $p['id'] = $id;
             if ($code !== '') $byCode[mb_strtolower($code, 'UTF-8')] = $p;
+            if ($cccd !== '') $byCccd[$cccd] = $p;
             $added++;
         }
     }
-    return ['ok'=>true,'message'=>"HS: +$added / cập nhật $updated / bỏ $skipped", 'added'=>$added,'updated'=>$updated,'skipped'=>$skipped];
+    return [
+        'ok' => true,
+        'message' => "Học sinh: thêm $added · cập nhật $updated · bỏ $skipped (khớp theo Mã / CCCD / Họ tên+Lớp)",
+        'added' => $added,
+        'updated' => $updated,
+        'skipped' => $skipped,
+    ];
 }
