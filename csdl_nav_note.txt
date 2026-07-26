@@ -1,0 +1,1 @@
+Run: python3 tools/patch_nav_host.py on host after curl includes/nav_* and admin.php
