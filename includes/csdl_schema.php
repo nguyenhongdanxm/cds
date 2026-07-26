@@ -1,14 +1,15 @@
 <?php
 /**
  * Từ điển dữ liệu CSDL dùng chung (nguồn chuẩn hệ sinh thái).
- * Mọi module (PCCM, Nội trú, Thi đua…) nhập/xuất theo đúng key + nhãn cột này.
+ * Mọi module nhập/xuất theo đúng key + nhãn cột này.
+ * Cột đầu tiên luôn là STT khi xuất mẫu / file chuẩn.
  */
 
-/** @return array<string, array{label:string, type?:string, group?:string, pccm_safe?:bool}> */
 function csdl_schema_teachers() {
     return [
         'code'            => ['label' => 'Mã GV', 'group' => 'Định danh'],
         'name'            => ['label' => 'Họ và tên', 'group' => 'Định danh'],
+        'cccd'            => ['label' => 'CCCD', 'group' => 'Định danh'],
         'dob'             => ['label' => 'Ngày sinh', 'type' => 'date', 'group' => 'Hành chính'],
         'gender'          => ['label' => 'Giới tính', 'group' => 'Hành chính'],
         'ethnicity'       => ['label' => 'Dân tộc', 'group' => 'Hành chính'],
@@ -52,6 +53,7 @@ function csdl_schema_students() {
     return [
         'code'          => ['label' => 'Mã HS', 'group' => 'Định danh'],
         'name'          => ['label' => 'Họ và tên', 'group' => 'Định danh'],
+        'cccd'          => ['label' => 'CCCD', 'group' => 'Định danh'],
         'class_name'    => ['label' => 'Lớp', 'group' => 'Định danh'],
         'dob'           => ['label' => 'Ngày sinh', 'type' => 'date', 'group' => 'Hành chính'],
         'gender'        => ['label' => 'Giới tính', 'group' => 'Hành chính'],
@@ -76,7 +78,6 @@ function csdl_schema_entity($entity) {
     return [];
 }
 
-/** Nhãn cột mặc định khi xuất / mẫu nhập (thứ tự ổn định) */
 function csdl_schema_labels($entity) {
     $out = [];
     foreach (csdl_schema_entity($entity) as $key => $meta) {
