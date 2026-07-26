@@ -33,7 +33,7 @@ function get_ecosystem_modules() {
         [
             'id' => 'csdl', 'num' => 5,
             'title' => 'Cơ sở dữ liệu',
-            'subtitle' => 'Dữ liệu lõi · đồng bộ · dùng chung',
+            'subtitle' => 'Nguồn chuẩn · tìm kiếm · module khác đồng bộ 1 chiều',
             'icon' => 'bi-database', 'color' => '#20c997',
             'status' => 'live', 'url' => BASE_URL . 'csdl.php', 'external' => false,
         ],
