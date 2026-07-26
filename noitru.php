@@ -1,53 +1,227 @@
 <?php
-/**
- * Quản lý nội trú – link riêng trong hệ sinh thái CDS.
- * Nguồn HS: CSDL (đồng bộ 1 chiều).
- */
 require_once 'includes/auth.php';
 require_once 'includes/noitru_store.php';
 require_login();
+$user = current_user();
 
 $tab = $_GET['tab'] ?? 'overview';
-$allowed = ['overview', 'boarders', 'exits', 'meals', 'attendance', 'duty', 'health', 'menu', 'stats'];
+$allowed = ['overview','boarders','exits','meals','attendance','duty','health','menu','stats'];
 if (!in_array($tab, $allowed, true)) $tab = 'overview';
-
-$soon = ['exits', 'meals', 'attendance', 'duty', 'health', 'menu', 'stats'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+
     if ($action === 'sync_from_csdl') {
         $r = noitru_sync_from_csdl();
         flash($r['message'], $r['ok'] ? 'success' : 'danger');
         header('Location: ' . BASE_URL . 'noitru.php?tab=' . urlencode($tab));
         exit;
     }
+
+    /* Exits */
+    if ($action === 'exit_save') {
+        $sid = trim($_POST['student_id'] ?? '');
+        $bmap = [];
+        foreach (noitru_boarders_live() as $s) $bmap[$s['id']] = $s;
+        $st = $bmap[$sid] ?? null;
+        noitru_exit_save([
+            'id' => trim($_POST['id'] ?? ''),
+            'student_id' => $sid,
+            'student_name' => $st['name'] ?? '',
+            'class_name' => $st['class_name'] ?? '',
+            'from_date' => trim($_POST['from_date'] ?? ''),
+            'to_date' => trim($_POST['to_date'] ?? ''),
+            'reason' => trim($_POST['reason'] ?? ''),
+            'note' => trim($_POST['note'] ?? ''),
+            'status' => trim($_POST['status'] ?? 'pending'),
+            'created_by' => $user['name'] ?? '',
+        ]);
+        flash('Đã lưu phiếu xin ra/vào KTX.');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=exits');
+        exit;
+    }
+    if ($action === 'exit_status') {
+        $id = trim($_POST['id'] ?? '');
+        $st = trim($_POST['status'] ?? '');
+        if (in_array($st, ['approved','rejected','pending'], true)) {
+            foreach (noitru_exits_all() as $r) {
+                if (($r['id'] ?? '') === $id) {
+                    $r['status'] = $st;
+                    $r['approved_by'] = $user['name'] ?? '';
+                    $r['approved_at'] = noitru_now();
+                    noitru_exit_save($r);
+                    break;
+                }
+            }
+            flash($st === 'approved' ? 'Đã duyệt phiếu.' : ($st === 'rejected' ? 'Đã từ chối.' : 'Đã cập nhật.'));
+        }
+        header('Location: ' . BASE_URL . 'noitru.php?tab=exits');
+        exit;
+    }
+    if ($action === 'exit_delete') {
+        noitru_exit_delete(trim($_POST['id'] ?? ''));
+        flash('Đã xóa phiếu.', 'warning');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=exits');
+        exit;
+    }
+
+    /* Meals */
+    if ($action === 'meals_generate') {
+        $date = trim($_POST['date'] ?? date('Y-m-d'));
+        $n = noitru_meals_generate_day($date);
+        flash("Đã tạo/cập nhật báo ăn $n HS cho ngày $date (theo phiếu KTX nếu có).");
+        header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date));
+        exit;
+    }
+    if ($action === 'meals_save') {
+        $date = trim($_POST['date'] ?? date('Y-m-d'));
+        $ids = $_POST['sid'] ?? [];
+        $sang = $_POST['sang'] ?? [];
+        $trua = $_POST['trua'] ?? [];
+        $toi = $_POST['toi'] ?? [];
+        foreach ($ids as $i => $sid) {
+            $sid = trim($sid);
+            if ($sid === '') continue;
+            noitru_meal_upsert([
+                'date' => $date,
+                'student_id' => $sid,
+                'sang' => $sang[$i] ?? 'yes',
+                'trua' => $trua[$i] ?? 'yes',
+                'toi' => $toi[$i] ?? 'yes',
+                'source' => 'manual',
+                'force' => !empty($_POST['force']),
+            ]);
+        }
+        flash('Đã lưu báo ăn.');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date));
+        exit;
+    }
+    if ($action === 'meals_lock') {
+        $date = trim($_POST['date'] ?? '');
+        noitru_meals_lock_day($date, true);
+        flash("Đã chốt báo ăn ngày $date.");
+        header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date));
+        exit;
+    }
+    if ($action === 'meals_unlock') {
+        $date = trim($_POST['date'] ?? '');
+        noitru_meals_lock_day($date, false);
+        flash("Đã mở khóa báo ăn ngày $date.", 'warning');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date));
+        exit;
+    }
+
+    /* Attendance */
+    if ($action === 'att_save') {
+        $date = trim($_POST['date'] ?? date('Y-m-d'));
+        $shift = trim($_POST['shift'] ?? 'toi');
+        $ids = $_POST['sid'] ?? [];
+        $sts = $_POST['status'] ?? [];
+        foreach ($ids as $i => $sid) {
+            $sid = trim($sid);
+            if ($sid === '') continue;
+            noitru_att_upsert([
+                'date' => $date,
+                'shift' => $shift,
+                'student_id' => $sid,
+                'status' => $sts[$i] ?? 'present',
+                'by' => $user['name'] ?? '',
+            ]);
+        }
+        flash('Đã lưu điểm danh.');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=attendance&date=' . urlencode($date) . '&shift=' . urlencode($shift));
+        exit;
+    }
+
+    /* Duty */
+    if ($action === 'duty_save') {
+        noitru_duty_save([
+            'id' => trim($_POST['id'] ?? ''),
+            'date' => trim($_POST['date'] ?? ''),
+            'shift' => trim($_POST['shift'] ?? 'toi'),
+            'teacher_id' => trim($_POST['teacher_id'] ?? ''),
+            'teacher_name' => trim($_POST['teacher_name'] ?? ''),
+            'note' => trim($_POST['note'] ?? ''),
+        ]);
+        flash('Đã lưu lịch trực.');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=duty');
+        exit;
+    }
+    if ($action === 'duty_delete') {
+        noitru_duty_delete(trim($_POST['id'] ?? ''));
+        flash('Đã xóa ca trực.', 'warning');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=duty');
+        exit;
+    }
+
+    /* Health */
+    if ($action === 'health_save') {
+        $sid = trim($_POST['student_id'] ?? '');
+        $name = '';
+        foreach (noitru_boarders_live() as $s) if ($s['id'] === $sid) { $name = $s['name']; break; }
+        noitru_health_save([
+            'id' => trim($_POST['id'] ?? ''),
+            'student_id' => $sid,
+            'student_name' => $name,
+            'date' => trim($_POST['date'] ?? date('Y-m-d')),
+            'type' => trim($_POST['type'] ?? 'kham'),
+            'diagnosis' => trim($_POST['diagnosis'] ?? ''),
+            'treatment' => trim($_POST['treatment'] ?? ''),
+            'note' => trim($_POST['note'] ?? ''),
+            'by' => $user['name'] ?? '',
+        ]);
+        flash('Đã lưu hồ sơ y tế.');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=health');
+        exit;
+    }
+    if ($action === 'health_delete') {
+        noitru_health_delete(trim($_POST['id'] ?? ''));
+        flash('Đã xóa hồ sơ.', 'warning');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=health');
+        exit;
+    }
+
+    /* Menu */
+    if ($action === 'menu_save') {
+        $ws = trim($_POST['week_start'] ?? '');
+        $days = ['mon','tue','wed','thu','fri','sat','sun'];
+        $meals = [];
+        foreach ($days as $d) {
+            $meals[$d] = [
+                'sang' => trim($_POST[$d . '_sang'] ?? ''),
+                'trua' => trim($_POST[$d . '_trua'] ?? ''),
+                'toi' => trim($_POST[$d . '_toi'] ?? ''),
+            ];
+        }
+        noitru_menu_save(['week_start' => $ws, 'meals' => $meals]);
+        flash('Đã lưu thực đơn tuần.');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=menu&week=' . urlencode($ws));
+        exit;
+    }
 }
 
 $stats = noitru_stats();
 $boarders = noitru_boarders_live();
-$q = trim($_GET['q'] ?? '');
-if ($q !== '') {
-    $qq = mb_strtolower($q, 'UTF-8');
-    $boarders = array_values(array_filter($boarders, function ($s) use ($qq) {
-        $blob = mb_strtolower(implode(' ', [
-            $s['name'], $s['code'], $s['cccd'], $s['class_name'],
-            $s['room_ktx'], $s['meal_group'], $s['parent_name'], $s['phone'],
-        ]), 'UTF-8');
-        return mb_strpos($blob, $qq) !== false;
-    }));
-}
+$teachers = array_values(array_filter(csdl_teachers_all(), fn($t) => !empty($t['active'])));
 
 $tabs = [
     'overview' => ['Tổng quan', 'bi-grid'],
-    'boarders' => ['Danh sách nội trú', 'bi-people'],
-    'exits' => ['Xin ra / vào KTX', 'bi-door-open'],
-    'meals' => ['Báo ăn hàng ngày', 'bi-egg-fried'],
+    'boarders' => ['Danh sách', 'bi-people'],
+    'exits' => ['Xin ra/vào KTX', 'bi-door-open'],
+    'meals' => ['Báo ăn', 'bi-egg-fried'],
     'attendance' => ['Điểm danh', 'bi-clipboard-check'],
     'duty' => ['Lịch trực', 'bi-calendar2-week'],
-    'health' => ['Sức khỏe / y tế', 'bi-heart-pulse'],
-    'menu' => ['Thực đơn & nhóm ăn', 'bi-journal-text'],
+    'health' => ['Y tế', 'bi-heart-pulse'],
+    'menu' => ['Thực đơn', 'bi-journal-text'],
     'stats' => ['Thống kê', 'bi-bar-chart'],
 ];
+
+function nt_meal_label($v) {
+    return ['yes'=>'Có','no'=>'Không','sick'=>'Bệnh','guest'=>'Khách'][$v] ?? $v;
+}
+function nt_att_label($v) {
+    return ['present'=>'Có mặt','absent'=>'Vắng','late'=>'Muộn','excused'=>'Có phép'][$v] ?? $v;
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -58,27 +232,26 @@ $tabs = [
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <style>
-:root{--primary:#d63384;--primary-dark:#a61e5c}
+:root{--primary:#d63384;--pd:#a61e5c}
 body{background:#f8f0f4}
-.navbar{background:var(--primary-dark)!important}
-.stat{background:#fff;border-radius:12px;padding:1.1rem;box-shadow:0 2px 12px rgba(0,0,0,.06);text-align:center}
-.stat .n{font-size:1.6rem;font-weight:800;color:var(--primary)}
-.nav-pills .nav-link{border-radius:999px;font-weight:600;color:#445;font-size:.9rem}
+.navbar{background:var(--pd)!important}
+.stat{background:#fff;border-radius:12px;padding:1rem;box-shadow:0 2px 12px rgba(0,0,0,.06);text-align:center}
+.stat .n{font-size:1.5rem;font-weight:800;color:var(--primary)}
+.nav-pills .nav-link{border-radius:999px;font-weight:600;color:#445;font-size:.85rem}
 .nav-pills .nav-link.active{background:var(--primary)}
-.nav-pills .nav-link.soon{opacity:.55}
 .card-soft{background:#fff;border:none;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
-.table thead th{font-size:.72rem;text-transform:uppercase;letter-spacing:.02em;color:#667;background:#fce8f0;white-space:nowrap}
-.badge-room{background:#fce8f0;color:#a61e5c;font-weight:600}
-.badge-meal{background:#e8f5e9;color:#2e7d32;font-weight:600}
+.table thead th{font-size:.7rem;text-transform:uppercase;color:#667;background:#fce8f0;white-space:nowrap}
+.btn-nt{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn-nt:hover{background:var(--pd);color:#fff}
+.badge-room{background:#fce8f0;color:#a61e5c}
+.badge-meal{background:#e8f5e9;color:#2e7d32}
 </style>
 </head>
 <body>
 <nav class="navbar navbar-dark mb-4">
   <div class="container-fluid px-3 px-lg-4">
-    <a class="navbar-brand fw-bold" href="<?= BASE_URL ?>noitru.php">
-      <i class="bi bi-building"></i> Quản lý nội trú
-    </a>
-    <div class="d-flex gap-2 flex-wrap">
+    <a class="navbar-brand fw-bold" href="<?= BASE_URL ?>noitru.php"><i class="bi bi-building"></i> Quản lý nội trú</a>
+    <div class="d-flex gap-2">
       <a href="<?= BASE_URL ?>" class="btn btn-outline-light btn-sm">Hệ sinh thái</a>
       <a href="<?= BASE_URL ?>csdl.php" class="btn btn-outline-light btn-sm">CSDL</a>
       <a href="<?= BASE_URL ?>logout.php" class="btn btn-warning btn-sm text-dark">Thoát</a>
@@ -87,165 +260,430 @@ body{background:#f8f0f4}
 </nav>
 
 <div class="container-fluid px-3 px-lg-4 pb-5">
-  <?php show_flash(); ?>
+<?php show_flash(); ?>
 
-  <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
-    <div>
-      <h3 class="mb-0">Quản lý nội trú</h3>
-      <div class="text-muted small">
-        HS nội trú lấy từ <strong>CSDL</strong> (đồng bộ một chiều) ·
-        <?= SCHOOL_NAME ?>
-      </div>
-    </div>
-    <form method="post" class="m-0">
-      <input type="hidden" name="action" value="sync_from_csdl">
-      <button type="submit" class="btn btn-primary" style="background:var(--primary);border-color:var(--primary)">
-        <i class="bi bi-arrow-repeat"></i> Đồng bộ từ CSDL
-      </button>
-    </form>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+  <div>
+    <h3 class="mb-0">Quản lý nội trú</h3>
+    <div class="text-muted small">Nguồn HS: <strong>CSDL</strong> · <?= e(SCHOOL_NAME) ?></div>
   </div>
+  <form method="post" class="m-0">
+    <input type="hidden" name="action" value="sync_from_csdl">
+    <button class="btn btn-nt btn-sm" type="submit"><i class="bi bi-arrow-repeat"></i> Đồng bộ từ CSDL</button>
+  </form>
+</div>
 
-  <ul class="nav nav-pills gap-1 mb-4 flex-wrap">
-    <?php foreach ($tabs as $key => $info):
-      $isSoon = in_array($key, $soon, true);
-      $href = $isSoon ? '#' : '?tab=' . urlencode($key);
-      $cls = ($tab === $key ? 'active' : '') . ($isSoon ? ' soon' : '');
-    ?>
-      <li class="nav-item">
-        <a class="nav-link <?= $cls ?>" href="<?= $href ?>" <?= $isSoon ? 'title="Sắp triển khai" onclick="return false"' : '' ?>>
-          <i class="bi <?= e($info[1]) ?>"></i> <?= e($info[0]) ?>
-          <?php if ($isSoon): ?><span class="badge bg-secondary ms-1" style="font-size:.65rem">Sau</span><?php endif; ?>
-        </a>
-      </li>
-    <?php endforeach; ?>
-  </ul>
+<ul class="nav nav-pills gap-1 mb-4 flex-wrap">
+  <?php foreach ($tabs as $k => $info): ?>
+    <li class="nav-item">
+      <a class="nav-link <?= $tab===$k?'active':'' ?>" href="?tab=<?= urlencode($k) ?>">
+        <i class="bi <?= e($info[1]) ?>"></i> <?= e($info[0]) ?>
+      </a>
+    </li>
+  <?php endforeach; ?>
+</ul>
 
 <?php if ($tab === 'overview'): ?>
+  <?php $st = $stats; ?>
   <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-      <div class="stat"><div class="n"><?= (int)$stats['total'] ?></div><div class="text-muted small">HS nội trú</div></div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="stat"><div class="n" style="font-size:1rem;padding-top:.35rem">
-        <?php
-          $ts = $stats['last_sync_at'] ?? null;
-          echo $ts ? e(date('d/m/Y H:i', strtotime($ts))) : 'Chưa đồng bộ';
-        ?>
-      </div><div class="text-muted small">Lần đồng bộ CSDL</div></div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="stat"><div class="n"><?= count($stats['by_room']) ?></div><div class="text-muted small">Phòng (đang ghi)</div></div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="stat"><div class="n"><?= count($stats['by_meal']) ?></div><div class="text-muted small">Nhóm ăn</div></div>
-    </div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$st['total'] ?></div><div class="text-muted small">HS nội trú</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n" style="font-size:.95rem;padding-top:.4rem"><?= $st['last_sync_at'] ? e(date('d/m H:i', strtotime($st['last_sync_at']))) : 'Chưa' ?></div><div class="text-muted small">Đồng bộ CSDL</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= count($st['by_room']) ?></div><div class="text-muted small">Phòng</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= count(array_filter(noitru_exits_all(), fn($x)=>($x['status']??'')==='pending')) ?></div><div class="text-muted small">Phiếu chờ duyệt</div></div></div>
   </div>
-
-  <div class="row g-3 mb-4">
-    <div class="col-md-4">
-      <div class="card card-soft h-100"><div class="card-body">
-        <h6 class="mb-3">Theo lớp</h6>
-        <?php if (!$stats['by_class']): ?>
-          <p class="text-muted small mb-0">Chưa có HS nội trú trong CSDL. Đánh dấu «Nội trú» ở CSDL rồi bấm Đồng bộ.</p>
-        <?php else: foreach ($stats['by_class'] as $k => $n): ?>
-          <div class="d-flex justify-content-between border-bottom py-1 small"><span><?= e($k) ?></span><strong><?= (int)$n ?></strong></div>
-        <?php endforeach; endif; ?>
-      </div></div>
-    </div>
-    <div class="col-md-4">
-      <div class="card card-soft h-100"><div class="card-body">
-        <h6 class="mb-3">Theo phòng KTX</h6>
-        <?php if (!$stats['by_room']): ?>
-          <p class="text-muted small mb-0">—</p>
-        <?php else: foreach ($stats['by_room'] as $k => $n): ?>
-          <div class="d-flex justify-content-between border-bottom py-1 small"><span><?= e($k) ?></span><strong><?= (int)$n ?></strong></div>
-        <?php endforeach; endif; ?>
-      </div></div>
-    </div>
-    <div class="col-md-4">
-      <div class="card card-soft h-100"><div class="card-body">
-        <h6 class="mb-3">Theo nhóm ăn</h6>
-        <?php if (!$stats['by_meal']): ?>
-          <p class="text-muted small mb-0">—</p>
-        <?php else: foreach ($stats['by_meal'] as $k => $n): ?>
-          <div class="d-flex justify-content-between border-bottom py-1 small"><span><?= e($k) ?></span><strong><?= (int)$n ?></strong></div>
-        <?php endforeach; endif; ?>
-      </div></div>
-    </div>
+  <div class="row g-3">
+    <div class="col-md-4"><div class="card card-soft"><div class="card-body"><h6>Theo lớp</h6>
+      <?php foreach ($st['by_class'] as $k=>$n): ?><div class="d-flex justify-content-between small border-bottom py-1"><span><?= e($k) ?></span><strong><?= $n ?></strong></div><?php endforeach; ?>
+      <?php if (!$st['by_class']): ?><p class="text-muted small mb-0">Chưa có HS nội trú trong CSDL.</p><?php endif; ?>
+    </div></div></div>
+    <div class="col-md-4"><div class="card card-soft"><div class="card-body"><h6>Theo phòng</h6>
+      <?php foreach ($st['by_room'] as $k=>$n): ?><div class="d-flex justify-content-between small border-bottom py-1"><span><?= e($k) ?></span><strong><?= $n ?></strong></div><?php endforeach; ?>
+    </div></div></div>
+    <div class="col-md-4"><div class="card card-soft"><div class="card-body"><h6>Theo nhóm ăn</h6>
+      <?php foreach ($st['by_meal'] as $k=>$n): ?><div class="d-flex justify-content-between small border-bottom py-1"><span><?= e($k) ?></span><strong><?= $n ?></strong></div><?php endforeach; ?>
+    </div></div></div>
   </div>
-
-  <div class="card card-soft"><div class="card-body">
-    <h5 class="mb-2">Lộ trình chức năng</h5>
-    <p class="small text-muted mb-2">Đã mở: Tổng quan · Danh sách nội trú. Các mục còn lại triển khai lần lượt.</p>
-    <ol class="mb-0 small">
-      <li><strong>Xin ra / vào KTX</strong> — phiếu + duyệt</li>
-      <li><strong>Báo ăn hàng ngày</strong> — suất theo bữa, chốt số liệu</li>
-      <li><strong>Điểm danh</strong> · <strong>Lịch trực</strong> · <strong>Y tế</strong> · <strong>Thực đơn</strong> · <strong>Thống kê</strong></li>
-    </ol>
-  </div></div>
 
 <?php elseif ($tab === 'boarders'): ?>
-  <div class="card card-soft mb-3"><div class="card-body">
-    <form method="get" class="row g-2 align-items-end">
-      <input type="hidden" name="tab" value="boarders">
-      <div class="col-md-8">
-        <label class="form-label small mb-1">Tìm kiếm</label>
-        <input type="search" name="q" class="form-control" placeholder="Họ tên, mã, lớp, phòng, nhóm ăn, SĐT…" value="<?= e($q) ?>">
-      </div>
-      <div class="col-md-2">
-        <button class="btn btn-primary w-100" type="submit" style="background:var(--primary);border:none">Tìm</button>
-      </div>
-      <div class="col-md-2">
-        <a href="?tab=boarders" class="btn btn-outline-secondary w-100">Xóa</a>
-      </div>
-    </form>
+  <?php
+    $q = trim($_GET['q'] ?? '');
+    $list = $boarders;
+    if ($q !== '') {
+      $qq = mb_strtolower($q, 'UTF-8');
+      $list = array_values(array_filter($list, fn($s) => mb_strpos(mb_strtolower(implode(' ', $s), 'UTF-8'), $qq) !== false));
+    }
+  ?>
+  <form class="row g-2 mb-3" method="get">
+    <input type="hidden" name="tab" value="boarders">
+    <div class="col-md-8"><input type="search" name="q" class="form-control" value="<?= e($q) ?>" placeholder="Tìm tên, lớp, phòng, nhóm ăn…"></div>
+    <div class="col-md-2"><button class="btn btn-nt w-100">Tìm</button></div>
+    <div class="col-md-2"><a href="?tab=boarders" class="btn btn-outline-secondary w-100">Xóa</a></div>
+  </form>
+  <div class="card card-soft"><div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle">
+      <thead><tr><th>STT</th><th>Họ tên</th><th>Lớp</th><th>Phòng</th><th>Nhóm ăn</th><th>PH / SĐT</th></tr></thead>
+      <tbody>
+      <?php if (!$list): ?><tr><td colspan="6" class="text-center text-muted py-4">Chưa có HS nội trú — tick Nội trú trên CSDL rồi đồng bộ.</td></tr>
+      <?php else: foreach ($list as $i=>$s): ?>
+        <tr>
+          <td><?= $i+1 ?></td>
+          <td><strong><?= e($s['name']) ?></strong></td>
+          <td><?= e($s['class_name']) ?></td>
+          <td><?= $s['room_ktx']!==''?'<span class="badge badge-room">'.e($s['room_ktx']).'</span>':'—' ?></td>
+          <td><?= $s['meal_group']!==''?'<span class="badge badge-meal">'.e($s['meal_group']).'</span>':'—' ?></td>
+          <td class="small"><?= e($s['parent_name']) ?><?= $s['parent_phone']!==''?' · '.e($s['parent_phone']):'' ?></td>
+        </tr>
+      <?php endforeach; endif; ?>
+      </tbody>
+    </table>
   </div></div>
 
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <h5 class="mb-0">Danh sách nội trú (<?= count($boarders) ?>)</h5>
-    <a href="<?= BASE_URL ?>csdl.php?tab=students" class="btn btn-sm btn-outline-secondary">Sửa HS trên CSDL</a>
+<?php elseif ($tab === 'exits'): ?>
+  <?php
+    $exits = noitru_exits_all();
+    usort($exits, fn($a,$b) => strcmp($b['from_date']??'', $a['from_date']??''));
+  ?>
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card card-soft"><div class="card-body">
+        <h6 class="mb-3">Thêm phiếu xin ra KTX</h6>
+        <form method="post">
+          <input type="hidden" name="action" value="exit_save">
+          <div class="mb-2"><label class="form-label small">Học sinh</label>
+            <select name="student_id" class="form-select form-select-sm" required>
+              <option value="">— Chọn —</option>
+              <?php foreach ($boarders as $s): ?>
+                <option value="<?= e($s['id']) ?>"><?= e($s['name']) ?> (<?= e($s['class_name']) ?>)</option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-6"><label class="form-label small">Từ ngày</label><input type="date" name="from_date" class="form-control form-control-sm" required value="<?= date('Y-m-d') ?>"></div>
+            <div class="col-6"><label class="form-label small">Đến ngày</label><input type="date" name="to_date" class="form-control form-control-sm" required value="<?= date('Y-m-d') ?>"></div>
+          </div>
+          <div class="mb-2"><label class="form-label small">Lý do</label><input type="text" name="reason" class="form-control form-control-sm" required></div>
+          <div class="mb-2"><label class="form-label small">Ghi chú</label><input type="text" name="note" class="form-control form-control-sm"></div>
+          <button class="btn btn-nt btn-sm w-100" type="submit">Lưu phiếu</button>
+        </form>
+      </div></div>
+    </div>
+    <div class="col-lg-8">
+      <div class="card card-soft"><div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead><tr><th>HS</th><th>Thời gian</th><th>Lý do</th><th>TT</th><th></th></tr></thead>
+          <tbody>
+          <?php if (!$exits): ?><tr><td colspan="5" class="text-muted text-center py-3">Chưa có phiếu.</td></tr>
+          <?php else: foreach ($exits as $x):
+            $st = $x['status']??'pending';
+            $badge = $st==='approved'?'success':($st==='rejected'?'danger':'warning');
+          ?>
+            <tr>
+              <td><strong><?= e($x['student_name']??'') ?></strong><br><span class="small text-muted"><?= e($x['class_name']??'') ?></span></td>
+              <td class="small"><?= e($x['from_date']??'') ?> → <?= e($x['to_date']??'') ?></td>
+              <td class="small"><?= e($x['reason']??'') ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($st) ?></span></td>
+              <td class="text-nowrap">
+                <?php if ($st==='pending'): ?>
+                <form method="post" class="d-inline"><input type="hidden" name="action" value="exit_status"><input type="hidden" name="id" value="<?= e($x['id']) ?>"><input type="hidden" name="status" value="approved"><button class="btn btn-sm btn-success" title="Duyệt">✓</button></form>
+                <form method="post" class="d-inline"><input type="hidden" name="action" value="exit_status"><input type="hidden" name="id" value="<?= e($x['id']) ?>"><input type="hidden" name="status" value="rejected"><button class="btn btn-sm btn-outline-danger" title="Từ chối">✗</button></form>
+                <?php endif; ?>
+                <form method="post" class="d-inline" onsubmit="return confirm('Xóa?')"><input type="hidden" name="action" value="exit_delete"><input type="hidden" name="id" value="<?= e($x['id']) ?>"><button class="btn btn-sm btn-outline-secondary">🗑</button></form>
+              </td>
+            </tr>
+          <?php endforeach; endif; ?>
+          </tbody>
+        </table>
+      </div></div>
+    </div>
   </div>
 
-  <div class="card card-soft"><div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-hover table-sm align-middle mb-0">
-        <thead>
-          <tr>
-            <th>STT</th><th>Họ tên</th><th>Mã</th><th>Lớp</th><th>GT</th>
-            <th>Phòng KTX</th><th>Nhóm ăn</th><th>PH / SĐT</th>
-          </tr>
-        </thead>
+<?php elseif ($tab === 'meals'): ?>
+  <?php
+    $date = $_GET['date'] ?? date('Y-m-d');
+    $mealMap = noitru_meals_for_date($date);
+    $cnt = noitru_meals_count_day($date);
+    $locked = false;
+    foreach ($mealMap as $m) if (!empty($m['locked'])) { $locked = true; break; }
+  ?>
+  <div class="card card-soft mb-3"><div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <input type="hidden" name="tab" value="meals">
+      <div class="col-auto"><label class="form-label small mb-1">Ngày</label><input type="date" name="date" class="form-control" value="<?= e($date) ?>" onchange="this.form.submit()"></div>
+    </form>
+    <div class="d-flex flex-wrap gap-2 mt-3">
+      <form method="post"><input type="hidden" name="action" value="meals_generate"><input type="hidden" name="date" value="<?= e($date) ?>"><button class="btn btn-nt btn-sm" type="submit">Tạo báo ăn từ CSDL + phiếu KTX</button></form>
+      <?php if ($locked): ?>
+        <form method="post"><input type="hidden" name="action" value="meals_unlock"><input type="hidden" name="date" value="<?= e($date) ?>"><button class="btn btn-outline-warning btn-sm">Mở khóa</button></form>
+        <span class="badge bg-success align-self-center">Đã chốt</span>
+      <?php else: ?>
+        <form method="post"><input type="hidden" name="action" value="meals_lock"><input type="hidden" name="date" value="<?= e($date) ?>"><button class="btn btn-outline-success btn-sm">Chốt ngày</button></form>
+      <?php endif; ?>
+      <span class="align-self-center small text-muted">Suất: Sáng <strong><?= $cnt['sang'] ?></strong> · Trưa <strong><?= $cnt['trua'] ?></strong> · Tối <strong><?= $cnt['toi'] ?></strong></span>
+    </div>
+  </div></div>
+  <form method="post">
+    <input type="hidden" name="action" value="meals_save">
+    <input type="hidden" name="date" value="<?= e($date) ?>">
+    <?php if ($locked): ?><input type="hidden" name="force" value="1"><?php endif; ?>
+    <div class="card card-soft"><div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>HS</th><th>Lớp</th><th>Sáng</th><th>Trưa</th><th>Tối</th><th>Nguồn</th></tr></thead>
         <tbody>
-        <?php if (!$boarders): ?>
+        <?php if (!$boarders): ?><tr><td colspan="6" class="text-muted text-center py-3">Chưa có HS nội trú.</td></tr>
+        <?php else: foreach ($boarders as $s):
+          $m = $mealMap[$s['id']] ?? null;
+          $opts = ['yes'=>'Có','no'=>'Không','sick'=>'Bệnh','guest'=>'Khách'];
+        ?>
           <tr>
-            <td colspan="8" class="text-center text-muted py-4">
-              Chưa có học sinh nội trú.<br>
-              Vào <a href="<?= BASE_URL ?>csdl.php?tab=students">CSDL → Học sinh</a>,
-              tick <strong>Nội trú</strong>, điền phòng/nhóm ăn, rồi bấm <strong>Đồng bộ từ CSDL</strong>.
+            <td><input type="hidden" name="sid[]" value="<?= e($s['id']) ?>"><strong><?= e($s['name']) ?></strong></td>
+            <td class="small"><?= e($s['class_name']) ?></td>
+            <?php foreach (['sang','trua','toi'] as $b): ?>
+            <td>
+              <select name="<?= $b ?>[]" class="form-select form-select-sm" <?= $locked?'':''; ?>>
+                <?php foreach ($opts as $ov=>$ol): ?>
+                  <option value="<?= $ov ?>" <?= (($m[$b]??'yes')===$ov)?'selected':'' ?>><?= $ol ?></option>
+                <?php endforeach; ?>
+              </select>
             </td>
-          </tr>
-        <?php else: foreach ($boarders as $i => $s): ?>
-          <tr>
-            <td><?= $i + 1 ?></td>
-            <td><strong><?= e($s['name']) ?></strong></td>
-            <td class="small"><?= e($s['code']) ?></td>
-            <td><?= e($s['class_name']) ?></td>
-            <td><?= e($s['gender']) ?></td>
-            <td><?php if ($s['room_ktx'] !== ''): ?><span class="badge badge-room"><?= e($s['room_ktx']) ?></span><?php else: ?>—<?php endif; ?></td>
-            <td><?php if ($s['meal_group'] !== ''): ?><span class="badge badge-meal"><?= e($s['meal_group']) ?></span><?php else: ?>—<?php endif; ?></td>
-            <td class="small">
-              <?= e($s['parent_name']) ?>
-              <?php if ($s['parent_phone'] !== ''): ?><br><span class="text-muted"><?= e($s['parent_phone']) ?></span><?php endif; ?>
-            </td>
+            <?php endforeach; ?>
+            <td class="small text-muted"><?= e($m['source'] ?? '—') ?></td>
           </tr>
         <?php endforeach; endif; ?>
         </tbody>
       </table>
     </div>
+    <?php if ($boarders): ?><div class="card-body border-top"><button class="btn btn-nt" type="submit">Lưu báo ăn</button></div><?php endif; ?>
+    </div>
+  </form>
+
+<?php elseif ($tab === 'attendance'): ?>
+  <?php
+    $date = $_GET['date'] ?? date('Y-m-d');
+    $shift = $_GET['shift'] ?? 'toi';
+    $attMap = noitru_att_for($date, $shift);
+    $shifts = ['sang'=>'Sáng','toi'=>'Tối','hoc_toi'=>'Học tối'];
+  ?>
+  <form method="get" class="row g-2 mb-3 align-items-end">
+    <input type="hidden" name="tab" value="attendance">
+    <div class="col-auto"><label class="form-label small mb-1">Ngày</label><input type="date" name="date" class="form-control" value="<?= e($date) ?>" onchange="this.form.submit()"></div>
+    <div class="col-auto"><label class="form-label small mb-1">Ca</label>
+      <select name="shift" class="form-select" onchange="this.form.submit()">
+        <?php foreach ($shifts as $k=>$v): ?><option value="<?= $k ?>" <?= $shift===$k?'selected':'' ?>><?= $v ?></option><?php endforeach; ?>
+      </select>
+    </div>
+  </form>
+  <form method="post">
+    <input type="hidden" name="action" value="att_save">
+    <input type="hidden" name="date" value="<?= e($date) ?>">
+    <input type="hidden" name="shift" value="<?= e($shift) ?>">
+    <div class="card card-soft"><div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>HS</th><th>Lớp</th><th>Phòng</th><th>Trạng thái</th></tr></thead>
+        <tbody>
+        <?php foreach ($boarders as $s):
+          $a = $attMap[$s['id']] ?? null;
+          $cur = $a['status'] ?? 'present';
+        ?>
+          <tr>
+            <td><input type="hidden" name="sid[]" value="<?= e($s['id']) ?>"><strong><?= e($s['name']) ?></strong></td>
+            <td><?= e($s['class_name']) ?></td>
+            <td><?= e($s['room_ktx']) ?></td>
+            <td>
+              <select name="status[]" class="form-select form-select-sm" style="max-width:140px">
+                <?php foreach (['present'=>'Có mặt','absent'=>'Vắng','late'=>'Muộn','excused'=>'Có phép'] as $k=>$v): ?>
+                  <option value="<?= $k ?>" <?= $cur===$k?'selected':'' ?>><?= $v ?></option>
+                <?php endforeach; ?>
+              </select>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+        <?php if (!$boarders): ?><tr><td colspan="4" class="text-muted text-center py-3">Chưa có HS.</td></tr><?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+    <?php if ($boarders): ?><div class="card-body border-top"><button class="btn btn-nt" type="submit">Lưu điểm danh</button></div><?php endif; ?>
+    </div>
+  </form>
+
+<?php elseif ($tab === 'duty'): ?>
+  <?php
+    $duties = noitru_duty_all();
+    usort($duties, fn($a,$b) => strcmp($b['date']??'', $a['date']??''));
+  ?>
+  <div class="row g-3">
+    <div class="col-md-4"><div class="card card-soft"><div class="card-body">
+      <h6>Thêm ca trực</h6>
+      <form method="post">
+        <input type="hidden" name="action" value="duty_save">
+        <div class="mb-2"><label class="form-label small">Ngày</label><input type="date" name="date" class="form-control form-control-sm" required value="<?= date('Y-m-d') ?>"></div>
+        <div class="mb-2"><label class="form-label small">Ca</label>
+          <select name="shift" class="form-select form-select-sm"><option value="sang">Sáng</option><option value="toi" selected>Tối</option><option value="dem">Đêm</option></select>
+        </div>
+        <div class="mb-2"><label class="form-label small">Giáo viên (CSDL)</label>
+          <select name="teacher_id" class="form-select form-select-sm" onchange="var o=this.options[this.selectedIndex];document.getElementById('tn').value=o.getAttribute('data-name')||''">
+            <option value="">—</option>
+            <?php foreach ($teachers as $t): ?>
+              <option value="<?= e($t['id']) ?>" data-name="<?= e($t['name']??'') ?>"><?= e($t['name']??'') ?></option>
+            <?php endforeach; ?>
+          </select>
+          <input type="hidden" name="teacher_name" id="tn" value="">
+        </div>
+        <div class="mb-2"><label class="form-label small">Ghi chú</label><input type="text" name="note" class="form-control form-control-sm"></div>
+        <button class="btn btn-nt btn-sm w-100">Lưu</button>
+      </form>
+    </div></div></div>
+    <div class="col-md-8"><div class="card card-soft"><div class="table-responsive">
+      <table class="table table-sm mb-0"><thead><tr><th>Ngày</th><th>Ca</th><th>GV</th><th>Ghi chú</th><th></th></tr></thead><tbody>
+      <?php foreach ($duties as $d): ?>
+        <tr>
+          <td><?= e($d['date']??'') ?></td>
+          <td><?= e($d['shift']??'') ?></td>
+          <td><?= e($d['teacher_name']??'') ?></td>
+          <td class="small"><?= e($d['note']??'') ?></td>
+          <td><form method="post" onsubmit="return confirm('Xóa?')"><input type="hidden" name="action" value="duty_delete"><input type="hidden" name="id" value="<?= e($d['id']) ?>"><button class="btn btn-sm btn-outline-danger">Xóa</button></form></td>
+        </tr>
+      <?php endforeach; ?>
+      <?php if (!$duties): ?><tr><td colspan="5" class="text-muted text-center py-3">Chưa có lịch.</td></tr><?php endif; ?>
+      </tbody></table>
+    </div></div></div>
+  </div>
+
+<?php elseif ($tab === 'health'): ?>
+  <?php
+    $health = noitru_health_all();
+    usort($health, fn($a,$b) => strcmp($b['date']??'', $a['date']??''));
+  ?>
+  <div class="row g-3">
+    <div class="col-md-4"><div class="card card-soft"><div class="card-body">
+      <h6>Ghi nhận y tế</h6>
+      <form method="post">
+        <input type="hidden" name="action" value="health_save">
+        <div class="mb-2"><label class="form-label small">HS</label>
+          <select name="student_id" class="form-select form-select-sm" required>
+            <option value="">—</option>
+            <?php foreach ($boarders as $s): ?><option value="<?= e($s['id']) ?>"><?= e($s['name']) ?></option><?php endforeach; ?>
+          </select>
+        </div>
+        <div class="mb-2"><label class="form-label small">Ngày</label><input type="date" name="date" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>"></div>
+        <div class="mb-2"><label class="form-label small">Loại</label>
+          <select name="type" class="form-select form-select-sm"><option value="kham">Khám</option><option value="thuoc">Thuốc</option><option value="theo_doi">Theo dõi</option></select>
+        </div>
+        <div class="mb-2"><label class="form-label small">Chẩn đoán / tình trạng</label><input type="text" name="diagnosis" class="form-control form-control-sm" required></div>
+        <div class="mb-2"><label class="form-label small">Xử trí</label><input type="text" name="treatment" class="form-control form-control-sm"></div>
+        <div class="mb-2"><label class="form-label small">Ghi chú</label><input type="text" name="note" class="form-control form-control-sm"></div>
+        <button class="btn btn-nt btn-sm w-100">Lưu</button>
+      </form>
+    </div></div></div>
+    <div class="col-md-8"><div class="card card-soft"><div class="table-responsive">
+      <table class="table table-sm mb-0"><thead><tr><th>Ngày</th><th>HS</th><th>Loại</th><th>Tình trạng</th><th>Xử trí</th><th></th></tr></thead><tbody>
+      <?php foreach ($health as $h): ?>
+        <tr>
+          <td class="small"><?= e($h['date']??'') ?></td>
+          <td><?= e($h['student_name']??'') ?></td>
+          <td><?= e($h['type']??'') ?></td>
+          <td class="small"><?= e($h['diagnosis']??'') ?></td>
+          <td class="small"><?= e($h['treatment']??'') ?></td>
+          <td><form method="post" onsubmit="return confirm('Xóa?')"><input type="hidden" name="action" value="health_delete"><input type="hidden" name="id" value="<?= e($h['id']) ?>"><button class="btn btn-sm btn-outline-danger">Xóa</button></form></td>
+        </tr>
+      <?php endforeach; ?>
+      <?php if (!$health): ?><tr><td colspan="6" class="text-muted text-center py-3">Chưa có hồ sơ.</td></tr><?php endif; ?>
+      </tbody></table>
+    </div></div></div>
+  </div>
+
+<?php elseif ($tab === 'menu'): ?>
+  <?php
+    $week = $_GET['week'] ?? date('Y-m-d', strtotime('monday this week'));
+    $menu = noitru_menu_for_week($week);
+    $meals = $menu['meals'] ?? [];
+    $dayLabels = ['mon'=>'Thứ 2','tue'=>'Thứ 3','wed'=>'Thứ 4','thu'=>'Thứ 5','fri'=>'Thứ 6','sat'=>'Thứ 7','sun'=>'CN'];
+    $groups = $stats['by_meal'];
+  ?>
+  <div class="row g-3 mb-3">
+    <div class="col-md-8">
+      <form method="get" class="row g-2 align-items-end mb-3">
+        <input type="hidden" name="tab" value="menu">
+        <div class="col-auto"><label class="form-label small mb-1">Tuần (thứ 2)</label><input type="date" name="week" class="form-control" value="<?= e($week) ?>" onchange="this.form.submit()"></div>
+      </form>
+      <form method="post" class="card card-soft"><div class="card-body">
+        <input type="hidden" name="action" value="menu_save">
+        <input type="hidden" name="week_start" value="<?= e($week) ?>">
+        <h6 class="mb-3">Thực đơn tuần <?= e($week) ?></h6>
+        <?php foreach ($dayLabels as $dk => $dl):
+          $row = $meals[$dk] ?? ['sang'=>'','trua'=>'','toi'=>''];
+        ?>
+          <div class="border rounded p-2 mb-2">
+            <div class="fw-semibold small mb-1"><?= $dl ?></div>
+            <div class="row g-1">
+              <div class="col-md-4"><input type="text" name="<?= $dk ?>_sang" class="form-control form-control-sm" placeholder="Sáng" value="<?= e($row['sang']??'') ?>"></div>
+              <div class="col-md-4"><input type="text" name="<?= $dk ?>_trua" class="form-control form-control-sm" placeholder="Trưa" value="<?= e($row['trua']??'') ?>"></div>
+              <div class="col-md-4"><input type="text" name="<?= $dk ?>_toi" class="form-control form-control-sm" placeholder="Tối" value="<?= e($row['toi']??'') ?>"></div>
+            </div>
+          </div>
+        <?php endforeach; ?>
+        <button class="btn btn-nt" type="submit">Lưu thực đơn</button>
+      </div></form>
+    </div>
+    <div class="col-md-4">
+      <div class="card card-soft"><div class="card-body">
+        <h6>Nhóm ăn (từ CSDL)</h6>
+        <p class="small text-muted">Sửa nhóm ăn trên hồ sơ HS ở CSDL, rồi đồng bộ.</p>
+        <?php foreach ($groups as $g=>$n): ?>
+          <div class="d-flex justify-content-between border-bottom py-1 small"><span><?= e($g) ?></span><strong><?= $n ?></strong></div>
+        <?php endforeach; ?>
+        <?php if (!$groups): ?><p class="text-muted small mb-0">Chưa có.</p><?php endif; ?>
+      </div></div>
+    </div>
+  </div>
+
+<?php elseif ($tab === 'stats'): ?>
+  <?php
+    $from = $_GET['from'] ?? date('Y-m-01');
+    $to = $_GET['to'] ?? date('Y-m-d');
+    $full = noitru_stats_full($from, $to);
+  ?>
+  <form method="get" class="row g-2 mb-3 align-items-end">
+    <input type="hidden" name="tab" value="stats">
+    <div class="col-auto"><label class="form-label small mb-1">Từ</label><input type="date" name="from" class="form-control" value="<?= e($from) ?>"></div>
+    <div class="col-auto"><label class="form-label small mb-1">Đến</label><input type="date" name="to" class="form-control" value="<?= e($to) ?>"></div>
+    <div class="col-auto"><button class="btn btn-nt">Xem</button></div>
+  </form>
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$full['boarders'] ?></div><div class="text-muted small">HS nội trú</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$full['meals']['sang'] ?></div><div class="text-muted small">Suất sáng</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$full['meals']['trua'] ?></div><div class="text-muted small">Suất trưa</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$full['meals']['toi'] ?></div><div class="text-muted small">Suất tối</div></div></div>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-4"><div class="card card-soft"><div class="card-body">
+      <h6>Điểm danh</h6>
+      <?php foreach ($full['attendance'] as $k=>$v): ?>
+        <div class="d-flex justify-content-between small border-bottom py-1"><span><?= e(nt_att_label($k)) ?></span><strong><?= (int)$v ?></strong></div>
+      <?php endforeach; ?>
+    </div></div></div>
+    <div class="col-md-4"><div class="card card-soft"><div class="card-body">
+      <h6>Phiếu KTX</h6>
+      <?php foreach ($full['exits'] as $k=>$v): ?>
+        <div class="d-flex justify-content-between small border-bottom py-1"><span><?= e($k) ?></span><strong><?= (int)$v ?></strong></div>
+      <?php endforeach; ?>
+    </div></div></div>
+    <div class="col-md-4"><div class="card card-soft"><div class="card-body">
+      <h6>Y tế</h6>
+      <div class="d-flex justify-content-between small"><span>Hồ sơ trong kỳ</span><strong><?= (int)$full['health'] ?></strong></div>
+    </div></div></div>
+  </div>
+  <?php if ($full['meals']['days']): ?>
+  <div class="card card-soft mt-3"><div class="card-body">
+    <h6>Suất ăn theo ngày</h6>
+    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Ngày</th><th>Sáng</th><th>Trưa</th><th>Tối</th></tr></thead><tbody>
+    <?php foreach ($full['meals']['days'] as $d=>$c): ?>
+      <tr><td><?= e($d) ?></td><td><?= (int)$c['sang'] ?></td><td><?= (int)$c['trua'] ?></td><td><?= (int)$c['toi'] ?></td></tr>
+    <?php endforeach; ?>
+    </tbody></table></div>
   </div></div>
+  <?php endif; ?>
 
 <?php endif; ?>
-
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
