@@ -47,9 +47,9 @@ function get_ecosystem_modules() {
         [
             'id' => 'noitru', 'num' => 7,
             'title' => 'Quản lý nội trú',
-            'subtitle' => 'KTX – điểm danh – chăm sóc nuôi dưỡng',
+            'subtitle' => 'KTX · điểm danh · báo ăn · xin ra vào',
             'icon' => 'bi-building', 'color' => '#d63384',
-            'status' => 'soon', 'url' => '', 'external' => false,
+            'status' => 'live', 'url' => BASE_URL . 'noitru.php', 'external' => false,
         ],
         [
             'id' => 'thidua', 'num' => 8,
