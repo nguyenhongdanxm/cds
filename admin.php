@@ -6,6 +6,7 @@ $user = current_user();
 $modules = get_ecosystem_modules();
 $live = count(array_filter($modules, fn($m) => $m['status'] !== 'soon'));
 $soon = count($modules) - $live;
+$isAdmin = ($user['role'] ?? '') === 'admin';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -32,24 +33,37 @@ $nav_title = 'CDS Quản trị';
 $nav_icon = 'bi-speedometer2';
 $nav_color = '#1F4E79';
 $nav_module = 'admin';
-include __DIR__ . '/includes/nav_top.php';
+if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav_top.php';
 ?>
 
 <div class="container pb-5">
   <?php show_flash(); ?>
-  <h3 class="mb-1">Bảng điều khiển tập trung</h3>
-  <p class="text-muted mb-4">Một tài khoản · Chuyển nhanh module trên menu · Theo dõi hệ sinh thái</p>
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+      <h3 class="mb-1">Bảng điều khiển tập trung</h3>
+      <p class="text-muted mb-0">Xin chào, <strong><?= e($user['name'] ?? '') ?></strong> · vai trò: <?= e($user['role'] ?? '') ?></p>
+    </div>
+    <?php if ($isAdmin): ?>
+    <a href="users.php" class="btn btn-primary btn-sm"><i class="bi bi-shield-lock"></i> Tài khoản & phân quyền</a>
+    <?php endif; ?>
+  </div>
 
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= count($modules) ?></div><div class="text-muted small">Tổng module</div></div></div>
     <div class="col-6 col-md-3"><div class="stat"><div class="n text-success"><?= $live ?></div><div class="text-muted small">Đang có / liên kết</div></div></div>
     <div class="col-6 col-md-3"><div class="stat"><div class="n text-secondary"><?= $soon ?></div><div class="text-muted small">Đang xây dựng</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><i class="bi bi-person-check"></i></div><div class="text-muted small">SSO sẵn sàng</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><i class="bi bi-person-check"></i></div><div class="text-muted small">SSO session</div></div></div>
   </div>
 
   <h5 class="mb-3">Các nhánh hệ sinh thái</h5>
   <div class="row g-3">
-    <?php foreach ($modules as $m): ?>
+    <?php foreach ($modules as $m):
+      $modId = $m['id'] ?? '';
+      // map id sang key quyền
+      $permKey = $modId === 'chuyenmon' ? 'chuyenmon' : ($modId === 'csdl' ? 'csdl' : ($modId === 'noitru' ? 'noitru' : $modId));
+      $allowed = ($user['role'] ?? '') === 'admin' || can_module($permKey, 'view') || $m['status'] === 'link' || $m['status'] === 'soon';
+      if (!$allowed && in_array($modId, ['chuyenmon','csdl','noitru'], true)) continue;
+    ?>
     <div class="col-md-6 col-lg-3">
       <div class="mod-card <?= e($m['status']) ?>">
         <div class="d-flex align-items-center gap-2 mb-2">
