@@ -65,6 +65,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'set_module_access' || $action === 'bulk_module_access') {
+        $moduleKey = trim($_POST['module_key'] ?? '');
+        $level = trim($_POST['level'] ?? 'none');
+        $selectedIds = $action === 'set_module_access'
+            ? [trim($_POST['user_id'] ?? '')]
+            : array_values(array_filter(array_map('strval', (array)($_POST['selected_users'] ?? []))));
+
+        if (!isset($modCatalog[$moduleKey]) || !in_array($level, ['none','view','edit'], true) || !$selectedIds) {
+            flash('Thiếu người dùng, module hoặc mức quyền hợp lệ.', 'danger');
+            header('Location: users.php'); exit;
+        }
+
+        $changed = 0;
+        foreach ($users as &$u) {
+            if (!in_array((string)($u['id'] ?? ''), $selectedIds, true)) continue;
+            if (($u['role'] ?? '') === 'admin') continue;
+            $overrides = is_array($u['permission_overrides'] ?? null) ? $u['permission_overrides'] : [];
+            foreach ($featCatalog as $code => $meta) {
+                if (($meta['module'] ?? '') !== $moduleKey) continue;
+                $overrides[$code] = $level;
+            }
+            $u['permission_overrides'] = $overrides;
+            $u['permission_model_version'] = 2;
+            $u['updated_at'] = date('c');
+            $changed++;
+        }
+        unset($u);
+        save_users($users);
+        flash('Đã cập nhật quyền ' . ($modCatalog[$moduleKey]['label'] ?? $moduleKey) . ' cho ' . $changed . ' người.');
+        header('Location: users.php'); exit;
+    }
+
+    if ($action === 'bulk_group') {
+        $groupKey = trim($_POST['group_key'] ?? '');
+        $mode = ($_POST['group_mode'] ?? 'add') === 'remove' ? 'remove' : 'add';
+        $selectedIds = array_values(array_filter(array_map('strval', (array)($_POST['selected_users'] ?? []))));
+        if (!isset($permissionGroups[$groupKey]) || !$selectedIds) {
+            flash('Hãy chọn giáo viên và nhóm quyền.', 'danger');
+            header('Location: users.php'); exit;
+        }
+        $changed = 0;
+        foreach ($users as &$u) {
+            if (!in_array((string)($u['id'] ?? ''), $selectedIds, true)) continue;
+            $groups = array_values(array_unique(array_filter(array_map('strval', $u['groups'] ?? []))));
+            if ($mode === 'add' && !in_array($groupKey, $groups, true)) $groups[] = $groupKey;
+            if ($mode === 'remove') $groups = array_values(array_diff($groups, [$groupKey]));
+            $u['groups'] = $groups;
+            $u['permission_model_version'] = 2;
+            $u['updated_at'] = date('c');
+            $changed++;
+        }
+        unset($u);
+        save_users($users);
+        flash('Đã ' . ($mode === 'add' ? 'gán' : 'gỡ') . ' nhóm cho ' . $changed . ' người.');
+        header('Location: users.php'); exit;
+    }
+
     if ($action === 'save') {
         $id = trim($_POST['id'] ?? '');
         $username = trim($_POST['username'] ?? '');
@@ -202,6 +259,17 @@ function user_for_edit(array $user) {
     unset($user['password_hash']);
     return $user;
 }
+function user_module_access(array $user, string $moduleKey, array $featCatalog): string {
+    $effective = permission_effective_access_for_user($user);
+    $levels = [];
+    foreach ($featCatalog as $code => $meta) {
+        if (($meta['module'] ?? '') !== $moduleKey) continue;
+        $levels[] = $effective[$code] ?? 'none';
+    }
+    $levels = array_values(array_unique($levels));
+    if (count($levels) > 1) return 'mixed';
+    return in_array($levels[0] ?? 'none', ['none','view','edit'], true) ? ($levels[0] ?? 'none') : 'none';
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -221,6 +289,22 @@ body{background:#f0f4f8}
 .table th{background:#e8f0fe;color:var(--primary);font-size:.85rem}
 .badge-mod{font-size:.7rem}
 .sync-box{background:#e8f5e9;border:1px solid #a5d6a7;border-radius:12px;padding:1rem 1.15rem}
+.permission-matrix{min-width:1320px}
+.permission-matrix th{position:sticky;top:0;z-index:2;white-space:nowrap;text-align:center}
+.permission-matrix th:first-child,.permission-matrix td:first-child{position:sticky;left:0;z-index:1;background:#fff}
+.permission-matrix thead th:first-child{z-index:3;background:#e8f0fe}
+.permission-matrix td{vertical-align:middle}
+.matrix-user{min-width:260px}
+.matrix-module{min-width:132px}
+.level-select{font-weight:600;border-width:1px;text-align:center}
+.level-none{background:#f1f3f5;color:#6c757d;border-color:#ced4da}
+.level-view{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}
+.level-edit{background:#1f6feb;color:#fff;border-color:#1f6feb}
+.level-mixed{background:#f3e8ff;color:#7e22ce;border-color:#d8b4fe}
+.matrix-toolbar{background:#f8fafc;border:1px solid #dbe5ef;border-radius:10px;padding:.75rem}
+.selected-count{min-width:105px}
+.editor-card{border:2px solid #b7cce0}
+@media(max-width:767px){.matrix-user{min-width:220px}.permission-matrix{min-width:1180px}}
 </style>
 </head>
 <body>
@@ -339,9 +423,191 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
     <?php endforeach; ?>
   </div>
 
+  <div class="card mb-3">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span><i class="bi bi-grid-3x3-gap"></i> Bảng phân quyền giáo viên (<?= count($users) ?>)</span>
+      <button type="button" class="btn btn-sm btn-light" onclick="openEditor()">
+        <i class="bi bi-person-plus"></i> Thêm tài khoản
+      </button>
+    </div>
+    <div class="card-body pb-2">
+      <div class="row g-2 mb-3">
+        <div class="col-md-5">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input class="form-control" id="matrixSearch" placeholder="Tìm họ tên hoặc số điện thoại…" oninput="filterMatrix()">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <select class="form-select form-select-sm" id="matrixGroupFilter" onchange="filterMatrix()">
+            <option value="">Tất cả nhóm</option>
+            <?php foreach ($permissionGroups as $groupKey => $group): ?>
+            <option value="<?= e($groupKey) ?>"><?= e($group['label'] ?? $groupKey) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="matrixClassFilter" onchange="filterMatrix()">
+            <option value="">Tất cả lớp</option>
+            <?php foreach ($allClasses as $cl): ?><option value="<?= e($cl) ?>"><?= e($cl) ?></option><?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="matrixStatusFilter" onchange="filterMatrix()">
+            <option value="">Mọi trạng thái</option>
+            <option value="1">Đang hoạt động</option>
+            <option value="0">Đã khóa</option>
+          </select>
+        </div>
+      </div>
+
+      <form method="post" id="bulkPermissionForm">
+        <div class="matrix-toolbar mb-3">
+          <div class="d-flex flex-wrap align-items-end gap-2">
+            <div class="selected-count">
+              <div class="small text-muted">Đã chọn</div>
+              <strong><span id="selectedCount">0</span> giáo viên</strong>
+            </div>
+            <div>
+              <label class="small text-muted">Module</label>
+              <select class="form-select form-select-sm" name="module_key">
+                <?php foreach ($modCatalog as $moduleKey => $module): ?>
+                <option value="<?= e($moduleKey) ?>"><?= e($module['label'] ?? $moduleKey) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div>
+              <label class="small text-muted">Mức quyền</label>
+              <select class="form-select form-select-sm" name="level">
+                <option value="none">Không</option>
+                <option value="view">Xem</option>
+                <option value="edit">Sửa</option>
+              </select>
+            </div>
+            <button class="btn btn-sm btn-primary" name="action" value="bulk_module_access" type="submit">
+              <i class="bi bi-check2-square"></i> Áp dụng quyền
+            </button>
+            <div class="vr d-none d-lg-block"></div>
+            <div>
+              <label class="small text-muted">Nhóm quyền</label>
+              <select class="form-select form-select-sm" name="group_key">
+                <?php foreach ($permissionGroups as $groupKey => $group): ?>
+                <option value="<?= e($groupKey) ?>"><?= e($group['label'] ?? $groupKey) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div>
+              <label class="small text-muted">Thao tác</label>
+              <select class="form-select form-select-sm" name="group_mode">
+                <option value="add">Gán nhóm</option>
+                <option value="remove">Gỡ nhóm</option>
+              </select>
+            </div>
+            <button class="btn btn-sm btn-outline-primary" name="action" value="bulk_group" type="submit">
+              <i class="bi bi-people"></i> Áp dụng nhóm
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive border rounded">
+          <table class="table table-sm table-hover mb-0 permission-matrix">
+            <thead>
+              <tr>
+                <th class="text-start matrix-user">
+                  <input class="form-check-input me-2" type="checkbox" id="selectAllUsers" onchange="toggleAllUsers(this)">
+                  Giáo viên
+                </th>
+                <th>Nhóm / lớp</th>
+                <?php foreach ($modCatalog as $moduleKey => $module): ?>
+                <th class="matrix-module" title="<?= e($module['label'] ?? $moduleKey) ?>">
+                  <i class="bi <?= e($module['icon'] ?? 'bi-grid') ?>"></i>
+                  <div><?= e($module['label'] ?? $moduleKey) ?></div>
+                </th>
+                <?php endforeach; ?>
+                <th>Chi tiết</th>
+              </tr>
+            </thead>
+            <tbody id="permissionMatrixBody">
+            <?php foreach ($users as $u):
+              $cls = array_values(array_unique(array_merge($u['classes'] ?? [], $u['homeroom_classes'] ?? [])));
+              $gr = array_values(array_filter($u['groups'] ?? []));
+              $isAdmin = ($u['role'] ?? '') === 'admin';
+              $searchText = trim(($u['username'] ?? '') . ' ' . ($u['name'] ?? ''));
+            ?>
+              <tr class="matrix-row <?= empty($u['active']) ? 'table-secondary' : '' ?>"
+                  data-search="<?= e($searchText) ?>"
+                  data-groups="<?= e(implode('|', $gr)) ?>"
+                  data-classes="<?= e(implode('|', $cls)) ?>"
+                  data-active="<?= !empty($u['active']) ? '1' : '0' ?>">
+                <td class="matrix-user">
+                  <div class="d-flex align-items-start gap-2">
+                    <input class="form-check-input user-select mt-1" type="checkbox"
+                           name="selected_users[]" value="<?= e($u['id'] ?? '') ?>"
+                           onchange="updateSelectedCount()" <?= $isAdmin ? 'disabled' : '' ?>>
+                    <div>
+                      <div class="fw-semibold"><?= e($u['name'] ?? $u['username'] ?? '') ?></div>
+                      <div class="small text-muted"><?= e($u['username'] ?? '') ?>
+                        <?= empty($u['active']) ? ' · Đã khóa' : '' ?>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td class="small">
+                  <?php if ($gr): foreach ($gr as $g): ?>
+                    <span class="badge bg-light text-dark border badge-mod"><?= e($groupPresets[$g]['label'] ?? $g) ?></span>
+                  <?php endforeach; else: ?><span class="text-muted">Chưa gán nhóm</span><?php endif; ?>
+                  <div class="mt-1"><?= $cls ? e(implode(', ', $cls)) : '<span class="text-muted">Mọi lớp</span>' ?></div>
+                </td>
+                <?php foreach ($modCatalog as $moduleKey => $module):
+                  $moduleLevel = user_module_access($u, $moduleKey, $featCatalog);
+                ?>
+                <td class="text-center">
+                  <?php if ($isAdmin): ?>
+                    <span class="badge bg-dark">Quản trị</span>
+                  <?php else: ?>
+                    <select class="form-select form-select-sm level-select level-<?= e($moduleLevel) ?>"
+                            aria-label="<?= e(($module['label'] ?? $moduleKey) . ' của ' . ($u['name'] ?? '')) ?>"
+                            onchange="setModuleAccess(this,'<?= e($u['id'] ?? '') ?>','<?= e($moduleKey) ?>')">
+                      <?php if ($moduleLevel === 'mixed'): ?><option value="mixed" selected disabled>Tùy chỉnh</option><?php endif; ?>
+                      <option value="none" <?= $moduleLevel === 'none' ? 'selected' : '' ?>>Không</option>
+                      <option value="view" <?= $moduleLevel === 'view' ? 'selected' : '' ?>>Xem</option>
+                      <option value="edit" <?= $moduleLevel === 'edit' ? 'selected' : '' ?>>Sửa</option>
+                    </select>
+                  <?php endif; ?>
+                </td>
+                <?php endforeach; ?>
+                <td class="text-nowrap text-center">
+                  <button type="button" class="btn btn-sm btn-outline-primary"
+                          onclick='editUser(<?= json_encode(user_for_edit($u), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_TAG | JSON_HEX_QUOT) ?>)'>
+                    <i class="bi bi-sliders"></i>
+                  </button>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </form>
+      <div class="small text-muted mt-2">
+        <span class="badge level-none">Không</span> bị ẩn ·
+        <span class="badge level-view">Xem</span> chỉ đọc ·
+        <span class="badge level-edit">Sửa</span> được thao tác.
+        <span class="badge level-mixed">Tùy chỉnh</span> có nhiều mức quyền bên trong.
+        Muốn phân quyền từng chức năng hoặc lớp chủ nhiệm, nhấn <i class="bi bi-sliders"></i>.
+      </div>
+    </div>
+  </div>
+
+  <form method="post" id="quickModuleForm" class="d-none">
+    <input type="hidden" name="action" value="set_module_access">
+    <input type="hidden" name="user_id" id="quickUserId">
+    <input type="hidden" name="module_key" id="quickModuleKey">
+    <input type="hidden" name="level" id="quickLevel">
+  </form>
+
   <div class="row g-3">
-    <div class="col-lg-5">
-      <div class="card">
+    <div class="col-12 collapse" id="userEditor">
+      <div class="card editor-card">
         <div class="card-header" id="formTitle">Thêm / sửa thủ công</div>
         <div class="card-body">
           <form method="post" id="userForm">
@@ -437,7 +703,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
       </div>
     </div>
 
-    <div class="col-lg-7">
+    <div class="col-lg-7 d-none">
       <div class="card">
         <div class="card-header">Danh sách (<?= count($users) ?>)</div>
         <div class="table-responsive">
@@ -487,6 +753,56 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
 
 <script>
 const PRESETS = <?= json_encode($presets, JSON_UNESCAPED_UNICODE) ?>;
+function paintLevelSelect(el){
+  el.classList.remove('level-none','level-view','level-edit');
+  el.classList.add('level-'+el.value);
+}
+function setModuleAccess(el,userId,moduleKey){
+  paintLevelSelect(el);
+  document.getElementById('quickUserId').value=userId;
+  document.getElementById('quickModuleKey').value=moduleKey;
+  document.getElementById('quickLevel').value=el.value;
+  document.getElementById('quickModuleForm').submit();
+}
+function visibleUserCheckboxes(){
+  return Array.from(document.querySelectorAll('.matrix-row'))
+    .filter(function(row){return row.style.display!=='none';})
+    .map(function(row){return row.querySelector('.user-select');})
+    .filter(function(cb){return cb && !cb.disabled;});
+}
+function updateSelectedCount(){
+  const selected=document.querySelectorAll('.user-select:checked').length;
+  document.getElementById('selectedCount').textContent=selected;
+  const visible=visibleUserCheckboxes();
+  const selectAll=document.getElementById('selectAllUsers');
+  selectAll.checked=visible.length>0 && visible.every(function(cb){return cb.checked;});
+  selectAll.indeterminate=visible.some(function(cb){return cb.checked;}) && !selectAll.checked;
+}
+function toggleAllUsers(source){
+  visibleUserCheckboxes().forEach(function(cb){cb.checked=source.checked;});
+  updateSelectedCount();
+}
+function filterMatrix(){
+  const query=(document.getElementById('matrixSearch').value||'').trim().toLowerCase();
+  const group=document.getElementById('matrixGroupFilter').value;
+  const className=document.getElementById('matrixClassFilter').value;
+  const active=document.getElementById('matrixStatusFilter').value;
+  document.querySelectorAll('.matrix-row').forEach(function(row){
+    const groups=(row.dataset.groups||'').split('|');
+    const classes=(row.dataset.classes||'').split('|');
+    const visible=(!query || (row.dataset.search||'').toLowerCase().includes(query))
+      && (!group || groups.includes(group))
+      && (!className || classes.includes(className))
+      && (active==='' || row.dataset.active===active);
+    row.style.display=visible?'':'none';
+  });
+  updateSelectedCount();
+}
+function openEditor(){
+  resetForm();
+  bootstrap.Collapse.getOrCreateInstance(document.getElementById('userEditor')).show();
+  setTimeout(function(){document.getElementById('userEditor').scrollIntoView({behavior:'smooth',block:'start'});},150);
+}
 function applyPreset(){
   const p = PRESETS[document.getElementById('f_role').value];
   if (!p) return;
@@ -534,9 +850,19 @@ function editUser(u){
   document.querySelectorAll('.class-cb').forEach(function(cb){cb.checked=classes.indexOf(cb.value)>=0;});
   const homeroom=u.homeroom_classes||classes;
   document.querySelectorAll('.homeroom-cb').forEach(function(cb){cb.checked=homeroom.indexOf(cb.value)>=0;});
-  window.scrollTo({top:0,behavior:'smooth'});
+  bootstrap.Collapse.getOrCreateInstance(document.getElementById('userEditor')).show();
+  setTimeout(function(){document.getElementById('userEditor').scrollIntoView({behavior:'smooth',block:'start'});},150);
 }
 resetForm();
+document.querySelectorAll('.level-select').forEach(paintLevelSelect);
+document.getElementById('bulkPermissionForm').addEventListener('submit',function(event){
+  if (!document.querySelector('.user-select:checked')) {
+    event.preventDefault();
+    alert('Hãy tích chọn ít nhất một giáo viên trong bảng.');
+    return;
+  }
+  if (!confirm('Áp dụng thay đổi cho các giáo viên đã chọn?')) event.preventDefault();
+});
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
