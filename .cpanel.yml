@@ -2,7 +2,6 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/capnachi/cds.noitruxinman.edu.vn/
-    - /bin/mkdir -p "$DEPLOYPATH/assets" "$DEPLOYPATH/includes"
-    - /bin/cp -R assets/. "$DEPLOYPATH/assets/"
-    - /bin/cp -R includes/. "$DEPLOYPATH/includes/"
-    - /bin/cp -- *.php "$DEPLOYPATH"
+    - /bin/cp -R assets $DEPLOYPATH
+    - /bin/cp -R includes $DEPLOYPATH
+    - /bin/cp *.php $DEPLOYPATH
