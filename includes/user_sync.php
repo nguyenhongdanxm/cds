@@ -3,7 +3,7 @@
  * Đồng bộ tài khoản từ CSDL GV + phân công kiêm nhiệm (PCCM).
  * - Tài khoản = SĐT (chỉ số)
  * - Mật khẩu mặc định tài khoản mới: Ntxm@2026
- * - Nhóm: BGH, QLNT, Văn phòng, Đoàn-Đội, Tổ CM, GVCN, GV
+ * - Nhóm: BGH, QLNT, Văn thư, Kế toán, Đoàn-Đội, Thư viện-Thiết bị, Tổ CM, GVCN, GV
  */
 
 define('DEFAULT_USER_PASSWORD', 'Ntxm@2026');
@@ -25,17 +25,29 @@ function user_group_presets() {
             'modules' => ['chuyenmon'=>'none','csdl'=>'view','noitru'=>'edit','vanban'=>'none','thidua'=>'none'],
             'perms' => array_merge(['csdl.view'], $allNt),
         ],
-        'vanphong' => [
-            'label' => 'Văn phòng',
+        'vanthu' => [
+            'label' => 'Văn thư',
             'role' => 'custom',
             'modules' => ['chuyenmon'=>'view','csdl'=>'view','noitru'=>'none','vanban'=>'edit','thidua'=>'view'],
             'perms' => ['cm.tracuu','cm.dashboard','csdl.view','csdl.export'],
+        ],
+        'ketoan' => [
+            'label' => 'Kế toán',
+            'role' => 'custom',
+            'modules' => ['chuyenmon'=>'none','csdl'=>'view','noitru'=>'none','vanban'=>'view','thidua'=>'none'],
+            'perms' => ['csdl.view','csdl.export'],
         ],
         'doandoi' => [
             'label' => 'Đoàn – Đội',
             'role' => 'custom',
             'modules' => ['chuyenmon'=>'view','csdl'=>'view','noitru'=>'view','vanban'=>'none','thidua'=>'edit'],
             'perms' => ['cm.tracuu','cm.dashboard','cm.baocao','csdl.view','nt.danhsach','nt.diemdanh'],
+        ],
+        'thuvien_thietbi' => [
+            'label' => 'Thư viện – Thiết bị',
+            'role' => 'custom',
+            'modules' => ['chuyenmon'=>'view','csdl'=>'view','noitru'=>'none','vanban'=>'none','thidua'=>'none'],
+            'perms' => ['cm.tracuu','cm.dashboard','csdl.view'],
         ],
         'totruong' => [
             'label' => 'Quản lý tổ chuyên môn',
@@ -168,10 +180,9 @@ function detect_groups_for_teacher(array $t, array $pccmRoles, array $gvcnClasse
         $groups[] = 'qlnt';
     }
 
-    // Văn phòng
-    if (preg_match('/văn\s*phòng|văn\s*thư|kế\s*toán|nhân\s*sự|hành\s*chính/u', $blob)) {
-        $groups[] = 'vanphong';
-    }
+    if (preg_match('/văn\s*thư|hành\s*chính|văn\s*phòng/u', $blob)) $groups[] = 'vanthu';
+    if (preg_match('/kế\s*toán|tài\s*chính|thủ\s*quỹ/u', $blob)) $groups[] = 'ketoan';
+    if (preg_match('/thư\s*viện|thiết\s*bị/u', $blob)) $groups[] = 'thuvien_thietbi';
 
     // Đoàn Đội
     if (preg_match('/đoàn|đội|bí\s*thư|tổng\s*phụ\s*trách/u', $blob)) {
@@ -240,7 +251,7 @@ function sync_users_from_system() {
         $modules = ['chuyenmon'=>'none','csdl'=>'none','noitru'=>'none','vanban'=>'none','thidua'=>'none'];
         $perms = [];
         $primaryRole = 'gv';
-        $priority = ['bgh'=>1,'qlnt'=>2,'vanphong'=>3,'doandoi'=>4,'totruong'=>5,'gvcn'=>6,'gv'=>9];
+        $priority = ['bgh'=>1,'qlnt'=>2,'vanthu'=>3,'ketoan'=>3,'doandoi'=>4,'thuvien_thietbi'=>4,'totruong'=>5,'gvcn'=>6,'gv'=>9];
         $best = 99;
         foreach ($groups as $g) {
             if (!isset($presets[$g])) continue;
@@ -251,9 +262,9 @@ function sync_users_from_system() {
             if ($pr < $best) { $best = $pr; $primaryRole = $p['role']; }
         }
 
-        // Chỉ giới hạn lớp nếu có GVCN và không thuộc BGH/QLNT/VP (toàn trường)
+        // Chỉ giới hạn lớp nếu có GVCN và không thuộc nhóm quản lý toàn trường.
         $scopeClasses = [];
-        if (in_array('gvcn', $groups, true) && !array_intersect($groups, ['bgh','qlnt','vanphong'])) {
+        if (in_array('gvcn', $groups, true) && !array_intersect($groups, ['bgh','qlnt','vanthu','ketoan'])) {
             $scopeClasses = $classes;
         }
 
@@ -266,9 +277,11 @@ function sync_users_from_system() {
             'modules' => $modules,
             'perms' => $perms,
             'classes' => $scopeClasses,
+            'homeroom_classes' => $classes,
             'active' => true,
             'phone' => $phone,
             'source' => 'sync_csdl',
+            'permission_model_version' => 2,
             'updated_at' => date('c'),
         ];
 

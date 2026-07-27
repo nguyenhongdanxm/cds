@@ -83,7 +83,11 @@ function session_user_from_record(array $u) {
         'role' => $u['role'] ?? 'gv',
         'modules' => is_array($u['modules'] ?? null) ? $u['modules'] : [],
         'perms' => is_array($u['perms'] ?? null) ? $u['perms'] : [],
+        'groups' => is_array($u['groups'] ?? null) ? $u['groups'] : [],
+        'permission_overrides' => is_array($u['permission_overrides'] ?? null) ? $u['permission_overrides'] : [],
+        'permission_model_version' => (int)($u['permission_model_version'] ?? 1),
         'classes' => is_array($u['classes'] ?? null) ? $u['classes'] : [],
+        'homeroom_classes' => is_array($u['homeroom_classes'] ?? null) ? $u['homeroom_classes'] : [],
         'teacher_name' => $u['teacher_name'] ?? '',
     ];
 }

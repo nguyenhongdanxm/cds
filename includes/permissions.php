@@ -13,6 +13,9 @@ function permission_modules_catalog() {
         'noitru'    => ['label' => 'Nội trú', 'icon' => 'bi-building'],
         'vanban'    => ['label' => 'Văn bản', 'icon' => 'bi-file-earmark-text'],
         'thidua'    => ['label' => 'Thi đua', 'icon' => 'bi-trophy'],
+        'truyenthong'=> ['label' => 'Truyền thông', 'icon' => 'bi-broadcast'],
+        'hoclieu'   => ['label' => 'Học liệu – Thư viện – Thiết bị', 'icon' => 'bi-book'],
+        'taichinh'  => ['label' => 'Tài chính – Kế toán', 'icon' => 'bi-cash-coin'],
     ];
 }
 
@@ -44,11 +47,189 @@ function permission_features_catalog() {
         'nt.lichtruc' => ['module' => 'noitru', 'label' => 'Lịch trực', 'group' => 'Nội trú'],
         'nt.thucdon'  => ['module' => 'noitru', 'label' => 'Thực đơn / nhóm ăn', 'group' => 'Nội trú'],
         'nt.thongke'  => ['module' => 'noitru', 'label' => 'Thống kê nội trú', 'group' => 'Nội trú'],
+
+        // Văn bản
+        'vb.xem'      => ['module' => 'vanban', 'label' => 'Xem văn bản và biểu mẫu', 'group' => 'Văn bản'],
+        'vb.quanly'   => ['module' => 'vanban', 'label' => 'Thêm · sửa · phát hành văn bản', 'group' => 'Văn bản'],
+
+        // Thi đua
+        'td.xem'      => ['module' => 'thidua', 'label' => 'Xem kết quả thi đua', 'group' => 'Thi đua'],
+        'td.capnhat'  => ['module' => 'thidua', 'label' => 'Nhập và cập nhật thi đua', 'group' => 'Thi đua'],
+        'td.duyet'    => ['module' => 'thidua', 'label' => 'Duyệt và chốt kết quả', 'group' => 'Thi đua'],
+
+        // Truyền thông
+        'tt.xem'      => ['module' => 'truyenthong', 'label' => 'Xem nội dung truyền thông', 'group' => 'Truyền thông'],
+        'tt.bientap'  => ['module' => 'truyenthong', 'label' => 'Biên tập tin · bài · hoạt động', 'group' => 'Truyền thông'],
+        'tt.xuatban'  => ['module' => 'truyenthong', 'label' => 'Duyệt và xuất bản', 'group' => 'Truyền thông'],
+
+        // Học liệu, thư viện, thiết bị
+        'hl.xem'      => ['module' => 'hoclieu', 'label' => 'Xem học liệu và danh mục', 'group' => 'Học liệu'],
+        'hl.thuvien'  => ['module' => 'hoclieu', 'label' => 'Quản lý thư viện · mượn trả', 'group' => 'Học liệu'],
+        'hl.thietbi'  => ['module' => 'hoclieu', 'label' => 'Quản lý thiết bị', 'group' => 'Học liệu'],
+        'hl.kiemtra'  => ['module' => 'hoclieu', 'label' => 'Ngân hàng đề và kiểm tra', 'group' => 'Học liệu'],
+
+        // Tài chính
+        'tc.xem'      => ['module' => 'taichinh', 'label' => 'Xem dữ liệu tài chính được giao', 'group' => 'Tài chính'],
+        'tc.capnhat'  => ['module' => 'taichinh', 'label' => 'Cập nhật thu · chi · chế độ', 'group' => 'Tài chính'],
+        'tc.baocao'   => ['module' => 'taichinh', 'label' => 'Xem và xuất báo cáo tài chính', 'group' => 'Tài chính'],
     ];
 }
 
 function permission_levels() {
     return ['none' => 'Không', 'view' => 'Xem', 'edit' => 'Sửa', 'admin' => 'Quản trị module'];
+}
+
+function permission_access_levels($includeInherit = false) {
+    $levels = ['none' => 'Không quyền', 'view' => 'Xem', 'edit' => 'Sửa'];
+    return $includeInherit ? ['inherit' => 'Theo nhóm'] + $levels : $levels;
+}
+
+function permission_default_groups() {
+    $view = function (array $codes) {
+        return array_fill_keys($codes, 'view');
+    };
+    $edit = function (array $codes) {
+        return array_fill_keys($codes, 'edit');
+    };
+    $cmView = ['cm.dashboard','cm.tracuu','cm.thongke','cm.kehoach','cm.baocao'];
+    $cmEdit = ['cm.pccm','cm.nhaplieu'];
+    $ntView = ['nt.tongquan','nt.danhsach','nt.thongke'];
+    $ntEdit = ['nt.diemdanh','nt.baoan','nt.ravao'];
+
+    return [
+        'bgh' => [
+            'label' => 'Ban giám hiệu',
+            'access' => array_merge(
+                $view(array_merge($cmView, $ntView, ['csdl.view','csdl.export','vb.xem','td.xem','tt.xem','hl.xem','tc.xem','tc.baocao'])),
+                $edit($cmEdit)
+            ),
+        ],
+        'totruong' => [
+            'label' => 'Tổ trưởng chuyên môn',
+            'access' => array_merge($view(['cm.dashboard','cm.tracuu','cm.thongke','cm.kehoach','cm.baocao','csdl.view']), $edit(['cm.pccm'])),
+        ],
+        'gvcn' => [
+            'label' => 'Giáo viên chủ nhiệm',
+            'access' => array_merge($view(['cm.dashboard','cm.tracuu','csdl.view','nt.danhsach']), $edit($ntEdit)),
+        ],
+        'gv' => [
+            'label' => 'Giáo viên',
+            'access' => $view(['cm.dashboard','cm.tracuu','cm.baocao']),
+        ],
+        'qlnt' => [
+            'label' => 'Cán bộ nội trú / y tế',
+            'access' => array_merge($view(['csdl.view']), $edit(array_keys(array_filter(
+                permission_features_catalog(),
+                fn($meta) => ($meta['module'] ?? '') === 'noitru'
+            )))),
+        ],
+        'vanthu' => [
+            'label' => 'Văn thư',
+            'access' => array_merge($view(['csdl.view','vb.xem']), $edit(['vb.quanly'])),
+        ],
+        'ketoan' => [
+            'label' => 'Kế toán',
+            'access' => array_merge($view(['csdl.view','csdl.export','tc.xem','tc.baocao']), $edit(['tc.capnhat'])),
+        ],
+        'doandoi' => [
+            'label' => 'Đoàn – Đội',
+            'access' => array_merge(
+                $view(['cm.dashboard','cm.tracuu','csdl.view','nt.danhsach','td.xem','tt.xem']),
+                $edit(['td.capnhat','tt.bientap'])
+            ),
+        ],
+        'thuvien_thietbi' => [
+            'label' => 'Thư viện – Thiết bị',
+            'access' => array_merge($view(['csdl.view','hl.xem']), $edit(['hl.thuvien','hl.thietbi'])),
+        ],
+    ];
+}
+
+function permission_groups_file() {
+    return DATA_PATH . '/permission_groups.json';
+}
+
+function permission_groups_all() {
+    $defaults = permission_default_groups();
+    $saved = load_json(permission_groups_file(), []);
+    if (!is_array($saved) || !$saved) return $defaults;
+
+    foreach ($defaults as $key => $group) {
+        if (!isset($saved[$key]) || !is_array($saved[$key])) {
+            $saved[$key] = $group;
+            continue;
+        }
+        $saved[$key]['label'] = trim((string)($saved[$key]['label'] ?? $group['label'])) ?: $group['label'];
+        $saved[$key]['access'] = is_array($saved[$key]['access'] ?? null) ? $saved[$key]['access'] : [];
+    }
+    return $saved;
+}
+
+function permission_groups_save(array $groups) {
+    $catalog = permission_features_catalog();
+    $clean = [];
+    foreach ($groups as $key => $group) {
+        if (!preg_match('/^[a-z0-9_]+$/', (string)$key)) continue;
+        $label = trim((string)($group['label'] ?? $key));
+        $access = [];
+        foreach (($group['access'] ?? []) as $code => $level) {
+            if (!isset($catalog[$code]) || !in_array($level, ['none','view','edit'], true)) continue;
+            if ($level !== 'none') $access[$code] = $level;
+        }
+        $clean[$key] = ['label' => $label !== '' ? $label : $key, 'access' => $access];
+    }
+    save_json(permission_groups_file(), $clean);
+}
+
+function permission_group_access_for_user(array $user) {
+    $access = [];
+    $groups = permission_groups_all();
+    foreach (($user['groups'] ?? []) as $groupKey) {
+        foreach (($groups[$groupKey]['access'] ?? []) as $code => $level) {
+            if (level_rank($level) > level_rank($access[$code] ?? 'none')) $access[$code] = $level;
+        }
+    }
+    return $access;
+}
+
+function permission_legacy_access_for_user(array $user) {
+    $access = [];
+    foreach (($user['perms'] ?? []) as $code) $access[$code] = 'view';
+    foreach (permission_features_catalog() as $code => $meta) {
+        $moduleLevel = $user['modules'][$meta['module']] ?? 'none';
+        if (level_rank($moduleLevel) >= level_rank('edit')) $access[$code] = 'edit';
+        elseif (level_rank($moduleLevel) >= level_rank('view') && !isset($access[$code])) $access[$code] = 'view';
+    }
+    return $access;
+}
+
+function permission_effective_access_for_user(array $user) {
+    if (($user['role'] ?? '') === 'admin') {
+        return array_fill_keys(array_keys(permission_features_catalog()), 'edit');
+    }
+
+    $access = (int)($user['permission_model_version'] ?? 1) >= 2
+        ? []
+        : permission_legacy_access_for_user($user);
+    foreach (permission_group_access_for_user($user) as $code => $level) {
+        if (level_rank($level) > level_rank($access[$code] ?? 'none')) $access[$code] = $level;
+    }
+    foreach (($user['permission_overrides'] ?? []) as $code => $level) {
+        if (!isset(permission_features_catalog()[$code])) continue;
+        if ($level === 'inherit') continue;
+        if (in_array($level, ['none','view','edit'], true)) $access[$code] = $level;
+    }
+    return $access;
+}
+
+function permission_access($perm, array $user = null) {
+    $user = $user ?? current_user();
+    if (!$user) return 'none';
+    return permission_effective_access_for_user($user)[$perm] ?? 'none';
+}
+
+function can_perm_level($perm, $level = 'view') {
+    return level_rank(permission_access($perm)) >= level_rank($level);
 }
 
 /** Role mẫu → modules + perms mặc định */
@@ -113,26 +294,24 @@ function can_module($module, $level = 'view') {
     $u = current_user();
     if (!$u) return false;
     if (($u['role'] ?? '') === 'admin') return true;
-    $have = $u['modules'][$module] ?? 'none';
+    $have = (int)($u['permission_model_version'] ?? 1) >= 2
+        ? 'none'
+        : ($u['modules'][$module] ?? 'none');
+    foreach (permission_features_catalog() as $code => $meta) {
+        if (($meta['module'] ?? '') !== $module) continue;
+        $featureLevel = permission_access($code, $u);
+        if (level_rank($featureLevel) > level_rank($have)) $have = $featureLevel;
+    }
     return level_rank($have) >= level_rank($level);
 }
 
 /** User có mã chức năng? */
 function can_perm($perm) {
-    $u = current_user();
-    if (!$u) return false;
-    if (($u['role'] ?? '') === 'admin') return true;
-    $list = $u['perms'] ?? [];
-    if (!is_array($list)) return false;
-    if (in_array($perm, $list, true)) return true;
+    return can_perm_level($perm, 'view');
+}
 
-    // Module admin → full perm thuộc module đó
-    $cat = permission_features_catalog();
-    $mod = $cat[$perm]['module'] ?? '';
-    if ($mod && level_rank($u['modules'][$mod] ?? 'none') >= level_rank('admin')) {
-        return true;
-    }
-    return false;
+function can_edit_perm($perm) {
+    return can_perm_level($perm, 'edit');
 }
 
 /** Alias ngắn */
@@ -153,7 +332,11 @@ function allowed_classes() {
     $u = current_user();
     if (!$u) return [];
     if (($u['role'] ?? '') === 'admin') return null;
-    $cls = $u['classes'] ?? [];
+    $cls = is_array($u['classes'] ?? null) ? $u['classes'] : [];
+    $homeroom = is_array($u['homeroom_classes'] ?? null) ? $u['homeroom_classes'] : [];
+    if (in_array('gvcn', $u['groups'] ?? [], true)) {
+        return array_values(array_unique(array_filter(array_map('strval', array_merge($cls, $homeroom)))));
+    }
     if (!is_array($cls) || count($cls) === 0) return null; // không giới hạn
     return array_values(array_filter(array_map('strval', $cls)));
 }
@@ -172,8 +355,12 @@ function filter_classes_by_permission(array $classes) {
 }
 
 function require_perm($perm) {
+    require_perm_level($perm, 'view');
+}
+
+function require_perm_level($perm, $level = 'view') {
     require_login();
-    if (!can_perm($perm) && !can_module(permission_features_catalog()[$perm]['module'] ?? '', 'admin')) {
+    if (!can_perm_level($perm, $level) && !can_module(permission_features_catalog()[$perm]['module'] ?? '', 'admin')) {
         flash('Bạn không có quyền thực hiện chức năng này.', 'danger');
         header('Location: ' . BASE_URL . 'admin.php');
         exit;
