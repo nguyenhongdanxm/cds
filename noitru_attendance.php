@@ -7,6 +7,7 @@ require_once 'includes/auth.php';
 require_once 'includes/noitru_store.php';
 require_once 'includes/noitru_att_shifts.php';
 require_login();
+require_perm('nt.diemdanh');
 $user = current_user();
 $school = defined('SCHOOL_NAME') ? SCHOOL_NAME : 'Trường';
 
@@ -28,6 +29,11 @@ if ($shift === '' || !isset($shifts[$shift])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    require_perm_level('nt.diemdanh', 'edit');
+    if ($action === 'shifts_save' && allowed_classes() !== null) {
+        flash('Chỉ người có phạm vi toàn trường được cấu hình ca điểm danh.', 'danger');
+        header('Location: ' . BASE_URL . 'noitru_attendance.php'); exit;
+    }
     $redir = BASE_URL . 'noitru_attendance.php?' . http_build_query(array_filter([
         'date' => $_POST['date'] ?? $date,
         'shift' => $_POST['shift'] ?? $shift,
@@ -45,6 +51,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($ids as $i => $sid) {
             $sid = trim($sid);
             if ($sid === '') continue;
+            $studentAllowed = false;
+            foreach (noitru_boarders_live() as $student) {
+                if (($student['id'] ?? '') === $sid && can_class($student['class_name'] ?? '')) {
+                    $studentAllowed = true; break;
+                }
+            }
+            if (!$studentAllowed) continue;
             $st = $sts[$i] ?? 'present';
             if (!in_array($st, ['present','absent','late','excused'], true)) $st = 'present';
             $ex = $excuses[$i] ?? '';
@@ -70,6 +83,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach (($_POST['sid'] ?? []) as $sid) {
             $sid = trim($sid);
             if ($sid === '') continue;
+            $studentAllowed = false;
+            foreach (noitru_boarders_live() as $student) {
+                if (($student['id'] ?? '') === $sid && can_class($student['class_name'] ?? '')) {
+                    $studentAllowed = true; break;
+                }
+            }
+            if (!$studentAllowed) continue;
             noitru_att_upsert([
                 'date'=>$d,'shift'=>$sh,'student_id'=>$sid,
                 'status'=>$st,'excuse'=>'','reason'=>'','by'=>$user['name']??'',
@@ -103,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$boarders = noitru_boarders_live();
+$boarders = array_values(array_filter(noitru_boarders_live(), fn($student) => can_class($student['class_name'] ?? '')));
 $attMap = noitru_att_for($date, $shift);
 
 $byClass = [];

@@ -11,6 +11,9 @@ $featCatalog = permission_features_catalog();
 $presets = permission_role_presets();
 $levels = permission_levels();
 $groupPresets = user_group_presets();
+$permissionGroups = permission_groups_all();
+$accessLevels = permission_access_levels();
+$overrideLevels = permission_access_levels(true);
 
 /* Lớp từ CSDL */
 $allClasses = [];
@@ -29,6 +32,25 @@ $syncReport = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $users = get_users();
+
+    if ($action === 'save_group') {
+        $groupKey = trim($_POST['group_key'] ?? '');
+        if (!isset($permissionGroups[$groupKey])) {
+            flash('Nhóm quyền không hợp lệ.', 'danger');
+            header('Location: users.php?view=groups'); exit;
+        }
+        $group = $permissionGroups[$groupKey];
+        $group['label'] = trim($_POST['group_label'] ?? ($group['label'] ?? $groupKey));
+        $group['access'] = [];
+        foreach ($featCatalog as $code => $meta) {
+            $level = $_POST['access'][$code] ?? 'none';
+            if (in_array($level, ['view','edit'], true)) $group['access'][$code] = $level;
+        }
+        $permissionGroups[$groupKey] = $group;
+        permission_groups_save($permissionGroups);
+        flash('Đã lưu quyền cho nhóm ' . $group['label'] . '.');
+        header('Location: users.php?view=groups&group=' . urlencode($groupKey)); exit;
+    }
 
     if ($action === 'load_system') {
         $syncReport = sync_users_from_system();
@@ -73,6 +95,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!empty($_POST['classes']) && is_array($_POST['classes'])) {
             $classes = array_values(array_filter(array_map('trim', $_POST['classes'])));
         }
+        $homeroomClasses = [];
+        if (!empty($_POST['homeroom_classes']) && is_array($_POST['homeroom_classes'])) {
+            $homeroomClasses = array_values(array_filter(array_map('trim', $_POST['homeroom_classes'])));
+        }
+        $groups = [];
+        if (!empty($_POST['groups']) && is_array($_POST['groups'])) {
+            foreach ($_POST['groups'] as $groupKey) {
+                if (isset($permissionGroups[$groupKey])) $groups[] = $groupKey;
+            }
+        }
+        $overrides = [];
+        foreach ($featCatalog as $code => $meta) {
+            $level = $_POST['permission_overrides'][$code] ?? 'inherit';
+            if (in_array($level, ['none','view','edit'], true)) $overrides[$code] = $level;
+        }
 
         $found = false;
         foreach ($users as &$u) {
@@ -90,6 +127,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $u['modules'] = $modules;
                 $u['perms'] = $perms;
                 $u['classes'] = $classes;
+                $u['homeroom_classes'] = $homeroomClasses;
+                $u['groups'] = $groups;
+                $u['permission_overrides'] = $overrides;
+                $u['permission_model_version'] = 2;
                 $u['teacher_name'] = trim($_POST['teacher_name'] ?? $u['teacher_name'] ?? '');
                 if ($password !== '') {
                     $u['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
@@ -117,6 +158,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'modules' => $modules,
                 'perms' => $perms,
                 'classes' => $classes,
+                'homeroom_classes' => $homeroomClasses,
+                'groups' => $groups,
+                'permission_overrides' => $overrides,
+                'permission_model_version' => 2,
                 'teacher_name' => trim($_POST['teacher_name'] ?? ''),
                 'active' => $active,
                 'created_at' => date('c'),
@@ -148,6 +193,14 @@ usort($users, fn($a, $b) => strcasecmp($a['username'] ?? '', $b['username'] ?? '
 $featsByMod = [];
 foreach ($featCatalog as $code => $meta) {
     $featsByMod[$meta['module']][$code] = $meta;
+}
+$view = ($_GET['view'] ?? 'users') === 'groups' ? 'groups' : 'users';
+$selectedGroupKey = $_GET['group'] ?? array_key_first($permissionGroups);
+if (!isset($permissionGroups[$selectedGroupKey])) $selectedGroupKey = array_key_first($permissionGroups);
+$selectedGroup = $permissionGroups[$selectedGroupKey] ?? ['label' => '', 'access' => []];
+function user_for_edit(array $user) {
+    unset($user['password_hash']);
+    return $user;
 }
 ?>
 <!DOCTYPE html>
@@ -189,6 +242,71 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
     </div>
     <a href="admin.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Quản trị</a>
   </div>
+
+  <div class="btn-group mb-4">
+    <a class="btn btn-sm <?= $view === 'users' ? 'btn-primary' : 'btn-outline-primary' ?>" href="users.php?view=users">
+      <i class="bi bi-person"></i> Người dùng
+    </a>
+    <a class="btn btn-sm <?= $view === 'groups' ? 'btn-primary' : 'btn-outline-primary' ?>" href="users.php?view=groups">
+      <i class="bi bi-people"></i> Nhóm quyền
+    </a>
+  </div>
+
+  <?php if ($view === 'groups'): ?>
+  <div class="row g-3">
+    <div class="col-lg-3">
+      <div class="list-group shadow-sm">
+        <?php foreach ($permissionGroups as $groupKey => $group): ?>
+        <a class="list-group-item list-group-item-action <?= $selectedGroupKey === $groupKey ? 'active' : '' ?>"
+           href="users.php?view=groups&group=<?= urlencode($groupKey) ?>">
+          <?= e($group['label'] ?? $groupKey) ?>
+        </a>
+        <?php endforeach; ?>
+      </div>
+    </div>
+    <div class="col-lg-9">
+      <form method="post" class="card">
+        <input type="hidden" name="action" value="save_group">
+        <input type="hidden" name="group_key" value="<?= e($selectedGroupKey) ?>">
+        <div class="card-header">Phân quyền nhóm</div>
+        <div class="card-body">
+          <label class="form-label fw-semibold">Tên nhóm</label>
+          <input class="form-control mb-3" name="group_label" value="<?= e($selectedGroup['label'] ?? '') ?>" required>
+          <div class="alert alert-info py-2 small">
+            Không quyền: ẩn chức năng · Xem: chỉ đọc · Sửa: được xem và thao tác.
+          </div>
+          <?php foreach ($featsByMod as $mod => $feats): ?>
+          <div class="card border mb-3 shadow-none">
+            <div class="card-header py-2"><?= e($modCatalog[$mod]['label'] ?? $mod) ?></div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Chức năng</th><th style="width:180px">Mức quyền</th></tr></thead>
+                <tbody>
+                <?php foreach ($feats as $code => $meta):
+                  $groupLevel = $selectedGroup['access'][$code] ?? 'none';
+                ?>
+                <tr>
+                  <td><?= e($meta['label']) ?><div class="text-muted small"><?= e($code) ?></div></td>
+                  <td>
+                    <select class="form-select form-select-sm" name="access[<?= e($code) ?>]">
+                      <?php foreach ($accessLevels as $level => $label): ?>
+                      <option value="<?= e($level) ?>" <?= $groupLevel === $level ? 'selected' : '' ?>><?= e($label) ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </td>
+                </tr>
+                <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <?php endforeach; ?>
+          <button class="btn btn-primary" type="submit"><i class="bi bi-save"></i> Lưu quyền nhóm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <?php else: ?>
 
   <div class="sync-box mb-4">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
@@ -260,41 +378,49 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
               <label class="form-check-label small" for="f_active">Đang hoạt động</label>
             </div>
 
-            <h6 class="text-primary"><i class="bi bi-1-circle"></i> Module</h6>
-            <div class="table-responsive mb-3">
-              <table class="table table-sm mb-0">
-                <tbody>
-                <?php foreach ($modCatalog as $mk => $mm): ?>
-                  <tr>
-                    <td class="small"><i class="bi <?= e($mm['icon']) ?>"></i> <?= e($mm['label']) ?></td>
-                    <td>
-                      <select name="mod_<?= e($mk) ?>" id="mod_<?= e($mk) ?>" class="form-select form-select-sm">
-                        <?php foreach ($levels as $lv => $lb): ?>
-                        <option value="<?= e($lv) ?>"><?= e($lb) ?></option>
-                        <?php endforeach; ?>
-                      </select>
-                    </td>
-                  </tr>
-                <?php endforeach; ?>
-                </tbody>
-              </table>
+            <h6 class="text-primary"><i class="bi bi-1-circle"></i> Nhóm quyền</h6>
+            <div class="perm-box mb-3">
+              <?php foreach ($permissionGroups as $groupKey => $group): ?>
+              <div class="form-check">
+                <input class="form-check-input group-cb" type="checkbox" name="groups[]" value="<?= e($groupKey) ?>" id="g_<?= e($groupKey) ?>">
+                <label class="form-check-label small" for="g_<?= e($groupKey) ?>"><?= e($group['label'] ?? $groupKey) ?></label>
+              </div>
+              <?php endforeach; ?>
             </div>
 
-            <h6 class="text-primary"><i class="bi bi-2-circle"></i> Chức năng</h6>
-            <div class="perm-box mb-3">
+            <h6 class="text-primary"><i class="bi bi-2-circle"></i> Quyền cá nhân</h6>
+            <div class="form-text mb-2">Theo nhóm hoặc ghi đè riêng: Không quyền / Xem / Sửa.</div>
+            <div class="perm-box mb-3" style="max-height:360px">
               <?php foreach ($featsByMod as $mod => $feats): ?>
                 <div class="small fw-semibold text-secondary mb-1 mt-2"><?= e($modCatalog[$mod]['label'] ?? $mod) ?></div>
                 <?php foreach ($feats as $code => $meta): ?>
-                <div class="form-check">
-                  <input class="form-check-input perm-cb" type="checkbox" name="perms[]" value="<?= e($code) ?>" id="p_<?= e($code) ?>">
-                  <label class="form-check-label small" for="p_<?= e($code) ?>"><?= e($meta['label']) ?></label>
+                <div class="row g-1 align-items-center mb-1">
+                  <label class="col-8 small" for="ov_<?= e($code) ?>"><?= e($meta['label']) ?></label>
+                  <div class="col-4">
+                    <select class="form-select form-select-sm override-select" name="permission_overrides[<?= e($code) ?>]" id="ov_<?= e($code) ?>" data-code="<?= e($code) ?>">
+                      <?php foreach ($overrideLevels as $level => $label): ?>
+                      <option value="<?= e($level) ?>"><?= e($label) ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
                 </div>
                 <?php endforeach; ?>
               <?php endforeach; ?>
             </div>
 
-            <h6 class="text-primary"><i class="bi bi-3-circle"></i> Phạm vi lớp</h6>
-            <div class="form-text mb-1">Trống = mọi lớp</div>
+            <h6 class="text-primary"><i class="bi bi-3-circle"></i> Lớp chủ nhiệm</h6>
+            <div class="form-text mb-1">Dùng riêng cho nhóm GVCN; có thể chọn nhiều lớp.</div>
+            <div class="class-box mb-3">
+              <?php foreach ($allClasses as $cl): ?>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input homeroom-cb" type="checkbox" name="homeroom_classes[]" value="<?= e($cl) ?>" id="hr_<?= e($cl) ?>">
+                <label class="form-check-label small" for="hr_<?= e($cl) ?>"><?= e($cl) ?></label>
+              </div>
+              <?php endforeach; ?>
+            </div>
+
+            <h6 class="text-primary"><i class="bi bi-4-circle"></i> Phạm vi lớp khác</h6>
+            <div class="form-text mb-1">Trống = mọi lớp, trừ GVCN luôn bị giới hạn theo lớp chủ nhiệm.</div>
             <div class="class-box mb-3">
               <?php foreach ($allClasses as $cl): ?>
               <div class="form-check form-check-inline">
@@ -339,7 +465,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                 </td>
                 <td class="small"><?= $cls ? e(implode(', ', $cls)) : '<span class="text-muted">Tất cả</span>' ?></td>
                 <td class="text-nowrap">
-                  <button type="button" class="btn btn-sm btn-outline-primary" onclick='editUser(<?= json_encode($u, JSON_UNESCAPED_UNICODE) ?>)'><i class="bi bi-pencil"></i></button>
+                  <button type="button" class="btn btn-sm btn-outline-primary" onclick='editUser(<?= json_encode(user_for_edit($u), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_TAG | JSON_HEX_QUOT) ?>)'><i class="bi bi-pencil"></i></button>
                   <?php if (($u['id'] ?? '') !== (current_user()['id'] ?? '')): ?>
                   <form method="post" class="d-inline" onsubmit="return confirm('Xóa?')">
                     <input type="hidden" name="action" value="delete">
@@ -356,6 +482,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
       </div>
     </div>
   </div>
+  <?php endif; ?>
 </div>
 
 <script>
@@ -380,7 +507,11 @@ function resetForm(){
   document.getElementById('f_active').checked=true;
   document.getElementById('f_role').value='gv';
   applyPreset();
+  document.querySelectorAll('.group-cb').forEach(function(cb){cb.checked=false;});
+  const gv=document.getElementById('g_gv'); if(gv) gv.checked=true;
+  document.querySelectorAll('.override-select').forEach(function(el){el.value='inherit';});
   document.querySelectorAll('.class-cb').forEach(function(cb){cb.checked=false;});
+  document.querySelectorAll('.homeroom-cb').forEach(function(cb){cb.checked=false;});
 }
 function editUser(u){
   document.getElementById('formTitle').textContent='Sửa: '+(u.username||'');
@@ -395,11 +526,17 @@ function editUser(u){
   Object.keys(mods).forEach(function(mk){const el=document.getElementById('mod_'+mk);if(el)el.value=mods[mk];});
   const perms=u.perms||[];
   document.querySelectorAll('.perm-cb').forEach(function(cb){cb.checked=perms.indexOf(cb.value)>=0;});
+  const groups=u.groups||[];
+  document.querySelectorAll('.group-cb').forEach(function(cb){cb.checked=groups.indexOf(cb.value)>=0;});
+  const overrides=u.permission_overrides||{};
+  document.querySelectorAll('.override-select').forEach(function(el){el.value=overrides[el.dataset.code]||'inherit';});
   const classes=u.classes||[];
   document.querySelectorAll('.class-cb').forEach(function(cb){cb.checked=classes.indexOf(cb.value)>=0;});
+  const homeroom=u.homeroom_classes||classes;
+  document.querySelectorAll('.homeroom-cb').forEach(function(cb){cb.checked=homeroom.indexOf(cb.value)>=0;});
   window.scrollTo({top:0,behavior:'smooth'});
 }
-applyPreset();
+resetForm();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

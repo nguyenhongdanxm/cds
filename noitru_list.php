@@ -8,10 +8,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/noitru_store.php';
 
 require_login();
-// Chỉ gọi nếu hàm tồn tại (tránh fatal trên một số bản CDS)
-if (function_exists('require_module_access')) {
-    require_module_access('noitru');
-}
+require_perm('nt.danhsach');
 
 $page_title = 'Danh sách nội trú';
 $tab = 'boarders';
@@ -25,6 +22,7 @@ if (function_exists('noitru_boarders_live')) {
 } else {
     $boarders = [];
 }
+$boarders = array_values(array_filter($boarders, fn($student) => can_class($student['class_name'] ?? $student['lop'] ?? '')));
 $stats = function_exists('noitru_boarders_stats') ? noitru_boarders_stats($boarders) : [
     'total' => count($boarders), 'male' => 0, 'female' => 0, 'rooms' => 0, 'meals' => 0,
 ];
@@ -53,6 +51,11 @@ if (!function_exists('nt_list_url')) {
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') === 'sync_boarders') {
+    require_perm_level('nt.danhsach', 'edit');
+    if (allowed_classes() !== null) {
+        flash('Chỉ người có phạm vi toàn trường được đồng bộ danh sách.', 'danger');
+        header('Location: ' . BASE_URL . 'noitru_list.php'); exit;
+    }
     $r = function_exists('noitru_sync_boarders_from_csdl')
         ? noitru_sync_boarders_from_csdl()
         : ['ok' => false, 'message' => 'Chưa có hàm đồng bộ'];
@@ -81,12 +84,14 @@ include __DIR__ . '/includes/nav_boot_noitru.php';
         · Mâm: <?= (int)($stats['meals'] ?? 0) ?>
       </div>
     </div>
+    <?php if (can_edit_perm('nt.danhsach') && allowed_classes() === null): ?>
     <form method="post" class="d-inline">
       <input type="hidden" name="action" value="sync_boarders">
       <button type="submit" class="btn btn-sm text-white" style="background:#d63384" onclick="return confirm('Đồng bộ danh sách nội trú từ CSDL?')">
         <i class="bi bi-arrow-repeat"></i> Đồng bộ từ CSDL
       </button>
     </form>
+    <?php endif; ?>
   </div>
 
   <?php if (function_exists('show_flash')) show_flash(); ?>

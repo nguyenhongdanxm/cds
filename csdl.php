@@ -5,6 +5,7 @@ require_once 'includes/csdl_sync.php'; // API cho module khác kéo 1 chiều t�
 require_once 'includes/csdl_import_teachers.php';
 require_once 'includes/csdl_io.php';
 require_login();
+require_module('csdl', 'view');
 $user = current_user();
 $tab = $_GET['tab'] ?? 'overview';
 $allowed = ['overview', 'teachers', 'classes', 'students', 'years'];
@@ -12,6 +13,25 @@ if (!in_array($tab, $allowed, true)) $tab = 'overview';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    $editActions = ['bulk_delete','io_import','teacher_save','teacher_delete','class_save','class_delete','student_save','student_delete'];
+    $yearActions = ['year_set_current','year_delete','year_save'];
+    if (in_array($action, $editActions, true)) require_perm_level('csdl.edit', 'edit');
+    if (in_array($action, $yearActions, true)) require_perm_level('csdl.year', 'edit');
+    if ($action === 'student_save') {
+        $targetClass = csdl_class_find(trim($_POST['class_id'] ?? ''));
+        if (!$targetClass || !can_class($targetClass['name'] ?? '')) {
+            flash('Bạn không có quyền sửa học sinh ngoài lớp được giao.', 'danger');
+            header('Location: ' . BASE_URL . 'csdl.php?tab=students'); exit;
+        }
+    }
+    if ($action === 'student_delete') {
+        $targetStudent = csdl_student_find(trim($_POST['id'] ?? ''));
+        $targetClass = $targetStudent ? csdl_class_find($targetStudent['class_id'] ?? '') : null;
+        if (!$targetClass || !can_class($targetClass['name'] ?? '')) {
+            flash('Bạn không có quyền xóa học sinh ngoài lớp được giao.', 'danger');
+            header('Location: ' . BASE_URL . 'csdl.php?tab=students'); exit;
+        }
+    }
 
     if ($action === 'bulk_delete') {
         require __DIR__ . '/includes/csdl_post_extra.php';
@@ -170,8 +190,22 @@ $stats = csdl_stats();
 $teachers = csdl_teachers_all();
 $classes = csdl_classes_all();
 $students = csdl_students_all();
+$allowedClassNames = allowed_classes();
+if ($allowedClassNames !== null) {
+    $allowedClassIds = [];
+    foreach ($classes as $classRow) {
+        if (in_array((string)($classRow['name'] ?? ''), $allowedClassNames, true)) {
+            $allowedClassIds[] = (string)($classRow['id'] ?? '');
+        }
+    }
+    $classes = array_values(array_filter($classes, fn($row) => in_array((string)($row['id'] ?? ''), $allowedClassIds, true)));
+    $students = array_values(array_filter($students, fn($row) => in_array((string)($row['class_id'] ?? ''), $allowedClassIds, true)));
+}
 $years = csdl_years_all();
 $edit_id = $_GET['edit'] ?? '';
+$canCsdlEdit = can_edit_perm('csdl.edit');
+$canYearEdit = can_edit_perm('csdl.year');
+$canEditCurrent = $tab === 'years' ? $canYearEdit : $canCsdlEdit;
 
 function teacher_name_by_id($id, $teachers) {
     foreach ($teachers as $t) {
@@ -223,6 +257,9 @@ body{background:#f0f4f8}
 .table-full td{font-size:.85rem;vertical-align:middle}
 .modal-xl .modal-body{max-height:70vh;overflow-y:auto}
 .form-label.small{font-weight:600;color:#445}
+<?php if (!$canEditCurrent): ?>
+form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{display:none!important}
+<?php endif; ?>
 </style>
 </head>
 <body>

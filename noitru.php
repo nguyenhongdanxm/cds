@@ -2,11 +2,40 @@
 require_once 'includes/auth.php';
 require_once 'includes/noitru_store.php';
 require_login();
+require_module('noitru', 'view');
 $user = current_user();
 
 $tab = $_GET['tab'] ?? 'overview';
 $allowed = ['overview','boarders','exits','meals','attendance','duty','health','menu','stats'];
 if (!in_array($tab, $allowed, true)) $tab = 'overview';
+$tabPerms = [
+    'overview'=>'nt.tongquan', 'boarders'=>'nt.danhsach', 'exits'=>'nt.ravao',
+    'meals'=>'nt.baoan', 'attendance'=>'nt.diemdanh', 'duty'=>'nt.lichtruc',
+    'health'=>'nt.yte', 'menu'=>'nt.thucdon', 'stats'=>'nt.thongke',
+];
+require_perm($tabPerms[$tab] ?? 'nt.tongquan');
+
+function noitru_student_in_scope($studentId) {
+    foreach (noitru_boarders_live() as $student) {
+        if (($student['id'] ?? '') !== $studentId) continue;
+        return can_class($student['class_name'] ?? '');
+    }
+    return false;
+}
+
+function noitru_require_student_scope($studentId) {
+    if (noitru_student_in_scope($studentId)) return;
+    flash('Bạn không có quyền thao tác với học sinh ngoài lớp được giao.', 'danger');
+    header('Location: ' . BASE_URL . 'noitru.php');
+    exit;
+}
+
+function noitru_require_global_scope() {
+    if (allowed_classes() === null) return;
+    flash('Chức năng này chỉ dành cho người có phạm vi toàn trường.', 'danger');
+    header('Location: ' . BASE_URL . 'noitru.php');
+    exit;
+}
 
 /* Danh sách → trang 4 tab riêng */
 if ($tab === 'boarders') {
@@ -16,6 +45,37 @@ if ($tab === 'boarders') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    $actionPerms = [
+        'sync_from_csdl'=>'nt.danhsach',
+        'exit_save'=>'nt.ravao', 'exit_status'=>'nt.ravao', 'exit_delete'=>'nt.ravao',
+        'meals_generate'=>'nt.baoan', 'meals_save'=>'nt.baoan', 'meals_lock'=>'nt.baoan', 'meals_unlock'=>'nt.baoan',
+        'att_save'=>'nt.diemdanh',
+        'duty_save'=>'nt.lichtruc', 'duty_delete'=>'nt.lichtruc',
+        'health_save'=>'nt.yte', 'health_delete'=>'nt.yte',
+        'menu_save'=>'nt.thucdon',
+    ];
+    if (isset($actionPerms[$action])) require_perm_level($actionPerms[$action], 'edit');
+    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','duty_save','duty_delete','menu_save'], true)) {
+        noitru_require_global_scope();
+    }
+    if (in_array($action, ['exit_status','exit_delete'], true)) {
+        $targetId = trim($_POST['id'] ?? '');
+        foreach (noitru_exits_all() as $targetRow) {
+            if (($targetRow['id'] ?? '') === $targetId) {
+                noitru_require_student_scope($targetRow['student_id'] ?? '');
+                break;
+            }
+        }
+    }
+    if ($action === 'health_delete') {
+        $targetId = trim($_POST['id'] ?? '');
+        foreach (noitru_health_all() as $targetRow) {
+            if (($targetRow['id'] ?? '') === $targetId) {
+                noitru_require_student_scope($targetRow['student_id'] ?? '');
+                break;
+            }
+        }
+    }
 
     if ($action === 'sync_from_csdl') {
         $r = noitru_sync_from_csdl();
@@ -27,6 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     /* Exits */
     if ($action === 'exit_save') {
         $sid = trim($_POST['student_id'] ?? '');
+        noitru_require_student_scope($sid);
         $bmap = [];
         foreach (noitru_boarders_live() as $s) $bmap[$s['id']] = $s;
         $st = $bmap[$sid] ?? null;
@@ -88,6 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($ids as $i => $sid) {
             $sid = trim($sid);
             if ($sid === '') continue;
+            noitru_require_student_scope($sid);
             noitru_meal_upsert([
                 'date' => $date,
                 'student_id' => $sid,
@@ -126,6 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($ids as $i => $sid) {
             $sid = trim($sid);
             if ($sid === '') continue;
+            noitru_require_student_scope($sid);
             noitru_att_upsert([
                 'date' => $date,
                 'shift' => $shift,
@@ -163,6 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     /* Health */
     if ($action === 'health_save') {
         $sid = trim($_POST['student_id'] ?? '');
+        noitru_require_student_scope($sid);
         $name = '';
         foreach (noitru_boarders_live() as $s) if ($s['id'] === $sid) { $name = $s['name']; break; }
         noitru_health_save([
@@ -206,8 +270,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$boarders = array_values(array_filter(noitru_boarders_live(), fn($student) => can_class($student['class_name'] ?? '')));
 $stats = noitru_stats();
-$boarders = noitru_boarders_live();
+if (allowed_classes() !== null) {
+    $stats['total'] = count($boarders);
+    $stats['by_class'] = $stats['by_room'] = $stats['by_meal'] = [];
+    foreach ($boarders as $student) {
+        $className = $student['class_name'] ?: '(Chưa lớp)';
+        $room = $student['room_ktx'] ?: '(Chưa phòng)';
+        $meal = $student['meal_group'] ?: '(Chưa nhóm ăn)';
+        $stats['by_class'][$className] = ($stats['by_class'][$className] ?? 0) + 1;
+        $stats['by_room'][$room] = ($stats['by_room'][$room] ?? 0) + 1;
+        $stats['by_meal'][$meal] = ($stats['by_meal'][$meal] ?? 0) + 1;
+    }
+}
 $teachers = array_values(array_filter(csdl_teachers_all(), fn($t) => !empty($t['active'])));
 
 $tabs = [
@@ -221,6 +297,8 @@ $tabs = [
     'menu' => ['Thực đơn', 'bi-journal-text', BASE_URL . 'noitru.php?tab=menu'],
     'stats' => ['Thống kê', 'bi-bar-chart', BASE_URL . 'noitru.php?tab=stats'],
 ];
+$tabs = array_filter($tabs, fn($info, $key) => can_perm($tabPerms[$key] ?? ''), ARRAY_FILTER_USE_BOTH);
+$canEditCurrent = can_edit_perm($tabPerms[$tab] ?? '');
 
 function nt_meal_label($v) {
     return ['yes'=>'Có','no'=>'Không','sick'=>'Bệnh','guest'=>'Khách'][$v] ?? $v;
@@ -251,6 +329,9 @@ body{background:#f8f0f4}
 .btn-nt:hover{background:var(--pd);color:#fff}
 .badge-room{background:#fce8f0;color:#a61e5c}
 .badge-meal{background:#e8f5e9;color:#2e7d32}
+<?php if (!$canEditCurrent): ?>
+form[method="post"]{display:none!important}
+<?php endif; ?>
 </style>
 </head>
 <body>
@@ -273,10 +354,12 @@ body{background:#f8f0f4}
     <h3 class="mb-0">Quản lý nội trú</h3>
     <div class="text-muted small">Nguồn HS: <strong>CSDL</strong> · <?= e(SCHOOL_NAME) ?></div>
   </div>
+  <?php if (allowed_classes() === null && can_edit_perm('nt.danhsach')): ?>
   <form method="post" class="m-0">
     <input type="hidden" name="action" value="sync_from_csdl">
     <button class="btn btn-nt btn-sm" type="submit"><i class="bi bi-arrow-repeat"></i> Đồng bộ từ CSDL</button>
   </form>
+  <?php endif; ?>
 </div>
 
 <ul class="nav nav-pills gap-1 mb-4 flex-wrap">
@@ -295,7 +378,7 @@ body{background:#f8f0f4}
     <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$st['total'] ?></div><div class="text-muted small">HS nội trú</div></div></div>
     <div class="col-6 col-md-3"><div class="stat"><div class="n" style="font-size:.95rem;padding-top:.4rem"><?= $st['last_sync_at'] ? e(date('d/m H:i', strtotime($st['last_sync_at']))) : 'Chưa' ?></div><div class="text-muted small">Đồng bộ CSDL</div></div></div>
     <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= count($st['by_room']) ?></div><div class="text-muted small">Phòng</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= count(array_filter(noitru_exits_all(), fn($x)=>($x['status']??'')==='pending')) ?></div><div class="text-muted small">Phiếu chờ duyệt</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= count(array_filter(noitru_exits_all(), fn($x)=>($x['status']??'')==='pending' && noitru_student_in_scope($x['student_id'] ?? ''))) ?></div><div class="text-muted small">Phiếu chờ duyệt</div></div></div>
   </div>
   <div class="row g-3">
     <div class="col-md-4"><div class="card card-soft"><div class="card-body"><h6>Theo lớp</h6>
@@ -312,7 +395,7 @@ body{background:#f8f0f4}
 
 <?php elseif ($tab === 'exits'): ?>
   <?php
-    $exits = noitru_exits_all();
+    $exits = array_values(array_filter(noitru_exits_all(), fn($row) => noitru_student_in_scope($row['student_id'] ?? '')));
     usort($exits, fn($a,$b) => strcmp($b['from_date']??'', $a['from_date']??''));
   ?>
   <div class="row g-3">
@@ -522,7 +605,7 @@ body{background:#f8f0f4}
 
 <?php elseif ($tab === 'health'): ?>
   <?php
-    $health = noitru_health_all();
+    $health = array_values(array_filter(noitru_health_all(), fn($row) => noitru_student_in_scope($row['student_id'] ?? '')));
     usort($health, fn($a,$b) => strcmp($b['date']??'', $a['date']??''));
   ?>
   <div class="row g-3">

@@ -9,6 +9,7 @@
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_io.php';
 require_login();
+require_perm('csdl.export');
 
 $entity = $_GET['entity'] ?? $_POST['entity'] ?? '';
 if (!in_array($entity, ['teachers', 'classes', 'students'], true)) {
