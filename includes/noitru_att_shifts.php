@@ -1,7 +1,6 @@
 <?php
 /** Cấu hình buổi điểm danh nội trú */
 if (!defined('NOITRU_DIR')) {
-    // fallback if loaded standalone
     if (!defined('DATA_PATH')) require_once __DIR__ . '/config.php';
     define('NOITRU_DIR', DATA_PATH . '/noitru');
 }
@@ -9,6 +8,7 @@ if (!defined('NOITRU_SHIFTS')) {
     define('NOITRU_SHIFTS', NOITRU_DIR . '/att_shifts.json');
 }
 
+if (!function_exists('noitru_att_shifts_default')) {
 function noitru_att_shifts_default() {
     return [
         ['id' => 'the_duc_sang', 'label' => 'Thể dục buổi sáng', 'active' => true, 'sort' => 10],
@@ -18,6 +18,7 @@ function noitru_att_shifts_default() {
         ['id' => 'hoc_toi',      'label' => 'Học tối',           'active' => true, 'sort' => 50],
         ['id' => 'dem',          'label' => 'Điểm danh đêm',     'active' => true, 'sort' => 60],
     ];
+}
 }
 
 if (!function_exists('noitru_att_shifts_all')) {
