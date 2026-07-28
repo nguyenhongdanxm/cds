@@ -53,11 +53,11 @@ if ($edit_id) {
                 <button class="btn btn-sm btn-outline-success" type="submit" title="Đặt hiện hành">Hiện hành</button>
               </form>
               <?php endif; ?>
-              <form method="post" class="d-inline" onsubmit="return confirm('Xóa năm học này?')">
+              <?php if (!empty($canYearDelete)): ?><form method="post" class="d-inline" onsubmit="return confirm('Xóa năm học này?')">
                 <input type="hidden" name="action" value="year_delete">
                 <input type="hidden" name="id" value="<?= e($y['id']) ?>">
                 <button class="btn btn-sm btn-outline-danger" type="submit" title="Xóa"><i class="bi bi-trash"></i></button>
-              </form>
+              </form><?php endif; ?>
             </td>
           </tr>
         <?php endforeach; ?>
