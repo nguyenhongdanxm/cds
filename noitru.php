@@ -6,11 +6,12 @@ require_module('noitru', 'view');
 $user = current_user();
 
 $tab = $_GET['tab'] ?? 'overview';
-$allowed = ['overview','boarders','exits','meals','attendance','duty','health','menu','stats'];
+$allowed = ['overview','boarders','exits','meals','meal_summary','rice','attendance','duty','health','menu','stats'];
 if (!in_array($tab, $allowed, true)) $tab = 'overview';
 $tabPerms = [
     'overview'=>'nt.tongquan', 'boarders'=>'nt.danhsach', 'exits'=>'nt.ravao',
     'meals'=>'nt.baoan', 'attendance'=>'nt.diemdanh', 'duty'=>'nt.lichtruc',
+    'meal_summary'=>'nt.thongke', 'rice'=>'nt.baoan',
     'health'=>'nt.yte', 'menu'=>'nt.thucdon', 'stats'=>'nt.thongke',
 ];
 require_perm($tabPerms[$tab] ?? 'nt.tongquan');
@@ -53,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'duty_save'=>'nt.lichtruc', 'duty_delete'=>'nt.lichtruc',
         'health_save'=>'nt.yte', 'health_delete'=>'nt.yte',
         'menu_save'=>'nt.thucdon',
+        'rice_settings'=>'nt.baoan', 'rice_in'=>'nt.baoan', 'rice_issue'=>'nt.baoan', 'rice_delete'=>'nt.baoan',
     ];
     if (isset($actionPerms[$action])) {
         $requiredLevel = substr($action, -7) === '_delete' ? 'delete' : 'edit';
@@ -60,6 +62,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','duty_save','duty_delete','menu_save'], true)) {
         noitru_require_global_scope();
+    }
+    if (in_array($action, ['rice_settings','rice_in','rice_issue','rice_delete'], true)) {
+        noitru_require_global_scope();
+        $rice = noitru_rice_data();
+        if ($action === 'rice_settings') {
+            $rice['settings']['trua_grams'] = max(0, (float)($_POST['trua_grams'] ?? 180));
+            $rice['settings']['toi_grams'] = max(0, (float)($_POST['toi_grams'] ?? 180));
+            flash('Đã lưu định mức gạo.');
+        } elseif ($action === 'rice_delete') {
+            $id = trim($_POST['id'] ?? '');
+            $rice['transactions'] = array_values(array_filter($rice['transactions'] ?? [], fn($r)=>($r['id']??'')!==$id));
+            flash('Đã xóa giao dịch gạo.', 'warning');
+        } else {
+            $date = trim($_POST['date'] ?? date('Y-m-d'));
+            $kg = max(0, (float)($_POST['kg'] ?? 0));
+            if ($action === 'rice_issue' && !empty($_POST['auto'])) {
+                $counts = noitru_meals_count_day($date);
+                $meal = ($_POST['meal'] ?? 'trua') === 'toi' ? 'toi' : 'trua';
+                $kg = round(($counts[$meal] ?? 0) * (float)($rice['settings'][$meal.'_grams'] ?? 180) / 1000, 3);
+            }
+            if ($kg > 0) $rice['transactions'][] = [
+                'id'=>noitru_uid('rice'),'date'=>$date,'type'=>$action==='rice_in'?'in':'out',
+                'kg'=>$kg,'meal'=>trim($_POST['meal'] ?? ''),'note'=>trim($_POST['note'] ?? ''),
+                'by'=>$user['name'] ?? '','created_at'=>noitru_now(),
+            ];
+            flash($action === 'rice_in' ? 'Đã nhập kho gạo.' : 'Đã ghi xuất kho gạo.');
+        }
+        noitru_rice_save($rice);
+        header('Location: ' . BASE_URL . 'noitru.php?tab=rice'); exit;
     }
     if (in_array($action, ['exit_status','exit_delete'], true)) {
         $targetId = trim($_POST['id'] ?? '');
@@ -294,6 +325,8 @@ $tabs = [
     'boarders' => ['Danh sách', 'bi-people', BASE_URL . 'noitru_list.php'],
     'exits' => ['Xin ra/vào KTX', 'bi-door-open', BASE_URL . 'noitru.php?tab=exits'],
     'meals' => ['Báo ăn', 'bi-egg-fried', BASE_URL . 'noitru.php?tab=meals'],
+    'meal_summary' => ['Tổng hợp bữa ăn', 'bi-clipboard-data', BASE_URL . 'noitru.php?tab=meal_summary'],
+    'rice' => ['Gạo', 'bi-box-seam', BASE_URL . 'noitru.php?tab=rice'],
     'attendance' => ['Điểm danh', 'bi-clipboard-check', BASE_URL . 'noitru.php?tab=attendance'],
     'duty' => ['Lịch trực', 'bi-calendar2-week', BASE_URL . 'noitru.php?tab=duty'],
     'health' => ['Y tế', 'bi-heart-pulse', BASE_URL . 'noitru.php?tab=health'],
@@ -309,6 +342,20 @@ function nt_meal_label($v) {
 }
 function nt_att_label($v) {
     return ['present'=>'Có mặt','absent'=>'Vắng','late'=>'Muộn','excused'=>'Có phép'][$v] ?? $v;
+}
+if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'csv') {
+    $from = $_GET['from'] ?? date('Y-m-01');
+    $to = $_GET['to'] ?? date('Y-m-d');
+    $summary = noitru_meals_summary($from, $to);
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="tong-hop-bua-an-' . $from . '-' . $to . '.csv"');
+    echo "\xEF\xBB\xBF";
+    $fp = fopen('php://output', 'w');
+    fputcsv($fp, ['Loại','Đơn vị','Bữa sáng','Bữa trưa','Bữa tối']);
+    foreach (['classes'=>'Lớp','groups'=>'Mâm'] as $key=>$label) {
+        foreach ($summary[$key] as $name=>$row) fputcsv($fp, [$label,$name,$row['sang']??0,$row['trua']??0,$row['toi']??0]);
+    }
+    fclose($fp); exit;
 }
 ?>
 <!DOCTYPE html>
@@ -495,6 +542,81 @@ form[method="post"]{display:none!important}
     <?php if ($boarders): ?><div class="card-body border-top"><button class="btn btn-nt" type="submit">Lưu báo ăn</button></div><?php endif; ?>
     </div>
   </form>
+
+<?php elseif ($tab === 'meal_summary'): ?>
+  <?php
+    $from = $_GET['from'] ?? date('Y-m-01');
+    $to = $_GET['to'] ?? date('Y-m-d');
+    $summary = noitru_meals_summary($from, $to);
+  ?>
+  <div class="nt-page-head">
+    <div><h4>Tổng hợp bữa ăn</h4><div class="subtitle">Chi tiết theo ngày, lớp và mâm ăn</div></div>
+    <div class="nt-actions">
+      <a class="btn btn-outline-success" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meal_summary','from'=>$from,'to'=>$to,'export'=>'csv'])) ?>"><i class="bi bi-file-earmark-spreadsheet"></i> Xuất Excel/CSV</a>
+      <button class="btn btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer"></i> In báo cáo</button>
+    </div>
+  </div>
+  <form method="get" class="card card-soft mb-3"><div class="card-body nt-filter">
+    <input type="hidden" name="tab" value="meal_summary">
+    <div><label class="form-label">Từ ngày</label><input type="date" name="from" class="form-control" value="<?= e($from) ?>"></div>
+    <div><label class="form-label">Đến ngày</label><input type="date" name="to" class="form-control" value="<?= e($to) ?>"></div>
+    <div class="compact"><button class="btn btn-nt w-100">Xem tổng hợp</button></div>
+  </div></form>
+  <div class="row g-2 mb-3">
+    <?php foreach (['sang'=>'Bữa sáng','trua'=>'Bữa trưa','toi'=>'Bữa tối'] as $key=>$label): ?>
+      <div class="col-4"><div class="stat"><div class="n"><?= (int)$summary['total'][$key] ?></div><div class="small text-muted"><?= $label ?></div></div></div>
+    <?php endforeach; ?>
+  </div>
+  <?php foreach (['classes'=>'Theo lớp','groups'=>'Theo mâm ăn','days'=>'Theo ngày'] as $key=>$title): ?>
+  <div class="card card-soft mb-3"><div class="card-body">
+    <h6><?= $title ?></h6>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+      <thead><tr><th><?= $key==='days'?'Ngày':'Đơn vị' ?></th><th>Sáng</th><th>Trưa</th><th>Tối</th><th>Tổng</th></tr></thead>
+      <tbody><?php foreach ($summary[$key] as $name=>$row): $sum=($row['sang']??0)+($row['trua']??0)+($row['toi']??0); ?>
+        <tr><td><strong><?= e($key==='days'?date('d/m/Y',strtotime($name)):$name) ?></strong></td><td><?= (int)($row['sang']??0) ?></td><td><?= (int)($row['trua']??0) ?></td><td><?= (int)($row['toi']??0) ?></td><td><strong><?= $sum ?></strong></td></tr>
+      <?php endforeach; if (!$summary[$key]): ?><tr><td colspan="5" class="text-center text-muted py-3">Chưa có dữ liệu trong khoảng đã chọn.</td></tr><?php endif; ?></tbody>
+    </table></div>
+  </div></div>
+  <?php endforeach; ?>
+
+<?php elseif ($tab === 'rice'): ?>
+  <?php $rice=noitru_rice_data(); $riceBalance=noitru_rice_balance($rice); $riceRows=array_reverse($rice['transactions']??[]); ?>
+  <div class="nt-page-head"><div><h4>Quản lý gạo</h4><div class="subtitle">Nhập kho, xuất kho và định mức theo suất ăn</div></div></div>
+  <div class="row g-2 mb-3">
+    <div class="col-6 col-md-4"><div class="stat"><div class="n"><?= number_format($riceBalance,3) ?> kg</div><div class="small text-muted">Tồn kho hiện tại</div></div></div>
+    <div class="col-6 col-md-4"><div class="stat"><div class="n"><?= e($rice['settings']['trua_grams']??180) ?> g</div><div class="small text-muted">Một HS / bữa trưa</div></div></div>
+    <div class="col-6 col-md-4"><div class="stat"><div class="n"><?= e($rice['settings']['toi_grams']??180) ?> g</div><div class="small text-muted">Một HS / bữa tối</div></div></div>
+  </div>
+  <?php if (allowed_classes()===null && $canEditCurrent): ?>
+  <div class="row g-3 mb-3">
+    <div class="col-lg-4"><form method="post" class="card card-soft h-100"><div class="card-body">
+      <input type="hidden" name="action" value="rice_settings"><h6>Định mức gạo</h6>
+      <label class="form-label">Bữa trưa (gam/HS)</label><input type="number" step="1" min="0" name="trua_grams" class="form-control mb-2" value="<?= e($rice['settings']['trua_grams']??180) ?>">
+      <label class="form-label">Bữa tối (gam/HS)</label><input type="number" step="1" min="0" name="toi_grams" class="form-control mb-3" value="<?= e($rice['settings']['toi_grams']??180) ?>">
+      <button class="btn btn-nt w-100">Lưu định mức</button>
+    </div></form></div>
+    <div class="col-lg-4"><form method="post" class="card card-soft h-100"><div class="card-body">
+      <input type="hidden" name="action" value="rice_in"><h6>Nhập kho</h6>
+      <label class="form-label">Ngày</label><input type="date" name="date" class="form-control mb-2" value="<?= date('Y-m-d') ?>">
+      <label class="form-label">Số kg</label><input type="number" step=".001" min=".001" name="kg" class="form-control mb-2" required>
+      <label class="form-label">Ghi chú</label><input name="note" class="form-control mb-3" placeholder="Nguồn nhập, số phiếu…">
+      <button class="btn btn-success w-100">Nhập kho</button>
+    </div></form></div>
+    <div class="col-lg-4"><form method="post" class="card card-soft h-100"><div class="card-body">
+      <input type="hidden" name="action" value="rice_issue"><h6>Xuất kho theo suất ăn</h6>
+      <label class="form-label">Ngày</label><input type="date" name="date" class="form-control mb-2" value="<?= date('Y-m-d') ?>">
+      <label class="form-label">Bữa ăn</label><select name="meal" class="form-select mb-2"><option value="trua">Bữa trưa</option><option value="toi">Bữa tối</option></select>
+      <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="auto" value="1" id="riceAuto" checked><label class="form-check-label" for="riceAuto">Tự tính theo số suất đã báo</label></div>
+      <label class="form-label">Hoặc nhập số kg thực xuất</label><input type="number" step=".001" min="0" name="kg" class="form-control mb-3">
+      <button class="btn btn-warning w-100">Xuất kho</button>
+    </div></form></div>
+  </div>
+  <?php endif; ?>
+  <div class="card card-soft"><div class="card-body"><h6>Lịch sử kho gạo</h6><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Ngày</th><th>Loại</th><th>Số lượng</th><th>Bữa</th><th>Ghi chú</th><th></th></tr></thead><tbody>
+    <?php foreach ($riceRows as $row): ?><tr><td><?= e(date('d/m/Y',strtotime($row['date']))) ?></td><td><span class="badge <?= ($row['type']??'')==='in'?'bg-success':'bg-warning text-dark' ?>"><?= ($row['type']??'')==='in'?'Nhập':'Xuất' ?></span></td><td><strong><?= number_format((float)$row['kg'],3) ?> kg</strong></td><td><?= e(($row['meal']??'')==='trua'?'Trưa':(($row['meal']??'')==='toi'?'Tối':'—')) ?></td><td><?= e($row['note']??'') ?></td><td><?php if ($canDeleteCurrent && allowed_classes()===null): ?><form method="post"><input type="hidden" name="action" value="rice_delete"><input type="hidden" name="id" value="<?= e($row['id']) ?>"><button class="btn btn-sm btn-outline-danger" onclick="return confirm('Xóa giao dịch này?')"><i class="bi bi-trash"></i></button></form><?php endif; ?></td></tr>
+    <?php endforeach; if (!$riceRows): ?><tr><td colspan="6" class="text-center text-muted py-3">Chưa có giao dịch.</td></tr><?php endif; ?></tbody>
+  </table></div></div></div>
 
 <?php elseif ($tab === 'attendance'): ?>
   <?php
