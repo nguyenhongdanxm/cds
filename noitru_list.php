@@ -56,8 +56,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') ==
         flash('Chỉ người có phạm vi toàn trường được đồng bộ danh sách.', 'danger');
         header('Location: ' . BASE_URL . 'noitru_list.php'); exit;
     }
-    $r = function_exists('noitru_sync_boarders_from_csdl')
-        ? noitru_sync_boarders_from_csdl()
+    $r = function_exists('noitru_sync_from_csdl')
+        ? noitru_sync_from_csdl()
         : ['ok' => false, 'message' => 'Chưa có hàm đồng bộ'];
     if (function_exists('flash')) {
         flash($r['message'] ?? ($r['ok'] ? 'Đồng bộ thành công' : 'Lỗi đồng bộ'), $r['ok'] ? 'success' : 'danger');
@@ -69,11 +69,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') ==
     exit;
 }
 
-require_once __DIR__ . '/includes/header.php';
-include __DIR__ . '/includes/nav_boot_noitru.php';
 ?>
-<div class="container-fluid px-3 px-lg-4 pb-5">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><?= e($page_title) ?> – CDS</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="<?= BASE_URL ?>includes/noitru_layout.css" rel="stylesheet">
+</head>
+<body class="nt-body">
+<?php require __DIR__ . '/includes/noitru_shell.php'; ?>
+<main class="nt-main"><div class="nt-content">
+  <div class="nt-page-head">
     <div>
       <h4 class="mb-0 fw-bold" style="font-size:1.15rem"><i class="bi bi-people-fill" style="color:#d63384"></i> Danh sách học sinh nội trú</h4>
       <div class="text-muted small mt-1">
@@ -123,5 +133,7 @@ include __DIR__ . '/includes/nav_boot_noitru.php';
       echo '<div class="alert alert-warning">Thiếu includes/noitru_tab_boarders.php</div>';
   }
   ?>
-</div>
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+</div></main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
