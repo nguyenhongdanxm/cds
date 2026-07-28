@@ -3,10 +3,12 @@
 if (!isset($nt_list_base)) {
     $nt_list_base = BASE_URL . 'noitru_list.php';
 }
+if (!function_exists('nt_list_url')) {
 function nt_list_url($params = []) {
     global $nt_list_base;
     $params = array_filter($params, fn($v) => $v !== '' && $v !== null);
     return $nt_list_base . ($params ? ('?' . http_build_query($params)) : '');
+}
 }
 
 $view = $_GET['view'] ?? 'students';
