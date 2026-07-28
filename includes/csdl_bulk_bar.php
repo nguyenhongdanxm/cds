@@ -16,9 +16,9 @@ $lab = $labels[$bulk_entity] ?? 'mục';
   <button type="button" class="btn btn-sm btn-outline-primary" onclick="csdlExportSelected('<?= e($bulk_entity) ?>')">
     <i class="bi bi-download"></i> Xuất đã chọn
   </button>
-  <button type="button" class="btn btn-sm btn-outline-danger" onclick="csdlDeleteSelected('<?= e($bulk_entity) ?>')">
+  <?php if (!empty($canDeleteCurrent)): ?><button type="button" class="btn btn-sm btn-outline-danger" onclick="csdlDeleteSelected('<?= e($bulk_entity) ?>')">
     <i class="bi bi-trash"></i> Xóa đã chọn
-  </button>
+  </button><?php endif; ?>
 </div>
 <form method="post" id="bulkForm-<?= e($bulk_entity) ?>" class="d-none">
   <input type="hidden" name="action" value="bulk_delete">
