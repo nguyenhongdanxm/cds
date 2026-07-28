@@ -54,7 +54,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'health_save'=>'nt.yte', 'health_delete'=>'nt.yte',
         'menu_save'=>'nt.thucdon',
     ];
-    if (isset($actionPerms[$action])) require_perm_level($actionPerms[$action], 'edit');
+    if (isset($actionPerms[$action])) {
+        $requiredLevel = substr($action, -7) === '_delete' ? 'delete' : 'edit';
+        require_perm_level($actionPerms[$action], $requiredLevel);
+    }
     if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','duty_save','duty_delete','menu_save'], true)) {
         noitru_require_global_scope();
     }
@@ -299,6 +302,7 @@ $tabs = [
 ];
 $tabs = array_filter($tabs, fn($info, $key) => can_perm($tabPerms[$key] ?? ''), ARRAY_FILTER_USE_BOTH);
 $canEditCurrent = can_edit_perm($tabPerms[$tab] ?? '');
+$canDeleteCurrent = can_delete_perm($tabPerms[$tab] ?? '');
 
 function nt_meal_label($v) {
     return ['yes'=>'Có','no'=>'Không','sick'=>'Bệnh','guest'=>'Khách'][$v] ?? $v;
@@ -442,7 +446,7 @@ form[method="post"]{display:none!important}
                 <form method="post" class="d-inline"><input type="hidden" name="action" value="exit_status"><input type="hidden" name="id" value="<?= e($x['id']) ?>"><input type="hidden" name="status" value="approved"><button class="btn btn-sm btn-success" title="Duyệt">✓</button></form>
                 <form method="post" class="d-inline"><input type="hidden" name="action" value="exit_status"><input type="hidden" name="id" value="<?= e($x['id']) ?>"><input type="hidden" name="status" value="rejected"><button class="btn btn-sm btn-outline-danger" title="Từ chối">✗</button></form>
                 <?php endif; ?>
-                <form method="post" class="d-inline" onsubmit="return confirm('Xóa?')"><input type="hidden" name="action" value="exit_delete"><input type="hidden" name="id" value="<?= e($x['id']) ?>"><button class="btn btn-sm btn-outline-secondary">🗑</button></form>
+                <?php if ($canDeleteCurrent): ?><form method="post" class="d-inline" onsubmit="return confirm('Xóa?')"><input type="hidden" name="action" value="exit_delete"><input type="hidden" name="id" value="<?= e($x['id']) ?>"><button class="btn btn-sm btn-outline-secondary">🗑</button></form><?php endif; ?>
               </td>
             </tr>
           <?php endforeach; endif; ?>
@@ -595,7 +599,7 @@ form[method="post"]{display:none!important}
           <td><?= e($d['shift']??'') ?></td>
           <td><?= e($d['teacher_name']??'') ?></td>
           <td class="small"><?= e($d['note']??'') ?></td>
-          <td><form method="post" onsubmit="return confirm('Xóa?')"><input type="hidden" name="action" value="duty_delete"><input type="hidden" name="id" value="<?= e($d['id']) ?>"><button class="btn btn-sm btn-outline-danger">Xóa</button></form></td>
+          <td><?php if ($canDeleteCurrent): ?><form method="post" onsubmit="return confirm('Xóa?')"><input type="hidden" name="action" value="duty_delete"><input type="hidden" name="id" value="<?= e($d['id']) ?>"><button class="btn btn-sm btn-outline-danger">Xóa</button></form><?php endif; ?></td>
         </tr>
       <?php endforeach; ?>
       <?php if (!$duties): ?><tr><td colspan="5" class="text-muted text-center py-3">Chưa có lịch.</td></tr><?php endif; ?>
@@ -638,7 +642,7 @@ form[method="post"]{display:none!important}
           <td><?= e($h['type']??'') ?></td>
           <td class="small"><?= e($h['diagnosis']??'') ?></td>
           <td class="small"><?= e($h['treatment']??'') ?></td>
-          <td><form method="post" onsubmit="return confirm('Xóa?')"><input type="hidden" name="action" value="health_delete"><input type="hidden" name="id" value="<?= e($h['id']) ?>"><button class="btn btn-sm btn-outline-danger">Xóa</button></form></td>
+          <td><?php if ($canDeleteCurrent): ?><form method="post" onsubmit="return confirm('Xóa?')"><input type="hidden" name="action" value="health_delete"><input type="hidden" name="id" value="<?= e($h['id']) ?>"><button class="btn btn-sm btn-outline-danger">Xóa</button></form><?php endif; ?></td>
         </tr>
       <?php endforeach; ?>
       <?php if (!$health): ?><tr><td colspan="6" class="text-muted text-center py-3">Chưa có hồ sơ.</td></tr><?php endif; ?>
