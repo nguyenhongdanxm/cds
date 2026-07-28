@@ -76,11 +76,11 @@ function permission_features_catalog() {
 }
 
 function permission_levels() {
-    return ['none' => 'Không', 'view' => 'Xem', 'edit' => 'Sửa', 'admin' => 'Quản trị module'];
+    return ['none' => 'Không', 'view' => 'Xem', 'edit' => 'Sửa', 'delete' => 'Xóa', 'admin' => 'Quản trị module'];
 }
 
 function permission_access_levels($includeInherit = false) {
-    $levels = ['none' => 'Không quyền', 'view' => 'Xem', 'edit' => 'Sửa'];
+    $levels = ['none' => 'Không quyền', 'view' => 'Xem', 'edit' => 'Sửa', 'delete' => 'Xóa'];
     return $includeInherit ? ['inherit' => 'Theo nhóm'] + $levels : $levels;
 }
 
@@ -173,7 +173,7 @@ function permission_groups_save(array $groups) {
         $label = trim((string)($group['label'] ?? $key));
         $access = [];
         foreach (($group['access'] ?? []) as $code => $level) {
-            if (!isset($catalog[$code]) || !in_array($level, ['none','view','edit'], true)) continue;
+            if (!isset($catalog[$code]) || !in_array($level, ['none','view','edit','delete'], true)) continue;
             if ($level !== 'none') $access[$code] = $level;
         }
         $clean[$key] = ['label' => $label !== '' ? $label : $key, 'access' => $access];
@@ -205,7 +205,7 @@ function permission_legacy_access_for_user(array $user) {
 
 function permission_effective_access_for_user(array $user) {
     if (($user['role'] ?? '') === 'admin') {
-        return array_fill_keys(array_keys(permission_features_catalog()), 'edit');
+        return array_fill_keys(array_keys(permission_features_catalog()), 'delete');
     }
 
     $access = (int)($user['permission_model_version'] ?? 1) >= 2
@@ -217,7 +217,7 @@ function permission_effective_access_for_user(array $user) {
     foreach (($user['permission_overrides'] ?? []) as $code => $level) {
         if (!isset(permission_features_catalog()[$code])) continue;
         if ($level === 'inherit') continue;
-        if (in_array($level, ['none','view','edit'], true)) $access[$code] = $level;
+        if (in_array($level, ['none','view','edit','delete'], true)) $access[$code] = $level;
     }
     return $access;
 }
@@ -285,7 +285,7 @@ function permission_role_presets() {
 }
 
 function level_rank($level) {
-    $map = ['none' => 0, 'view' => 1, 'edit' => 2, 'admin' => 3];
+    $map = ['none' => 0, 'view' => 1, 'edit' => 2, 'delete' => 3, 'admin' => 4];
     return $map[$level] ?? 0;
 }
 
@@ -312,6 +312,10 @@ function can_perm($perm) {
 
 function can_edit_perm($perm) {
     return can_perm_level($perm, 'edit');
+}
+
+function can_delete_perm($perm) {
+    return can_perm_level($perm, 'delete');
 }
 
 /** Alias ngắn */
