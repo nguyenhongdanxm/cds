@@ -27,6 +27,8 @@ body.nt-body{margin:0;background:var(--nt-bg);color:var(--nt-text);overflow-x:hi
   color:rgba(255,255,255,.82);text-decoration:none;font-size:.88rem;font-weight:600
 }
 .nt-side-nav a i,.nt-side-footer a i{width:1.15rem;text-align:center;font-size:1rem}
+.nt-side-group{padding:.72rem .72rem .2rem;color:rgba(255,255,255,.55);font-size:.66rem;font-weight:800;letter-spacing:.08em}
+.nt-side-nav a.nt-child{min-height:37px;margin-left:.35rem;padding-block:.42rem;font-size:.8rem}
 .nt-side-nav a:hover,.nt-side-nav a.active{background:#fff;color:var(--nt-primary-dark)}
 .nt-side-nav a.active{box-shadow:0 5px 14px rgba(48,5,27,.16)}
 .nt-side-footer{margin-top:auto;padding-top:.65rem;border-top:1px solid rgba(255,255,255,.14)}
@@ -37,6 +39,7 @@ body.nt-body{margin:0;background:var(--nt-bg);color:var(--nt-text);overflow-x:hi
 .nt-page-head h1,.nt-page-head h2,.nt-page-head h3,.nt-page-head h4{font-size:clamp(1.15rem,1.1vw + .8rem,1.65rem);margin:0;font-weight:750}
 .nt-page-head .subtitle{color:var(--nt-muted);font-size:.8rem;margin-top:.2rem}
 .nt-bottom-nav{display:none}
+.nt-sheet,.nt-sheet-backdrop{display:none}
 .card,.card-soft{border:0!important;border-radius:13px!important;box-shadow:0 2px 13px rgba(31,41,55,.065)!important}
 .stat{border-radius:13px!important;padding:clamp(.7rem,1.5vw,1rem)!important}
 .stat .n{font-size:clamp(1.15rem,1.7vw,1.55rem)!important}
@@ -82,12 +85,20 @@ body.nt-body{margin:0;background:var(--nt-bg);color:var(--nt-text);overflow-x:hi
     scrollbar-width:none;-webkit-overflow-scrolling:touch
   }
   .nt-bottom-nav::-webkit-scrollbar{display:none}
-  .nt-bottom-nav a{
-    flex:1 0 66px;min-width:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  .nt-bottom-nav a,.nt-bottom-nav button{
+    flex:1 1 20%;min-width:0;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:2px;color:#6b7280;text-decoration:none;border-radius:10px;font-size:.61rem;font-weight:650;line-height:1.1
   }
-  .nt-bottom-nav a i{font-size:1.15rem}
-  .nt-bottom-nav a.active{color:var(--nt-primary);background:var(--nt-primary-soft)}
+  .nt-bottom-nav a i,.nt-bottom-nav button i{font-size:1.15rem}
+  .nt-bottom-nav a.active,.nt-bottom-nav button.active{color:var(--nt-primary);background:var(--nt-primary-soft)}
+  .nt-sheet-backdrop{position:fixed;display:block;inset:0;background:rgba(17,24,39,.35);z-index:1054;opacity:0;visibility:hidden;transition:.2s}
+  .nt-sheet{position:fixed;display:block;left:.55rem;right:.55rem;bottom:calc(var(--nt-bottom) + .45rem + env(safe-area-inset-bottom));z-index:1055;background:#fff;border-radius:18px;padding:.85rem;box-shadow:0 12px 35px rgba(17,24,39,.22);transform:translateY(18px);opacity:0;visibility:hidden;transition:.2s}
+  .nt-sheet.open{transform:none;opacity:1;visibility:visible}.nt-sheet-open .nt-sheet-backdrop{opacity:1;visibility:visible}
+  .nt-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:.1rem .15rem .7rem;font-size:.78rem;color:var(--nt-muted)}
+  .nt-sheet-head button{border:0;background:#f3f4f6;width:32px;height:32px;border-radius:50%}
+  .nt-sheet-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.5rem}
+  .nt-sheet-grid a{display:flex;min-width:0;min-height:76px;padding:.55rem .25rem;flex-direction:column;align-items:center;justify-content:center;gap:.38rem;text-align:center;text-decoration:none;color:var(--nt-text);background:#f7f7fa;border-radius:12px;font-size:.72rem;font-weight:650}
+  .nt-sheet-grid a i{font-size:1.35rem;color:var(--nt-primary)}.nt-sheet-grid a.active{background:var(--nt-primary-soft);color:var(--nt-primary-dark)}
   .nt-page-head{align-items:flex-start}.nt-page-head .nt-actions{width:100%}
   .nt-page-head .nt-actions .btn{flex:1}
   .nt-filter>*{grid-column:span 6!important}
@@ -113,4 +124,5 @@ body.nt-body{margin:0;background:var(--nt-bg);color:var(--nt-text);overflow-x:hi
   .att-student{grid-column:1/-1}
   .att-row>div:last-child{grid-column:1/-1}
   .sticky-save{bottom:calc(var(--nt-bottom) + .35rem)}.sticky-save .btn{width:100%}
+  .nt-sheet-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
