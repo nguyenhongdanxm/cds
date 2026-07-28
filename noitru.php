@@ -319,6 +319,7 @@ function nt_att_label($v) {
 <title>Quản lý nội trú – CDS</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="<?= BASE_URL ?>includes/noitru_layout.css" rel="stylesheet">
 <style>
 :root{--primary:#d63384;--pd:#a61e5c}
 body{background:#f8f0f4}
@@ -338,22 +339,12 @@ form[method="post"]{display:none!important}
 <?php endif; ?>
 </style>
 </head>
-<body>
-<nav class="navbar navbar-dark mb-4">
-  <div class="container-fluid px-3 px-lg-4">
-    <a class="navbar-brand fw-bold" href="<?= BASE_URL ?>noitru.php"><i class="bi bi-building"></i> Quản lý nội trú</a>
-    <div class="d-flex gap-2">
-      <a href="<?= BASE_URL ?>" class="btn btn-outline-light btn-sm">Hệ sinh thái</a>
-      <a href="<?= BASE_URL ?>csdl.php" class="btn btn-outline-light btn-sm">CSDL</a>
-      <a href="<?= BASE_URL ?>logout.php" class="btn btn-warning btn-sm text-dark">Thoát</a>
-    </div>
-  </div>
-</nav>
-
-<div class="container-fluid px-3 px-lg-4 pb-5">
+<body class="nt-body">
+<?php $nt_sec = $tab; require __DIR__ . '/includes/noitru_shell.php'; ?>
+<main class="nt-main"><div class="nt-content">
 <?php show_flash(); ?>
 
-<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+<div class="nt-page-head">
   <div>
     <h3 class="mb-0">Quản lý nội trú</h3>
     <div class="text-muted small">Nguồn HS: <strong>CSDL</strong> · <?= e(SCHOOL_NAME) ?></div>
@@ -365,16 +356,6 @@ form[method="post"]{display:none!important}
   </form>
   <?php endif; ?>
 </div>
-
-<ul class="nav nav-pills gap-1 mb-4 flex-wrap">
-  <?php foreach ($tabs as $k => $info): ?>
-    <li class="nav-item">
-      <a class="nav-link <?= $tab===$k?'active':'' ?>" href="<?= e($info[2]) ?>">
-        <i class="bi <?= e($info[1]) ?>"></i> <?= e($info[0]) ?>
-      </a>
-    </li>
-  <?php endforeach; ?>
-</ul>
 
 <?php if ($tab === 'overview'): ?>
   <?php $st = $stats; ?>
@@ -743,7 +724,7 @@ form[method="post"]{display:none!important}
   <?php endif; ?>
 
 <?php endif; ?>
-</div>
+</div></main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
