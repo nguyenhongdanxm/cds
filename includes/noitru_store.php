@@ -11,6 +11,7 @@ define('NOITRU_ATT', NOITRU_DIR . '/attendance.json');
 define('NOITRU_DUTY', NOITRU_DIR . '/duty.json');
 define('NOITRU_HEALTH', NOITRU_DIR . '/health.json');
 define('NOITRU_MENUS', NOITRU_DIR . '/menus.json');
+define('NOITRU_RICE', NOITRU_DIR . '/rice.json');
 
 function noitru_ensure_dir() {
     if (!is_dir(NOITRU_DIR)) @mkdir(NOITRU_DIR, 0755, true);
@@ -215,6 +216,49 @@ function noitru_meals_count_day($date) {
         }
     }
     return $c;
+}
+
+function noitru_meals_summary($from, $to) {
+    $students = [];
+    foreach (noitru_boarders_live() as $s) $students[$s['id']] = $s;
+    $out = ['classes'=>[], 'groups'=>[], 'days'=>[], 'total'=>['sang'=>0,'trua'=>0,'toi'=>0]];
+    foreach (noitru_meals_all() as $m) {
+        $date = $m['date'] ?? '';
+        if ($date < $from || $date > $to) continue;
+        $student = $students[$m['student_id'] ?? ''] ?? [];
+        $class = trim($student['class_name'] ?? '') ?: '(Chưa lớp)';
+        $group = trim($student['meal_group'] ?? '') ?: '(Chưa mâm)';
+        foreach (['sang','trua','toi'] as $meal) {
+            if (!in_array($m[$meal] ?? '', ['yes','sick','guest'], true)) continue;
+            $out['total'][$meal]++;
+            $out['days'][$date][$meal] = ($out['days'][$date][$meal] ?? 0) + 1;
+            $out['classes'][$class][$meal] = ($out['classes'][$class][$meal] ?? 0) + 1;
+            $out['groups'][$group][$meal] = ($out['groups'][$group][$meal] ?? 0) + 1;
+        }
+    }
+    ksort($out['days']); ksort($out['classes'], SORT_NATURAL); ksort($out['groups'], SORT_NATURAL);
+    return $out;
+}
+
+function noitru_rice_data() {
+    noitru_ensure_dir();
+    return load_json(NOITRU_RICE, [
+        'settings'=>['trua_grams'=>180,'toi_grams'=>180],
+        'transactions'=>[],
+    ]);
+}
+function noitru_rice_save(array $data) {
+    noitru_ensure_dir();
+    save_json(NOITRU_RICE, $data);
+}
+function noitru_rice_balance(array $data = null) {
+    $data = $data ?? noitru_rice_data();
+    $balance = 0.0;
+    foreach ($data['transactions'] ?? [] as $row) {
+        $qty = (float)($row['kg'] ?? 0);
+        $balance += ($row['type'] ?? '') === 'in' ? $qty : -$qty;
+    }
+    return round($balance, 3);
 }
 
 /* —— Attendance —— */
