@@ -13,10 +13,13 @@ if (!in_array($tab, $allowed, true)) $tab = 'overview';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    $editActions = ['bulk_delete','io_import','teacher_save','teacher_delete','class_save','class_delete','student_save','student_delete'];
-    $yearActions = ['year_set_current','year_delete','year_save'];
+    $editActions = ['io_import','teacher_save','class_save','student_save'];
+    $deleteActions = ['bulk_delete','teacher_delete','class_delete','student_delete'];
+    $yearActions = ['year_set_current','year_save'];
     if (in_array($action, $editActions, true)) require_perm_level('csdl.edit', 'edit');
+    if (in_array($action, $deleteActions, true)) require_perm_level('csdl.edit', 'delete');
     if (in_array($action, $yearActions, true)) require_perm_level('csdl.year', 'edit');
+    if ($action === 'year_delete') require_perm_level('csdl.year', 'delete');
     if ($action === 'student_save') {
         $targetClass = csdl_class_find(trim($_POST['class_id'] ?? ''));
         if (!$targetClass || !can_class($targetClass['name'] ?? '')) {
@@ -206,6 +209,9 @@ $edit_id = $_GET['edit'] ?? '';
 $canCsdlEdit = can_edit_perm('csdl.edit');
 $canYearEdit = can_edit_perm('csdl.year');
 $canEditCurrent = $tab === 'years' ? $canYearEdit : $canCsdlEdit;
+$canCsdlDelete = can_delete_perm('csdl.edit');
+$canYearDelete = can_delete_perm('csdl.year');
+$canDeleteCurrent = $tab === 'years' ? $canYearDelete : $canCsdlDelete;
 
 function teacher_name_by_id($id, $teachers) {
     foreach ($teachers as $t) {
@@ -346,11 +352,11 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
             <td><?= !empty($t['active']) ? '<span class="badge bg-success">Có</span>' : '<span class="badge bg-secondary">Nghỉ</span>' ?></td>
             <td class="text-nowrap">
               <a class="btn btn-sm btn-outline-primary" href="?tab=teachers&edit=<?= urlencode($t['id']) ?>" title="Sửa"><i class="bi bi-pencil"></i></a>
-              <form method="post" class="d-inline" onsubmit="return confirm('Xóa giáo viên này?')">
+              <?php if ($canCsdlDelete): ?><form method="post" class="d-inline" onsubmit="return confirm('Xóa giáo viên này?')">
                 <input type="hidden" name="action" value="teacher_delete">
                 <input type="hidden" name="id" value="<?= e($t['id']) ?>">
                 <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
-              </form>
+              </form><?php endif; ?>
             </td>
           </tr>
         <?php endforeach; endif; ?>
@@ -394,11 +400,11 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
             <td><?= !empty($c['active']) ? '<span class="badge bg-success">Có</span>' : '<span class="badge bg-secondary">Ẩn</span>' ?></td>
             <td class="text-nowrap">
               <a class="btn btn-sm btn-outline-primary" href="?tab=classes&edit=<?= urlencode($c['id']) ?>"><i class="bi bi-pencil"></i></a>
-              <form method="post" class="d-inline" onsubmit="return confirm('Xóa lớp?')">
+              <?php if ($canCsdlDelete): ?><form method="post" class="d-inline" onsubmit="return confirm('Xóa lớp?')">
                 <input type="hidden" name="action" value="class_delete">
                 <input type="hidden" name="id" value="<?= e($c['id']) ?>">
                 <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
-              </form>
+              </form><?php endif; ?>
             </td>
           </tr>
         <?php endforeach; ?>
@@ -452,11 +458,11 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
             <td><?= !empty($s['active']) ? '<span class="badge bg-success">Học</span>' : '<span class="badge bg-secondary">Nghỉ</span>' ?></td>
             <td class="text-nowrap">
               <a class="btn btn-sm btn-outline-primary" href="?tab=students&edit=<?= urlencode($s['id']) ?>"><i class="bi bi-pencil"></i></a>
-              <form method="post" class="d-inline" onsubmit="return confirm('Xóa?')">
+              <?php if ($canCsdlDelete): ?><form method="post" class="d-inline" onsubmit="return confirm('Xóa?')">
                 <input type="hidden" name="action" value="student_delete">
                 <input type="hidden" name="id" value="<?= e($s['id']) ?>">
                 <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
-              </form>
+              </form><?php endif; ?>
             </td>
           </tr>
         <?php endforeach; endif; ?>
