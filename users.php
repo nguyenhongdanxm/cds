@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $group['access'] = [];
         foreach ($featCatalog as $code => $meta) {
             $level = $_POST['access'][$code] ?? 'none';
-            if (in_array($level, ['view','edit'], true)) $group['access'][$code] = $level;
+            if (in_array($level, ['view','edit','delete'], true)) $group['access'][$code] = $level;
         }
         $permissionGroups[$groupKey] = $group;
         permission_groups_save($permissionGroups);
@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ? [trim($_POST['user_id'] ?? '')]
             : array_values(array_filter(array_map('strval', (array)($_POST['selected_users'] ?? []))));
 
-        if (!isset($modCatalog[$moduleKey]) || !in_array($level, ['none','view','edit'], true) || !$selectedIds) {
+        if (!isset($modCatalog[$moduleKey]) || !in_array($level, ['none','view','edit','delete'], true) || !$selectedIds) {
             flash('Thiếu người dùng, module hoặc mức quyền hợp lệ.', 'danger');
             header('Location: users.php'); exit;
         }
@@ -94,6 +94,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         unset($u);
         save_users($users);
         flash('Đã cập nhật quyền ' . ($modCatalog[$moduleKey]['label'] ?? $moduleKey) . ' cho ' . $changed . ' người.');
+        header('Location: users.php'); exit;
+    }
+
+    if ($action === 'bulk_feature_access') {
+        $target = trim($_POST['permission_target'] ?? 'selected');
+        $selectedIds = array_values(array_filter(array_map('strval', (array)($_POST['permission_users'] ?? []))));
+        $applyCodes = array_values(array_filter(array_map('strval', (array)($_POST['apply_features'] ?? []))));
+        $rights = is_array($_POST['feature_rights'] ?? null) ? $_POST['feature_rights'] : [];
+
+        if (!$applyCodes) {
+            flash('Chưa chọn chức năng nào để áp dụng.', 'warning');
+            header('Location: users.php'); exit;
+        }
+
+        $newAccess = [];
+        foreach ($applyCodes as $code) {
+            if (!isset($featCatalog[$code])) continue;
+            $selectedRights = array_values(array_filter(array_map('strval', (array)($rights[$code] ?? []))));
+            if (in_array('delete', $selectedRights, true)) $newAccess[$code] = 'delete';
+            elseif (in_array('edit', $selectedRights, true)) $newAccess[$code] = 'edit';
+            elseif (in_array('view', $selectedRights, true)) $newAccess[$code] = 'view';
+            else $newAccess[$code] = 'none';
+        }
+
+        if ($target !== 'selected') {
+            if (!isset($permissionGroups[$target])) {
+                flash('Nhóm quyền không hợp lệ.', 'danger');
+                header('Location: users.php'); exit;
+            }
+            foreach ($newAccess as $code => $level) {
+                if ($level === 'none') unset($permissionGroups[$target]['access'][$code]);
+                else $permissionGroups[$target]['access'][$code] = $level;
+            }
+            permission_groups_save($permissionGroups);
+            flash('Đã cập nhật ' . count($newAccess) . ' chức năng cho nhóm ' . ($permissionGroups[$target]['label'] ?? $target) . '.');
+            header('Location: users.php'); exit;
+        }
+
+        if (!$selectedIds) {
+            flash('Hãy tích chọn ít nhất một giáo viên.', 'warning');
+            header('Location: users.php'); exit;
+        }
+        $changed = 0;
+        foreach ($users as &$u) {
+            if (!in_array((string)($u['id'] ?? ''), $selectedIds, true)) continue;
+            if (($u['role'] ?? '') === 'admin') continue;
+            $overrides = is_array($u['permission_overrides'] ?? null) ? $u['permission_overrides'] : [];
+            foreach ($newAccess as $code => $level) $overrides[$code] = $level;
+            $u['permission_overrides'] = $overrides;
+            $u['permission_model_version'] = 2;
+            $u['updated_at'] = date('c');
+            $changed++;
+        }
+        unset($u);
+        save_users($users);
+        flash('Đã cập nhật ' . count($newAccess) . ' chức năng cho ' . $changed . ' giáo viên.');
         header('Location: users.php'); exit;
     }
 
@@ -165,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $overrides = [];
         foreach ($featCatalog as $code => $meta) {
             $level = $_POST['permission_overrides'][$code] ?? 'inherit';
-            if (in_array($level, ['none','view','edit'], true)) $overrides[$code] = $level;
+            if (in_array($level, ['none','view','edit','delete'], true)) $overrides[$code] = $level;
         }
 
         $found = false;
@@ -246,6 +302,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $users = get_users();
 usort($users, fn($a, $b) => strcasecmp($a['username'] ?? '', $b['username'] ?? ''));
+$userAccessMap = [];
+foreach ($users as $userItem) {
+    if (!empty($userItem['id'])) $userAccessMap[$userItem['id']] = permission_effective_access_for_user($userItem);
+}
 
 $featsByMod = [];
 foreach ($featCatalog as $code => $meta) {
@@ -268,7 +328,7 @@ function user_module_access(array $user, string $moduleKey, array $featCatalog):
     }
     $levels = array_values(array_unique($levels));
     if (count($levels) > 1) return 'mixed';
-    return in_array($levels[0] ?? 'none', ['none','view','edit'], true) ? ($levels[0] ?? 'none') : 'none';
+    return in_array($levels[0] ?? 'none', ['none','view','edit','delete'], true) ? ($levels[0] ?? 'none') : 'none';
 }
 ?>
 <!DOCTYPE html>
@@ -296,11 +356,16 @@ body{background:#f0f4f8}
 .permission-matrix td{vertical-align:middle}
 .matrix-user{min-width:260px}
 .matrix-module{min-width:132px}
-.level-select{font-weight:600;border-width:1px;text-align:center}
 .level-none{background:#f1f3f5;color:#6c757d;border-color:#ced4da}
 .level-view{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}
 .level-edit{background:#1f6feb;color:#fff;border-color:#1f6feb}
+.level-delete{background:#dc3545;color:#fff;border-color:#dc3545}
 .level-mixed{background:#f3e8ff;color:#7e22ce;border-color:#d8b4fe}
+.permission-modal .nav-link{font-weight:600}
+.permission-modal .feature-row{border-bottom:1px solid #e9ecef;padding:.7rem .25rem}
+.permission-modal .feature-row:last-child{border-bottom:0}
+.permission-modal .right-check{min-width:72px}
+.permission-modal .apply-check{background:#fff7e6;border-radius:8px;padding:.35rem .55rem}
 .matrix-toolbar{background:#f8fafc;border:1px solid #dbe5ef;border-radius:10px;padding:.75rem}
 .selected-count{min-width:105px}
 .editor-card{border:2px solid #b7cce0}
@@ -357,7 +422,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
           <label class="form-label fw-semibold">Tên nhóm</label>
           <input class="form-control mb-3" name="group_label" value="<?= e($selectedGroup['label'] ?? '') ?>" required>
           <div class="alert alert-info py-2 small">
-            Không quyền: ẩn chức năng · Xem: chỉ đọc · Sửa: được xem và thao tác.
+            Không quyền: ẩn chức năng · Xem: chỉ đọc · Sửa: được cập nhật · Xóa: được xóa dữ liệu.
           </div>
           <?php foreach ($featsByMod as $mod => $feats): ?>
           <div class="card border mb-3 shadow-none">
@@ -469,23 +534,16 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
               <strong><span id="selectedCount">0</span> giáo viên</strong>
             </div>
             <div>
-              <label class="small text-muted">Module</label>
-              <select class="form-select form-select-sm" name="module_key">
-                <?php foreach ($modCatalog as $moduleKey => $module): ?>
-                <option value="<?= e($moduleKey) ?>"><?= e($module['label'] ?? $moduleKey) ?></option>
+              <label class="small text-muted">Đối tượng phân quyền</label>
+              <select class="form-select form-select-sm" id="permissionTarget">
+                <option value="selected">Các giáo viên đã tích</option>
+                <?php foreach ($permissionGroups as $groupKey => $group): ?>
+                <option value="<?= e($groupKey) ?>">Nhóm: <?= e($group['label'] ?? $groupKey) ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
-            <div>
-              <label class="small text-muted">Mức quyền</label>
-              <select class="form-select form-select-sm" name="level">
-                <option value="none">Không</option>
-                <option value="view">Xem</option>
-                <option value="edit">Sửa</option>
-              </select>
-            </div>
-            <button class="btn btn-sm btn-primary" name="action" value="bulk_module_access" type="submit">
-              <i class="bi bi-check2-square"></i> Áp dụng quyền
+            <button class="btn btn-sm btn-primary" type="button" onclick="openPermissionModal()">
+              <i class="bi bi-shield-check"></i> Phân quyền
             </button>
             <div class="vr d-none d-lg-block"></div>
             <div>
@@ -565,14 +623,10 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                   <?php if ($isAdmin): ?>
                     <span class="badge bg-dark">Quản trị</span>
                   <?php else: ?>
-                    <select class="form-select form-select-sm level-select level-<?= e($moduleLevel) ?>"
-                            aria-label="<?= e(($module['label'] ?? $moduleKey) . ' của ' . ($u['name'] ?? '')) ?>"
-                            onchange="setModuleAccess(this,'<?= e($u['id'] ?? '') ?>','<?= e($moduleKey) ?>')">
-                      <?php if ($moduleLevel === 'mixed'): ?><option value="mixed" selected disabled>Tùy chỉnh</option><?php endif; ?>
-                      <option value="none" <?= $moduleLevel === 'none' ? 'selected' : '' ?>>Không</option>
-                      <option value="view" <?= $moduleLevel === 'view' ? 'selected' : '' ?>>Xem</option>
-                      <option value="edit" <?= $moduleLevel === 'edit' ? 'selected' : '' ?>>Sửa</option>
-                    </select>
+                    <?php $moduleLevelLabels = ['none'=>'Không','view'=>'Xem','edit'=>'Sửa','delete'=>'Xóa','mixed'=>'Tùy chỉnh']; ?>
+                    <span class="badge level-<?= e($moduleLevel) ?>">
+                      <?= e($moduleLevelLabels[$moduleLevel] ?? 'Không') ?>
+                    </span>
                   <?php endif; ?>
                 </td>
                 <?php endforeach; ?>
@@ -591,19 +645,97 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
       <div class="small text-muted mt-2">
         <span class="badge level-none">Không</span> bị ẩn ·
         <span class="badge level-view">Xem</span> chỉ đọc ·
-        <span class="badge level-edit">Sửa</span> được thao tác.
+        <span class="badge level-edit">Sửa</span> được thao tác ·
+        <span class="badge level-delete">Xóa</span> được xóa dữ liệu ·
         <span class="badge level-mixed">Tùy chỉnh</span> có nhiều mức quyền bên trong.
         Muốn phân quyền từng chức năng hoặc lớp chủ nhiệm, nhấn <i class="bi bi-sliders"></i>.
       </div>
     </div>
   </div>
 
-  <form method="post" id="quickModuleForm" class="d-none">
-    <input type="hidden" name="action" value="set_module_access">
-    <input type="hidden" name="user_id" id="quickUserId">
-    <input type="hidden" name="module_key" id="quickModuleKey">
-    <input type="hidden" name="level" id="quickLevel">
-  </form>
+  <div class="modal fade permission-modal" id="permissionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <form method="post" id="permissionPopupForm">
+          <input type="hidden" name="action" value="bulk_feature_access">
+          <input type="hidden" name="permission_target" id="popupPermissionTarget" value="selected">
+          <div id="popupSelectedUsers"></div>
+          <div class="modal-header">
+            <div>
+              <h5 class="modal-title"><i class="bi bi-shield-check"></i> Phân quyền chức năng</h5>
+              <div class="small text-muted" id="permissionTargetSummary"></div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info py-2 small">
+              Tích <strong>Áp dụng</strong> ở chức năng muốn thay đổi. Quyền Xóa tự bao gồm quyền Xem và Sửa.
+              Chức năng không tích “Áp dụng” sẽ được giữ nguyên.
+            </div>
+            <ul class="nav nav-tabs flex-nowrap overflow-auto" role="tablist">
+              <?php $tabIndex = 0; foreach ($modCatalog as $moduleKey => $module): ?>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link <?= $tabIndex === 0 ? 'active' : '' ?>" data-bs-toggle="tab"
+                        data-bs-target="#permTab_<?= e($moduleKey) ?>" type="button" role="tab">
+                  <i class="bi <?= e($module['icon'] ?? 'bi-grid') ?>"></i>
+                  <?= e($module['label'] ?? $moduleKey) ?>
+                </button>
+              </li>
+              <?php $tabIndex++; endforeach; ?>
+            </ul>
+            <div class="tab-content border border-top-0 rounded-bottom p-3">
+              <?php $tabIndex = 0; foreach ($modCatalog as $moduleKey => $module): ?>
+              <div class="tab-pane fade <?= $tabIndex === 0 ? 'show active' : '' ?>"
+                   id="permTab_<?= e($moduleKey) ?>" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                  <strong><?= e($module['label'] ?? $moduleKey) ?></strong>
+                  <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-secondary" onclick="selectModuleRights('<?= e($moduleKey) ?>','view')">Tất cả Xem</button>
+                    <button type="button" class="btn btn-outline-primary" onclick="selectModuleRights('<?= e($moduleKey) ?>','edit')">Tất cả Sửa</button>
+                    <button type="button" class="btn btn-outline-danger" onclick="selectModuleRights('<?= e($moduleKey) ?>','delete')">Tất cả Xóa</button>
+                    <button type="button" class="btn btn-outline-dark" onclick="clearModuleRights('<?= e($moduleKey) ?>')">Bỏ quyền</button>
+                  </div>
+                </div>
+                <?php foreach (($featsByMod[$moduleKey] ?? []) as $code => $meta): ?>
+                <div class="feature-row row align-items-center g-2" data-module="<?= e($moduleKey) ?>">
+                  <div class="col-lg-6">
+                    <div class="fw-semibold"><?= e($meta['label']) ?></div>
+                    <div class="small text-muted"><?= e($code) ?></div>
+                  </div>
+                  <div class="col-lg-6">
+                    <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-3">
+                      <label class="form-check apply-check mb-0">
+                        <input class="form-check-input feature-apply" type="checkbox"
+                               name="apply_features[]" value="<?= e($code) ?>">
+                        <span class="form-check-label fw-semibold">Áp dụng</span>
+                      </label>
+                      <?php foreach (['view' => 'Xem', 'edit' => 'Sửa', 'delete' => 'Xóa'] as $right => $label): ?>
+                      <label class="form-check right-check mb-0">
+                        <input class="form-check-input feature-right" type="checkbox"
+                               name="feature_rights[<?= e($code) ?>][]" value="<?= e($right) ?>"
+                               data-code="<?= e($code) ?>" data-right="<?= e($right) ?>"
+                               onchange="syncFeatureRights(this)">
+                        <span class="form-check-label"><?= e($label) ?></span>
+                      </label>
+                      <?php endforeach; ?>
+                    </div>
+                  </div>
+                </div>
+                <?php endforeach; ?>
+              </div>
+              <?php $tabIndex++; endforeach; ?>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-save"></i> Lưu phân quyền
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <div class="row g-3">
     <div class="col-12 collapse" id="userEditor">
@@ -655,7 +787,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
             </div>
 
             <h6 class="text-primary"><i class="bi bi-2-circle"></i> Quyền cá nhân</h6>
-            <div class="form-text mb-2">Theo nhóm hoặc ghi đè riêng: Không quyền / Xem / Sửa.</div>
+            <div class="form-text mb-2">Theo nhóm hoặc ghi đè riêng: Không quyền / Xem / Sửa / Xóa.</div>
             <div class="perm-box mb-3" style="max-height:360px">
               <?php foreach ($featsByMod as $mod => $feats): ?>
                 <div class="small fw-semibold text-secondary mb-1 mt-2"><?= e($modCatalog[$mod]['label'] ?? $mod) ?></div>
@@ -753,17 +885,8 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
 
 <script>
 const PRESETS = <?= json_encode($presets, JSON_UNESCAPED_UNICODE) ?>;
-function paintLevelSelect(el){
-  el.classList.remove('level-none','level-view','level-edit');
-  el.classList.add('level-'+el.value);
-}
-function setModuleAccess(el,userId,moduleKey){
-  paintLevelSelect(el);
-  document.getElementById('quickUserId').value=userId;
-  document.getElementById('quickModuleKey').value=moduleKey;
-  document.getElementById('quickLevel').value=el.value;
-  document.getElementById('quickModuleForm').submit();
-}
+const GROUP_ACCESS = <?= json_encode(array_map(fn($g) => $g['access'] ?? [], $permissionGroups), JSON_UNESCAPED_UNICODE) ?>;
+const USER_ACCESS = <?= json_encode($userAccessMap, JSON_UNESCAPED_UNICODE) ?>;
 function visibleUserCheckboxes(){
   return Array.from(document.querySelectorAll('.matrix-row'))
     .filter(function(row){return row.style.display!=='none';})
@@ -797,6 +920,76 @@ function filterMatrix(){
     row.style.display=visible?'':'none';
   });
   updateSelectedCount();
+}
+function resetPermissionPopup(){
+  document.querySelectorAll('#permissionPopupForm .feature-apply,#permissionPopupForm .feature-right')
+    .forEach(function(cb){cb.checked=false;});
+  document.getElementById('popupSelectedUsers').innerHTML='';
+}
+function setRightsForCode(code,level,apply){
+  const order={none:0,view:1,edit:2,delete:3};
+  document.querySelectorAll('.feature-right[data-code="'+CSS.escape(code)+'"]').forEach(function(cb){
+    cb.checked=(order[cb.dataset.right]||0)<= (order[level]||0);
+  });
+  const applyBox=document.querySelector('.feature-apply[value="'+CSS.escape(code)+'"]');
+  if(applyBox) applyBox.checked=!!apply;
+}
+function openPermissionModal(){
+  const target=document.getElementById('permissionTarget').value;
+  const selected=Array.from(document.querySelectorAll('.user-select:checked')).map(function(cb){return cb.value;});
+  if(target==='selected' && selected.length===0){
+    alert('Hãy tích chọn ít nhất một giáo viên, hoặc chọn một nhóm quyền.');
+    return;
+  }
+  resetPermissionPopup();
+  document.getElementById('popupPermissionTarget').value=target;
+  if(target==='selected'){
+    const holder=document.getElementById('popupSelectedUsers');
+    selected.forEach(function(id){
+      const input=document.createElement('input');
+      input.type='hidden'; input.name='permission_users[]'; input.value=id;
+      holder.appendChild(input);
+    });
+    document.getElementById('permissionTargetSummary').textContent=selected.length+' giáo viên đã chọn';
+    if(selected.length===1){
+      const access=USER_ACCESS[selected[0]]||{};
+      Object.keys(access).forEach(function(code){setRightsForCode(code,access[code],false);});
+    }
+  }else{
+    const option=document.querySelector('#permissionTarget option[value="'+CSS.escape(target)+'"]');
+    document.getElementById('permissionTargetSummary').textContent=option?option.textContent:'Nhóm quyền';
+    const access=GROUP_ACCESS[target]||{};
+    Object.keys(access).forEach(function(code){setRightsForCode(code,access[code],true);});
+  }
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('permissionModal')).show();
+}
+function syncFeatureRights(source){
+  const code=source.dataset.code;
+  const right=source.dataset.right;
+  const get=function(r){return document.querySelector('.feature-right[data-code="'+CSS.escape(code)+'"][data-right="'+r+'"]');};
+  const view=get('view'),edit=get('edit'),del=get('delete');
+  if(source.checked){
+    if(right==='edit'||right==='delete') view.checked=true;
+    if(right==='delete') edit.checked=true;
+  }else{
+    if(right==='view'){edit.checked=false;del.checked=false;}
+    if(right==='edit') del.checked=false;
+  }
+  const applyBox=document.querySelector('.feature-apply[value="'+CSS.escape(code)+'"]');
+  if(applyBox) applyBox.checked=true;
+}
+function selectModuleRights(moduleKey,level){
+  document.querySelectorAll('.feature-row[data-module="'+CSS.escape(moduleKey)+'"]').forEach(function(row){
+    const apply=row.querySelector('.feature-apply');
+    const code=apply.value;
+    setRightsForCode(code,level,true);
+  });
+}
+function clearModuleRights(moduleKey){
+  document.querySelectorAll('.feature-row[data-module="'+CSS.escape(moduleKey)+'"]').forEach(function(row){
+    row.querySelector('.feature-apply').checked=true;
+    row.querySelectorAll('.feature-right').forEach(function(cb){cb.checked=false;});
+  });
 }
 function openEditor(){
   resetForm();
@@ -854,7 +1047,6 @@ function editUser(u){
   setTimeout(function(){document.getElementById('userEditor').scrollIntoView({behavior:'smooth',block:'start'});},150);
 }
 resetForm();
-document.querySelectorAll('.level-select').forEach(paintLevelSelect);
 document.getElementById('bulkPermissionForm').addEventListener('submit',function(event){
   if (!document.querySelector('.user-select:checked')) {
     event.preventDefault();
@@ -862,6 +1054,14 @@ document.getElementById('bulkPermissionForm').addEventListener('submit',function
     return;
   }
   if (!confirm('Áp dụng thay đổi cho các giáo viên đã chọn?')) event.preventDefault();
+});
+document.getElementById('permissionPopupForm').addEventListener('submit',function(event){
+  if (!document.querySelector('#permissionPopupForm .feature-apply:checked')) {
+    event.preventDefault();
+    alert('Hãy tích “Áp dụng” ở ít nhất một chức năng.');
+    return;
+  }
+  if (!confirm('Lưu các quyền đã chọn?')) event.preventDefault();
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
