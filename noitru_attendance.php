@@ -226,4 +226,47 @@ if ($showReport) {
 }
 $rate = $cntTotal > 0 ? round($cntPresent / $cntTotal * 100) : 100;
 
+if ($view === 'history' && ($_GET['export'] ?? '') === 'excel') {
+    $type = $_GET['period_type'] ?? 'week';
+    $value = trim($_GET['period_value'] ?? '');
+    $from = $to = date('Y-m-d');
+    $periodLabel = '';
+    $filePart = '';
+    if ($type === 'week' && preg_match('/^(\d{4})-W(\d{2})$/', $value, $match)) {
+        $weekStart = new DateTime();
+        $weekStart->setISODate((int)$match[1], (int)$match[2], 1);
+        $from = $weekStart->format('Y-m-d');
+        $to = (clone $weekStart)->modify('+6 days')->format('Y-m-d');
+        $periodLabel = 'Tuần ' . (int)$match[2] . ' · Từ ' . date('d/m/Y', strtotime($from)) . ' đến ' . date('d/m/Y', strtotime($to));
+        $filePart = 'tuan-' . (int)$match[2] . '-' . $match[1];
+    } elseif ($type === 'month' && preg_match('/^(\d{4})-(\d{2})$/', $value, $match)) {
+        $from = $value . '-01';
+        $to = date('Y-m-t', strtotime($from));
+        $periodLabel = 'Tháng ' . (int)$match[2] . '/' . $match[1];
+        $filePart = 'thang-' . $match[2] . '-' . $match[1];
+    } elseif ($type === 'school_year' && preg_match('/^(\d{4})-(\d{4})$/', $value, $match) && (int)$match[2] === (int)$match[1] + 1) {
+        $from = $match[1] . '-08-01';
+        $to = $match[2] . '-07-31';
+        $periodLabel = 'Năm học ' . $value . ' · Từ 01/08/' . $match[1] . ' đến 31/07/' . $match[2];
+        $filePart = 'nam-hoc-' . $value;
+    } else {
+        flash('Khoảng thời gian xuất Excel không hợp lệ.', 'danger');
+        header('Location: ' . BASE_URL . 'noitru_attendance.php?view=history');
+        exit;
+    }
+    $allowedIds = array_fill_keys(array_column($boarders, 'id'), true);
+    $exportRows = array_values(array_filter(noitru_att_all(), function ($row) use ($allowedIds, $from, $to) {
+        $rowDate = $row['date'] ?? '';
+        return isset($allowedIds[$row['student_id'] ?? '']) && $rowDate >= $from && $rowDate <= $to;
+    }));
+    require_once __DIR__ . '/includes/noitru_att_export.php';
+    noitru_att_excel($exportRows, $boarders, $shifts, [
+        'school' => $school,
+        'period' => $periodLabel,
+        'exported_at' => date('d/m/Y H:i'),
+        'exported_by' => $user['name'] ?? '',
+        'filename' => 'bao-cao-diem-danh-' . $filePart . '.xls',
+    ]);
+}
+
 require __DIR__ . '/includes/noitru_att_view.php';
