@@ -10,6 +10,7 @@ require_login();
 require_perm('nt.diemdanh');
 $user = current_user();
 $school = defined('SCHOOL_NAME') ? SCHOOL_NAME : 'Trường';
+$reporters = array_values(array_filter(csdl_teachers_all(), fn($teacher) => !empty($teacher['active']) && trim($teacher['name'] ?? '') !== ''));
 
 $date  = $_GET['date']  ?? date('Y-m-d');
 $shift = $_GET['shift'] ?? '';
@@ -48,13 +49,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sts = $_POST['status'] ?? [];
         $reasons = $_POST['reason'] ?? [];
         $excuses = $_POST['excuse'] ?? [];
+        $reporterName = trim($_POST['reporter'] ?? ($user['name'] ?? ''));
+        $generalNote = trim($_POST['general_note'] ?? '');
         foreach ($ids as $i => $sid) {
             $sid = trim($sid);
             if ($sid === '') continue;
             $studentAllowed = false;
+            $studentClass = '';
             foreach (noitru_boarders_live() as $student) {
                 if (($student['id'] ?? '') === $sid && can_class($student['class_name'] ?? '')) {
-                    $studentAllowed = true; break;
+                    $studentAllowed = true;
+                    $studentClass = $student['class_name'] ?? '';
+                    break;
                 }
             }
             if (!$studentAllowed) continue;
@@ -66,7 +72,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'date' => $d, 'shift' => $sh, 'student_id' => $sid,
                 'status' => $st, 'excuse' => $ex,
                 'reason' => trim($reasons[$i] ?? ''),
-                'by' => $user['name'] ?? '',
+                'class_name' => $studentClass,
+                'by' => $reporterName,
+                'saved_by' => $user['name'] ?? '',
+                'report_note' => $generalNote,
             ]);
         }
         flash('Đã lưu điểm danh.');
@@ -84,15 +93,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sid = trim($sid);
             if ($sid === '') continue;
             $studentAllowed = false;
+            $studentClass = '';
             foreach (noitru_boarders_live() as $student) {
                 if (($student['id'] ?? '') === $sid && can_class($student['class_name'] ?? '')) {
-                    $studentAllowed = true; break;
+                    $studentAllowed = true;
+                    $studentClass = $student['class_name'] ?? '';
+                    break;
                 }
             }
             if (!$studentAllowed) continue;
             noitru_att_upsert([
                 'date'=>$d,'shift'=>$sh,'student_id'=>$sid,
-                'status'=>$st,'excuse'=>'','reason'=>'','by'=>$user['name']??'',
+                'status'=>$st,'excuse'=>'','reason'=>'','class_name'=>$studentClass,'by'=>$user['name']??'',
             ]);
         }
         flash($st === 'present' ? 'Đã đánh dấu đủ tất cả.' : 'Đã đánh dấu vắng tất cả.');
@@ -191,7 +203,15 @@ $shiftLabel = $shifts[$shift] ?? $shift;
 $dateLabel = date('d/m/Y', strtotime($date));
 $weekdayVi = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'][(int)date('w', strtotime($date))];
 $reporter = $user['name'] ?? 'GV trực';
-$rate = $cntTotal > 0 ? round($cntPresent / $cntTotal * 100) : 100;
 $showReport = !empty($_GET['saved']);
+if ($showReport) {
+    foreach ($attMap as $savedAttendance) {
+        if (trim($savedAttendance['by'] ?? '') !== '') {
+            $reporter = $savedAttendance['by'];
+            break;
+        }
+    }
+}
+$rate = $cntTotal > 0 ? round($cntPresent / $cntTotal * 100) : 100;
 
 require __DIR__ . '/includes/noitru_att_view.php';
