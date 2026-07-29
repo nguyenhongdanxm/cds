@@ -9,14 +9,20 @@ require_once 'includes/noitru_att_shifts.php';
 require_login();
 require_perm('nt.diemdanh');
 $user = current_user();
+$isAdmin = (($user['role'] ?? '') === 'admin');
 $school = defined('SCHOOL_NAME') ? SCHOOL_NAME : 'Trường';
 $reporters = array_values(array_filter(csdl_teachers_all(), fn($teacher) => !empty($teacher['active']) && trim($teacher['name'] ?? '') !== ''));
 
 $date  = $_GET['date']  ?? date('Y-m-d');
-$shift = $_GET['shift'] ?? '';
+$shift = trim($_GET['shift'] ?? '');
 $class = trim($_GET['class'] ?? '');
 $q     = trim($_GET['q'] ?? '');
 $view  = $_GET['view'] ?? 'diemdanh';
+if ($view === 'settings' && !$isAdmin) {
+    flash('Chỉ quản trị được mở cài đặt buổi điểm danh.', 'danger');
+    header('Location: ' . BASE_URL . 'noitru_attendance.php');
+    exit;
+}
 
 $shifts = function_exists('noitru_att_shifts_active') ? noitru_att_shifts_active() : [
     'the_duc_sang' => 'Thể dục buổi sáng',
@@ -24,15 +30,17 @@ $shifts = function_exists('noitru_att_shifts_active') ? noitru_att_shifts_active
     'toi' => 'Điểm danh tối',
     'hoc_toi' => 'Học tối',
 ];
-if ($shift === '' || !isset($shifts[$shift])) {
-    $shift = array_key_first($shifts) ?: 'toi';
+if ($shift === '') {
+    $shift = function_exists('noitru_att_shift_now') ? noitru_att_shift_now() : 'dot_xuat';
 }
+if ($shift === 'dot_xuat') $shifts['dot_xuat'] = 'Điểm danh đột xuất';
+if (!isset($shifts[$shift])) $shift = 'dot_xuat';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     require_perm_level('nt.diemdanh', 'edit');
-    if ($action === 'shifts_save' && allowed_classes() !== null) {
-        flash('Chỉ người có phạm vi toàn trường được cấu hình ca điểm danh.', 'danger');
+    if ($action === 'shifts_save' && !$isAdmin) {
+        flash('Chỉ quản trị được cấu hình ca điểm danh.', 'danger');
         header('Location: ' . BASE_URL . 'noitru_attendance.php'); exit;
     }
     $redir = BASE_URL . 'noitru_attendance.php?' . http_build_query(array_filter([
@@ -49,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sts = $_POST['status'] ?? [];
         $reasons = $_POST['reason'] ?? [];
         $excuses = $_POST['excuse'] ?? [];
-        $reporterName = trim($_POST['reporter'] ?? ($user['name'] ?? ''));
+        $reporterName = $isAdmin ? trim($_POST['reporter'] ?? ($user['name'] ?? '')) : ($user['name'] ?? '');
         $generalNote = trim($_POST['general_note'] ?? '');
         foreach ($ids as $i => $sid) {
             $sid = trim($sid);
@@ -116,18 +124,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $labels = $_POST['label'] ?? [];
         $actives = $_POST['active'] ?? [];
         $sorts = $_POST['sort'] ?? [];
+        $starts = $_POST['start'] ?? [];
+        $ends = $_POST['end'] ?? [];
         $rows = [];
         foreach ($ids as $i => $id) {
             $rows[] = [
                 'id' => $id, 'label' => $labels[$i] ?? $id,
                 'active' => !empty($actives[$i]),
                 'sort' => (int)($sorts[$i] ?? (($i+1)*10)),
+                'start' => trim($starts[$i] ?? ''),
+                'end' => trim($ends[$i] ?? ''),
             ];
         }
         $newId = trim($_POST['new_id'] ?? '');
         $newLabel = trim($_POST['new_label'] ?? '');
         if ($newId !== '' && $newLabel !== '') {
-            $rows[] = ['id'=>$newId,'label'=>$newLabel,'active'=>true,'sort'=>999];
+            $rows[] = ['id'=>$newId,'label'=>$newLabel,'active'=>true,'sort'=>999,'start'=>trim($_POST['new_start']??''),'end'=>trim($_POST['new_end']??'')];
         }
         noitru_att_shifts_save($rows);
         flash('Đã lưu cấu hình buổi điểm danh.');
