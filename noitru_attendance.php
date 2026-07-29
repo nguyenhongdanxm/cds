@@ -39,8 +39,8 @@ if (!isset($shifts[$shift])) $shift = 'dot_xuat';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     require_perm_level('nt.diemdanh', 'edit');
-    if ($action === 'shifts_save' && !$isAdmin) {
-        flash('Chỉ quản trị được cấu hình ca điểm danh.', 'danger');
+    if (in_array($action, ['shifts_save','att_delete_report','att_delete_dates'], true) && !$isAdmin) {
+        flash('Chỉ quản trị được thực hiện thao tác này.', 'danger');
         header('Location: ' . BASE_URL . 'noitru_attendance.php'); exit;
     }
     $redir = BASE_URL . 'noitru_attendance.php?' . http_build_query(array_filter([
@@ -117,6 +117,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         flash($st === 'present' ? 'Đã đánh dấu đủ tất cả.' : 'Đã đánh dấu vắng tất cả.');
         header('Location: ' . $redir); exit;
+    }
+
+    if ($action === 'att_delete_report') {
+        $deleteDate = trim($_POST['delete_date'] ?? '');
+        $deleteShift = trim($_POST['delete_shift'] ?? '');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $deleteDate) || $deleteShift === '') {
+            flash('Báo cáo cần xoá không hợp lệ.', 'danger');
+        } else {
+            $deleted = noitru_att_delete([$deleteDate], $deleteShift);
+            flash($deleted > 0 ? 'Đã xoá báo cáo, dữ liệu điểm danh và lịch sử của buổi đã chọn.' : 'Không tìm thấy dữ liệu báo cáo cần xoá.', $deleted > 0 ? 'success' : 'warning');
+        }
+        header('Location: ' . BASE_URL . 'noitru_attendance.php?view=history&history_date=' . rawurlencode($deleteDate)); exit;
+    }
+
+    if ($action === 'att_delete_dates') {
+        $deleteDates = array_values(array_filter((array)($_POST['delete_dates'] ?? []), fn($d) => preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($d))));
+        if (!$deleteDates) {
+            flash('Bạn chưa chọn ngày cần xoá.', 'warning');
+        } else {
+            $deleted = noitru_att_delete($deleteDates);
+            flash($deleted > 0 ? 'Đã xoá toàn bộ dữ liệu điểm danh và lịch sử của ' . count(array_unique($deleteDates)) . ' ngày đã chọn.' : 'Không tìm thấy dữ liệu trong các ngày đã chọn.', $deleted > 0 ? 'success' : 'warning');
+        }
+        header('Location: ' . BASE_URL . 'noitru_attendance.php?view=history'); exit;
     }
 
     if ($action === 'shifts_save' && function_exists('noitru_att_shifts_save')) {
