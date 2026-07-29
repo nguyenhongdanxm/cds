@@ -11,12 +11,12 @@ if (!defined('NOITRU_SHIFTS')) {
 if (!function_exists('noitru_att_shifts_default')) {
 function noitru_att_shifts_default() {
     return [
-        ['id' => 'the_duc_sang', 'label' => 'Thể dục buổi sáng', 'active' => true, 'sort' => 10],
-        ['id' => 'sang',         'label' => 'Điểm danh sáng',    'active' => true, 'sort' => 20],
-        ['id' => 'trua',         'label' => 'Buổi trưa',         'active' => true, 'sort' => 30],
-        ['id' => 'toi',          'label' => 'Điểm danh tối',     'active' => true, 'sort' => 40],
-        ['id' => 'hoc_toi',      'label' => 'Học tối',           'active' => true, 'sort' => 50],
-        ['id' => 'dem',          'label' => 'Điểm danh đêm',     'active' => true, 'sort' => 60],
+        ['id'=>'the_duc_sang','label'=>'Thể dục buổi sáng','active'=>true,'sort'=>10,'start'=>'05:00','end'=>'06:30'],
+        ['id'=>'sang','label'=>'Điểm danh sáng','active'=>true,'sort'=>20,'start'=>'06:31','end'=>'07:30'],
+        ['id'=>'trua','label'=>'Giờ ngủ trưa','active'=>true,'sort'=>30,'start'=>'11:30','end'=>'13:30'],
+        ['id'=>'toi','label'=>'Điểm danh tối','active'=>true,'sort'=>40,'start'=>'18:00','end'=>'19:30'],
+        ['id'=>'hoc_toi','label'=>'Học tối','active'=>true,'sort'=>50,'start'=>'19:31','end'=>'21:30'],
+        ['id'=>'dem','label'=>'Điểm danh đêm','active'=>true,'sort'=>60,'start'=>'21:31','end'=>'23:00'],
     ];
 }
 }
@@ -29,6 +29,20 @@ function noitru_att_shifts_all() {
     if (!is_array($rows) || !$rows) {
         $rows = noitru_att_shifts_default();
         if (function_exists('save_json')) save_json(NOITRU_SHIFTS, $rows);
+    } else {
+        $defaults = [];
+        foreach (noitru_att_shifts_default() as $default) $defaults[$default['id']] = $default;
+        $changed = false;
+        foreach ($rows as &$row) {
+            $default = $defaults[$row['id'] ?? ''] ?? null;
+            if ($default && empty($row['start']) && empty($row['end'])) {
+                $row['start'] = $default['start'];
+                $row['end'] = $default['end'];
+                $changed = true;
+            }
+        }
+        unset($row);
+        if ($changed && function_exists('save_json')) save_json(NOITRU_SHIFTS, $rows);
     }
     usort($rows, fn($a, $b) => ($a['sort'] ?? 99) <=> ($b['sort'] ?? 99));
     return $rows;
@@ -60,12 +74,31 @@ function noitru_att_shifts_save(array $rows) {
             'label' => $label,
             'active' => !empty($r['active']),
             'sort' => (int)($r['sort'] ?? 99),
+            'start' => preg_match('/^\d{2}:\d{2}$/', $r['start'] ?? '') ? $r['start'] : '',
+            'end' => preg_match('/^\d{2}:\d{2}$/', $r['end'] ?? '') ? $r['end'] : '',
         ];
     }
     if (!$clean) $clean = noitru_att_shifts_default();
     usort($clean, fn($a, $b) => $a['sort'] <=> $b['sort']);
     if (function_exists('save_json')) save_json(NOITRU_SHIFTS, $clean);
     return $clean;
+}
+}
+
+if (!function_exists('noitru_att_shift_now')) {
+function noitru_att_shift_now($time = null) {
+    $time = $time ?: date('H:i');
+    foreach (noitru_att_shifts_all() as $shift) {
+        if (empty($shift['active'])) continue;
+        $start = $shift['start'] ?? '';
+        $end = $shift['end'] ?? '';
+        if ($start === '' || $end === '') continue;
+        $inside = $start <= $end
+            ? ($time >= $start && $time <= $end)
+            : ($time >= $start || $time <= $end);
+        if ($inside) return $shift['id'];
+    }
+    return 'dot_xuat';
 }
 }
 
