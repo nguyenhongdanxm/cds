@@ -528,6 +528,17 @@ if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'kitchen') {
     fputcsv($fp, ['Xuất lúc', date('d/m/Y H:i'), 'Người xuất', $user['name'] ?? '']);
     fclose($fp); exit;
 }
+if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'excel') {
+    $date = $_GET['date'] ?? date('Y-m-d');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = date('Y-m-d');
+    $overview = nt_meal_day_overview($date, $boarders);
+    $rice = noitru_rice_data();
+    $riceKg = 0;
+    foreach (['sang','trua','toi'] as $mealKey) {
+        $riceKg += ($overview['meals'][$mealKey]['eat'] ?? 0) * (float)($rice['settings'][$mealKey . '_grams'] ?? 0) / 1000;
+    }
+    require __DIR__ . '/includes/noitru_meal_day_export.php';
+}
 if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'csv') {
     $from = $_GET['from'] ?? date('Y-m-01');
     $to = $_GET['to'] ?? date('Y-m-d');
@@ -616,8 +627,11 @@ body{background:#f8f0f4}
 .meal-report-classes{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.75rem}.meal-report-classes span{padding:.25rem .55rem;border:1px solid #dce5ec;border-radius:999px;font-size:.78rem}
 .meal-state-actions{display:flex;gap:.45rem;flex-wrap:wrap}.meal-state-actions form{display:inline-flex}
 .meal-summary-empty{text-align:center;color:#64748b;padding:1.4rem .5rem .65rem}
+.meal-export-preview{display:block;width:min(100%,540px);max-height:62vh;object-fit:contain;margin:auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px}
+.meal-export-modal .modal-content{border:0;border-radius:22px}.meal-export-modal .modal-body{background:#f8fafc}
+.meal-export-modal .modal-footer{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}.meal-export-modal .modal-footer>*{margin:0}
 .meal-missing-box{border:1px solid #f6c76b;border-radius:18px;background:#fffdf7;padding:1rem;margin-top:1rem}.meal-missing-row{padding:.65rem;border-radius:12px;background:#f8fafc;margin-top:.55rem}.meal-missing-chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem}.meal-missing-chips span{padding:.25rem .58rem;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:.78rem;font-weight:700}
-@media(max-width:767.98px){.meal-student-grid{grid-template-columns:1fr 1fr}.meal-summary-stats{gap:.4rem}.meal-summary-stats>div{padding:.65rem .25rem}}
+@media(max-width:767.98px){.meal-student-grid{grid-template-columns:1fr 1fr}.meal-summary-stats{gap:.4rem}.meal-summary-stats>div{padding:.65rem .25rem}.meal-export-modal .modal-dialog{margin:.5rem}.meal-export-modal .modal-footer{grid-template-columns:1fr}}
 @media(max-width:420px){.meal-student-grid{grid-template-columns:1fr}}
 .btn-nt:hover{background:var(--pd);color:#fff}
 .badge-room{background:#fce8f0;color:#a61e5c}
@@ -796,10 +810,23 @@ form[method="post"]{display:none!important}
     $rice = noitru_rice_data();
     $riceKg = 0;
     foreach (['sang','trua','toi'] as $mealKey) $riceKg += ($overview['meals'][$mealKey]['eat']??0) * (float)($rice['settings'][$mealKey.'_grams']??0) / 1000;
+    $dayExportData = ['school'=>$school ?? 'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN','date'=>date('d/m/Y',strtotime($date)),'reporter'=>$user['name']??'','rice_kg'=>$riceKg,'meals'=>[]];
+    foreach ($mealLabels as $mealKey=>$label) {
+      $info=$overview['meals'][$mealKey];
+      $dayExportData['meals'][$mealKey]=[
+        'label'=>$label,'total'=>(int)$info['total'],'eat'=>(int)$info['eat'],'absent'=>(int)$info['absent'],
+        'rice_kg'=>(int)$info['eat']*(float)($rice['settings'][$mealKey.'_grams']??0)/1000,
+        'students'=>array_values($info['absent_students']??[])
+      ];
+    }
   ?>
   <div class="nt-page-head">
     <div><h4><i class="bi bi-fork-knife text-primary"></i> Báo cơm cả trường – <?= e(date('d/m/Y',strtotime($date))) ?></h4><div class="subtitle">Nhận báo cáo từ GVCN, chốt số liệu và báo nhà bếp</div></div>
-    <div class="dropdown"><button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-file-earmark-spreadsheet"></i> Xuất báo cáo</button><ul class="dropdown-menu dropdown-menu-end"><li><a class="dropdown-item" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meal_summary','date'=>$date,'export'=>'kitchen'])) ?>"><i class="bi bi-file-earmark-excel text-success me-2"></i>Excel/CSV nhà bếp</a></li><li><button class="dropdown-item" type="button" onclick="window.print()"><i class="bi bi-printer me-2"></i>In trang tổng hợp</button></li></ul></div>
+    <div class="dropdown"><button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-file-earmark-spreadsheet"></i> Xuất báo cáo</button><ul class="dropdown-menu dropdown-menu-end">
+      <li><button class="dropdown-item" type="button" onclick="openMealDayExport('summary')"><i class="bi bi-image text-info me-2"></i>Xuất ảnh thống kê</button></li>
+      <li><button class="dropdown-item" type="button" onclick="openMealDayExport('groups')"><i class="bi bi-people text-danger me-2"></i>DS vắng theo mâm</button></li>
+      <li><a class="dropdown-item" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meal_summary','date'=>$date,'export'=>'excel'])) ?>"><i class="bi bi-file-earmark-excel text-success me-2"></i>Xuất Excel</a></li>
+    </ul></div>
   </div>
   <form method="get" class="card card-soft mb-3"><div class="card-body d-flex align-items-end gap-2 flex-wrap"><input type="hidden" name="tab" value="meal_summary"><div><label class="form-label">Ngày chuẩn bị</label><input type="date" name="date" class="form-control" value="<?= e($date) ?>"></div><button class="btn btn-nt">Xem tổng hợp</button></div></form>
   <?php if (allowed_classes()===null && $canEditCurrent): ?><details class="card card-soft mb-3"><summary class="card-body fw-bold"><i class="bi bi-sliders"></i> Cài đặt giờ khóa và định mức gạo</summary><form method="post" class="card-body border-top">
@@ -838,6 +865,12 @@ form[method="post"]{display:none!important}
     </details>
   <?php endif; ?>
   <div class="alert alert-info d-flex justify-content-between align-items-center gap-2 flex-wrap"><div><strong>Tổng gạo dự kiến trong ngày</strong><div class="small">Sáng <?= $overview['meals']['sang']['eat'] ?> suất × <?= e($rice['settings']['sang_grams']??0) ?>g · Trưa <?= $overview['meals']['trua']['eat'] ?> suất × <?= e($rice['settings']['trua_grams']??180) ?>g · Tối <?= $overview['meals']['toi']['eat'] ?> suất × <?= e($rice['settings']['toi_grams']??180) ?>g</div></div><strong class="fs-4"><?= number_format($riceKg,2) ?> kg</strong></div>
+  <div class="modal fade meal-export-modal" id="mealDayExportModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="mealDayExportTitle"><i class="bi bi-image me-2"></i>Xuất báo cáo bữa ăn</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+    <div class="modal-body"><img class="meal-export-preview" id="mealDayExportPreview" alt="Ảnh báo cáo bữa ăn"></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" onclick="downloadMealDayExport()"><i class="bi bi-download"></i> Tải ảnh</button><button class="btn btn-info text-white" type="button" onclick="shareMealDayExport()"><i class="bi bi-share"></i> Chia sẻ</button></div>
+  </div></div></div>
+  <script>window.ntMealDayData=<?= json_encode($dayExportData, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) ?>;</script>
 
 <?php elseif ($tab === 'rice'): ?>
   <?php
@@ -1171,6 +1204,108 @@ function downloadMealImage(key){
   words.forEach(function(word){var next=line?(line+', '+word):word;if(ctx.measureText(next).width>730){ctx.fillText(line,80,y);line=word;y+=30}else line=next});if(line)ctx.fillText(line,80,y);
   ctx.fillStyle='#64748b';ctx.font='15px Arial';ctx.fillText('Xuất lúc: '+new Date().toLocaleString('vi-VN'),80,510);
   var link=document.createElement('a');link.download='bao-an-'+key+'-'+(card.dataset.date||'').replaceAll('/','-')+'.png';link.href=canvas.toDataURL('image/png');link.click();
+}
+var mealDayExport={canvas:null,type:'summary',filename:''};
+function mealRoundRect(ctx,x,y,w,h,r,fill,stroke){
+  ctx.beginPath();ctx.roundRect(x,y,w,h,r);
+  if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke()}
+}
+function mealWrap(ctx,text,x,y,maxWidth,lineHeight,maxLines){
+  var words=String(text||'').split(/\s+/),line='',lines=[],i;
+  for(i=0;i<words.length;i++){
+    var test=line?line+' '+words[i]:words[i];
+    if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=words[i]}else line=test;
+  }
+  if(line)lines.push(line);
+  if(maxLines&&lines.length>maxLines){lines=lines.slice(0,maxLines);lines[maxLines-1]=lines[maxLines-1].replace(/[,\s]+$/,'')+'…'}
+  lines.forEach(function(row,index){ctx.fillText(row,x,y+index*lineHeight)});
+  return Math.max(1,lines.length)*lineHeight;
+}
+function mealExportBase(title,color,height){
+  var data=window.ntMealDayData||{},canvas=document.createElement('canvas'),ctx=canvas.getContext('2d'),w=900;
+  canvas.width=w;canvas.height=height;ctx.fillStyle='#ffffff';ctx.fillRect(0,0,w,height);
+  ctx.textAlign='center';ctx.fillStyle='#64748b';ctx.font='20px Arial';ctx.fillText(data.school||'',w/2,48);
+  ctx.fillStyle=color;ctx.font='bold 34px Arial';ctx.fillText(title,w/2,94);
+  ctx.fillStyle='#334155';ctx.font='21px Arial';ctx.fillText('Ngày '+(data.date||''),w/2,130);
+  ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(70,155);ctx.lineTo(830,155);ctx.stroke();
+  return {canvas:canvas,ctx:ctx,w:w};
+}
+function buildMealSummaryImage(){
+  var data=window.ntMealDayData||{},meals=data.meals||{},keys=['sang','trua','toi'],totalEat=0,totalAbsent=0;
+  keys.forEach(function(k){totalEat+=Number(meals[k]?.eat||0);totalAbsent+=Number(meals[k]?.absent||0)});
+  var absentLines=0;keys.forEach(function(k){if(Number(meals[k]?.absent||0)>0)absentLines+=Math.max(2,Math.ceil((meals[k].students||[]).length/3))});
+  var base=mealExportBase('THỐNG KÊ BỮA ĂN','#0284c7',Math.max(820,650+absentLines*32)),ctx=base.ctx,w=base.w;
+  var colors={sang:['#fff7ed','#ea580c'],trua:['#ecfdf5','#16a34a'],toi:['#eef2ff','#4f46e5']};
+  keys.forEach(function(k,i){
+    var m=meals[k]||{},x=70+i*255,c=colors[k];
+    mealRoundRect(ctx,x,185,235,145,14,c[0],'#dbe3eb');
+    ctx.textAlign='center';ctx.fillStyle=c[1];ctx.font='bold 20px Arial';ctx.fillText(String(m.label||k).toLocaleUpperCase('vi'),x+117,220);
+    ctx.fillStyle='#16a34a';ctx.font='bold 34px Arial';ctx.fillText(String(m.eat||0),x+82,270);
+    ctx.fillStyle='#64748b';ctx.font='22px Arial';ctx.fillText('/ '+String(m.total||0),x+160,270);
+    ctx.fillStyle='#dc2626';ctx.font='18px Arial';ctx.fillText('-'+String(m.absent||0)+' vắng',x+117,305);
+  });
+  mealRoundRect(ctx,70,350,760,115,14,'#f8fafc','#e2e8f0');
+  [['TỔNG SUẤT',totalEat,'#16a34a'],['TỔNG VẮNG',totalAbsent,'#dc2626'],['KG GẠO',Number(data.rice_kg||0).toFixed(2),'#b45309']].forEach(function(s,i){
+    var x=70+i*253;ctx.textAlign='center';ctx.fillStyle=s[2];ctx.font='bold 34px Arial';ctx.fillText(String(s[1]),x+126,400);ctx.fillStyle='#64748b';ctx.font='16px Arial';ctx.fillText(s[0],x+126,435);
+    if(i<2){ctx.strokeStyle='#e2e8f0';ctx.beginPath();ctx.moveTo(x+253,370);ctx.lineTo(x+253,445);ctx.stroke()}
+  });
+  ctx.textAlign='left';var y=505;
+  mealRoundRect(ctx,70,y,760,Math.max(120,base.canvas.height-y-75),14,'#fff7f7','#fecaca');
+  ctx.fillStyle='#dc2626';ctx.font='bold 19px Arial';ctx.fillText('● DANH SÁCH VẮNG',92,y+34);y+=68;
+  var any=false;
+  keys.forEach(function(k){
+    var m=meals[k]||{},students=m.students||[];if(!students.length)return;any=true;
+    ctx.fillStyle=colors[k][1];ctx.font='bold 18px Arial';ctx.fillText((m.label||k)+' ('+students.length+'): ',92,y);
+    ctx.fillStyle='#334155';ctx.font='17px Arial';
+    var text=students.map(function(s){return (s.class?s.class+': ':'')+(s.name||'')}).join(', ');
+    y+=mealWrap(ctx,text,92,y+28,710,27)+38;
+  });
+  if(!any){ctx.fillStyle='#16a34a';ctx.font='bold 19px Arial';ctx.fillText('✓ Không có học sinh vắng ăn',92,y)}
+  ctx.fillStyle='#64748b';ctx.font='15px Arial';ctx.fillText('Người báo: '+(data.reporter||''),70,base.canvas.height-30);
+  ctx.textAlign='right';ctx.fillText(new Date().toLocaleString('vi-VN'),830,base.canvas.height-30);
+  return base.canvas;
+}
+function buildMealGroupsImage(){
+  var data=window.ntMealDayData||{},meals=data.meals||{},keys=['sang','trua','toi'],rows=0;
+  keys.forEach(function(k){var groups={};(meals[k]?.students||[]).forEach(function(s){groups[String(s.group||'Chưa xếp mâm')]=1});rows+=Math.max(1,Object.keys(groups).length)});
+  var base=mealExportBase('DS VẮNG THEO MÂM','#dc2626',Math.max(760,440+rows*76)),ctx=base.ctx,w=base.w;
+  var total=keys.reduce(function(n,k){return n+Number(meals[k]?.absent||0)},0),x=70;
+  mealRoundRect(ctx,70,180,760,95,14,'#fff7f7','#fecaca');
+  keys.forEach(function(k,i){var m=meals[k]||{};ctx.textAlign='center';ctx.fillStyle=k==='sang'?'#ea580c':(k==='trua'?'#16a34a':'#4f46e5');ctx.font='17px Arial';ctx.fillText(m.label||k,x+i*170+75,215);ctx.font='bold 28px Arial';ctx.fillText(String(m.absent||0),x+i*170+75,250)});
+  ctx.fillStyle='#dc2626';ctx.font='17px Arial';ctx.fillText('TỔNG',760,215);ctx.font='bold 28px Arial';ctx.fillText(String(total),760,250);
+  var y=305,colors={sang:'#ea580c',trua:'#16a34a',toi:'#4f46e5'};
+  keys.forEach(function(k){
+    var m=meals[k]||{},students=m.students||[],groups={};
+    students.forEach(function(s){var g=String(s.group||'Chưa xếp mâm');(groups[g]||(groups[g]=[])).push(s)});
+    ctx.textAlign='left';ctx.fillStyle='#f8fafc';ctx.fillRect(70,y,760,42);ctx.fillStyle=colors[k];ctx.font='bold 19px Arial';ctx.fillText(m.label||k,90,y+27);
+    ctx.textAlign='right';ctx.fillStyle=students.length?'#dc2626':'#16a34a';ctx.fillText(students.length?students.length+' vắng':'✓ Đủ',810,y+27);y+=56;
+    if(!students.length){y+=20;return}
+    Object.keys(groups).sort(function(a,b){return a.localeCompare(b,'vi',{numeric:true})}).forEach(function(group){
+      var list=groups[group];ctx.textAlign='left';ctx.fillStyle=colors[k];ctx.font='bold 17px Arial';ctx.fillText('Mâm '+group+' ('+list.length+'):',92,y);
+      ctx.fillStyle='#334155';ctx.font='16px Arial';var text=list.map(function(s){return (s.name||'')+(s.class?' ('+s.class+')':'')}).join(', ');
+      y+=mealWrap(ctx,text,245,y,565,25)+22;
+    });y+=8;
+  });
+  ctx.fillStyle='#64748b';ctx.font='15px Arial';ctx.textAlign='left';ctx.fillText('Người báo: '+(data.reporter||''),70,base.canvas.height-30);ctx.textAlign='right';ctx.fillText(new Date().toLocaleString('vi-VN'),830,base.canvas.height-30);
+  return base.canvas;
+}
+function openMealDayExport(type){
+  mealDayExport.type=type;mealDayExport.canvas=type==='groups'?buildMealGroupsImage():buildMealSummaryImage();
+  mealDayExport.filename=(type==='groups'?'ds-vang-theo-mam-':'thong-ke-bua-an-')+String(window.ntMealDayData?.date||'').replaceAll('/','-')+'.png';
+  document.getElementById('mealDayExportTitle').innerHTML='<i class="bi '+(type==='groups'?'bi-people':'bi-image')+' me-2"></i>'+(type==='groups'?'Xuất ảnh danh sách vắng theo mâm':'Xuất ảnh thống kê bữa ăn');
+  document.getElementById('mealDayExportPreview').src=mealDayExport.canvas.toDataURL('image/png');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('mealDayExportModal')).show();
+}
+function downloadMealDayExport(){
+  if(!mealDayExport.canvas)return;var link=document.createElement('a');link.download=mealDayExport.filename;link.href=mealDayExport.canvas.toDataURL('image/png');link.click();
+}
+async function shareMealDayExport(){
+  if(!mealDayExport.canvas)return;
+  mealDayExport.canvas.toBlob(async function(blob){
+    var file=new File([blob],mealDayExport.filename,{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'Báo cáo bữa ăn'});return}catch(error){if(error.name==='AbortError')return}}
+    downloadMealDayExport();
+  },'image/png');
 }
 toggleRicePeriod();
 </script>
