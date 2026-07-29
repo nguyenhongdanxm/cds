@@ -621,9 +621,12 @@ if ($tab === 'rice' && ($_GET['export'] ?? '') === 'excel') {
         'sang_grams'=>$riceData['settings']['sang_grams']??0,
         'trua_grams'=>$riceData['settings']['trua_grams']??180,
         'toi_grams'=>$riceData['settings']['toi_grams']??180,
+        'from'=>$from,
+        'to'=>$to,
+        'rice_data'=>$riceData,
         'exported_at'=>date('d/m/Y H:i'),
         'exported_by'=>$user['name']??'',
-        'filename'=>'bao-cao-gao-'.$filePart.'.xls',
+        'filename'=>'bao-cao-gao-'.$filePart.'.xlsx',
     ]);
 }
 ?>
