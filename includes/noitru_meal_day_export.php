@@ -74,7 +74,7 @@ td,th{border:1px solid #9aa9b8;padding:7px;vertical-align:middle}
 <table>
   <tr><td colspan="4" class="section">CHI TIẾT GẠO DỰ KIẾN</td></tr>
   <tr class="head"><th>Bữa ăn</th><th>Số suất</th><th>Định mức (g/HS)</th><th>Lượng gạo (kg)</th></tr>
-  <?php foreach ($mealLabels as $mealKey => $label):
+  <?php foreach (['trua' => 'BỮA TRƯA', 'toi' => 'BỮA TỐI'] as $mealKey => $label):
     $eat = (int)($overview['meals'][$mealKey]['eat'] ?? 0);
     $grams = (float)($rice['settings'][$mealKey . '_grams'] ?? 0);
   ?><tr class="rice"><td><?= $label ?></td><td class="center"><?= $eat ?></td><td class="center"><?= number_format($grams, 0) ?></td><td class="right"><?= number_format($eat * $grams / 1000, 2) ?></td></tr><?php endforeach; ?>
