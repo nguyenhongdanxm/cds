@@ -39,16 +39,19 @@
     .att-history-filter{display:flex;align-items:end;gap:.7rem;flex-wrap:wrap;margin-bottom:1rem}
     .att-history-day{border:1px solid #dce5ec;border-radius:16px;overflow:hidden;margin-bottom:1rem}
     .att-history-day>header{display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.75rem 1rem;background:#f7fafc;border-bottom:1px solid #dce5ec}
+    .att-history-day-title{display:flex;align-items:center;gap:.7rem}.att-history-check{width:1.15rem;height:1.15rem;cursor:pointer}
     .att-history-shifts{display:grid;gap:.7rem;padding:.8rem}
     .att-history-shift{display:block;padding:.8rem;border:1px solid #e2e8f0;border-radius:12px;text-decoration:none;color:#253342;background:#fff}
-    .att-history-shift-head{display:flex;align-items:center;justify-content:space-between;gap:.7rem}.att-history-counts{display:flex;gap:.75rem;flex-wrap:wrap;font-size:.82rem;margin-top:.35rem}
+    .att-history-shift-head{display:flex;align-items:center;justify-content:space-between;gap:.7rem}.att-history-actions{display:flex;gap:.45rem;flex-wrap:wrap}.att-history-counts{display:flex;gap:.75rem;flex-wrap:wrap;font-size:.82rem;margin-top:.35rem}
     .att-history-absent{margin-top:.55rem;padding-top:.5rem;border-top:1px dashed #f2b8b8;font-size:.8rem;color:#b91c1c}.att-history-absent span{display:inline-block;margin:.15rem .65rem .15rem 0}
+    .att-history-admin{display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;margin:.9rem 0;padding:.75rem;border:1px solid #fecaca;border-radius:14px;background:#fff7f7}
     .att-export{margin-top:1.2rem;padding:1rem;border:1px solid #dce5ec;border-radius:16px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;gap:1rem}
     @media(max-width:767.98px){
       .att-panel{padding:.8rem}.att-controls{grid-template-columns:1fr 1fr}.att-controls>div:last-child{grid-column:1/-1}.att-class-chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:.25rem}.att-class-chips a{white-space:nowrap}
       .att-tools{grid-template-columns:1fr}.att-summary{gap:.5rem}.att-summary>div{padding:.7rem .35rem}.att-summary strong{font-size:1.35rem}
       .att-person{min-height:46px;padding:.48rem .65rem}.att-dialog-body{padding:1rem}.att-dialog-actions .btn{flex:1}
       .att-history-day>header{align-items:flex-start}.att-history-shift-head{align-items:flex-start}.att-history-counts{gap:.5rem}
+      .att-history-shift-head{flex-direction:column}.att-history-actions{width:100%}.att-history-actions .btn{flex:1}
       .att-export{align-items:stretch;flex-direction:column}.att-export .btn{width:100%}
     }
   </style>
@@ -129,16 +132,33 @@
             <?php if ($historyDate!==''): ?><a class="btn btn-outline-secondary" href="<?= e(att_url(['view'=>'history','history_date'=>null,'date'=>null,'shift'=>null,'class'=>null,'q'=>null])) ?>">7 ngày gần nhất</a><?php endif; ?>
           </form>
         </div>
+        <?php if ($isAdmin && $historyDays): ?>
+          <form method="post" id="historyBulkDeleteForm" onsubmit="return confirmHistoryBulkDelete()">
+            <input type="hidden" name="action" value="att_delete_dates">
+          </form>
+          <div class="att-history-admin">
+            <div><strong><i class="bi bi-shield-lock"></i> Công cụ quản trị</strong><div class="small text-muted">Chọn một hoặc nhiều ngày bên dưới để xoá toàn bộ báo cáo trong ngày.</div></div>
+            <button class="btn btn-outline-danger" type="submit" form="historyBulkDeleteForm"><i class="bi bi-trash3"></i> Xoá ngày đã chọn</button>
+          </div>
+        <?php endif; ?>
         <?php foreach ($historyDays as $day=>$dayShifts): ?>
           <section class="att-history-day">
-            <header><div><strong><?= e($weekdayNames[(int)date('w',strtotime($day))]) ?></strong><div class="small text-muted"><?= e(date('d/m/Y',strtotime($day))) ?></div></div><span class="badge text-bg-light"><?= count($dayShifts) ?> buổi</span></header>
+            <header><div class="att-history-day-title"><?php if ($isAdmin): ?><input class="form-check-input att-history-check" type="checkbox" name="delete_dates[]" value="<?= e($day) ?>" form="historyBulkDeleteForm" aria-label="Chọn ngày <?= e(date('d/m/Y',strtotime($day))) ?>"><?php endif; ?><div><strong><?= e($weekdayNames[(int)date('w',strtotime($day))]) ?></strong><div class="small text-muted"><?= e(date('d/m/Y',strtotime($day))) ?></div></div></div><span class="badge text-bg-light"><?= count($dayShifts) ?> buổi</span></header>
             <div class="att-history-shifts">
             <?php foreach ($dayShifts as $shiftKey=>$summary): ?>
-              <a class="att-history-shift" href="<?= e(att_url(['view'=>'diemdanh','date'=>$day,'shift'=>$shiftKey,'history_date'=>null])) ?>">
-                <div class="att-history-shift-head"><strong><i class="bi bi-clock-history text-primary"></i> <?= e($shifts[$shiftKey]??($shiftKey==='dot_xuat'?'Điểm danh đột xuất':$shiftKey)) ?></strong><i class="bi bi-chevron-right text-muted"></i></div>
+              <div class="att-history-shift">
+                <div class="att-history-shift-head"><strong><i class="bi bi-clock-history text-primary"></i> <?= e($shifts[$shiftKey]??($shiftKey==='dot_xuat'?'Điểm danh đột xuất':$shiftKey)) ?></strong>
+                  <?php if ($isAdmin): ?><div class="att-history-actions">
+                    <a class="btn btn-sm btn-outline-primary" href="<?= e(att_url(['view'=>'diemdanh','date'=>$day,'shift'=>$shiftKey,'history_date'=>null,'class'=>null,'q'=>null])) ?>"><i class="bi bi-pencil-square"></i> Sửa báo cáo</a>
+                    <form method="post" onsubmit="return confirm('Xoá báo cáo <?= e(date('d/m/Y',strtotime($day))) ?> – <?= e($shifts[$shiftKey]??$shiftKey) ?>? Dữ liệu đã lưu và lịch sử của buổi này sẽ bị xoá hoàn toàn.')">
+                      <input type="hidden" name="action" value="att_delete_report"><input type="hidden" name="delete_date" value="<?= e($day) ?>"><input type="hidden" name="delete_shift" value="<?= e($shiftKey) ?>">
+                      <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3"></i> Xoá</button>
+                    </form>
+                  </div><?php endif; ?>
+                </div>
                 <div class="att-history-counts"><span>Tổng: <strong><?= $summary['total'] ?></strong></span><span class="text-success">Có mặt: <strong><?= $summary['present'] ?></strong></span><span class="text-danger">Vắng: <strong><?= $summary['absent'] ?></strong></span></div>
                 <?php if ($summary['students']): ?><div class="att-history-absent"><strong>Học sinh vắng:</strong><br><?php foreach ($summary['students'] as $absent): ?><span><?= e(($absent['class']!==''?$absent['class'].': ':'').$absent['name'].' ('.$absent['excuse'].')'.($absent['reason']!==''?' – '.$absent['reason']:'')) ?></span><?php endforeach; ?></div><?php endif; ?>
-              </a>
+              </div>
             <?php endforeach; ?>
             </div>
           </section>
@@ -246,6 +266,11 @@ function openConfirm(){
   document.getElementById('confirmTotal').textContent=rows.length;document.getElementById('confirmPresent').textContent=rows.length-absent.length;document.getElementById('confirmAbsent').textContent=absent.length;
   document.getElementById('confirmList').innerHTML=Object.entries(groups).map(([c,rs])=>'<section class="att-confirm-class"><header><span>'+escapeHtml(c)+'</span><span>'+rs.length+' vắng</span></header>'+rs.map((r,i)=>{var d=rowData(r);return '<div>'+(i+1)+'. '+escapeHtml(r.dataset.name)+' <strong>'+escapeHtml(d.excuse.value||'KP')+'</strong>'+(d.reason.value?' – '+escapeHtml(d.reason.value):'')+'</div>'}).join('')+'</section>').join('')||( '<div class="text-center text-success py-3">Tất cả học sinh có mặt.</div>');
   document.getElementById('confirmDialog').showModal();
+}
+function confirmHistoryBulkDelete(){
+  var checked=document.querySelectorAll('input[name="delete_dates[]"]:checked');
+  if(!checked.length){alert('Hãy tích chọn ít nhất một ngày cần xoá.');return false}
+  return confirm('Bạn sắp xoá toàn bộ dữ liệu điểm danh và lịch sử của '+checked.length+' ngày đã chọn. Thao tác này không thể hoàn tác. Tiếp tục?')
 }
 function escapeHtml(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
 function drawReport(){
