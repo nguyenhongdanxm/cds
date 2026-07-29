@@ -78,7 +78,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') ==
   <title><?= e($page_title) ?> – CDS</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="<?= BASE_URL ?>includes/noitru_layout.css" rel="stylesheet">
+  <link href="<?= BASE_URL ?>includes/noitru_layout.css?v=20260729-2" rel="stylesheet">
 </head>
 <body class="nt-body">
 <?php require __DIR__ . '/includes/noitru_shell.php'; ?>
@@ -105,26 +105,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') ==
   </div>
 
   <?php if (function_exists('show_flash')) show_flash(); ?>
-
-  <ul class="nav nav-pills gap-1 mb-3 flex-wrap" id="boarders-views">
-    <?php
-    $views_meta = [
-      'students' => ['label' => 'Học sinh', 'icon' => 'bi-person-lines-fill'],
-      'classes'  => ['label' => 'Lớp',      'icon' => 'bi-collection'],
-      'rooms'    => ['label' => 'Phòng',    'icon' => 'bi-door-open'],
-      'meals'    => ['label' => 'Mâm ăn',   'icon' => 'bi-cup-hot'],
-    ];
-    foreach ($views_meta as $vk => $vm):
-      $active = ($view === $vk) ? 'active' : '';
-      $url = nt_list_url(['view' => $vk, 'q' => null, 'class' => null, 'room' => null, 'meal' => null]);
-    ?>
-      <li class="nav-item">
-        <a class="nav-link <?= $active ?>" href="<?= e($url) ?>" style="<?= $active ? 'background:#d63384;border-color:#d63384' : '' ?>">
-          <i class="bi <?= $vm['icon'] ?>"></i> <?= $vm['label'] ?>
-        </a>
-      </li>
-    <?php endforeach; ?>
-  </ul>
 
   <?php
   if (is_file(__DIR__ . '/includes/noitru_tab_boarders.php')) {
