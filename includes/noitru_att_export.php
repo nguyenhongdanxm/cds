@@ -9,10 +9,6 @@ function noitru_att_excel(array $rows, array $students, array $shiftLabels, arra
         $kb = ($b['date'] ?? '') . '|' . ($b['shift'] ?? '') . '|' . ($studentMap[$b['student_id'] ?? '']['class_name'] ?? '') . '|' . ($studentMap[$b['student_id'] ?? '']['name'] ?? '');
         return strcmp($ka, $kb);
     });
-    $present = $absent = 0;
-    foreach ($rows as $row) {
-        if (in_array($row['status'] ?? 'present', ['present','late'], true)) $present++; else $absent++;
-    }
     $xml = function ($value) {
         return htmlspecialchars((string)$value, ENT_QUOTES | ENT_XML1, 'UTF-8');
     };
@@ -55,19 +51,18 @@ function noitru_att_excel(array $rows, array $students, array $shiftLabels, arra
    <Row ss:Height="22"><Cell ss:MergeAcross="3" ss:StyleID="School"><Data ss:Type="String"><?= $xml($school) ?></Data></Cell><Cell ss:MergeAcross="4" ss:StyleID="Motto"><Data ss:Type="String">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</Data></Cell></Row>
    <Row><Cell ss:MergeAcross="3" ss:StyleID="School"><Data ss:Type="String">QUẢN LÝ NỘI TRÚ</Data></Cell><Cell ss:MergeAcross="4" ss:StyleID="Motto"><Data ss:Type="String">Độc lập - Tự do - Hạnh phúc</Data></Cell></Row>
    <Row ss:Height="12"><Cell ss:MergeAcross="8"><Data ss:Type="String"></Data></Cell></Row>
-   <Row ss:Height="30"><Cell ss:MergeAcross="8" ss:StyleID="Title"><Data ss:Type="String">DANH SÁCH ĐIỂM DANH NỘI TRÚ</Data></Cell></Row>
+   <Row ss:Height="30"><Cell ss:MergeAcross="8" ss:StyleID="Title"><Data ss:Type="String">DANH SÁCH HỌC SINH VẮNG NỘI TRÚ</Data></Cell></Row>
    <Row><Cell ss:MergeAcross="8" ss:StyleID="Subtitle"><Data ss:Type="String"><?= $xml($period) ?></Data></Cell></Row>
    <Row><Cell ss:MergeAcross="8" ss:StyleID="Subtitle"><Data ss:Type="String">Xuất ngày <?= $xml($exportedAt) ?> · Người xuất: <?= $xml($exportedBy) ?></Data></Cell></Row>
    <Row ss:Height="10"><Cell ss:MergeAcross="8"><Data ss:Type="String"></Data></Cell></Row>
-   <Row><Cell ss:MergeAcross="8" ss:StyleID="Summary"><Data ss:Type="String">Tổng lượt: <?= count($rows) ?>   ·   Có mặt: <?= $present ?>   ·   Vắng: <?= $absent ?></Data></Cell></Row>
+   <Row><Cell ss:MergeAcross="8" ss:StyleID="Summary"><Data ss:Type="String">Tổng lượt học sinh vắng: <?= count($rows) ?></Data></Cell></Row>
    <Row ss:Height="28">
-    <?= $cell('STT','Header') ?><?= $cell('Họ và tên','Header') ?><?= $cell('Lớp','Header') ?><?= $cell('Ngày','Header') ?><?= $cell('Buổi điểm danh','Header') ?><?= $cell('Trạng thái','Header') ?><?= $cell('P/KP','Header') ?><?= $cell('Lý do / Ghi chú','Header') ?><?= $cell('Người báo cáo','Header') ?>
+    <?= $cell('STT','Header') ?><?= $cell('Họ và tên','Header') ?><?= $cell('Lớp','Header') ?><?= $cell('Ngày vắng','Header') ?><?= $cell('Thời gian / Buổi vắng','Header') ?><?= $cell('Loại vắng','Header') ?><?= $cell('P/KP','Header') ?><?= $cell('Lý do / Ghi chú','Header') ?><?= $cell('Người báo cáo','Header') ?>
    </Row>
    <?php foreach ($rows as $index => $row):
        $student = $studentMap[$row['student_id'] ?? ''] ?? [];
        $status = $row['status'] ?? 'present';
-       $isPresent = in_array($status, ['present','late'], true);
-       $statusLabel = ['present'=>'Có mặt','late'=>'Đi muộn','absent'=>'Vắng','excused'=>'Vắng có phép'][$status] ?? $status;
+       $statusLabel = ['absent'=>'Vắng không phép','excused'=>'Vắng có phép'][$status] ?? 'Vắng';
    ?>
    <Row>
     <?= $cell($index + 1,'Center','Number') ?>
@@ -75,13 +70,13 @@ function noitru_att_excel(array $rows, array $students, array $shiftLabels, arra
     <?= $cell($student['class_name'] ?? ($row['class_name'] ?? ''),'Center') ?>
     <?= $cell(($row['date'] ?? '') !== '' ? date('d/m/Y', strtotime($row['date'])) : '','Center') ?>
     <?= $cell($shiftLabels[$row['shift'] ?? ''] ?? (($row['shift'] ?? '') === 'dot_xuat' ? 'Điểm danh đột xuất' : ($row['shift'] ?? ''))) ?>
-    <?= $cell($statusLabel,$isPresent?'Present':'Absent') ?>
+    <?= $cell($statusLabel,'Absent') ?>
     <?= $cell($row['excuse'] ?? '','Center') ?>
     <?= $cell(trim(($row['reason'] ?? '') . (($row['report_note'] ?? '') !== '' ? ' · ' . $row['report_note'] : ''))) ?>
     <?= $cell($row['by'] ?? '') ?>
    </Row>
    <?php endforeach; ?>
-   <?php if (!$rows): ?><Row><Cell ss:MergeAcross="8" ss:StyleID="Note"><Data ss:Type="String">Không có dữ liệu điểm danh trong thời gian đã chọn.</Data></Cell></Row><?php endif; ?>
+   <?php if (!$rows): ?><Row><Cell ss:MergeAcross="8" ss:StyleID="Note"><Data ss:Type="String">Không có học sinh vắng trong thời gian đã chọn.</Data></Cell></Row><?php endif; ?>
   </Table>
   <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>9</SplitHorizontal><TopRowBottomPane>9</TopRowBottomPane><Print><ValidPrinterInfo/><HorizontalResolution>600</HorizontalResolution><VerticalResolution>600</VerticalResolution></Print><Selected/></WorksheetOptions>
  </Worksheet>
