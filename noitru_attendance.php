@@ -257,7 +257,8 @@ if ($view === 'history' && ($_GET['export'] ?? '') === 'excel') {
     $allowedIds = array_fill_keys(array_column($boarders, 'id'), true);
     $exportRows = array_values(array_filter(noitru_att_all(), function ($row) use ($allowedIds, $from, $to) {
         $rowDate = $row['date'] ?? '';
-        return isset($allowedIds[$row['student_id'] ?? '']) && $rowDate >= $from && $rowDate <= $to;
+        $isAbsent = !in_array($row['status'] ?? 'present', ['present','late'], true);
+        return $isAbsent && isset($allowedIds[$row['student_id'] ?? '']) && $rowDate >= $from && $rowDate <= $to;
     }));
     require_once __DIR__ . '/includes/noitru_att_export.php';
     noitru_att_excel($exportRows, $boarders, $shifts, [
