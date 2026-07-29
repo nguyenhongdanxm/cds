@@ -175,20 +175,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $date = trim($_POST['date'] ?? date('Y-m-d'));
         $meal = trim($_POST['meal'] ?? '');
         $className = trim($_POST['class_name'] ?? '');
-        if (!in_array($meal, ['sang','trua','toi'], true) || $className === '' || !can_class($className)) {
+        if (!in_array($meal, ['all','sang','trua','toi'], true) || $className === '' || !can_class($className)) {
             flash('Lớp hoặc bữa ăn không hợp lệ.', 'danger');
             header('Location: ' . BASE_URL . 'noitru.php?tab=meals'); exit;
         }
         $ids = $_POST['sid'] ?? [];
         $statuses = $_POST['meal_status'] ?? [];
-        $allMeals = !empty($_POST['all_meals']);
-        $longUntil = trim($_POST['long_until'] ?? '');
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $longUntil) || $longUntil < $date) $longUntil = $date;
-        if ($longUntil > date('Y-m-d', strtotime($date . ' +60 days'))) $longUntil = date('Y-m-d', strtotime($date . ' +60 days'));
-        if ($longUntil > $date) $allMeals = true;
-        $targetMeals = $allMeals ? ['sang','trua','toi'] : [$meal];
+        $submissionMode = ($_POST['submission_mode'] ?? '') === 'long' ? 'long' : 'regular';
+        $targetMealsRaw = trim($_POST['target_meals'] ?? ($meal === 'all' ? 'sang,trua,toi' : $meal));
+        $targetMeals = array_values(array_intersect(['sang','trua','toi'], array_filter(explode(',', $targetMealsRaw))));
+        if (!$targetMeals) $targetMeals = $meal === 'all' ? ['sang','trua','toi'] : [$meal];
+        $longFrom = $submissionMode === 'long' ? trim($_POST['long_from'] ?? $date) : $date;
+        $longUntil = $submissionMode === 'long' ? trim($_POST['long_until'] ?? $longFrom) : $date;
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $longFrom) || $longFrom < $date) $longFrom = $date;
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $longUntil) || $longUntil < $longFrom) $longUntil = $longFrom;
+        $maxLongDate = date('Y-m-d', strtotime($date . ' +60 days'));
+        if ($longFrom > $maxLongDate) $longFrom = $maxLongDate;
+        if ($longUntil > $maxLongDate) $longUntil = $maxLongDate;
         $targetDates = [];
-        for ($cursor = $date; $cursor <= $longUntil; $cursor = date('Y-m-d', strtotime($cursor . ' +1 day'))) $targetDates[] = $cursor;
+        for ($cursor = $longFrom; $cursor <= $longUntil; $cursor = date('Y-m-d', strtotime($cursor . ' +1 day'))) $targetDates[] = $cursor;
 
         if (allowed_classes() !== null) {
             foreach ($targetDates as $targetDate) foreach ($targetMeals as $targetMeal) {
@@ -226,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 noitru_meal_upsert([
                     'date'=>$targetDate, 'student_id'=>$sid,
                     'sang'=>$values['sang'], 'trua'=>$values['trua'], 'toi'=>$values['toi'],
-                    'source'=>$longUntil>$date?'gvcn_long':'gvcn',
+                    'source'=>$submissionMode==='long'?'gvcn_long':'gvcn',
                     'reported_by'=>$user['name'] ?? '',
                     'force'=>allowed_classes() === null,
                 ]);
@@ -241,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             }
         }
-        flash('Đã cập nhật báo ăn mới nhất của ' . $className . ($longUntil>$date?' từ '.date('d/m/Y',strtotime($date)).' đến '.date('d/m/Y',strtotime($longUntil)):'') . '.');
+        flash('Đã cập nhật báo ăn mới nhất của ' . $className . ($submissionMode==='long'?' từ '.date('d/m/Y',strtotime($longFrom)).' đến '.date('d/m/Y',strtotime($longUntil)):'') . '.');
         header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date) . '&class=' . urlencode($className) . '&meal=' . urlencode($meal));
         exit;
     }
@@ -617,6 +622,9 @@ body{background:#f8f0f4}
 .meal-class-list,.meal-tabs{display:flex;gap:.55rem;overflow-x:auto;padding-bottom:.35rem;scrollbar-width:thin}
 .meal-class-list a,.meal-tabs a{flex:0 0 auto;min-height:44px;padding:.62rem 1rem;border:1px solid #dce5ec;border-radius:13px;background:#fff;color:#253342;text-decoration:none;font-weight:700}
 .meal-class-list a.active,.meal-tabs a.active{background:#0ea5e9;border-color:#0ea5e9;color:#fff}
+.meal-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible;gap:.45rem}.meal-tabs a{min-width:0;padding:.58rem .45rem;text-align:center;white-space:nowrap}
+.meal-report-meta{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.6rem;align-items:end}.meal-quick-actions{display:flex;gap:.45rem;flex-wrap:nowrap}
+.meal-confirm-list{max-height:34vh;overflow:auto}.meal-confirm-list>div{display:flex;justify-content:space-between;gap:1rem;padding:.38rem .1rem;border-bottom:1px solid #eef2f7}
 .meal-student-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.45rem;max-height:52vh;overflow:auto;padding:.2rem;scrollbar-gutter:stable}
 .meal-student{display:flex;align-items:center;gap:.55rem;min-height:42px;padding:.45rem .6rem;border:1px solid #dce5ec;border-radius:11px;background:#fff;cursor:pointer}
 .meal-student:has(input:checked){background:#fff2f2;border-color:#fca5a5;color:#b91c1c}.meal-student input{width:1.15rem;height:1.15rem}
@@ -631,7 +639,15 @@ body{background:#f8f0f4}
 .meal-export-modal .modal-content{border:0;border-radius:22px}.meal-export-modal .modal-body{background:#f8fafc}
 .meal-export-modal .modal-footer{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}.meal-export-modal .modal-footer>*{margin:0}
 .meal-missing-box{border:1px solid #f6c76b;border-radius:18px;background:#fffdf7;padding:1rem;margin-top:1rem}.meal-missing-row{padding:.65rem;border-radius:12px;background:#f8fafc;margin-top:.55rem}.meal-missing-chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem}.meal-missing-chips span{padding:.25rem .58rem;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:.78rem;font-weight:700}
-@media(max-width:767.98px){.meal-student-grid{grid-template-columns:1fr 1fr}.meal-summary-stats{gap:.4rem}.meal-summary-stats>div{padding:.65rem .25rem}.meal-export-modal .modal-dialog{margin:.5rem}.meal-export-modal .modal-footer{grid-template-columns:1fr}}
+@media(max-width:767.98px){
+  .meal-student-grid{grid-template-columns:1fr 1fr;gap:.3rem;max-height:46vh}.meal-student{min-height:38px;padding:.32rem .45rem;gap:.4rem;font-size:.88rem}
+  .meal-class-list{gap:.35rem;margin-bottom:.55rem!important}.meal-class-list a{min-height:38px;padding:.42rem .7rem;font-size:.88rem}
+  .meal-tabs{gap:.3rem}.meal-tabs a{min-height:40px;padding:.42rem .2rem;font-size:.77rem;border-radius:10px}.meal-tabs a i{display:block;font-size:.9rem;line-height:1}
+  .meal-report-meta{grid-template-columns:1.2fr .8fr;gap:.4rem}.meal-report-meta .form-label,.meal-report-meta .form-text{display:none}.meal-report-meta .form-control{min-height:40px;padding:.4rem .55rem;font-size:.82rem}
+  .meal-form-card .card-body{padding:.75rem}.meal-form-card .alert{margin-bottom:.65rem;padding:.45rem .6rem;font-size:.82rem}.meal-form-head{margin-bottom:.6rem!important}.meal-form-head h5{font-size:1rem}.meal-form-head .small{font-size:.72rem}
+  .meal-quick-actions .btn{padding:.35rem .5rem;font-size:.76rem;white-space:nowrap}.meal-save-bar{padding:.65rem!important}.meal-save-bar .btn{min-height:42px}
+  .meal-summary-stats{gap:.4rem}.meal-summary-stats>div{padding:.65rem .25rem}.meal-export-modal .modal-dialog{margin:.5rem}.meal-export-modal .modal-footer{grid-template-columns:1fr}
+}
 @media(max-width:420px){.meal-student-grid{grid-template-columns:1fr}}
 .btn-nt:hover{background:var(--pd);color:#fff}
 .badge-room{background:#fce8f0;color:#a61e5c}
@@ -745,8 +761,8 @@ form[method="post"]{display:none!important}
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = date('Y-m-d', strtotime('+1 day'));
     $mealMap = noitru_meals_for_date($date);
     $meal = $_GET['meal'] ?? 'sang';
-    if (!in_array($meal, ['sang','trua','toi'], true)) $meal = 'sang';
-    $mealLabels = ['sang'=>'Bữa sáng','trua'=>'Bữa trưa','toi'=>'Bữa tối'];
+    if (!in_array($meal, ['all','sang','trua','toi'], true)) $meal = 'sang';
+    $mealLabels = ['all'=>'Cả ngày','sang'=>'Bữa sáng','trua'=>'Bữa trưa','toi'=>'Bữa tối'];
     $mealClasses = [];
     foreach ($boarders as $student) {
       $classKey = trim($student['class_name'] ?? '') ?: '(Chưa lớp)';
@@ -756,49 +772,66 @@ form[method="post"]{display:none!important}
     $className = trim($_GET['class'] ?? '');
     if ($className === '' || !isset($mealClasses[$className])) $className = array_key_first($mealClasses) ?? '';
     $classStudents = $className !== '' ? ($mealClasses[$className] ?? []) : [];
-    $mealState = noitru_meal_state($date, $meal)['status'] ?? 'open';
-    $mealReport = $className !== '' ? noitru_meal_report_for($date, $className, $meal) : null;
+    $viewMeals = $meal === 'all' ? ['sang','trua','toi'] : [$meal];
+    $mealStates = [];
+    foreach ($viewMeals as $viewMeal) $mealStates[$viewMeal] = noitru_meal_state($date, $viewMeal)['status'] ?? 'open';
+    $mealState = count(array_filter($mealStates, fn($state)=>$state==='open')) === count($mealStates) ? 'open' : (count(array_filter($mealStates, fn($state)=>$state==='locked')) === count($mealStates) ? 'locked' : 'mixed');
+    $mealReport = $className !== '' && $meal !== 'all' ? noitru_meal_report_for($date, $className, $meal) : null;
     $readOnly = $mealState !== 'open' && allowed_classes() !== null;
   ?>
   <div class="nt-page-head"><div><h4><i class="bi bi-fork-knife text-primary"></i> Báo ăn lớp chủ nhiệm</h4><div class="subtitle">Chỉ hiển thị học sinh thuộc lớp được giao</div></div></div>
   <div class="card card-soft mb-3"><div class="card-body">
-    <form method="get" class="row g-2 align-items-end mb-3">
+    <form method="get" class="meal-report-meta mb-2">
       <input type="hidden" name="tab" value="meals"><input type="hidden" name="class" value="<?= e($className) ?>"><input type="hidden" name="meal" value="<?= e($meal) ?>">
-      <div class="col-12 col-md-5"><label class="form-label">Ngày sử dụng bữa ăn</label><input type="date" name="date" class="form-control" value="<?= e($date) ?>" onchange="this.form.submit()"><div class="form-text">Khi mở Báo ăn, bữa sáng mặc định là ngày hôm sau.</div></div>
-      <div class="col-12 col-md-7"><label class="form-label">Người báo</label><div class="form-control bg-light"><i class="bi bi-person-check me-2"></i><?= e($user['name'] ?? '') ?><?= in_array('gvcn',$user['groups']??[],true)?' · GVCN':'' ?></div></div>
+      <div><label class="form-label">Ngày sử dụng bữa ăn</label><input type="date" name="date" class="form-control" value="<?= e($date) ?>" onchange="this.form.submit()"><div class="form-text">Bữa sáng mặc định là ngày hôm sau.</div></div>
+      <div><label class="form-label">Người báo</label><div class="form-control bg-light text-truncate"><i class="bi bi-person-check me-1"></i><?= e($user['name'] ?? '') ?><?= in_array('gvcn',$user['groups']??[],true)?' · GVCN':'' ?></div></div>
     </form>
     <label class="form-label">Chọn lớp</label>
     <div class="meal-class-list mb-3">
       <?php foreach ($mealClasses as $classKey=>$students): ?><a class="<?= $className===$classKey?'active':'' ?>" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','date'=>$date,'class'=>$classKey,'meal'=>$meal])) ?>"><?= e($classKey) ?> (<?= count($students) ?>)</a><?php endforeach; ?>
     </div>
     <div class="meal-tabs">
-      <?php foreach ($mealLabels as $mealKey=>$label): $tabDate=(!isset($_GET['date'])&&$mealKey!=='sang')?date('Y-m-d'):$date; $state=noitru_meal_state($tabDate,$mealKey)['status']??'open'; ?>
-        <a class="<?= $meal===$mealKey?'active':'' ?>" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','date'=>$tabDate,'class'=>$className,'meal'=>$mealKey])) ?>"><i class="bi <?= $mealKey==='sang'?'bi-sunrise':($mealKey==='trua'?'bi-sun':'bi-moon-stars') ?>"></i> <?= e($label) ?><?= $state==='locked'?' · Đã chốt':($state==='off'?' · Nghỉ':'') ?></a>
+      <?php foreach ($mealLabels as $mealKey=>$label): $tabDate=(!isset($_GET['date'])&&!in_array($mealKey,['all','sang'],true))?date('Y-m-d'):$date;
+        if ($mealKey==='all') { $tabStates=[]; foreach (['sang','trua','toi'] as $mk) $tabStates[]=noitru_meal_state($tabDate,$mk)['status']??'open'; $state=count(array_filter($tabStates,fn($s)=>$s==='locked'))===3?'locked':'open'; }
+        else $state=noitru_meal_state($tabDate,$mealKey)['status']??'open'; ?>
+        <a class="<?= $meal===$mealKey?'active':'' ?>" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','date'=>$tabDate,'class'=>$className,'meal'=>$mealKey])) ?>"><i class="bi <?= $mealKey==='all'?'bi-calendar-check':($mealKey==='sang'?'bi-sunrise':($mealKey==='trua'?'bi-sun':'bi-moon-stars')) ?>"></i> <?= e($label) ?><?= $state==='locked'?' · Đã chốt':($state==='off'?' · Nghỉ':'') ?></a>
       <?php endforeach; ?>
     </div>
   </div></div>
-  <?php if ($mealState === 'locked'): ?><div class="alert alert-info"><i class="bi bi-lock"></i> <?= e($mealLabels[$meal]) ?> đã được người phụ trách chốt. Báo cáo hiện chỉ được xem.</div><?php endif; ?>
-  <?php if ($mealState === 'off'): ?><div class="alert alert-warning"><i class="bi bi-calendar-x"></i> Người phụ trách đã thông báo nghỉ <?= mb_strtolower(e($mealLabels[$meal]),'UTF-8') ?> ngày này.</div><?php endif; ?>
-  <form method="post" class="card card-soft">
+  <?php if ($mealState !== 'open'): ?><div class="alert alert-info py-2"><i class="bi bi-lock"></i> Có bữa ăn đã được chốt hoặc thông báo nghỉ. Chọn từng bữa để xem chi tiết.</div><?php endif; ?>
+  <form method="post" class="card card-soft meal-form-card" id="mealReportForm" data-regular-meals="<?= $meal==='all'?'sang,trua,toi':e($meal) ?>" onsubmit="return prepareMealConfirmation(event)">
     <input type="hidden" name="action" value="meals_save">
     <input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="class_name" value="<?= e($className) ?>"><input type="hidden" name="meal" value="<?= e($meal) ?>">
+    <input type="hidden" name="submission_mode" id="mealSubmissionMode" value="regular">
+    <input type="hidden" name="target_meals" id="mealTargetMeals" value="<?= $meal==='all'?'sang,trua,toi':e($meal) ?>">
+    <input type="hidden" name="long_from" id="mealLongFrom" value="<?= e($date) ?>"><input type="hidden" name="long_until" id="mealLongUntil" value="<?= e($date) ?>">
     <div class="card-body">
-      <div class="d-flex justify-content-between gap-2 flex-wrap mb-3"><div><h5 class="mb-1"><?= e($className) ?> · <?= e($mealLabels[$meal]) ?></h5><div class="small text-muted"><?= $mealReport?'Đã báo bởi '.e($mealReport['reported_by']??'').' lúc '.e(date('d/m/Y H:i',strtotime($mealReport['updated_at']??$mealReport['created_at']??'now'))):'Chưa gửi báo cáo' ?></div></div>
-        <?php if (!$readOnly && $classStudents): ?><div class="d-flex gap-2"><button class="btn btn-outline-success btn-sm" type="button" onclick="setMealAbsent(false)">Đủ cả lớp</button><button class="btn btn-outline-danger btn-sm" type="button" onclick="setMealAbsent(true)">Nghỉ cả lớp</button></div><?php endif; ?>
+      <div class="d-flex justify-content-between gap-2 flex-wrap meal-form-head mb-3"><div><h5 class="mb-1"><?= e($className) ?> · <?= e($mealLabels[$meal]) ?></h5><div class="small text-muted"><?= $mealReport?'Đã báo bởi '.e($mealReport['reported_by']??'').' lúc '.e(date('d/m/Y H:i',strtotime($mealReport['updated_at']??$mealReport['created_at']??'now'))):($meal==='all'?'Báo đồng thời cả 3 bữa':'Chưa gửi báo cáo') ?></div></div>
+        <?php if (!$readOnly && $classStudents): ?><div class="meal-quick-actions"><button class="btn btn-outline-success btn-sm" type="button" onclick="setMealAbsent(false)">Đủ cả lớp</button><button class="btn btn-outline-danger btn-sm" type="button" onclick="setMealAbsent(true)">Nghỉ cả lớp</button><button class="btn btn-outline-warning btn-sm" type="button" onclick="openLongMealModal()"><i class="bi bi-calendar-range"></i> Nghỉ dài ngày</button></div><?php endif; ?>
       </div>
       <div class="alert alert-light border py-2"><strong>Mặc định tất cả học sinh ăn.</strong> Chỉ tích vào học sinh nghỉ ăn.</div>
-      <?php if (!$readOnly): ?><div class="row g-2 mb-3">
-        <div class="col-12 col-md-6"><label class="meal-student h-100"><input class="form-check-input" type="checkbox" name="all_meals" value="1"><span><strong>Áp dụng nghỉ cả 3 bữa</strong><small class="d-block text-muted">Một lần tích cho sáng, trưa và tối</small></span></label></div>
-        <div class="col-12 col-md-6"><label class="form-label">Nghỉ dài ngày đến hết</label><input class="form-control" type="date" name="long_until" min="<?= e($date) ?>" max="<?= e(date('Y-m-d',strtotime($date.' +60 days'))) ?>" value="<?= e($date) ?>"><div class="form-text">Nếu chọn ngày sau, các học sinh được tích sẽ nghỉ cả 3 bữa trong toàn bộ khoảng ngày.</div></div>
-      </div><?php endif; ?>
       <div class="meal-student-grid">
-        <?php foreach ($classStudents as $i=>$student): $value=$mealMap[$student['id']][$meal]??'yes'; ?>
-          <label class="meal-student"><input type="hidden" name="sid[]" value="<?= e($student['id']) ?>"><input class="form-check-input meal-absent" type="checkbox" <?= $value==='no'?'checked':'' ?> <?= $readOnly?'disabled':'' ?> onchange="this.nextElementSibling.value=this.checked?'no':'yes'"><input type="hidden" name="meal_status[]" value="<?= $value==='no'?'no':'yes' ?>"><span><strong><?= e($student['name']) ?></strong></span></label>
+        <?php foreach ($classStudents as $i=>$student): $studentMeals=$mealMap[$student['id']]??[]; $value=$meal==='all'?(count(array_filter(['sang','trua','toi'],fn($mk)=>($studentMeals[$mk]??'yes')==='no'))===3?'no':'yes'):($studentMeals[$meal]??'yes'); ?>
+          <label class="meal-student" data-student-name="<?= e($student['name']) ?>"><input type="hidden" name="sid[]" value="<?= e($student['id']) ?>"><input class="form-check-input meal-absent" type="checkbox" <?= $value==='no'?'checked':'' ?> <?= $readOnly?'disabled':'' ?> onchange="this.nextElementSibling.value=this.checked?'no':'yes'"><input type="hidden" name="meal_status[]" value="<?= $value==='no'?'no':'yes' ?>"><span><strong><?= e($student['name']) ?></strong></span></label>
         <?php endforeach; ?>
       </div>
     </div>
-    <?php if ($classStudents && !$readOnly): ?><div class="card-body border-top"><button class="btn btn-nt w-100" type="submit"><i class="bi bi-send-check"></i> <?= $mealReport?'Cập nhật':'Gửi' ?> báo ăn <?= e($mealLabels[$meal]) ?></button></div><?php endif; ?>
+    <?php if ($classStudents && !$readOnly): ?><div class="card-body border-top meal-save-bar"><button class="btn btn-nt w-100" type="submit"><i class="bi bi-send-check"></i> Kiểm tra và lưu báo ăn <?= e($mealLabels[$meal]) ?></button></div><?php endif; ?>
   </form>
+  <div class="modal fade" id="longMealModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-calendar-range me-2"></i>Học sinh nghỉ dài ngày</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="alert alert-warning py-2"><span id="longAbsentCount">0</span> học sinh đã được tích chọn.</div>
+      <div class="row g-2"><div class="col-6"><label class="form-label">Từ ngày</label><input class="form-control" type="date" id="longFromInput" min="<?= e($date) ?>" max="<?= e(date('Y-m-d',strtotime($date.' +60 days'))) ?>" value="<?= e($date) ?>"></div><div class="col-6"><label class="form-label">Đến ngày</label><input class="form-control" type="date" id="longUntilInput" min="<?= e($date) ?>" max="<?= e(date('Y-m-d',strtotime($date.' +60 days'))) ?>" value="<?= e($date) ?>"></div></div>
+      <label class="form-label mt-3">Áp dụng bữa ăn</label><select class="form-select" id="longMealsInput"><option value="sang">Bữa sáng</option><option value="trua">Bữa trưa</option><option value="toi">Bữa tối</option><option value="sang,trua,toi" selected>Cả 3 bữa</option></select>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-warning" type="button" onclick="continueLongMeal()">Tiếp tục kiểm tra</button></div>
+  </div></div></div>
+  <div class="modal fade" id="mealConfirmModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-clipboard-check me-2"></i>Kiểm tra báo ăn trước khi lưu</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="mealConfirmBody"></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Quay lại sửa</button><button class="btn btn-success" type="button" onclick="confirmMealSubmit()"><i class="bi bi-check-circle"></i> Xác nhận gửi</button></div>
+  </div></div></div>
 
 <?php elseif ($tab === 'meal_summary'): ?>
   <?php
@@ -1191,6 +1224,64 @@ function setMealAbsent(absent){
     box.checked=absent;
     if(box.nextElementSibling) box.nextElementSibling.value=absent?'no':'yes';
   });
+}
+function selectedMealStudents(){
+  return Array.from(document.querySelectorAll('#mealReportForm .meal-student')).filter(function(row){
+    return row.querySelector('.meal-absent')?.checked;
+  }).map(function(row){return row.dataset.studentName||''});
+}
+function mealNames(value){
+  var labels={sang:'Bữa sáng',trua:'Bữa trưa',toi:'Bữa tối'};
+  return String(value||'').split(',').filter(Boolean).map(function(key){return labels[key]||key}).join(', ');
+}
+function mealDateVi(value){
+  var parts=String(value||'').split('-');return parts.length===3?parts[2]+'/'+parts[1]+'/'+parts[0]:value;
+}
+function openLongMealModal(){
+  var selected=selectedMealStudents();
+  if(!selected.length){alert('Hãy tích chọn ít nhất 1 học sinh nghỉ trước.');return}
+  document.getElementById('longAbsentCount').textContent=selected.length;
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('longMealModal')).show();
+}
+function continueLongMeal(){
+  var from=document.getElementById('longFromInput').value,until=document.getElementById('longUntilInput').value;
+  if(!from||!until||until<from){alert('Khoảng ngày nghỉ chưa hợp lệ.');return}
+  document.getElementById('mealSubmissionMode').value='long';
+  document.getElementById('mealLongFrom').value=from;
+  document.getElementById('mealLongUntil').value=until;
+  document.getElementById('mealTargetMeals').value=document.getElementById('longMealsInput').value;
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('longMealModal')).hide();
+  showMealConfirmation();
+}
+function prepareMealConfirmation(event){
+  event.preventDefault();
+  var form=document.getElementById('mealReportForm');
+  document.getElementById('mealSubmissionMode').value='regular';
+  document.getElementById('mealTargetMeals').value=form.dataset.regularMeals||'';
+  document.getElementById('mealLongFrom').value=form.elements.date.value;
+  document.getElementById('mealLongUntil').value=form.elements.date.value;
+  showMealConfirmation();return false;
+}
+function showMealConfirmation(){
+  var form=document.getElementById('mealReportForm'),selected=selectedMealStudents(),total=form.querySelectorAll('input[name="sid[]"]').length;
+  var mode=document.getElementById('mealSubmissionMode').value;
+  var from=document.getElementById('mealLongFrom').value,until=document.getElementById('mealLongUntil').value;
+  var target=document.getElementById('mealTargetMeals').value,range=mealDateVi(from);
+  if(mode==='long'&&until!==from)range+=' – '+mealDateVi(until);
+  var body=document.getElementById('mealConfirmBody');body.replaceChildren();
+  var summary=document.createElement('div');summary.className='row g-2 mb-3';
+  [['Lớp',form.elements.class_name.value],['Thời gian',range],['Bữa ăn',mealNames(target)],['Số học sinh',String(total)],['Ăn',String(total-selected.length)],['Vắng',String(selected.length)]].forEach(function(item){
+    var cell=document.createElement('div');cell.className='col-6';var box=document.createElement('div');box.className='border rounded-3 p-2 h-100';
+    var small=document.createElement('small');small.className='d-block text-muted';small.textContent=item[0];var strong=document.createElement('strong');strong.textContent=item[1];box.append(small,strong);cell.append(box);summary.append(cell);
+  });body.append(summary);
+  var title=document.createElement('h6');title.textContent=selected.length?'Danh sách học sinh vắng':'Không có học sinh vắng';body.append(title);
+  if(selected.length){var list=document.createElement('div');list.className='meal-confirm-list';selected.forEach(function(name,index){var row=document.createElement('div');var n=document.createElement('span');n.textContent=(index+1)+'. '+name;row.append(n);list.append(row)});body.append(list)}
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('mealConfirmModal')).show();
+}
+function confirmMealSubmit(){
+  var form=document.getElementById('mealReportForm');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('mealConfirmModal')).hide();
+  form.submit();
 }
 function toggleRicePeriod(){
   var type=document.getElementById('ricePeriodType')?.value||'month';
