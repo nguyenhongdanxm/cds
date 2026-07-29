@@ -534,7 +534,7 @@ if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'excel') {
     $overview = nt_meal_day_overview($date, $boarders);
     $rice = noitru_rice_data();
     $riceKg = 0;
-    foreach (['sang','trua','toi'] as $mealKey) {
+    foreach (['trua','toi'] as $mealKey) {
         $riceKg += ($overview['meals'][$mealKey]['eat'] ?? 0) * (float)($rice['settings'][$mealKey . '_grams'] ?? 0) / 1000;
     }
     require __DIR__ . '/includes/noitru_meal_day_export.php';
@@ -810,7 +810,10 @@ form[method="post"]{display:none!important}
     $rice = noitru_rice_data();
     $riceKg = 0;
     foreach (['sang','trua','toi'] as $mealKey) $riceKg += ($overview['meals'][$mealKey]['eat']??0) * (float)($rice['settings'][$mealKey.'_grams']??0) / 1000;
-    $dayExportData = ['school'=>$school ?? 'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN','date'=>date('d/m/Y',strtotime($date)),'reporter'=>$user['name']??'','rice_kg'=>$riceKg,'meals'=>[]];
+    $riceLunchKg = ($overview['meals']['trua']['eat']??0) * (float)($rice['settings']['trua_grams']??180) / 1000;
+    $riceDinnerKg = ($overview['meals']['toi']['eat']??0) * (float)($rice['settings']['toi_grams']??180) / 1000;
+    $riceDayKg = $riceLunchKg + $riceDinnerKg;
+    $dayExportData = ['school'=>$school ?? 'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN','date'=>date('d/m/Y',strtotime($date)),'reporter'=>$user['name']??'','rice_kg'=>$riceDayKg,'rice_lunch_kg'=>$riceLunchKg,'rice_dinner_kg'=>$riceDinnerKg,'meals'=>[]];
     foreach ($mealLabels as $mealKey=>$label) {
       $info=$overview['meals'][$mealKey];
       $dayExportData['meals'][$mealKey]=[
@@ -856,7 +859,6 @@ form[method="post"]{display:none!important}
         <div class="meal-report-classes"><?php foreach ($info['reported'] as $class=>$report): ?><span><strong><?= e($class) ?></strong></span><?php endforeach; ?></div>
         <div class="meal-summary-stats"><div><small class="d-block text-muted">Tổng</small><strong><?= $info['total'] ?></strong></div><div class="eat"><small class="d-block">Ăn</small><strong><?= $info['eat'] ?></strong></div><div class="absent"><small class="d-block">Vắng</small><strong><?= $info['absent'] ?></strong></div></div>
       <?php else: ?><div class="meal-summary-empty">Chưa có báo cáo cho bữa này</div><?php endif; ?>
-      <?php if ($info['groups']): ?><details class="mt-3"><summary><strong>Chi tiết theo mâm/nhóm ăn</strong></summary><div class="table-responsive mt-2"><table class="table table-sm"><thead><tr><th>Mâm/nhóm</th><th>Số suất</th></tr></thead><tbody><?php foreach ($info['groups'] as $group=>$count): ?><tr><td><?= e($group) ?></td><td><strong><?= $count ?></strong></td></tr><?php endforeach; ?></tbody></table></div></details><?php endif; ?>
     </section>
   <?php endforeach; ?>
   <?php $missingMealCount=0; foreach ($overview['meals'] as $info) if ($info['missing']) $missingMealCount=max($missingMealCount,count($info['missing'])); if ($missingMealCount): ?>
@@ -864,7 +866,14 @@ form[method="post"]{display:none!important}
       <?php foreach ($overview['meals'] as $mealKey=>$info): if (!$info['missing']) continue; ?><div class="meal-missing-row"><strong><?= e($mealLabels[$mealKey]) ?>: <?= count($info['missing']) ?> lớp</strong><div class="meal-missing-chips"><?php foreach ($info['missing'] as $class): ?><span><?= e($class) ?></span><?php endforeach; ?></div></div><?php endforeach; ?>
     </details>
   <?php endif; ?>
-  <div class="alert alert-info d-flex justify-content-between align-items-center gap-2 flex-wrap"><div><strong>Tổng gạo dự kiến trong ngày</strong><div class="small">Sáng <?= $overview['meals']['sang']['eat'] ?> suất × <?= e($rice['settings']['sang_grams']??0) ?>g · Trưa <?= $overview['meals']['trua']['eat'] ?> suất × <?= e($rice['settings']['trua_grams']??180) ?>g · Tối <?= $overview['meals']['toi']['eat'] ?> suất × <?= e($rice['settings']['toi_grams']??180) ?>g</div></div><strong class="fs-4"><?= number_format($riceKg,2) ?> kg</strong></div>
+  <div class="alert alert-info">
+    <div class="mb-2"><strong>Gạo dự kiến trong ngày</strong><div class="small">Tự động tính từ số học sinh ăn và định mức gạo từng bữa</div></div>
+    <div class="row g-2 text-center">
+      <div class="col-4"><div class="bg-white bg-opacity-75 rounded-3 p-2 h-100"><small class="d-block text-muted">Bữa trưa</small><strong class="fs-5"><?= number_format($riceLunchKg,2) ?> kg</strong><small class="d-block"><?= $overview['meals']['trua']['eat'] ?> suất × <?= e($rice['settings']['trua_grams']??180) ?>g</small></div></div>
+      <div class="col-4"><div class="bg-white bg-opacity-75 rounded-3 p-2 h-100"><small class="d-block text-muted">Bữa tối</small><strong class="fs-5"><?= number_format($riceDinnerKg,2) ?> kg</strong><small class="d-block"><?= $overview['meals']['toi']['eat'] ?> suất × <?= e($rice['settings']['toi_grams']??180) ?>g</small></div></div>
+      <div class="col-4"><div class="bg-primary text-white rounded-3 p-2 h-100"><small class="d-block">Cả ngày</small><strong class="fs-4"><?= number_format($riceDayKg,2) ?> kg</strong><small class="d-block">Trưa + Tối</small></div></div>
+    </div>
+  </div>
   <div class="modal fade meal-export-modal" id="mealDayExportModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title" id="mealDayExportTitle"><i class="bi bi-image me-2"></i>Xuất báo cáo bữa ăn</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
     <div class="modal-body"><img class="meal-export-preview" id="mealDayExportPreview" alt="Ảnh báo cáo bữa ăn"></div>
@@ -1234,7 +1243,7 @@ function buildMealSummaryImage(){
   var data=window.ntMealDayData||{},meals=data.meals||{},keys=['sang','trua','toi'],totalEat=0,totalAbsent=0;
   keys.forEach(function(k){totalEat+=Number(meals[k]?.eat||0);totalAbsent+=Number(meals[k]?.absent||0)});
   var absentLines=0;keys.forEach(function(k){if(Number(meals[k]?.absent||0)>0)absentLines+=Math.max(2,Math.ceil((meals[k].students||[]).length/3))});
-  var base=mealExportBase('THỐNG KÊ BỮA ĂN','#0284c7',Math.max(820,650+absentLines*32)),ctx=base.ctx,w=base.w;
+  var base=mealExportBase('THỐNG KÊ BỮA ĂN','#0284c7',Math.max(930,760+absentLines*32)),ctx=base.ctx,w=base.w;
   var colors={sang:['#fff7ed','#ea580c'],trua:['#ecfdf5','#16a34a'],toi:['#eef2ff','#4f46e5']};
   keys.forEach(function(k,i){
     var m=meals[k]||{},x=70+i*255,c=colors[k];
@@ -1247,9 +1256,14 @@ function buildMealSummaryImage(){
   mealRoundRect(ctx,70,350,760,115,14,'#f8fafc','#e2e8f0');
   [['TỔNG SUẤT',totalEat,'#16a34a'],['TỔNG VẮNG',totalAbsent,'#dc2626'],['KG GẠO',Number(data.rice_kg||0).toFixed(2),'#b45309']].forEach(function(s,i){
     var x=70+i*253;ctx.textAlign='center';ctx.fillStyle=s[2];ctx.font='bold 34px Arial';ctx.fillText(String(s[1]),x+126,400);ctx.fillStyle='#64748b';ctx.font='16px Arial';ctx.fillText(s[0],x+126,435);
-    if(i<2){ctx.strokeStyle='#e2e8f0';ctx.beginPath();ctx.moveTo(x+253,370);ctx.lineTo(x+253,445);ctx.stroke()}
+      if(i<2){ctx.strokeStyle='#e2e8f0';ctx.beginPath();ctx.moveTo(x+253,370);ctx.lineTo(x+253,445);ctx.stroke()}
   });
-  ctx.textAlign='left';var y=505;
+  mealRoundRect(ctx,70,485,760,110,14,'#fffbeb','#fde68a');
+  [['GẠO BỮA TRƯA',Number(data.rice_lunch_kg||0).toFixed(2)+' kg'],['GẠO BỮA TỐI',Number(data.rice_dinner_kg||0).toFixed(2)+' kg'],['GẠO CẢ NGÀY',Number(data.rice_kg||0).toFixed(2)+' kg']].forEach(function(s,i){
+    var rx=70+i*253;ctx.textAlign='center';ctx.fillStyle=i===2?'#0369a1':'#b45309';ctx.font='bold 27px Arial';ctx.fillText(s[1],rx+126,535);ctx.fillStyle='#64748b';ctx.font='15px Arial';ctx.fillText(s[0],rx+126,566);
+    if(i<2){ctx.strokeStyle='#fde68a';ctx.beginPath();ctx.moveTo(rx+253,500);ctx.lineTo(rx+253,580);ctx.stroke()}
+  });
+  ctx.textAlign='left';var y=625;
   mealRoundRect(ctx,70,y,760,Math.max(120,base.canvas.height-y-75),14,'#fff7f7','#fecaca');
   ctx.fillStyle='#dc2626';ctx.font='bold 19px Arial';ctx.fillText('● DANH SÁCH VẮNG',92,y+34);y+=68;
   var any=false;
