@@ -36,12 +36,18 @@
     .att-dialog-close{border:0;background:transparent;font-size:1.2rem}.att-dialog-actions{display:flex;justify-content:flex-end;gap:.7rem;margin-top:1.2rem}
     .att-confirm-list{max-height:42vh;overflow:auto}.att-confirm-class{border:1px solid #dce5ec;border-radius:12px;margin:.6rem 0;overflow:hidden}.att-confirm-class header{display:flex;justify-content:space-between;padding:.55rem .7rem;font-weight:750}.att-confirm-class div{padding:.5rem .7rem;background:#fff7f7}
     .att-report-card{width:100%;background:#fff;padding:1.1rem;border:1px solid #dce5ec;border-radius:14px;text-align:center}.att-report-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.25rem;margin:1rem 0}.att-report-stats strong{display:block;font-size:1.25rem}
-    .att-history-row{display:grid;grid-template-columns:130px 1fr repeat(3,90px);gap:.7rem;padding:.7rem;border-bottom:1px solid #e5e7eb;align-items:center}
+    .att-history-filter{display:flex;align-items:end;gap:.7rem;flex-wrap:wrap;margin-bottom:1rem}
+    .att-history-day{border:1px solid #dce5ec;border-radius:16px;overflow:hidden;margin-bottom:1rem}
+    .att-history-day>header{display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.75rem 1rem;background:#f7fafc;border-bottom:1px solid #dce5ec}
+    .att-history-shifts{display:grid;gap:.7rem;padding:.8rem}
+    .att-history-shift{display:block;padding:.8rem;border:1px solid #e2e8f0;border-radius:12px;text-decoration:none;color:#253342;background:#fff}
+    .att-history-shift-head{display:flex;align-items:center;justify-content:space-between;gap:.7rem}.att-history-counts{display:flex;gap:.75rem;flex-wrap:wrap;font-size:.82rem;margin-top:.35rem}
+    .att-history-absent{margin-top:.55rem;padding-top:.5rem;border-top:1px dashed #f2b8b8;font-size:.8rem;color:#b91c1c}.att-history-absent span{display:inline-block;margin:.15rem .65rem .15rem 0}
     @media(max-width:767.98px){
       .att-panel{padding:.8rem}.att-controls{grid-template-columns:1fr 1fr}.att-controls>div:last-child{grid-column:1/-1}.att-class-chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:.25rem}.att-class-chips a{white-space:nowrap}
       .att-tools{grid-template-columns:1fr}.att-summary{gap:.5rem}.att-summary>div{padding:.7rem .35rem}.att-summary strong{font-size:1.35rem}
       .att-person{min-height:46px;padding:.48rem .65rem}.att-dialog-body{padding:1rem}.att-dialog-actions .btn{flex:1}
-      .att-history-row{grid-template-columns:1fr 1fr}.att-history-row>:nth-child(n+3){font-size:.8rem}
+      .att-history-day>header{align-items:flex-start}.att-history-shift-head{align-items:flex-start}.att-history-counts{gap:.5rem}
     }
   </style>
 </head>
@@ -78,22 +84,63 @@
 
     <?php if ($view==='history'): ?>
       <?php
-      $hist=[];
+      $historyDate=trim($_GET['history_date']??'');
+      if (!preg_match('/^\d{4}-\d{2}-\d{2}$/',$historyDate)) $historyDate='';
+      $historyFrom=$historyDate!==''?$historyDate:date('Y-m-d',strtotime('-6 days'));
+      $historyTo=$historyDate!==''?$historyDate:date('Y-m-d');
+      $historyDays=[];
       $allowedStudentIds=array_fill_keys(array_column($boarders,'id'),true);
+      $studentById=[];
+      foreach ($boarders as $student) $studentById[$student['id']]=$student;
       foreach (noitru_att_all() as $row) {
         if (!isset($allowedStudentIds[$row['student_id']??''])) continue;
-        $key=($row['date']??'').'|'.($row['shift']??'');
-        if (!isset($hist[$key])) $hist[$key]=['date'=>$row['date']??'','shift'=>$row['shift']??'','total'=>0,'present'=>0,'absent'=>0];
-        $hist[$key]['total']++;
-        if (in_array($row['status']??'present',['present','late'],true)) $hist[$key]['present']++; else $hist[$key]['absent']++;
+        $rowDate=$row['date']??'';
+        if ($rowDate<$historyFrom || $rowDate>$historyTo) continue;
+        $rowShift=$row['shift']??'dot_xuat';
+        if (!isset($historyDays[$rowDate][$rowShift])) $historyDays[$rowDate][$rowShift]=['total'=>0,'present'=>0,'absent'=>0,'students'=>[]];
+        $summary=&$historyDays[$rowDate][$rowShift];
+        $summary['total']++;
+        if (in_array($row['status']??'present',['present','late'],true)) {
+          $summary['present']++;
+        } else {
+          $summary['absent']++;
+          $student=$studentById[$row['student_id']??'']??[];
+          $summary['students'][]=[
+            'name'=>$student['name']??($row['student_name']??'Học sinh'),
+            'class'=>$student['class_name']??($row['class_name']??''),
+            'excuse'=>$row['excuse']??(($row['status']??'')==='excused'?'P':'KP'),
+            'reason'=>$row['reason']??'',
+          ];
+        }
+        unset($summary);
       }
-      krsort($hist);
+      krsort($historyDays);
+      $weekdayNames=['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
       ?>
       <div class="att-panel">
-        <h2 class="h5 mb-3">Lịch sử báo cáo</h2>
-        <?php foreach ($hist as $row): ?><a class="att-history-row text-decoration-none text-dark" href="<?= e(att_url(['view'=>'diemdanh','date'=>$row['date'],'shift'=>$row['shift']])) ?>">
-          <strong><?= e(date('d/m/Y',strtotime($row['date']))) ?></strong><span><?= e($shifts[$row['shift']]??$row['shift']) ?></span><span>Tổng: <?= $row['total'] ?></span><span class="text-success">Có: <?= $row['present'] ?></span><span class="text-danger">Vắng: <?= $row['absent'] ?></span>
-        </a><?php endforeach; if (!$hist): ?><div class="text-center text-muted py-5">Chưa có lịch sử điểm danh.</div><?php endif; ?>
+        <div class="nt-page-head">
+          <div><h2 class="h5">Lịch sử điểm danh</h2><div class="subtitle"><?= $historyDate!==''?'Kết quả ngày '.e(date('d/m/Y',strtotime($historyDate))):'7 ngày gần nhất' ?></div></div>
+          <form method="get" class="att-history-filter">
+            <input type="hidden" name="view" value="history">
+            <div><label class="form-label">Tra cứu ngày cũ</label><input class="form-control" type="date" name="history_date" value="<?= e($historyDate) ?>"></div>
+            <button class="btn btn-nt"><i class="bi bi-calendar-search"></i> Xem</button>
+            <?php if ($historyDate!==''): ?><a class="btn btn-outline-secondary" href="<?= e(att_url(['view'=>'history','history_date'=>null,'date'=>null,'shift'=>null,'class'=>null,'q'=>null])) ?>">7 ngày gần nhất</a><?php endif; ?>
+          </form>
+        </div>
+        <?php foreach ($historyDays as $day=>$dayShifts): ?>
+          <section class="att-history-day">
+            <header><div><strong><?= e($weekdayNames[(int)date('w',strtotime($day))]) ?></strong><div class="small text-muted"><?= e(date('d/m/Y',strtotime($day))) ?></div></div><span class="badge text-bg-light"><?= count($dayShifts) ?> buổi</span></header>
+            <div class="att-history-shifts">
+            <?php foreach ($dayShifts as $shiftKey=>$summary): ?>
+              <a class="att-history-shift" href="<?= e(att_url(['view'=>'diemdanh','date'=>$day,'shift'=>$shiftKey,'history_date'=>null])) ?>">
+                <div class="att-history-shift-head"><strong><i class="bi bi-clock-history text-primary"></i> <?= e($shifts[$shiftKey]??($shiftKey==='dot_xuat'?'Điểm danh đột xuất':$shiftKey)) ?></strong><i class="bi bi-chevron-right text-muted"></i></div>
+                <div class="att-history-counts"><span>Tổng: <strong><?= $summary['total'] ?></strong></span><span class="text-success">Có mặt: <strong><?= $summary['present'] ?></strong></span><span class="text-danger">Vắng: <strong><?= $summary['absent'] ?></strong></span></div>
+                <?php if ($summary['students']): ?><div class="att-history-absent"><strong>Học sinh vắng:</strong><br><?php foreach ($summary['students'] as $absent): ?><span><?= e(($absent['class']!==''?$absent['class'].': ':'').$absent['name'].' ('.$absent['excuse'].')'.($absent['reason']!==''?' – '.$absent['reason']:'')) ?></span><?php endforeach; ?></div><?php endif; ?>
+              </a>
+            <?php endforeach; ?>
+            </div>
+          </section>
+        <?php endforeach; if (!$historyDays): ?><div class="text-center text-muted py-5">Không có dữ liệu điểm danh trong khoảng này.</div><?php endif; ?>
       </div>
     <?php else: ?>
     <div class="att-panel">
