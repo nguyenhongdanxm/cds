@@ -52,10 +52,14 @@ $ntInGroup = function ($group) use ($ntGroups, $nt_sec) {
       <a href="<?= e($item[0]) ?>" class="<?= $nt_sec === $key ? 'active' : '' ?>"><i class="bi <?= e($item[1]) ?>"></i><span><?= e($item[2]) ?></span></a>
     <?php endforeach; ?>
     <?php foreach ($ntGroups as $groupKey=>$group): ?>
-      <div class="nt-side-group"><?= e($group['label']) ?></div>
-      <?php foreach ($group['items'] as $key): if (!isset($ntItems[$key])) continue; $item=$ntItems[$key]; ?>
-        <a href="<?= e($item[0]) ?>" class="nt-child <?= $nt_sec === $key ? 'active' : '' ?>"><i class="bi <?= e($item[1]) ?>"></i><span><?= e($item[2]) ?></span></a>
-      <?php endforeach; ?>
+      <button type="button" class="nt-side-parent <?= $ntInGroup($groupKey)?'open':'' ?>" data-nt-group="<?= e($groupKey) ?>" aria-expanded="<?= $ntInGroup($groupKey)?'true':'false' ?>">
+        <i class="bi <?= e($group['icon']) ?>"></i><span><?= e($group['label']) ?></span><i class="bi bi-chevron-down nt-chevron"></i>
+      </button>
+      <div class="nt-side-children <?= $ntInGroup($groupKey)?'open':'' ?>" data-nt-children="<?= e($groupKey) ?>">
+        <?php foreach ($group['items'] as $key): if (!isset($ntItems[$key])) continue; $item=$ntItems[$key]; ?>
+          <a href="<?= e($item[0]) ?>" class="nt-child <?= $nt_sec === $key ? 'active' : '' ?>"><i class="bi <?= e($item[1]) ?>"></i><span><?= e($item[2]) ?></span></a>
+        <?php endforeach; ?>
+      </div>
     <?php endforeach; ?>
     <?php foreach (['health','stats'] as $key): if (!isset($ntItems[$key])) continue; $item=$ntItems[$key]; ?>
       <a href="<?= e($item[0]) ?>" class="<?= $nt_sec === $key ? 'active' : '' ?>"><i class="bi <?= e($item[1]) ?>"></i><span><?= e($item[2]) ?></span></a>
@@ -96,7 +100,9 @@ foreach ($mobileSheets as $sheetKey=>$sheet):
 <script>
 document.addEventListener('click',function(e){
   var trigger=e.target.closest('[data-nt-sheet]'), close=e.target.closest('[data-nt-close]');
+  var group=e.target.closest('[data-nt-group]');
   if(trigger){document.body.classList.add('nt-sheet-open');document.querySelectorAll('[data-nt-panel]').forEach(function(p){p.classList.toggle('open',p.dataset.ntPanel===trigger.dataset.ntSheet);p.setAttribute('aria-hidden',p.dataset.ntPanel===trigger.dataset.ntSheet?'false':'true')});}
   if(close){document.body.classList.remove('nt-sheet-open');document.querySelectorAll('[data-nt-panel]').forEach(function(p){p.classList.remove('open');p.setAttribute('aria-hidden','true')});}
+  if(group){var key=group.dataset.ntGroup, panel=document.querySelector('[data-nt-children="'+key+'"]'), open=!group.classList.contains('open');group.classList.toggle('open',open);group.setAttribute('aria-expanded',open?'true':'false');if(panel)panel.classList.toggle('open',open);}
 });
 </script>
