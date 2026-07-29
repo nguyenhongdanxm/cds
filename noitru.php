@@ -68,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         noitru_require_global_scope();
         $rice = noitru_rice_data();
         if ($action === 'rice_settings') {
+            $rice['settings']['sang_grams'] = max(0, (float)($_POST['sang_grams'] ?? 0));
             $rice['settings']['trua_grams'] = max(0, (float)($_POST['trua_grams'] ?? 180));
             $rice['settings']['toi_grams'] = max(0, (float)($_POST['toi_grams'] ?? 180));
             flash('Đã lưu định mức gạo.');
@@ -78,11 +79,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $date = trim($_POST['date'] ?? date('Y-m-d'));
             $kg = max(0, (float)($_POST['kg'] ?? 0));
-            if ($action === 'rice_issue' && !empty($_POST['auto'])) {
-                $counts = noitru_meals_count_day($date);
-                $meal = ($_POST['meal'] ?? 'trua') === 'toi' ? 'toi' : 'trua';
-                $kg = round(($counts[$meal] ?? 0) * (float)($rice['settings'][$meal.'_grams'] ?? 180) / 1000, 3);
-            }
             if ($kg > 0) $rice['transactions'][] = [
                 'id'=>noitru_uid('rice'),'date'=>$date,'type'=>$action==='rice_in'?'in':'out',
                 'kg'=>$kg,'meal'=>trim($_POST['meal'] ?? ''),'note'=>trim($_POST['note'] ?? ''),
@@ -500,6 +496,46 @@ if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'csv') {
     }
     fclose($fp); exit;
 }
+if ($tab === 'rice' && ($_GET['export'] ?? '') === 'excel') {
+    $periodType = $_GET['period_type'] ?? 'month';
+    $month = $_GET['month'] ?? date('Y-m');
+    $from = $_GET['from'] ?? date('Y-m-01');
+    $to = $_GET['to'] ?? date('Y-m-d');
+    if ($periodType === 'month' && preg_match('/^\d{4}-\d{2}$/', $month)) {
+        $from = $month . '-01';
+        $to = date('Y-m-t', strtotime($from));
+        $periodLabel = 'Tháng ' . date('m/Y', strtotime($from));
+        $filePart = 'thang-' . $month;
+    } else {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) $from = date('Y-m-01');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to) || $to < $from) $to = date('Y-m-d');
+        $periodLabel = 'Từ ngày ' . date('d/m/Y', strtotime($from)) . ' đến ngày ' . date('d/m/Y', strtotime($to));
+        $filePart = $from . '-' . $to;
+    }
+    $riceData = noitru_rice_data();
+    $usage = noitru_rice_usage_summary($from, $to, $riceData);
+    $manualIn = $manualOut = 0.0;
+    foreach ($riceData['transactions'] ?? [] as $transaction) {
+        $transactionDate = $transaction['date'] ?? '';
+        if ($transactionDate < $from || $transactionDate > $to) continue;
+        if (($transaction['type'] ?? '') === 'in') $manualIn += (float)($transaction['kg'] ?? 0);
+        else $manualOut += (float)($transaction['kg'] ?? 0);
+    }
+    require_once __DIR__ . '/includes/noitru_rice_export.php';
+    noitru_rice_excel($usage, [
+        'school'=>defined('SCHOOL_NAME')?SCHOOL_NAME:'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN',
+        'period'=>$periodLabel,
+        'manual_in'=>$manualIn,
+        'manual_out'=>$manualOut,
+        'balance'=>noitru_rice_balance($riceData),
+        'sang_grams'=>$riceData['settings']['sang_grams']??0,
+        'trua_grams'=>$riceData['settings']['trua_grams']??180,
+        'toi_grams'=>$riceData['settings']['toi_grams']??180,
+        'exported_at'=>date('d/m/Y H:i'),
+        'exported_by'=>$user['name']??'',
+        'filename'=>'bao-cao-gao-'.$filePart.'.xls',
+    ]);
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -750,17 +786,53 @@ form[method="post"]{display:none!important}
   <div class="alert alert-info d-flex justify-content-between align-items-center gap-2 flex-wrap"><div><strong>Tổng gạo dự kiến trong ngày</strong><div class="small">Sáng <?= $overview['meals']['sang']['eat'] ?> suất × <?= e($rice['settings']['sang_grams']??0) ?>g · Trưa <?= $overview['meals']['trua']['eat'] ?> suất × <?= e($rice['settings']['trua_grams']??180) ?>g · Tối <?= $overview['meals']['toi']['eat'] ?> suất × <?= e($rice['settings']['toi_grams']??180) ?>g</div></div><strong class="fs-4"><?= number_format($riceKg,2) ?> kg</strong></div>
 
 <?php elseif ($tab === 'rice'): ?>
-  <?php $rice=noitru_rice_data(); $riceBalance=noitru_rice_balance($rice); $riceRows=array_reverse($rice['transactions']??[]); ?>
-  <div class="nt-page-head"><div><h4>Quản lý gạo</h4><div class="subtitle">Nhập kho, xuất kho và định mức theo suất ăn</div></div></div>
+  <?php
+    $rice=noitru_rice_data();
+    $riceBalance=noitru_rice_balance($rice);
+    $riceRows=array_reverse($rice['transactions']??[]);
+    $periodType=$_GET['period_type']??'month';
+    $month=$_GET['month']??date('Y-m');
+    $riceFrom=$_GET['from']??date('Y-m-01');
+    $riceTo=$_GET['to']??date('Y-m-d');
+    if ($periodType==='month' && preg_match('/^\d{4}-\d{2}$/',$month)) {
+      $riceFrom=$month.'-01'; $riceTo=date('Y-m-t',strtotime($riceFrom));
+    } else {
+      $periodType='custom';
+      if (!preg_match('/^\d{4}-\d{2}-\d{2}$/',$riceFrom)) $riceFrom=date('Y-m-01');
+      if (!preg_match('/^\d{4}-\d{2}-\d{2}$/',$riceTo) || $riceTo<$riceFrom) $riceTo=date('Y-m-d');
+    }
+    $riceUsage=noitru_rice_usage_summary($riceFrom,$riceTo,$rice);
+  ?>
+  <div class="nt-page-head"><div><h4>Quản lý gạo</h4><div class="subtitle">Tự động trừ kho theo số suất ăn của các bữa đã chốt</div></div><a class="btn btn-success" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'rice','export'=>'excel','period_type'=>$periodType,'month'=>$month,'from'=>$riceFrom,'to'=>$riceTo])) ?>"><i class="bi bi-file-earmark-excel"></i> Xuất báo cáo Excel</a></div>
   <div class="row g-2 mb-3">
-    <div class="col-6 col-md-4"><div class="stat"><div class="n"><?= number_format($riceBalance,3) ?> kg</div><div class="small text-muted">Tồn kho hiện tại</div></div></div>
-    <div class="col-6 col-md-4"><div class="stat"><div class="n"><?= e($rice['settings']['trua_grams']??180) ?> g</div><div class="small text-muted">Một HS / bữa trưa</div></div></div>
-    <div class="col-6 col-md-4"><div class="stat"><div class="n"><?= e($rice['settings']['toi_grams']??180) ?> g</div><div class="small text-muted">Một HS / bữa tối</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= number_format($riceBalance,3) ?> kg</div><div class="small text-muted">Tồn kho hiện tại</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= number_format($riceUsage['total_kg'],3) ?> kg</div><div class="small text-muted">Đã dùng trong giai đoạn</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$riceUsage['total_students'] ?></div><div class="small text-muted">Tổng lượt học sinh ăn</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><i class="bi bi-arrow-repeat"></i></div><div class="small text-muted">Tự động theo bữa đã chốt</div></div></div>
   </div>
+  <form method="get" class="card card-soft mb-3"><div class="card-body">
+    <input type="hidden" name="tab" value="rice">
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-md-2"><label class="form-label">Kiểu thống kê</label><select class="form-select" name="period_type" id="ricePeriodType" onchange="toggleRicePeriod()"><option value="month" <?= $periodType==='month'?'selected':'' ?>>Theo tháng</option><option value="custom" <?= $periodType==='custom'?'selected':'' ?>>Theo giai đoạn</option></select></div>
+      <div class="col-12 col-md-3" data-rice-period="month"><label class="form-label">Tháng</label><input class="form-control" type="month" name="month" value="<?= e($month) ?>"></div>
+      <div class="col-6 col-md-3" data-rice-period="custom"><label class="form-label">Từ ngày</label><input class="form-control" type="date" name="from" value="<?= e($riceFrom) ?>"></div>
+      <div class="col-6 col-md-3" data-rice-period="custom"><label class="form-label">Đến ngày</label><input class="form-control" type="date" name="to" value="<?= e($riceTo) ?>"></div>
+      <div class="col-12 col-md-2"><button class="btn btn-nt w-100"><i class="bi bi-bar-chart"></i> Thống kê</button></div>
+    </div>
+  </div></form>
+  <div class="card card-soft mb-3"><div class="card-body"><h6>Gạo tiêu thụ tự động theo ngày</h6><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Ngày</th><th>Sáng</th><th>Trưa</th><th>Tối</th><th>Lượt ăn</th><th>Tổng gạo</th></tr></thead><tbody>
+    <?php foreach (array_reverse($riceUsage['days'],true) as $usageDate=>$day): ?><tr><td><strong><?= e(date('d/m/Y',strtotime($usageDate))) ?></strong></td>
+      <?php foreach (['sang','trua','toi'] as $mealKey): ?><td><?= (int)$day[$mealKey]['students'] ?> HS<br><small class="text-muted"><?= number_format($day[$mealKey]['kg'],3) ?> kg</small></td><?php endforeach; ?>
+      <td><?= (int)$day['students'] ?></td><td><strong><?= number_format($day['kg'],3) ?> kg</strong></td></tr>
+    <?php endforeach; if (!$riceUsage['days']): ?><tr><td colspan="6" class="text-center text-muted py-3">Chưa có bữa ăn đã chốt trong giai đoạn này.</td></tr><?php endif; ?>
+    </tbody><tfoot><tr class="table-success"><th colspan="4">Tổng cộng</th><th><?= (int)$riceUsage['total_students'] ?> lượt</th><th><?= number_format($riceUsage['total_kg'],3) ?> kg</th></tr></tfoot>
+  </table></div></div></div>
   <?php if (allowed_classes()===null && $canEditCurrent): ?>
   <div class="row g-3 mb-3">
     <div class="col-lg-4"><form method="post" class="card card-soft h-100"><div class="card-body">
       <input type="hidden" name="action" value="rice_settings"><h6>Định mức gạo</h6>
+      <label class="form-label">Bữa sáng (gam/HS)</label><input type="number" step="1" min="0" name="sang_grams" class="form-control mb-2" value="<?= e($rice['settings']['sang_grams']??0) ?>">
       <label class="form-label">Bữa trưa (gam/HS)</label><input type="number" step="1" min="0" name="trua_grams" class="form-control mb-2" value="<?= e($rice['settings']['trua_grams']??180) ?>">
       <label class="form-label">Bữa tối (gam/HS)</label><input type="number" step="1" min="0" name="toi_grams" class="form-control mb-3" value="<?= e($rice['settings']['toi_grams']??180) ?>">
       <button class="btn btn-nt w-100">Lưu định mức</button>
@@ -773,16 +845,15 @@ form[method="post"]{display:none!important}
       <button class="btn btn-success w-100">Nhập kho</button>
     </div></form></div>
     <div class="col-lg-4"><form method="post" class="card card-soft h-100"><div class="card-body">
-      <input type="hidden" name="action" value="rice_issue"><h6>Xuất kho theo suất ăn</h6>
+      <input type="hidden" name="action" value="rice_issue"><h6>Xuất/điều chỉnh khác</h6>
       <label class="form-label">Ngày</label><input type="date" name="date" class="form-control mb-2" value="<?= date('Y-m-d') ?>">
-      <label class="form-label">Bữa ăn</label><select name="meal" class="form-select mb-2"><option value="trua">Bữa trưa</option><option value="toi">Bữa tối</option></select>
-      <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="auto" value="1" id="riceAuto" checked><label class="form-check-label" for="riceAuto">Tự tính theo số suất đã báo</label></div>
-      <label class="form-label">Hoặc nhập số kg thực xuất</label><input type="number" step=".001" min="0" name="kg" class="form-control mb-3">
-      <button class="btn btn-warning w-100">Xuất kho</button>
+      <label class="form-label">Số kg</label><input type="number" step=".001" min=".001" name="kg" class="form-control mb-2" required>
+      <label class="form-label">Lý do</label><input name="note" class="form-control mb-3" placeholder="Hao hụt, điều chỉnh, xuất khác…" required>
+      <button class="btn btn-warning w-100">Ghi xuất khác</button>
     </div></form></div>
   </div>
   <?php endif; ?>
-  <div class="card card-soft"><div class="card-body"><h6>Lịch sử kho gạo</h6><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+  <div class="card card-soft"><div class="card-body"><h6>Nhập kho và điều chỉnh thủ công</h6><div class="table-responsive"><table class="table table-sm align-middle mb-0">
     <thead><tr><th>Ngày</th><th>Loại</th><th>Số lượng</th><th>Bữa</th><th>Ghi chú</th><th></th></tr></thead><tbody>
     <?php foreach ($riceRows as $row): ?><tr><td><?= e(date('d/m/Y',strtotime($row['date']))) ?></td><td><span class="badge <?= ($row['type']??'')==='in'?'bg-success':'bg-warning text-dark' ?>"><?= ($row['type']??'')==='in'?'Nhập':'Xuất' ?></span></td><td><strong><?= number_format((float)$row['kg'],3) ?> kg</strong></td><td><?= e(($row['meal']??'')==='trua'?'Trưa':(($row['meal']??'')==='toi'?'Tối':'—')) ?></td><td><?= e($row['note']??'') ?></td><td><?php if ($canDeleteCurrent && allowed_classes()===null): ?><form method="post"><input type="hidden" name="action" value="rice_delete"><input type="hidden" name="id" value="<?= e($row['id']) ?>"><button class="btn btn-sm btn-outline-danger" onclick="return confirm('Xóa giao dịch này?')"><i class="bi bi-trash"></i></button></form><?php endif; ?></td></tr>
     <?php endforeach; if (!$riceRows): ?><tr><td colspan="6" class="text-center text-muted py-3">Chưa có giao dịch.</td></tr><?php endif; ?></tbody>
@@ -1025,6 +1096,13 @@ function setMealAbsent(absent){
     if(box.nextElementSibling) box.nextElementSibling.value=absent?'no':'yes';
   });
 }
+function toggleRicePeriod(){
+  var type=document.getElementById('ricePeriodType')?.value||'month';
+  document.querySelectorAll('[data-rice-period]').forEach(function(box){
+    box.hidden=box.dataset.ricePeriod!==type;
+  });
+}
+toggleRicePeriod();
 </script>
 </body>
 </html>
