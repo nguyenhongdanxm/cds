@@ -17,19 +17,19 @@
     .att-class-chips{display:flex;flex-wrap:wrap;gap:.5rem}
     .att-class-chips a{min-height:42px;padding:.55rem .85rem;border:1px solid #d6e0e7;border-radius:12px;text-decoration:none;color:#253342;font-weight:650;background:#fff}
     .att-class-chips a.active{background:var(--nt-primary);border-color:var(--nt-primary);color:#fff}
-    .att-tools{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-top:1rem}
+    .att-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-top:1rem}
     .att-tool{display:flex;align-items:center;justify-content:center;gap:.6rem;min-height:48px;border:1px solid #d6e0e7;border-radius:12px;background:#fff}
     .att-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:1rem 0}
     .att-summary>div{padding:1rem;text-align:center;border:1px solid #dce5ec;border-radius:15px}
     .att-summary strong{display:block;font-size:1.65rem}.att-total strong{color:#089dd8}.att-present strong{color:#16a34a}.att-absent strong{color:#dc2626}
     .att-bulk{display:flex;gap:.65rem;flex-wrap:wrap;margin-bottom:1rem}
     .att-search{position:relative;margin-bottom:1rem}.att-search i{position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:#789}.att-search input{padding-left:2.7rem}
-    .att-students{border:1px solid #dce5ec;border-radius:16px;overflow:hidden}
-    .att-person{display:flex;align-items:center;gap:.8rem;width:100%;min-height:58px;padding:.7rem 1rem;border:0;border-bottom:1px solid #dce5ec;background:#fff;text-align:left}
+    .att-students{border:1px solid #dce5ec;border-radius:16px;overflow-y:auto;max-height:min(52vh,620px);scrollbar-gutter:stable}
+    .att-person{display:flex;align-items:center;gap:.65rem;width:100%;min-height:44px;padding:.42rem .75rem;border:0;border-bottom:1px solid #e6edf2;background:#fff;text-align:left}
     .att-person:last-child{border-bottom:0}.att-person:hover{background:#f8fbfd}
-    .att-dot{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;border-radius:50%;background:#0ea5e9;color:#fff}
+    .att-dot{width:24px;height:24px;flex:0 0 24px;display:grid;place-items:center;border-radius:50%;border:2px solid #a8b6c2;background:#fff;color:transparent}
     .att-person.absent{background:#fff6f6;color:#b91c1c}.att-person.absent .att-dot{background:#dc2626}.att-person.excused .att-dot{background:#f59e0b}
-    .att-person-name{font-weight:700}.att-person-class{color:#64748b;margin-left:.4rem;font-size:.82rem}.att-person-meta{display:block;font-size:.72rem;margin-top:.12rem}
+    .att-person-name{font-weight:700}.att-person-class{color:#64748b;margin-left:.4rem;font-size:.8rem}.att-person-meta{display:block;font-size:.7rem;margin-top:.08rem}
     .att-save{width:100%;min-height:52px;margin-top:1rem;font-weight:750}
     .att-dialog{width:min(560px,calc(100% - 1.2rem));border:0;border-radius:20px;padding:0;box-shadow:0 25px 70px rgba(15,23,42,.28)}
     .att-dialog::backdrop{background:rgba(15,23,42,.68)}.att-dialog-body{padding:1.35rem}.att-dialog-head{display:flex;justify-content:space-between;gap:1rem;align-items:start}
@@ -40,7 +40,7 @@
     @media(max-width:767.98px){
       .att-panel{padding:.8rem}.att-controls{grid-template-columns:1fr 1fr}.att-controls>div:last-child{grid-column:1/-1}.att-class-chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:.25rem}.att-class-chips a{white-space:nowrap}
       .att-tools{grid-template-columns:1fr}.att-summary{gap:.5rem}.att-summary>div{padding:.7rem .35rem}.att-summary strong{font-size:1.35rem}
-      .att-person{min-height:62px;padding:.75rem}.att-dialog-body{padding:1rem}.att-dialog-actions .btn{flex:1}
+      .att-person{min-height:46px;padding:.48rem .65rem}.att-dialog-body{padding:1rem}.att-dialog-actions .btn{flex:1}
       .att-history-row{grid-template-columns:1fr 1fr}.att-history-row>:nth-child(n+3){font-size:.8rem}
     }
   </style>
@@ -58,11 +58,15 @@
     <form method="post" class="card card-soft"><div class="card-body">
       <input type="hidden" name="action" value="shifts_save"><input type="hidden" name="view" value="settings">
       <div class="nt-page-head"><div><h2>Cài đặt buổi điểm danh</h2></div><a class="btn btn-outline-secondary" href="<?= e(att_url(['view'=>'diemdanh'])) ?>">Quay lại</a></div>
+      <div class="small text-muted mb-3">Hệ thống tự nhận diện buổi theo giờ bắt đầu–kết thúc. Ngoài các khoảng giờ này sẽ là <strong>Điểm danh đột xuất</strong>.</div>
       <?php foreach ($allShifts as $i=>$row): ?><div class="row g-2 align-items-center mb-2">
         <div class="col-auto"><input class="form-check-input" type="checkbox" name="active[<?= $i ?>]" value="1" <?= !empty($row['active'])?'checked':'' ?>></div>
-        <div class="col"><input type="hidden" name="sid[]" value="<?= e($row['id']) ?>"><input class="form-control" name="label[]" value="<?= e($row['label']) ?>"></div>
-        <div class="col-3"><input class="form-control" type="number" name="sort[]" value="<?= (int)$row['sort'] ?>"></div>
+        <div class="col-12 col-md"><input type="hidden" name="sid[]" value="<?= e($row['id']) ?>"><label class="form-label">Tên buổi</label><input class="form-control" name="label[]" value="<?= e($row['label']) ?>"></div>
+        <div class="col-5 col-md-2"><label class="form-label">Từ giờ</label><input class="form-control" type="time" name="start[]" value="<?= e($row['start']??'') ?>"></div>
+        <div class="col-5 col-md-2"><label class="form-label">Đến giờ</label><input class="form-control" type="time" name="end[]" value="<?= e($row['end']??'') ?>"></div>
+        <div class="col-2 col-md-1"><label class="form-label">Thứ tự</label><input class="form-control" type="number" name="sort[]" value="<?= (int)$row['sort'] ?>"></div>
       </div><?php endforeach; ?>
+      <div class="border-top pt-3 mt-3"><h3 class="h6">Thêm buổi mới</h3><div class="row g-2"><div class="col-md-3"><input class="form-control" name="new_id" placeholder="Mã buổi"></div><div class="col-md-3"><input class="form-control" name="new_label" placeholder="Tên buổi"></div><div class="col"><input class="form-control" type="time" name="new_start"></div><div class="col"><input class="form-control" type="time" name="new_end"></div></div></div>
       <button class="btn btn-nt mt-2">Lưu cài đặt</button>
     </div></form>
   <?php else: ?>
@@ -97,20 +101,19 @@
         <input type="hidden" name="view" value="diemdanh"><input type="hidden" name="class" id="classFilter" value="<?= e($class) ?>">
         <div class="att-controls">
           <div><label class="form-label">Ngày</label><input class="form-control" type="date" name="date" value="<?= e($date) ?>" onchange="this.form.submit()"></div>
-          <div><label class="form-label">Buổi</label><select class="form-select" name="shift" onchange="this.form.submit()"><?php foreach ($shifts as $key=>$label): ?><option value="<?= e($key) ?>" <?= $shift===$key?'selected':'' ?>><?= e($label) ?></option><?php endforeach; ?></select></div>
+          <div><label class="form-label">Buổi tự động theo giờ</label><div class="form-control d-flex align-items-center bg-light"><i class="bi bi-clock me-2"></i><strong><?= e($shiftLabel) ?></strong></div></div>
           <div><label class="form-label">Chọn lớp</label><div class="att-class-chips">
             <a class="<?= $class===''?'active':'' ?>" href="<?= e(att_url(['class'=>null,'q'=>null])) ?>">Tất cả (<?= count($boarders) ?>)</a>
             <?php foreach ($byClass as $key=>$rows): ?><a class="<?= $class===$key?'active':'' ?>" href="<?= e(att_url(['class'=>$key,'q'=>null])) ?>"><?= e($key) ?> (<?= count($rows) ?>)</a><?php endforeach; ?>
           </div></div>
         </div>
       </form>
-      <div class="att-tools">
-        <?php if (allowed_classes()===null && can_edit_perm('nt.diemdanh')): ?>
+      <?php if ($isAdmin): ?><div class="att-tools">
+        <?php if (can_edit_perm('nt.diemdanh')): ?>
         <label class="att-tool px-2"><i class="bi bi-person-check"></i><span class="flex-grow-1"><small class="d-block text-muted">Báo cáo thay</small><select class="form-select form-select-sm border-0 p-0" name="reporter" form="attendanceForm"><option value="<?= e($reporter) ?>"><?= e($reporter) ?> (Tôi)</option><?php foreach ($reporters as $teacher): if (($teacher['name']??'')===$reporter) continue; ?><option value="<?= e($teacher['name']) ?>"><?= e($teacher['name']) ?></option><?php endforeach; ?></select></span></label>
-        <?php else: ?><div class="att-tool"><i class="bi bi-person-check"></i><span><small class="d-block text-muted">Người báo cáo</small><strong><?= e($reporter) ?></strong></span></div><?php endif; ?>
-        <?php if (allowed_classes()===null && can_edit_perm('nt.diemdanh')): ?><a class="att-tool text-decoration-none text-dark" href="<?= e(att_url(['view'=>'settings'])) ?>"><i class="bi bi-sliders"></i><strong>Cài đặt buổi</strong></a><?php endif; ?>
-        <button class="att-tool" type="button" onclick="document.getElementById('generalNote').focus()"><i class="bi bi-chat-left"></i><strong>Ghi chú</strong></button>
-      </div>
+        <?php endif; ?>
+        <a class="att-tool text-decoration-none text-dark" href="<?= e(att_url(['view'=>'settings'])) ?>"><i class="bi bi-sliders"></i><strong>Cài đặt buổi</strong></a>
+      </div><?php endif; ?>
       <div class="att-summary"><div class="att-total"><strong id="sumTotal"><?= $cntTotal ?></strong><span>Tổng số</span></div><div class="att-present"><strong id="sumPresent"><?= $cntPresent ?></strong><span>Có mặt</span></div><div class="att-absent"><strong id="sumAbsent"><?= $cntAbsent ?></strong><span>Vắng</span></div></div>
 
       <form method="post" id="attendanceForm">
@@ -120,12 +123,11 @@
         <div class="att-students" id="studentList">
         <?php foreach ($list as $i=>$student): $record=$attMap[$student['id']]??[]; $status=$record['status']??'present'; $isAbsent=!in_array($status,['present','late'],true); ?>
           <button type="button" class="att-person <?= $isAbsent?'absent':'' ?> <?= $status==='excused'?'excused':'' ?>" data-index="<?= $i ?>" data-name="<?= e($student['name']) ?>" data-class="<?= e($student['class_name']) ?>" <?= can_edit_perm('nt.diemdanh')?'':'disabled' ?>>
-            <span class="att-dot"><i class="bi <?= $isAbsent?'bi-x':'bi-check' ?>"></i></span><span><span class="att-person-name"><?= e($student['name']) ?></span><span class="att-person-class"><?= e($student['class_name']) ?></span><small class="att-person-meta"><?= $isAbsent?e(($record['excuse']??'KP').' · '.($record['reason']??'')):'Có mặt' ?></small></span>
+              <span class="att-dot"><i class="bi <?= $isAbsent?'bi-check':'bi-circle' ?>"></i></span><span><span class="att-person-name"><?= e($student['name']) ?></span><span class="att-person-class"><?= e($student['class_name']) ?></span><small class="att-person-meta"><?= $isAbsent?e(($record['excuse']??'KP').(($record['reason']??'')?' · '.$record['reason']:'')):'' ?></small></span>
             <input type="hidden" name="sid[]" value="<?= e($student['id']) ?>"><input type="hidden" name="status[]" value="<?= e($status) ?>"><input type="hidden" name="excuse[]" value="<?= e($record['excuse']??'') ?>"><input type="hidden" name="reason[]" value="<?= e($record['reason']??'') ?>">
           </button>
         <?php endforeach; if (!$list): ?><div class="text-center text-muted py-4">Không có học sinh phù hợp.</div><?php endif; ?>
         </div>
-        <textarea id="generalNote" name="general_note" class="form-control mt-3" rows="2" placeholder="Ghi chú chung cho buổi điểm danh (không bắt buộc)"></textarea>
         <?php if (can_edit_perm('nt.diemdanh') && $list): ?><button class="btn btn-nt att-save" type="button" onclick="openConfirm()"><i class="bi bi-floppy"></i> Lưu báo cáo</button><?php endif; ?>
       </form>
     </div>
@@ -145,6 +147,7 @@
   <div class="att-dialog-head"><div><h3 class="h5 mb-1"><i class="bi bi-exclamation-triangle text-warning"></i> Xác nhận báo cáo điểm danh</h3><p class="text-muted mb-2"><?= e($dateLabel) ?> · <?= e($shiftLabel) ?></p></div><button class="att-dialog-close" type="button" onclick="closeDialog('confirmDialog')"><i class="bi bi-x-lg"></i></button></div>
   <div class="d-flex justify-content-around border-top border-bottom py-2 mb-2"><span class="text-success">Có mặt: <strong id="confirmPresent"></strong></span><span class="text-danger">Vắng: <strong id="confirmAbsent"></strong></span><span>Tổng: <strong id="confirmTotal"></strong></span></div>
   <div class="att-confirm-list" id="confirmList"></div>
+  <label class="form-label fw-bold mt-2">Ghi chú chung</label><textarea name="general_note" form="attendanceForm" class="form-control" rows="2" placeholder="Nhập ghi chú nếu có…"></textarea>
   <div class="att-dialog-actions"><button class="btn btn-outline-secondary" type="button" onclick="closeDialog('confirmDialog')">Quay lại chỉnh sửa</button><button class="btn btn-nt" type="button" onclick="document.getElementById('attendanceForm').submit()"><i class="bi bi-check-circle"></i> Xác nhận lưu</button></div>
 </div></dialog>
 
@@ -160,8 +163,8 @@ function closeDialog(id){document.getElementById(id).close()}
 function rowData(row){return {status:row.querySelector('[name="status[]"]'),excuse:row.querySelector('[name="excuse[]"]'),reason:row.querySelector('[name="reason[]"]')}}
 function updateRow(row){
   var d=rowData(row), absent=!['present','late'].includes(d.status.value), meta=row.querySelector('.att-person-meta'), icon=row.querySelector('.att-dot i');
-  row.classList.toggle('absent',absent);row.classList.toggle('excused',d.status.value==='excused');icon.className='bi '+(absent?'bi-x':'bi-check');
-  meta.textContent=absent?((d.excuse.value||'KP')+(d.reason.value?' · '+d.reason.value:'')):'Có mặt';updateSummary();
+  row.classList.toggle('absent',absent);row.classList.toggle('excused',d.status.value==='excused');icon.className='bi '+(absent?'bi-check':'bi-circle');
+  meta.textContent=absent?((d.excuse.value||'KP')+(d.reason.value?' · '+d.reason.value:'')):'';updateSummary();
 }
 function updateSummary(){var rows=[...document.querySelectorAll('.att-person')], absent=rows.filter(r=>r.classList.contains('absent')).length;document.getElementById('sumTotal').textContent=rows.length;document.getElementById('sumPresent').textContent=rows.length-absent;document.getElementById('sumAbsent').textContent=absent}
 document.querySelectorAll('.att-person').forEach(function(row){row.addEventListener('click',function(e){if(e.target.matches('input'))return;activeRow=row;var d=rowData(row);document.getElementById('absenceName').textContent=row.dataset.name;document.getElementById('absenceReason').value=d.reason.value;document.querySelector('[name="absenceType"][value="'+(d.excuse.value||'KP')+'"]').checked=true;document.getElementById('absenceDialog').showModal()})});
