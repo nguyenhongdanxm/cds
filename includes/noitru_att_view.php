@@ -1,4 +1,3 @@
-PLACEHOLDER_WILL_UPDATE
 <!doctype html>
 <html lang="vi">
 <head>
@@ -7,131 +6,184 @@ PLACEHOLDER_WILL_UPDATE
   <title>Điểm danh nội trú – CDS</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="<?= BASE_URL ?>includes/noitru_layout.css?v=20260729-2" rel="stylesheet">
+  <link href="<?= BASE_URL ?>includes/noitru_layout.css?v=20260729-3" rel="stylesheet">
+  <style>
+    .att-shell{background:#fff;border:1px solid #dce5ec;border-radius:18px;overflow:hidden}
+    .att-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #dce5ec}
+    .att-tabs a{padding:1rem;text-align:center;text-decoration:none;color:#64748b;font-weight:700;border-bottom:3px solid transparent}
+    .att-tabs a.active{color:var(--nt-primary);border-color:var(--nt-primary)}
+    .att-panel{padding:1.2rem}
+    .att-controls{display:grid;grid-template-columns:1fr 1fr 2.1fr;gap:1rem}
+    .att-class-chips{display:flex;flex-wrap:wrap;gap:.5rem}
+    .att-class-chips a{min-height:42px;padding:.55rem .85rem;border:1px solid #d6e0e7;border-radius:12px;text-decoration:none;color:#253342;font-weight:650;background:#fff}
+    .att-class-chips a.active{background:var(--nt-primary);border-color:var(--nt-primary);color:#fff}
+    .att-tools{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-top:1rem}
+    .att-tool{display:flex;align-items:center;justify-content:center;gap:.6rem;min-height:48px;border:1px solid #d6e0e7;border-radius:12px;background:#fff}
+    .att-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:1rem 0}
+    .att-summary>div{padding:1rem;text-align:center;border:1px solid #dce5ec;border-radius:15px}
+    .att-summary strong{display:block;font-size:1.65rem}.att-total strong{color:#089dd8}.att-present strong{color:#16a34a}.att-absent strong{color:#dc2626}
+    .att-bulk{display:flex;gap:.65rem;flex-wrap:wrap;margin-bottom:1rem}
+    .att-search{position:relative;margin-bottom:1rem}.att-search i{position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:#789}.att-search input{padding-left:2.7rem}
+    .att-students{border:1px solid #dce5ec;border-radius:16px;overflow:hidden}
+    .att-person{display:flex;align-items:center;gap:.8rem;width:100%;min-height:58px;padding:.7rem 1rem;border:0;border-bottom:1px solid #dce5ec;background:#fff;text-align:left}
+    .att-person:last-child{border-bottom:0}.att-person:hover{background:#f8fbfd}
+    .att-dot{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;border-radius:50%;background:#0ea5e9;color:#fff}
+    .att-person.absent{background:#fff6f6;color:#b91c1c}.att-person.absent .att-dot{background:#dc2626}.att-person.excused .att-dot{background:#f59e0b}
+    .att-person-name{font-weight:700}.att-person-class{color:#64748b;margin-left:.4rem;font-size:.82rem}.att-person-meta{display:block;font-size:.72rem;margin-top:.12rem}
+    .att-save{width:100%;min-height:52px;margin-top:1rem;font-weight:750}
+    .att-dialog{width:min(560px,calc(100% - 1.2rem));border:0;border-radius:20px;padding:0;box-shadow:0 25px 70px rgba(15,23,42,.28)}
+    .att-dialog::backdrop{background:rgba(15,23,42,.68)}.att-dialog-body{padding:1.35rem}.att-dialog-head{display:flex;justify-content:space-between;gap:1rem;align-items:start}
+    .att-dialog-close{border:0;background:transparent;font-size:1.2rem}.att-dialog-actions{display:flex;justify-content:flex-end;gap:.7rem;margin-top:1.2rem}
+    .att-confirm-list{max-height:42vh;overflow:auto}.att-confirm-class{border:1px solid #dce5ec;border-radius:12px;margin:.6rem 0;overflow:hidden}.att-confirm-class header{display:flex;justify-content:space-between;padding:.55rem .7rem;font-weight:750}.att-confirm-class div{padding:.5rem .7rem;background:#fff7f7}
+    .att-report-card{width:100%;background:#fff;padding:1.1rem;border:1px solid #dce5ec;border-radius:14px;text-align:center}.att-report-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.25rem;margin:1rem 0}.att-report-stats strong{display:block;font-size:1.25rem}
+    .att-history-row{display:grid;grid-template-columns:130px 1fr repeat(3,90px);gap:.7rem;padding:.7rem;border-bottom:1px solid #e5e7eb;align-items:center}
+    @media(max-width:767.98px){
+      .att-panel{padding:.8rem}.att-controls{grid-template-columns:1fr 1fr}.att-controls>div:last-child{grid-column:1/-1}.att-class-chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:.25rem}.att-class-chips a{white-space:nowrap}
+      .att-tools{grid-template-columns:1fr}.att-summary{gap:.5rem}.att-summary>div{padding:.7rem .35rem}.att-summary strong{font-size:1.35rem}
+      .att-person{min-height:62px;padding:.75rem}.att-dialog-body{padding:1rem}.att-dialog-actions .btn{flex:1}
+      .att-history-row{grid-template-columns:1fr 1fr}.att-history-row>:nth-child(n+3){font-size:.8rem}
+    }
+  </style>
 </head>
 <body class="nt-body">
-<?php $nt_sec = 'attendance'; require __DIR__ . '/noitru_shell.php'; ?>
+<?php $nt_sec='attendance'; require __DIR__.'/noitru_shell.php'; ?>
 <main class="nt-main"><div class="nt-content">
   <div class="nt-page-head">
-    <div>
-      <h1><i class="bi bi-clipboard2-check-fill text-success"></i> Điểm danh nội trú</h1>
-      <div class="subtitle"><?= e($weekdayVi) ?>, <?= e($dateLabel) ?> · <?= e($shiftLabel) ?></div>
-    </div>
-    <div class="nt-actions">
-      <?php if ($view === 'settings'): ?>
-        <a class="btn btn-outline-secondary" href="<?= e(att_url(['view'=>'diemdanh'])) ?>"><i class="bi bi-arrow-left"></i> Điểm danh</a>
-      <?php elseif (allowed_classes() === null && can_edit_perm('nt.diemdanh')): ?>
-        <a class="btn btn-outline-secondary" href="<?= e(att_url(['view'=>'settings'])) ?>"><i class="bi bi-gear"></i> Cấu hình ca</a>
-      <?php endif; ?>
-    </div>
+    <div><h1><i class="bi bi-house-check text-primary"></i> Điểm danh nội trú</h1><div class="subtitle">Báo cáo sĩ số nội trú theo các buổi</div></div>
   </div>
-
   <?php show_flash(); ?>
 
-  <?php if ($view === 'settings'): ?>
-    <?php $allShifts = noitru_att_shifts_all(); ?>
-    <form method="post" class="card card-soft">
-      <div class="card-body">
-        <input type="hidden" name="action" value="shifts_save">
-        <input type="hidden" name="view" value="settings">
-        <h2 class="h6 mb-3">Các ca điểm danh</h2>
-        <div class="table-responsive">
-          <table class="table align-middle mb-3">
-            <thead><tr><th>Hoạt động</th><th>Mã ca</th><th>Tên hiển thị</th><th>Thứ tự</th></tr></thead>
-            <tbody>
-            <?php foreach ($allShifts as $i => $row): ?>
-              <tr>
-                <td><input class="form-check-input" type="checkbox" name="active[<?= $i ?>]" value="1" <?= !empty($row['active'])?'checked':'' ?>></td>
-                <td><input type="hidden" name="sid[]" value="<?= e($row['id']) ?>"><code><?= e($row['id']) ?></code></td>
-                <td><input class="form-control form-control-sm" name="label[]" value="<?= e($row['label']) ?>" required></td>
-                <td><input class="form-control form-control-sm" type="number" name="sort[]" value="<?= (int)$row['sort'] ?>" style="max-width:90px"></td>
-              </tr>
-            <?php endforeach; ?>
-            </tbody>
-          </table>
-        </div>
-        <div class="nt-filter mb-3">
-          <div><label class="form-label">Mã ca mới</label><input class="form-control" name="new_id" placeholder="vi_du: hoc_chieu"></div>
-          <div class="wide"><label class="form-label">Tên ca mới</label><input class="form-control" name="new_label" placeholder="Ví dụ: Học buổi chiều"></div>
-        </div>
-        <button class="btn btn-nt" type="submit"><i class="bi bi-check2-circle"></i> Lưu cấu hình</button>
-      </div>
-    </form>
-  <?php else: ?>
-    <form method="get" class="card card-soft mb-3"><div class="card-body nt-filter">
-      <input type="hidden" name="view" value="diemdanh">
-      <div><label class="form-label">Ngày</label><input class="form-control" type="date" name="date" value="<?= e($date) ?>"></div>
-      <div><label class="form-label">Ca</label><select class="form-select" name="shift">
-        <?php foreach ($shifts as $key => $label): ?><option value="<?= e($key) ?>" <?= $shift===$key?'selected':'' ?>><?= e($label) ?></option><?php endforeach; ?>
-      </select></div>
-      <div><label class="form-label">Lớp</label><select class="form-select" name="class">
-        <option value="">Tất cả lớp</option>
-        <?php foreach ($byClass as $key => $rows): ?><option value="<?= e($key) ?>" <?= $class===$key?'selected':'' ?>><?= e($key) ?> (<?= count($rows) ?>)</option><?php endforeach; ?>
-      </select></div>
-      <div class="wide"><label class="form-label">Tìm học sinh</label><input class="form-control" type="search" name="q" value="<?= e($q) ?>" placeholder="Tên, mã, lớp hoặc phòng"></div>
-      <div class="compact"><button class="btn btn-nt w-100" type="submit"><i class="bi bi-funnel"></i> Lọc</button></div>
+  <?php if ($view==='settings'): ?>
+    <?php $allShifts=noitru_att_shifts_all(); ?>
+    <form method="post" class="card card-soft"><div class="card-body">
+      <input type="hidden" name="action" value="shifts_save"><input type="hidden" name="view" value="settings">
+      <div class="nt-page-head"><div><h2>Cài đặt buổi điểm danh</h2></div><a class="btn btn-outline-secondary" href="<?= e(att_url(['view'=>'diemdanh'])) ?>">Quay lại</a></div>
+      <?php foreach ($allShifts as $i=>$row): ?><div class="row g-2 align-items-center mb-2">
+        <div class="col-auto"><input class="form-check-input" type="checkbox" name="active[<?= $i ?>]" value="1" <?= !empty($row['active'])?'checked':'' ?>></div>
+        <div class="col"><input type="hidden" name="sid[]" value="<?= e($row['id']) ?>"><input class="form-control" name="label[]" value="<?= e($row['label']) ?>"></div>
+        <div class="col-3"><input class="form-control" type="number" name="sort[]" value="<?= (int)$row['sort'] ?>"></div>
+      </div><?php endforeach; ?>
+      <button class="btn btn-nt mt-2">Lưu cài đặt</button>
     </div></form>
+  <?php else: ?>
+  <section class="att-shell">
+    <nav class="att-tabs">
+      <a class="<?= $view!=='history'?'active':'' ?>" href="<?= e(att_url(['view'=>'diemdanh'])) ?>"><i class="bi bi-house-door"></i> Điểm danh</a>
+      <a class="<?= $view==='history'?'active':'' ?>" href="<?= e(att_url(['view'=>'history'])) ?>"><i class="bi bi-file-earmark-text"></i> Lịch sử</a>
+    </nav>
 
-    <div class="row g-2 mb-3">
-      <div class="col-4"><div class="stat"><div class="n"><?= $cntTotal ?></div><div class="text-muted small">Tổng số</div></div></div>
-      <div class="col-4"><div class="stat"><div class="n text-success"><?= $cntPresent ?></div><div class="text-muted small">Có mặt</div></div></div>
-      <div class="col-4"><div class="stat"><div class="n text-danger"><?= $cntAbsent ?></div><div class="text-muted small">Vắng</div></div></div>
-    </div>
-
-    <form method="post" id="attendanceForm" class="card card-soft">
-      <input type="hidden" name="action" id="attAction" value="att_save">
-      <input type="hidden" name="bulk_status" id="bulkStatus" value="">
-      <input type="hidden" name="date" value="<?= e($date) ?>">
-      <input type="hidden" name="shift" value="<?= e($shift) ?>">
-      <input type="hidden" name="class" value="<?= e($class) ?>">
-      <input type="hidden" name="view" value="diemdanh">
-      <div class="card-body">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-          <div><strong><?= count($list) ?> học sinh</strong><div class="small text-muted">Chọn trạng thái, phép/không phép và ghi lý do khi cần.</div></div>
-          <?php if (can_edit_perm('nt.diemdanh') && $list): ?>
-          <div class="nt-actions">
-            <button class="btn btn-outline-success btn-sm" type="button" onclick="bulkAttendance('present')">Tất cả có mặt</button>
-            <button class="btn btn-outline-danger btn-sm" type="button" onclick="bulkAttendance('absent')">Tất cả vắng</button>
-          </div>
-          <?php endif; ?>
-        </div>
-        <div class="att-list">
-          <?php foreach ($list as $i => $student):
-            $record = $attMap[$student['id']] ?? [];
-            $status = $record['status'] ?? 'present';
-          ?>
-          <div class="att-row">
-            <div class="att-student">
-              <input type="hidden" name="sid[]" value="<?= e($student['id']) ?>">
-              <strong><?= e($student['name']) ?></strong>
-              <small><?= e($student['class_name'] ?: 'Chưa lớp') ?> · Phòng <?= e($student['room_ktx'] ?: '—') ?></small>
-            </div>
-            <div><label>Trạng thái</label><select class="form-select form-select-sm" name="status[]" <?= can_edit_perm('nt.diemdanh')?'':'disabled' ?>>
-              <?php foreach (['present'=>'Có mặt','absent'=>'Vắng','late'=>'Muộn','excused'=>'Có phép'] as $key=>$label): ?>
-              <option value="<?= $key ?>" <?= $status===$key?'selected':'' ?>><?= $label ?></option>
-              <?php endforeach; ?>
-            </select></div>
-            <div><label>Phép</label><select class="form-select form-select-sm" name="excuse[]" <?= can_edit_perm('nt.diemdanh')?'':'disabled' ?>>
-              <option value="">—</option><option value="P" <?= ($record['excuse']??'')==='P'?'selected':'' ?>>P</option><option value="KP" <?= ($record['excuse']??'')==='KP'?'selected':'' ?>>KP</option>
-            </select></div>
-            <div><label>Lý do / ghi chú</label><input class="form-control form-control-sm" name="reason[]" value="<?= e($record['reason']??'') ?>" <?= can_edit_perm('nt.diemdanh')?'':'readonly' ?>></div>
-          </div>
-          <?php endforeach; ?>
-          <?php if (!$list): ?><div class="text-center text-muted py-4">Không có học sinh phù hợp.</div><?php endif; ?>
-        </div>
-        <?php if (can_edit_perm('nt.diemdanh') && $list): ?>
-        <div class="sticky-save"><button class="btn btn-nt" type="submit"><i class="bi bi-cloud-check"></i> Lưu điểm danh</button></div>
-        <?php endif; ?>
+    <?php if ($view==='history'): ?>
+      <?php
+      $hist=[];
+      $allowedStudentIds=array_fill_keys(array_column($boarders,'id'),true);
+      foreach (noitru_att_all() as $row) {
+        if (!isset($allowedStudentIds[$row['student_id']??''])) continue;
+        $key=($row['date']??'').'|'.($row['shift']??'');
+        if (!isset($hist[$key])) $hist[$key]=['date'=>$row['date']??'','shift'=>$row['shift']??'','total'=>0,'present'=>0,'absent'=>0];
+        $hist[$key]['total']++;
+        if (in_array($row['status']??'present',['present','late'],true)) $hist[$key]['present']++; else $hist[$key]['absent']++;
+      }
+      krsort($hist);
+      ?>
+      <div class="att-panel">
+        <h2 class="h5 mb-3">Lịch sử báo cáo</h2>
+        <?php foreach ($hist as $row): ?><a class="att-history-row text-decoration-none text-dark" href="<?= e(att_url(['view'=>'diemdanh','date'=>$row['date'],'shift'=>$row['shift']])) ?>">
+          <strong><?= e(date('d/m/Y',strtotime($row['date']))) ?></strong><span><?= e($shifts[$row['shift']]??$row['shift']) ?></span><span>Tổng: <?= $row['total'] ?></span><span class="text-success">Có: <?= $row['present'] ?></span><span class="text-danger">Vắng: <?= $row['absent'] ?></span>
+        </a><?php endforeach; if (!$hist): ?><div class="text-center text-muted py-5">Chưa có lịch sử điểm danh.</div><?php endif; ?>
       </div>
-    </form>
+    <?php else: ?>
+    <div class="att-panel">
+      <form method="get" id="attFilter">
+        <input type="hidden" name="view" value="diemdanh"><input type="hidden" name="class" id="classFilter" value="<?= e($class) ?>">
+        <div class="att-controls">
+          <div><label class="form-label">Ngày</label><input class="form-control" type="date" name="date" value="<?= e($date) ?>" onchange="this.form.submit()"></div>
+          <div><label class="form-label">Buổi</label><select class="form-select" name="shift" onchange="this.form.submit()"><?php foreach ($shifts as $key=>$label): ?><option value="<?= e($key) ?>" <?= $shift===$key?'selected':'' ?>><?= e($label) ?></option><?php endforeach; ?></select></div>
+          <div><label class="form-label">Chọn lớp</label><div class="att-class-chips">
+            <a class="<?= $class===''?'active':'' ?>" href="<?= e(att_url(['class'=>null,'q'=>null])) ?>">Tất cả (<?= count($boarders) ?>)</a>
+            <?php foreach ($byClass as $key=>$rows): ?><a class="<?= $class===$key?'active':'' ?>" href="<?= e(att_url(['class'=>$key,'q'=>null])) ?>"><?= e($key) ?> (<?= count($rows) ?>)</a><?php endforeach; ?>
+          </div></div>
+        </div>
+      </form>
+      <div class="att-tools">
+        <?php if (allowed_classes()===null && can_edit_perm('nt.diemdanh')): ?>
+        <label class="att-tool px-2"><i class="bi bi-person-check"></i><span class="flex-grow-1"><small class="d-block text-muted">Báo cáo thay</small><select class="form-select form-select-sm border-0 p-0" name="reporter" form="attendanceForm"><option value="<?= e($reporter) ?>"><?= e($reporter) ?> (Tôi)</option><?php foreach ($reporters as $teacher): if (($teacher['name']??'')===$reporter) continue; ?><option value="<?= e($teacher['name']) ?>"><?= e($teacher['name']) ?></option><?php endforeach; ?></select></span></label>
+        <?php else: ?><div class="att-tool"><i class="bi bi-person-check"></i><span><small class="d-block text-muted">Người báo cáo</small><strong><?= e($reporter) ?></strong></span></div><?php endif; ?>
+        <?php if (allowed_classes()===null && can_edit_perm('nt.diemdanh')): ?><a class="att-tool text-decoration-none text-dark" href="<?= e(att_url(['view'=>'settings'])) ?>"><i class="bi bi-sliders"></i><strong>Cài đặt buổi</strong></a><?php endif; ?>
+        <button class="att-tool" type="button" onclick="document.getElementById('generalNote').focus()"><i class="bi bi-chat-left"></i><strong>Ghi chú</strong></button>
+      </div>
+      <div class="att-summary"><div class="att-total"><strong id="sumTotal"><?= $cntTotal ?></strong><span>Tổng số</span></div><div class="att-present"><strong id="sumPresent"><?= $cntPresent ?></strong><span>Có mặt</span></div><div class="att-absent"><strong id="sumAbsent"><?= $cntAbsent ?></strong><span>Vắng</span></div></div>
+
+      <form method="post" id="attendanceForm">
+        <input type="hidden" name="action" value="att_save"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="shift" value="<?= e($shift) ?>"><input type="hidden" name="class" value="<?= e($class) ?>"><input type="hidden" name="view" value="diemdanh">
+        <?php if (can_edit_perm('nt.diemdanh')): ?><div class="att-bulk"><button class="btn btn-outline-success" type="button" onclick="setAll('present')"><i class="bi bi-check-circle"></i> Đủ tất cả</button><button class="btn btn-outline-danger" type="button" onclick="setAll('absent')"><i class="bi bi-x-circle"></i> Vắng tất cả</button></div><?php endif; ?>
+        <div class="att-search"><i class="bi bi-search"></i><input class="form-control" type="search" id="studentSearch" placeholder="Tìm học sinh…"></div>
+        <div class="att-students" id="studentList">
+        <?php foreach ($list as $i=>$student): $record=$attMap[$student['id']]??[]; $status=$record['status']??'present'; $isAbsent=!in_array($status,['present','late'],true); ?>
+          <button type="button" class="att-person <?= $isAbsent?'absent':'' ?> <?= $status==='excused'?'excused':'' ?>" data-index="<?= $i ?>" data-name="<?= e($student['name']) ?>" data-class="<?= e($student['class_name']) ?>" <?= can_edit_perm('nt.diemdanh')?'':'disabled' ?>>
+            <span class="att-dot"><i class="bi <?= $isAbsent?'bi-x':'bi-check' ?>"></i></span><span><span class="att-person-name"><?= e($student['name']) ?></span><span class="att-person-class"><?= e($student['class_name']) ?></span><small class="att-person-meta"><?= $isAbsent?e(($record['excuse']??'KP').' · '.($record['reason']??'')):'Có mặt' ?></small></span>
+            <input type="hidden" name="sid[]" value="<?= e($student['id']) ?>"><input type="hidden" name="status[]" value="<?= e($status) ?>"><input type="hidden" name="excuse[]" value="<?= e($record['excuse']??'') ?>"><input type="hidden" name="reason[]" value="<?= e($record['reason']??'') ?>">
+          </button>
+        <?php endforeach; if (!$list): ?><div class="text-center text-muted py-4">Không có học sinh phù hợp.</div><?php endif; ?>
+        </div>
+        <textarea id="generalNote" name="general_note" class="form-control mt-3" rows="2" placeholder="Ghi chú chung cho buổi điểm danh (không bắt buộc)"></textarea>
+        <?php if (can_edit_perm('nt.diemdanh') && $list): ?><button class="btn btn-nt att-save" type="button" onclick="openConfirm()"><i class="bi bi-floppy"></i> Lưu báo cáo</button><?php endif; ?>
+      </form>
+    </div>
+    <?php endif; ?>
+  </section>
   <?php endif; ?>
 </div></main>
+
+<dialog class="att-dialog" id="absenceDialog"><div class="att-dialog-body">
+  <div class="att-dialog-head"><div><h3 class="h5 mb-1">Lý do vắng mặt</h3><p class="text-muted">Cập nhật cho học sinh: <strong id="absenceName"></strong></p></div><button class="att-dialog-close" type="button" onclick="closeDialog('absenceDialog')"><i class="bi bi-x-lg"></i></button></div>
+  <label class="form-label fw-bold">Loại vắng</label><div class="d-flex gap-4 mb-3"><label><input type="radio" name="absenceType" value="P"> Có phép (P)</label><label><input type="radio" name="absenceType" value="KP" checked> Không phép (KP)</label></div>
+  <label class="form-label fw-bold">Lý do</label><textarea class="form-control" id="absenceReason" rows="3" placeholder="Nhập lý do vắng mặt…"></textarea>
+  <div class="att-dialog-actions"><button class="btn btn-outline-secondary" type="button" onclick="markPresentFromDialog()">Có mặt</button><button class="btn btn-nt" type="button" onclick="saveAbsence()">Lưu</button></div>
+</div></dialog>
+
+<dialog class="att-dialog" id="confirmDialog"><div class="att-dialog-body">
+  <div class="att-dialog-head"><div><h3 class="h5 mb-1"><i class="bi bi-exclamation-triangle text-warning"></i> Xác nhận báo cáo điểm danh</h3><p class="text-muted mb-2"><?= e($dateLabel) ?> · <?= e($shiftLabel) ?></p></div><button class="att-dialog-close" type="button" onclick="closeDialog('confirmDialog')"><i class="bi bi-x-lg"></i></button></div>
+  <div class="d-flex justify-content-around border-top border-bottom py-2 mb-2"><span class="text-success">Có mặt: <strong id="confirmPresent"></strong></span><span class="text-danger">Vắng: <strong id="confirmAbsent"></strong></span><span>Tổng: <strong id="confirmTotal"></strong></span></div>
+  <div class="att-confirm-list" id="confirmList"></div>
+  <div class="att-dialog-actions"><button class="btn btn-outline-secondary" type="button" onclick="closeDialog('confirmDialog')">Quay lại chỉnh sửa</button><button class="btn btn-nt" type="button" onclick="document.getElementById('attendanceForm').submit()"><i class="bi bi-check-circle"></i> Xác nhận lưu</button></div>
+</div></dialog>
+
+<dialog class="att-dialog" id="reportDialog"><div class="att-dialog-body">
+  <div class="att-dialog-head"><h3 class="h5"><i class="bi bi-image"></i> Xuất ảnh báo cáo</h3><button class="att-dialog-close" onclick="closeDialog('reportDialog')"><i class="bi bi-x-lg"></i></button></div>
+  <canvas id="reportCanvas" style="width:100%;margin-top:1rem;border:1px solid #eee"></canvas>
+  <div class="att-dialog-actions"><button class="btn btn-outline-secondary" onclick="downloadReport()"><i class="bi bi-download"></i> Tải ảnh</button><button class="btn btn-nt" onclick="shareReport()"><i class="bi bi-share"></i> Chia sẻ</button></div>
+</div></dialog>
+
 <script>
-function bulkAttendance(status){
-  document.getElementById('attAction').value='att_bulk';
-  document.getElementById('bulkStatus').value=status;
-  document.getElementById('attendanceForm').submit();
+var activeRow=null;
+function closeDialog(id){document.getElementById(id).close()}
+function rowData(row){return {status:row.querySelector('[name="status[]"]'),excuse:row.querySelector('[name="excuse[]"]'),reason:row.querySelector('[name="reason[]"]')}}
+function updateRow(row){
+  var d=rowData(row), absent=!['present','late'].includes(d.status.value), meta=row.querySelector('.att-person-meta'), icon=row.querySelector('.att-dot i');
+  row.classList.toggle('absent',absent);row.classList.toggle('excused',d.status.value==='excused');icon.className='bi '+(absent?'bi-x':'bi-check');
+  meta.textContent=absent?((d.excuse.value||'KP')+(d.reason.value?' · '+d.reason.value:'')):'Có mặt';updateSummary();
 }
+function updateSummary(){var rows=[...document.querySelectorAll('.att-person')], absent=rows.filter(r=>r.classList.contains('absent')).length;document.getElementById('sumTotal').textContent=rows.length;document.getElementById('sumPresent').textContent=rows.length-absent;document.getElementById('sumAbsent').textContent=absent}
+document.querySelectorAll('.att-person').forEach(function(row){row.addEventListener('click',function(e){if(e.target.matches('input'))return;activeRow=row;var d=rowData(row);document.getElementById('absenceName').textContent=row.dataset.name;document.getElementById('absenceReason').value=d.reason.value;document.querySelector('[name="absenceType"][value="'+(d.excuse.value||'KP')+'"]').checked=true;document.getElementById('absenceDialog').showModal()})});
+function saveAbsence(){if(!activeRow)return;var d=rowData(activeRow), type=document.querySelector('[name="absenceType"]:checked').value;d.status.value=type==='P'?'excused':'absent';d.excuse.value=type;d.reason.value=document.getElementById('absenceReason').value.trim();updateRow(activeRow);closeDialog('absenceDialog')}
+function markPresentFromDialog(){if(!activeRow)return;var d=rowData(activeRow);d.status.value='present';d.excuse.value='';d.reason.value='';updateRow(activeRow);closeDialog('absenceDialog')}
+function setAll(status){document.querySelectorAll('.att-person').forEach(function(row){var d=rowData(row);d.status.value=status;d.excuse.value=status==='absent'?'KP':'';d.reason.value='';updateRow(row)})}
+document.getElementById('studentSearch')?.addEventListener('input',function(){var q=this.value.toLocaleLowerCase('vi');document.querySelectorAll('.att-person').forEach(r=>r.hidden=!((r.dataset.name+' '+r.dataset.class).toLocaleLowerCase('vi').includes(q)))});
+function openConfirm(){
+  var rows=[...document.querySelectorAll('.att-person')], absent=rows.filter(r=>r.classList.contains('absent')), groups={};
+  absent.forEach(function(r){(groups[r.dataset.class]??=[]).push(r)});
+  document.getElementById('confirmTotal').textContent=rows.length;document.getElementById('confirmPresent').textContent=rows.length-absent.length;document.getElementById('confirmAbsent').textContent=absent.length;
+  document.getElementById('confirmList').innerHTML=Object.entries(groups).map(([c,rs])=>'<section class="att-confirm-class"><header><span>'+escapeHtml(c)+'</span><span>'+rs.length+' vắng</span></header>'+rs.map((r,i)=>{var d=rowData(r);return '<div>'+(i+1)+'. '+escapeHtml(r.dataset.name)+' <strong>'+escapeHtml(d.excuse.value||'KP')+'</strong>'+(d.reason.value?' – '+escapeHtml(d.reason.value):'')+'</div>'}).join('')+'</section>').join('')||( '<div class="text-center text-success py-3">Tất cả học sinh có mặt.</div>');
+  document.getElementById('confirmDialog').showModal();
+}
+function escapeHtml(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+function drawReport(){
+  var canvas=document.getElementById('reportCanvas'),ctx=canvas.getContext('2d'),rows=[...document.querySelectorAll('.att-person')],abs=rows.filter(r=>r.classList.contains('absent'));canvas.width=900;canvas.height=Math.max(560,390+abs.length*42);ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.textAlign='center';ctx.fillStyle='#64748b';ctx.font='22px Arial';ctx.fillText(<?= json_encode($school, JSON_UNESCAPED_UNICODE) ?>,450,48);ctx.fillStyle='#0284c7';ctx.font='bold 34px Arial';ctx.fillText('ĐIỂM DANH '+<?= json_encode(mb_strtoupper($shiftLabel,'UTF-8'), JSON_UNESCAPED_UNICODE) ?>,450,95);ctx.fillStyle='#334155';ctx.font='22px Arial';ctx.fillText(<?= json_encode($weekdayVi.', '.$dateLabel, JSON_UNESCAPED_UNICODE) ?>,450,132);
+  [['TỔNG',rows.length,'#0f172a'],['CÓ MẶT',rows.length-abs.length,'#16a34a'],['VẮNG',abs.length,'#dc2626'],['TỶ LỆ',rows.length?Math.round((rows.length-abs.length)*100/rows.length)+'%':'100%','#0284c7']].forEach((x,i)=>{var x0=70+i*200;ctx.fillStyle='#f8fafc';ctx.fillRect(x0,165,170,100);ctx.fillStyle=x[2];ctx.font='bold 30px Arial';ctx.fillText(x[1],x0+85,207);ctx.font='16px Arial';ctx.fillText(x[0],x0+85,238)});
+  ctx.textAlign='left';ctx.fillStyle='#dc2626';ctx.font='bold 20px Arial';ctx.fillText('DANH SÁCH VẮNG ('+abs.length+')',70,310);ctx.font='18px Arial';abs.forEach((r,i)=>{var d=rowData(r);ctx.fillText(r.dataset.class+': '+r.dataset.name+' ('+(d.excuse.value||'KP')+')'+(d.reason.value?' – '+d.reason.value:''),80,350+i*38)});ctx.fillStyle='#475569';ctx.font='16px Arial';var reporterSelect=document.querySelector('[name="reporter"]');ctx.fillText('Người báo: '+(reporterSelect?reporterSelect.value:<?= json_encode($reporter, JSON_UNESCAPED_UNICODE) ?>),70,canvas.height-45);ctx.textAlign='right';ctx.fillText(new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}),830,canvas.height-45)
+}
+function downloadReport(){drawReport();var a=document.createElement('a');a.download='diem-danh-<?= e($date) ?>.png';a.href=document.getElementById('reportCanvas').toDataURL('image/png');a.click()}
+async function shareReport(){drawReport();var c=document.getElementById('reportCanvas');c.toBlob(async function(blob){var file=new File([blob],'diem-danh-<?= e($date) ?>.png',{type:'image/png'});if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:'Báo cáo điểm danh'});else downloadReport()})}
+<?php if ($showReport): ?>window.addEventListener('load',function(){drawReport();document.getElementById('reportDialog').showModal()});<?php endif; ?>
 </script>
-</body>
-</html>
+</body></html>
