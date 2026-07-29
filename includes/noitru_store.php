@@ -296,6 +296,29 @@ function noitru_att_upsert(array $row) {
     }
     save_json(NOITRU_ATT, $rows);
 }
+function noitru_att_delete(array $dates, $shift = null) {
+    $dates = array_values(array_unique(array_filter(array_map('trim', $dates), function ($date) {
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date);
+    })));
+    if (!$dates) return 0;
+
+    $dateMap = array_fill_keys($dates, true);
+    $shift = $shift !== null ? trim((string)$shift) : null;
+    $rows = noitru_att_all();
+    $kept = [];
+    $deleted = 0;
+    foreach ($rows as $row) {
+        $matchesDate = isset($dateMap[$row['date'] ?? '']);
+        $matchesShift = $shift === null || $shift === '' || ($row['shift'] ?? '') === $shift;
+        if ($matchesDate && $matchesShift) {
+            $deleted++;
+            continue;
+        }
+        $kept[] = $row;
+    }
+    if ($deleted > 0) save_json(NOITRU_ATT, $kept);
+    return $deleted;
+}
 
 /* —— Duty —— */
 function noitru_duty_all() {
