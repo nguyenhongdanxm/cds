@@ -348,7 +348,54 @@ function noitru_rice_balance(array $data = null) {
         $qty = (float)($row['kg'] ?? 0);
         $balance += ($row['type'] ?? '') === 'in' ? $qty : -$qty;
     }
+    $auto = noitru_rice_usage_summary('0000-01-01', '9999-12-31', $data);
+    $balance -= (float)($auto['total_kg'] ?? 0);
     return round($balance, 3);
+}
+function noitru_rice_usage_summary($from, $to, array $riceData = null) {
+    $riceData = $riceData ?? noitru_rice_data();
+    $settings = array_merge(['sang_grams'=>0,'trua_grams'=>180,'toi_grams'=>180], $riceData['settings'] ?? []);
+    $reports = noitru_meal_reports_data()['reports'] ?? [];
+    $stateCache = [];
+    $out = [
+        'days'=>[],
+        'meals'=>[
+            'sang'=>['students'=>0,'kg'=>0.0],
+            'trua'=>['students'=>0,'kg'=>0.0],
+            'toi'=>['students'=>0,'kg'=>0.0],
+        ],
+        'total_students'=>0,
+        'total_kg'=>0.0,
+    ];
+    foreach ($reports as $report) {
+        $date = $report['date'] ?? '';
+        $meal = $report['meal'] ?? '';
+        if ($date < $from || $date > $to || !isset($out['meals'][$meal])) continue;
+        $stateKey = $date . '|' . $meal;
+        if (!isset($stateCache[$stateKey])) $stateCache[$stateKey] = noitru_meal_state($date, $meal)['status'] ?? 'open';
+        if ($stateCache[$stateKey] !== 'locked') continue;
+        $students = max(0, (int)($report['eat_count'] ?? 0));
+        $kg = round($students * (float)($settings[$meal . '_grams'] ?? 0) / 1000, 3);
+        if (!isset($out['days'][$date])) {
+            $out['days'][$date] = [
+                'sang'=>['students'=>0,'kg'=>0.0],
+                'trua'=>['students'=>0,'kg'=>0.0],
+                'toi'=>['students'=>0,'kg'=>0.0],
+                'students'=>0,
+                'kg'=>0.0,
+            ];
+        }
+        $out['days'][$date][$meal]['students'] += $students;
+        $out['days'][$date][$meal]['kg'] = round($out['days'][$date][$meal]['kg'] + $kg, 3);
+        $out['days'][$date]['students'] += $students;
+        $out['days'][$date]['kg'] = round($out['days'][$date]['kg'] + $kg, 3);
+        $out['meals'][$meal]['students'] += $students;
+        $out['meals'][$meal]['kg'] = round($out['meals'][$meal]['kg'] + $kg, 3);
+        $out['total_students'] += $students;
+        $out['total_kg'] = round($out['total_kg'] + $kg, 3);
+    }
+    ksort($out['days']);
+    return $out;
 }
 
 /* —— Attendance —— */
