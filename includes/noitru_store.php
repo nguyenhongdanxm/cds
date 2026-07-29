@@ -7,6 +7,7 @@ define('NOITRU_META', NOITRU_DIR . '/meta.json');
 define('NOITRU_BOARDERS', NOITRU_DIR . '/boarders_cache.json');
 define('NOITRU_EXITS', NOITRU_DIR . '/exits.json');
 define('NOITRU_MEALS', NOITRU_DIR . '/meals_daily.json');
+define('NOITRU_MEAL_REPORTS', NOITRU_DIR . '/meal_reports.json');
 define('NOITRU_ATT', NOITRU_DIR . '/attendance.json');
 define('NOITRU_DUTY', NOITRU_DIR . '/duty.json');
 define('NOITRU_HEALTH', NOITRU_DIR . '/health.json');
@@ -145,6 +146,60 @@ function noitru_meals_all() {
     noitru_ensure_dir();
     return load_json(NOITRU_MEALS, []);
 }
+function noitru_meal_reports_data() {
+    noitru_ensure_dir();
+    return load_json(NOITRU_MEAL_REPORTS, ['reports'=>[], 'states'=>[]]);
+}
+function noitru_meal_reports_save(array $data) {
+    noitru_ensure_dir();
+    $data['reports'] = array_values($data['reports'] ?? []);
+    $data['states'] = array_values($data['states'] ?? []);
+    save_json(NOITRU_MEAL_REPORTS, $data);
+}
+function noitru_meal_report_for($date, $class, $meal) {
+    foreach (noitru_meal_reports_data()['reports'] ?? [] as $row) {
+        if (($row['date'] ?? '') === $date && ($row['class_name'] ?? '') === $class && ($row['meal'] ?? '') === $meal) return $row;
+    }
+    return null;
+}
+function noitru_meal_report_upsert(array $row) {
+    $data = noitru_meal_reports_data();
+    $found = false;
+    foreach ($data['reports'] as &$saved) {
+        if (($saved['date'] ?? '') === ($row['date'] ?? '') && ($saved['class_name'] ?? '') === ($row['class_name'] ?? '') && ($saved['meal'] ?? '') === ($row['meal'] ?? '')) {
+            $saved = array_merge($saved, $row, ['updated_at'=>noitru_now()]);
+            $found = true;
+            break;
+        }
+    }
+    unset($saved);
+    if (!$found) $data['reports'][] = array_merge(['id'=>noitru_uid('mr'), 'created_at'=>noitru_now()], $row);
+    noitru_meal_reports_save($data);
+}
+function noitru_meal_state($date, $meal) {
+    foreach (noitru_meal_reports_data()['states'] ?? [] as $row) {
+        if (($row['date'] ?? '') === $date && ($row['meal'] ?? '') === $meal) return $row;
+    }
+    return ['date'=>$date, 'meal'=>$meal, 'status'=>'open'];
+}
+function noitru_meal_state_set($date, $meal, $status, $by = '') {
+    if (!in_array($status, ['open','locked','off'], true)) $status = 'open';
+    $data = noitru_meal_reports_data();
+    $found = false;
+    foreach ($data['states'] as &$row) {
+        if (($row['date'] ?? '') === $date && ($row['meal'] ?? '') === $meal) {
+            $row = array_merge($row, ['status'=>$status, 'by'=>$by, 'updated_at'=>noitru_now()]);
+            $found = true;
+            break;
+        }
+    }
+    unset($row);
+    if (!$found) $data['states'][] = ['date'=>$date, 'meal'=>$meal, 'status'=>$status, 'by'=>$by, 'updated_at'=>noitru_now()];
+    noitru_meal_reports_save($data);
+}
+function noitru_meal_reports_for_date($date) {
+    return array_values(array_filter(noitru_meal_reports_data()['reports'] ?? [], fn($row) => ($row['date'] ?? '') === $date));
+}
 function noitru_meals_for_date($date) {
     $out = [];
     foreach (noitru_meals_all() as $m) {
@@ -214,6 +269,9 @@ function noitru_meals_count_day($date) {
         foreach (['sang', 'trua', 'toi'] as $b) {
             if (in_array($m[$b] ?? '', ['yes', 'sick', 'guest'], true)) $c[$b]++;
         }
+    }
+    foreach (['sang','trua','toi'] as $meal) {
+        if ((noitru_meal_state($date, $meal)['status'] ?? 'open') === 'off') $c[$meal] = 0;
     }
     return $c;
 }
