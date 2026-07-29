@@ -59,7 +59,7 @@ function nt_xlsx_styles_xml() {
         . '<borders count="3"><border/><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/></border>'
         . '<border><left style="medium"/><right style="medium"/><top style="medium"/><bottom style="medium"/></border></borders>'
         . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-        . '<cellXfs count="10">'
+        . '<cellXfs count="11">'
         . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
         . '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center"/></xf>'
         . '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
@@ -70,6 +70,7 @@ function nt_xlsx_styles_xml() {
         . '<xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
         . '<xf numFmtId="0" fontId="1" fillId="0" borderId="2" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
         . '<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+        . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>'
         . '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
         . '</styleSheet>';
 }
@@ -94,7 +95,7 @@ function nt_xlsx_write_zip(array $files, $target) {
     if (file_put_contents($target, $body . $central . $end) === false) throw new RuntimeException('Không thể ghi tệp Excel tạm.');
 }
 
-function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYear) {
+function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYear, $homeroomTeacherName = '') {
     $start = $month . '-01';
     $daysInMonth = (int)date('t', strtotime($start));
     $monthNumber = (int)date('m', strtotime($start));
@@ -178,17 +179,20 @@ function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYe
     $rows[] = '<row r="' . $totalRow . '" ht="22">' . $totalCells . '</row>';
     $noteRow = $totalRow + 1;
     $signRow = $totalRow + 2;
+    $teacherRow = $totalRow + 3;
     $note = $type === 'breakfast'
         ? 'Ghi chú: Học sinh ăn sáng đánh dấu x; học sinh không ăn để trống.'
         : 'Ký hiệu: x - Ăn cả bữa trưa và tối; \\ - Chỉ ăn bữa trưa; / - Chỉ ăn bữa tối; để trống - Không ăn.';
-    $rows[] = '<row r="' . $noteRow . '" ht="22">' . nt_xlsx_text_cell('A' . $noteRow, $note, 9) . nt_xlsx_text_cell('AH' . $noteRow, 'Xín Mần, ngày ..... tháng ..... năm ' . $yearNumber, 9) . '</row>';
-    $rows[] = '<row r="' . $signRow . '" ht="24">' . nt_xlsx_text_cell('A' . $signRow, 'Giáo viên chủ nhiệm', 3) . nt_xlsx_text_cell('AH' . $signRow, 'Thủ trưởng đơn vị', 3) . '</row>';
+    $rows[] = '<row r="' . $noteRow . '" ht="22">' . nt_xlsx_text_cell('A' . $noteRow, $note, 10) . nt_xlsx_text_cell('S' . $noteRow, 'Pà Vầy Sủ, ngày ..... tháng ..... năm ' . $yearNumber, 9) . '</row>';
+    $rows[] = '<row r="' . $signRow . '" ht="24">' . nt_xlsx_text_cell('A' . $signRow, 'Giáo viên chủ nhiệm', 3) . nt_xlsx_text_cell('S' . $signRow, 'Thủ trưởng đơn vị', 3) . '</row>';
+    $rows[] = '<row r="' . $teacherRow . '" ht="22">' . nt_xlsx_text_cell('A' . $teacherRow, trim((string)$homeroomTeacherName), 3) . '</row>';
 
     $merges = [
         'A1:J1','K1:AG1','AH1:AI1','A2:J2','K2:AG2','A4:AI4','A5:AI5','A6:AI6',
         'A7:A9','B7:B9','C7:AG7','AH7:AH9','AI7:AI9',
-        'A'.$noteRow.':AG'.$noteRow,'AH'.$noteRow.':AI'.$noteRow,
-        'A'.$signRow.':AG'.$signRow,'AH'.$signRow.':AI'.$signRow,
+        'A'.$noteRow.':Q'.$noteRow,'S'.$noteRow.':AI'.$noteRow,
+        'A'.$signRow.':Q'.$signRow,'S'.$signRow.':AI'.$signRow,
+        'A'.$teacherRow.':Q'.$teacherRow,
     ];
     $mergeXml = '<mergeCells count="' . count($merges) . '">';
     foreach ($merges as $merge) $mergeXml .= '<mergeCell ref="' . $merge . '"/>';
@@ -196,7 +200,7 @@ function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYe
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
         . '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>'
-        . '<dimension ref="A1:AI' . $signRow . '"/>'
+        . '<dimension ref="A1:AI' . $teacherRow . '"/>'
         . '<sheetViews><sheetView showGridLines="0" workbookViewId="0"><pane xSplit="2" ySplit="9" topLeftCell="C10" activePane="bottomRight" state="frozen"/></sheetView></sheetViews>'
         . '<sheetFormatPr defaultRowHeight="20"/>'
         . '<cols><col min="1" max="1" width="4" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/><col min="3" max="33" width="4.2" customWidth="1"/><col min="34" max="34" width="13" customWidth="1"/><col min="35" max="35" width="16" customWidth="1"/></cols>'
@@ -217,6 +221,20 @@ function nt_export_meal_month_xlsx(array $students, $month, $type, $exportedBy =
     }
     ksort($classes, SORT_NATURAL);
     if (!$classes) throw new RuntimeException('Không có lớp học sinh phù hợp để xuất báo cáo.');
+    $teachersById = [];
+    foreach (csdl_teachers_all() as $teacher) {
+        $teacherId = trim((string)($teacher['id'] ?? ''));
+        if ($teacherId !== '') $teachersById[$teacherId] = trim((string)($teacher['name'] ?? ''));
+    }
+    $homeroomTeachers = [];
+    foreach (csdl_classes_all() as $classRow) {
+        $className = trim((string)($classRow['name'] ?? ''));
+        if ($className === '') continue;
+        $teacherName = trim((string)($classRow['homeroom_teacher_name'] ?? ''));
+        $teacherId = trim((string)($classRow['homeroom_teacher_id'] ?? ''));
+        if ($teacherName === '' && $teacherId !== '') $teacherName = $teachersById[$teacherId] ?? '';
+        $homeroomTeachers[$className] = $teacherName;
+    }
     $schoolYear = defined('SCHOOL_YEAR') ? str_replace('–', '-', SCHOOL_YEAR) : (date('Y') . '-' . (date('Y') + 1));
     $tmp = tempnam(sys_get_temp_dir(), 'ntmeal_');
     $sheetNames = [];
@@ -224,7 +242,7 @@ function nt_export_meal_month_xlsx(array $students, $month, $type, $exportedBy =
     $sheetXml = [];
     foreach ($classes as $className => $classStudents) {
         $sheetNames[] = nt_xlsx_safe_sheet_name($className, $usedNames);
-        $sheetXml[] = nt_xlsx_sheet_xml($className, $classStudents, $month, $type, $schoolYear);
+        $sheetXml[] = nt_xlsx_sheet_xml($className, $classStudents, $month, $type, $schoolYear, $homeroomTeachers[$className] ?? '');
     }
     $contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
         . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
