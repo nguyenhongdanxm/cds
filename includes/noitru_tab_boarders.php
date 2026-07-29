@@ -158,7 +158,7 @@ $subTabs = [
   </div></form>
 
   <?php if ($classKeys): ?>
-  <div class="mb-2 d-flex flex-wrap gap-1">
+  <div class="mb-2 d-flex flex-wrap gap-1 nt-chip-row">
     <a href="<?= e(nt_list_url(['view' => 'students'])) ?>" class="btn btn-sm <?= $f_class === '' && $q === '' && $f_room === '' && $f_meal === '' ? 'btn-nt' : 'btn-outline-secondary' ?>">Tất cả</a>
     <?php foreach ($classKeys as $ck): ?>
     <a href="<?= e(nt_list_url(['view' => 'students', 'class' => $ck])) ?>"
