@@ -43,13 +43,13 @@
     .att-history-shift{display:block;padding:.8rem;border:1px solid #e2e8f0;border-radius:12px;text-decoration:none;color:#253342;background:#fff}
     .att-history-shift-head{display:flex;align-items:center;justify-content:space-between;gap:.7rem}.att-history-counts{display:flex;gap:.75rem;flex-wrap:wrap;font-size:.82rem;margin-top:.35rem}
     .att-history-absent{margin-top:.55rem;padding-top:.5rem;border-top:1px dashed #f2b8b8;font-size:.8rem;color:#b91c1c}.att-history-absent span{display:inline-block;margin:.15rem .65rem .15rem 0}
-    .att-export{margin-top:1.2rem;padding:1rem;border:1px solid #dce5ec;border-radius:16px;background:#f8fafc}.att-export-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.att-export-form{padding:.8rem;background:#fff;border:1px solid #e2e8f0;border-radius:12px}.att-export-form .btn{width:100%;margin-top:.55rem}
+    .att-export{margin-top:1.2rem;padding:1rem;border:1px solid #dce5ec;border-radius:16px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;gap:1rem}
     @media(max-width:767.98px){
       .att-panel{padding:.8rem}.att-controls{grid-template-columns:1fr 1fr}.att-controls>div:last-child{grid-column:1/-1}.att-class-chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:.25rem}.att-class-chips a{white-space:nowrap}
       .att-tools{grid-template-columns:1fr}.att-summary{gap:.5rem}.att-summary>div{padding:.7rem .35rem}.att-summary strong{font-size:1.35rem}
       .att-person{min-height:46px;padding:.48rem .65rem}.att-dialog-body{padding:1rem}.att-dialog-actions .btn{flex:1}
       .att-history-day>header{align-items:flex-start}.att-history-shift-head{align-items:flex-start}.att-history-counts{gap:.5rem}
-      .att-export-grid{grid-template-columns:1fr}
+      .att-export{align-items:stretch;flex-direction:column}.att-export .btn{width:100%}
     }
   </style>
 </head>
@@ -147,27 +147,7 @@
           $currentYear=(int)date('Y');
           $schoolStart=(int)date('n')>=8?$currentYear:$currentYear-1;
         ?>
-        <section class="att-export">
-          <h3 class="h6 mb-1"><i class="bi bi-file-earmark-excel text-success"></i> Xuất báo cáo Excel</h3>
-          <p class="small text-muted">Tệp có quốc hiệu–tiêu ngữ, tên trường, ngày xuất, thống kê và danh sách điểm danh đầy đủ.</p>
-          <div class="att-export-grid">
-            <form method="get" class="att-export-form">
-              <input type="hidden" name="view" value="history"><input type="hidden" name="export" value="excel"><input type="hidden" name="period_type" value="week">
-              <label class="form-label fw-bold">Theo tuần</label><input class="form-control" type="week" name="period_value" value="<?= e(date('o-\WW')) ?>" required>
-              <button class="btn btn-success"><i class="bi bi-download"></i> Xuất tuần</button>
-            </form>
-            <form method="get" class="att-export-form">
-              <input type="hidden" name="view" value="history"><input type="hidden" name="export" value="excel"><input type="hidden" name="period_type" value="month">
-              <label class="form-label fw-bold">Theo tháng</label><input class="form-control" type="month" name="period_value" value="<?= e(date('Y-m')) ?>" required>
-              <button class="btn btn-success"><i class="bi bi-download"></i> Xuất tháng</button>
-            </form>
-            <form method="get" class="att-export-form">
-              <input type="hidden" name="view" value="history"><input type="hidden" name="export" value="excel"><input type="hidden" name="period_type" value="school_year">
-              <label class="form-label fw-bold">Theo năm học</label><select class="form-select" name="period_value"><?php for ($i=$schoolStart+1;$i>=$schoolStart-3;$i--): ?><option value="<?= $i.'-'.($i+1) ?>" <?= $i===$schoolStart?'selected':'' ?>><?= $i.' - '.($i+1) ?></option><?php endfor; ?></select>
-              <button class="btn btn-success"><i class="bi bi-download"></i> Xuất năm học</button>
-            </form>
-          </div>
-        </section>
+        <section class="att-export"><div><h3 class="h6 mb-1"><i class="bi bi-file-earmark-excel text-success"></i> Báo cáo học sinh vắng</h3><p class="small text-muted mb-0">Xuất danh sách học sinh vắng và thời gian vắng theo tuần, tháng hoặc năm học.</p></div><button class="btn btn-success" type="button" onclick="document.getElementById('excelDialog').showModal()"><i class="bi bi-download"></i> Xuất Excel</button></section>
       </div>
     <?php else: ?>
     <div class="att-panel">
@@ -217,6 +197,18 @@
   <div class="att-dialog-actions"><button class="btn btn-outline-secondary" type="button" onclick="markPresentFromDialog()">Có mặt</button><button class="btn btn-nt" type="button" onclick="saveAbsence()">Lưu</button></div>
 </div></dialog>
 
+<?php if ($view==='history'): ?><dialog class="att-dialog" id="excelDialog"><div class="att-dialog-body">
+  <div class="att-dialog-head"><div><h3 class="h5 mb-1"><i class="bi bi-file-earmark-excel text-success"></i> Xuất Excel học sinh vắng</h3><p class="text-muted mb-0">Chọn khoảng thời gian cần thống kê.</p></div><button class="att-dialog-close" type="button" onclick="closeDialog('excelDialog')"><i class="bi bi-x-lg"></i></button></div>
+  <form method="get" class="mt-3" id="excelForm" onsubmit="return prepareExcelExport()">
+    <input type="hidden" name="view" value="history"><input type="hidden" name="export" value="excel"><input type="hidden" name="period_value" id="excelPeriodValue">
+    <label class="form-label fw-bold">Phạm vi báo cáo</label><select class="form-select mb-3" name="period_type" id="excelPeriodType" onchange="switchExcelPeriod()"><option value="week">Theo tuần</option><option value="month">Theo tháng</option><option value="school_year">Theo năm học</option></select>
+    <div data-excel-period="week"><label class="form-label">Chọn tuần</label><input class="form-control" type="week" value="<?= e(date('o-\WW')) ?>"></div>
+    <div data-excel-period="month" hidden><label class="form-label">Chọn tháng</label><input class="form-control" type="month" value="<?= e(date('Y-m')) ?>"></div>
+    <div data-excel-period="school_year" hidden><label class="form-label">Chọn năm học</label><select class="form-select"><?php for ($i=$schoolStart+1;$i>=$schoolStart-3;$i--): ?><option value="<?= $i.'-'.($i+1) ?>" <?= $i===$schoolStart?'selected':'' ?>><?= $i.' - '.($i+1) ?></option><?php endfor; ?></select></div>
+    <div class="att-dialog-actions"><button class="btn btn-outline-secondary" type="button" onclick="closeDialog('excelDialog')">Hủy</button><button class="btn btn-success" type="submit"><i class="bi bi-download"></i> Tải Excel</button></div>
+  </form>
+</div></dialog><?php endif; ?>
+
 <dialog class="att-dialog" id="confirmDialog"><div class="att-dialog-body">
   <div class="att-dialog-head"><div><h3 class="h5 mb-1"><i class="bi bi-exclamation-triangle text-warning"></i> Xác nhận báo cáo điểm danh</h3><p class="text-muted mb-2"><?= e($dateLabel) ?> · <?= e($shiftLabel) ?></p></div><button class="att-dialog-close" type="button" onclick="closeDialog('confirmDialog')"><i class="bi bi-x-lg"></i></button></div>
   <div class="d-flex justify-content-around border-top border-bottom py-2 mb-2"><span class="text-success">Có mặt: <strong id="confirmPresent"></strong></span><span class="text-danger">Vắng: <strong id="confirmAbsent"></strong></span><span>Tổng: <strong id="confirmTotal"></strong></span></div>
@@ -234,6 +226,8 @@
 <script>
 var activeRow=null;
 function closeDialog(id){document.getElementById(id).close()}
+function switchExcelPeriod(){var type=document.getElementById('excelPeriodType').value;document.querySelectorAll('[data-excel-period]').forEach(function(box){box.hidden=box.dataset.excelPeriod!==type})}
+function prepareExcelExport(){var type=document.getElementById('excelPeriodType').value,box=document.querySelector('[data-excel-period="'+type+'"]'),input=box.querySelector('input,select');document.getElementById('excelPeriodValue').value=input.value;return input.value!==''}
 function rowData(row){return {status:row.querySelector('[name="status[]"]'),excuse:row.querySelector('[name="excuse[]"]'),reason:row.querySelector('[name="reason[]"]')}}
 function updateRow(row){
   var d=rowData(row), absent=!['present','late'].includes(d.status.value), meta=row.querySelector('.att-person-meta'), icon=row.querySelector('.att-dot i');
