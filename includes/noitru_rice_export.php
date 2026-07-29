@@ -219,8 +219,9 @@ function nt_rice_sheet_xml($title, $subtitle, $school, array $rowsData, $labelKe
         . '<sheetViews><sheetView showGridLines="0" workbookViewId="0"><pane ySplit="7" topLeftCell="A8" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
         . '<sheetFormatPr defaultRowHeight="20"/>'
         . '<cols><col min="1" max="1" width="6" customWidth="1"/><col min="2" max="2" width="28" customWidth="1"/><col min="3" max="9" width="12" customWidth="1"/><col min="10" max="10" width="15" customWidth="1"/></cols>'
-        . '<sheetData>' . implode('', $rows) . '</sheetData>' . $mergeXml
+        . '<sheetData>' . implode('', $rows) . '</sheetData>'
         . '<autoFilter ref="A7:J' . max(7, $tableEndRow) . '"/>'
+        . $mergeXml
         . '<printOptions horizontalCentered="1"/>'
         . '<pageMargins left="0.25" right="0.25" top="0.35" bottom="0.35" header="0.1" footer="0.1"/>'
         . '<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0" horizontalDpi="300" verticalDpi="300"/>'
