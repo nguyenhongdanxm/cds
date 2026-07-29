@@ -148,13 +148,33 @@ function noitru_meals_all() {
 }
 function noitru_meal_reports_data() {
     noitru_ensure_dir();
-    return load_json(NOITRU_MEAL_REPORTS, ['reports'=>[], 'states'=>[]]);
+    $data = load_json(NOITRU_MEAL_REPORTS, ['reports'=>[], 'states'=>[], 'settings'=>[]]);
+    $data['reports'] = $data['reports'] ?? [];
+    $data['states'] = $data['states'] ?? [];
+    $data['settings'] = array_merge([
+        'sang_lock_time'=>'20:00',
+        'trua_lock_time'=>'09:00',
+        'toi_lock_time'=>'15:00',
+    ], $data['settings'] ?? []);
+    return $data;
 }
 function noitru_meal_reports_save(array $data) {
     noitru_ensure_dir();
     $data['reports'] = array_values($data['reports'] ?? []);
     $data['states'] = array_values($data['states'] ?? []);
+    $data['settings'] = $data['settings'] ?? [];
     save_json(NOITRU_MEAL_REPORTS, $data);
+}
+function noitru_meal_settings() {
+    return noitru_meal_reports_data()['settings'];
+}
+function noitru_meal_settings_save(array $settings) {
+    $data = noitru_meal_reports_data();
+    foreach (['sang','trua','toi'] as $meal) {
+        $value = trim($settings[$meal . '_lock_time'] ?? '');
+        if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $value)) $data['settings'][$meal . '_lock_time'] = $value;
+    }
+    noitru_meal_reports_save($data);
 }
 function noitru_meal_report_for($date, $class, $meal) {
     foreach (noitru_meal_reports_data()['reports'] ?? [] as $row) {
@@ -177,13 +197,25 @@ function noitru_meal_report_upsert(array $row) {
     noitru_meal_reports_save($data);
 }
 function noitru_meal_state($date, $meal) {
+    $saved = null;
     foreach (noitru_meal_reports_data()['states'] ?? [] as $row) {
-        if (($row['date'] ?? '') === $date && ($row['meal'] ?? '') === $meal) return $row;
+        if (($row['date'] ?? '') === $date && ($row['meal'] ?? '') === $meal) { $saved = $row; break; }
     }
-    return ['date'=>$date, 'meal'=>$meal, 'status'=>'open'];
+    if ($saved && in_array($saved['status'] ?? '', ['locked','off'], true)) return $saved;
+    if ($saved && ($saved['status'] ?? '') === 'open_override') return array_merge($saved, ['status'=>'open']);
+
+    $settings = noitru_meal_settings();
+    $lockTime = $settings[$meal . '_lock_time'] ?? '23:59';
+    $lockDate = $meal === 'sang' ? date('Y-m-d', strtotime($date . ' -1 day')) : $date;
+    $deadline = strtotime($lockDate . ' ' . $lockTime . ':00');
+    if ($deadline !== false && time() >= $deadline) {
+        return ['date'=>$date, 'meal'=>$meal, 'status'=>'locked', 'auto_locked'=>true, 'deadline'=>date('c', $deadline)];
+    }
+    return ['date'=>$date, 'meal'=>$meal, 'status'=>'open', 'deadline'=>$deadline ? date('c', $deadline) : ''];
 }
 function noitru_meal_state_set($date, $meal, $status, $by = '') {
     if (!in_array($status, ['open','locked','off'], true)) $status = 'open';
+    if ($status === 'open') $status = 'open_override';
     $data = noitru_meal_reports_data();
     $found = false;
     foreach ($data['states'] as &$row) {
@@ -301,7 +333,7 @@ function noitru_meals_summary($from, $to) {
 function noitru_rice_data() {
     noitru_ensure_dir();
     return load_json(NOITRU_RICE, [
-        'settings'=>['trua_grams'=>180,'toi_grams'=>180],
+        'settings'=>['sang_grams'=>0,'trua_grams'=>180,'toi_grams'=>180],
         'transactions'=>[],
     ]);
 }
