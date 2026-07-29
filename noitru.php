@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'sync_from_csdl'=>'nt.danhsach',
         'exit_save'=>'nt.ravao', 'exit_status'=>'nt.ravao', 'exit_delete'=>'nt.ravao',
         'meals_generate'=>'nt.baoan', 'meals_save'=>'nt.baoan', 'meals_lock'=>'nt.baoan', 'meals_unlock'=>'nt.baoan',
-        'meal_state'=>'nt.thongke', 'meal_settings'=>'nt.thongke',
+        'meal_state'=>'nt.thongke', 'meal_settings'=>'nt.thongke', 'meal_fill_missing'=>'nt.thongke',
         'att_save'=>'nt.diemdanh',
         'duty_save'=>'nt.lichtruc', 'duty_delete'=>'nt.lichtruc',
         'health_save'=>'nt.yte', 'health_delete'=>'nt.yte',
@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $requiredLevel = substr($action, -7) === '_delete' ? 'delete' : 'edit';
         require_perm_level($actionPerms[$action], $requiredLevel);
     }
-    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','duty_save','duty_delete','menu_save'], true)) {
+    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','meal_fill_missing','duty_save','duty_delete','menu_save'], true)) {
         noitru_require_global_scope();
     }
     if (in_array($action, ['rice_settings','rice_in','rice_issue','rice_delete'], true)) {
@@ -278,6 +278,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         noitru_rice_save($rice);
         flash('Đã lưu giờ khóa báo ăn và định mức gạo.');
         header('Location: ' . BASE_URL . 'noitru.php?tab=meal_summary&date=' . urlencode(trim($_POST['date'] ?? date('Y-m-d')))); exit;
+    }
+    if ($action === 'meal_fill_missing') {
+        $date = trim($_POST['date'] ?? date('Y-m-d'));
+        $meal = trim($_POST['meal'] ?? '');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || !in_array($meal, ['sang','trua','toi'], true)) {
+            flash('Ngày hoặc bữa ăn không hợp lệ.', 'danger');
+            header('Location: ' . BASE_URL . 'noitru.php?tab=meal_summary'); exit;
+        }
+        if ((noitru_meal_state($date, $meal)['status'] ?? 'open') !== 'open') {
+            flash('Bữa ăn đã khóa hoặc thông báo nghỉ.', 'warning');
+            header('Location: ' . BASE_URL . 'noitru.php?tab=meal_summary&date=' . urlencode($date)); exit;
+        }
+        $reportedClasses = [];
+        foreach (noitru_meal_reports_for_date($date) as $report) {
+            if (($report['meal'] ?? '') === $meal) $reportedClasses[$report['class_name'] ?? ''] = true;
+        }
+        $classes = [];
+        foreach (noitru_boarders_live() as $student) {
+            $class = trim($student['class_name'] ?? '') ?: '(Chưa lớp)';
+            $classes[$class][] = $student;
+        }
+        $dayMap = noitru_meals_for_date($date);
+        $filled = 0;
+        foreach ($classes as $class=>$students) {
+            if (isset($reportedClasses[$class])) continue;
+            foreach ($students as $student) {
+                $sid = $student['id'] ?? '';
+                $existing = $dayMap[$sid] ?? [];
+                noitru_meal_upsert([
+                    'date'=>$date, 'student_id'=>$sid,
+                    'sang'=>$meal==='sang'?'yes':($existing['sang']??'yes'),
+                    'trua'=>$meal==='trua'?'yes':($existing['trua']??'yes'),
+                    'toi'=>$meal==='toi'?'yes':($existing['toi']??'yes'),
+                    'source'=>'manager_fill', 'reported_by'=>$user['name']??'', 'force'=>true,
+                ]);
+                $dayMap[$sid] = array_merge($existing, [$meal=>'yes']);
+            }
+            noitru_meal_report_upsert([
+                'date'=>$date, 'class_name'=>$class, 'meal'=>$meal,
+                'student_count'=>count($students), 'eat_count'=>count($students), 'absent_count'=>0,
+                'reported_by'=>$user['name']??'', 'status'=>'submitted',
+            ]);
+            $filled++;
+        }
+        flash($filled ? 'Đã xác nhận đủ suất cho ' . $filled . ' lớp còn lại.' : 'Tất cả lớp đã báo cáo.', 'success');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=meal_summary&date=' . urlencode($date)); exit;
     }
 
     /* Attendance */
@@ -569,6 +615,8 @@ body{background:#f8f0f4}
 .meal-summary-stats .eat{background:#ecfdf5;color:#15803d}.meal-summary-stats .absent{background:#fff1f2;color:#dc2626}
 .meal-report-classes{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.75rem}.meal-report-classes span{padding:.25rem .55rem;border:1px solid #dce5ec;border-radius:999px;font-size:.78rem}
 .meal-state-actions{display:flex;gap:.45rem;flex-wrap:wrap}.meal-state-actions form{display:inline-flex}
+.meal-summary-empty{text-align:center;color:#64748b;padding:1.4rem .5rem .65rem}
+.meal-missing-box{border:1px solid #f6c76b;border-radius:18px;background:#fffdf7;padding:1rem;margin-top:1rem}.meal-missing-row{padding:.65rem;border-radius:12px;background:#f8fafc;margin-top:.55rem}.meal-missing-chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem}.meal-missing-chips span{padding:.25rem .58rem;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:.78rem;font-weight:700}
 @media(max-width:767.98px){.meal-student-grid{grid-template-columns:1fr 1fr}.meal-summary-stats{gap:.4rem}.meal-summary-stats>div{padding:.65rem .25rem}}
 @media(max-width:420px){.meal-student-grid{grid-template-columns:1fr}}
 .btn-nt:hover{background:var(--pd);color:#fff}
@@ -751,10 +799,7 @@ form[method="post"]{display:none!important}
   ?>
   <div class="nt-page-head">
     <div><h4><i class="bi bi-fork-knife text-primary"></i> Báo cơm cả trường – <?= e(date('d/m/Y',strtotime($date))) ?></h4><div class="subtitle">Nhận báo cáo từ GVCN, chốt số liệu và báo nhà bếp</div></div>
-    <div class="nt-actions">
-      <a class="btn btn-outline-success" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meal_summary','date'=>$date,'export'=>'kitchen'])) ?>"><i class="bi bi-file-earmark-spreadsheet"></i> Xuất báo cáo nhà bếp</a>
-      <button class="btn btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer"></i> In báo cáo</button>
-    </div>
+    <div class="dropdown"><button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-file-earmark-spreadsheet"></i> Xuất báo cáo</button><ul class="dropdown-menu dropdown-menu-end"><li><a class="dropdown-item" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meal_summary','date'=>$date,'export'=>'kitchen'])) ?>"><i class="bi bi-file-earmark-excel text-success me-2"></i>Excel/CSV nhà bếp</a></li><li><button class="dropdown-item" type="button" onclick="window.print()"><i class="bi bi-printer me-2"></i>In trang tổng hợp</button></li></ul></div>
   </div>
   <form method="get" class="card card-soft mb-3"><div class="card-body d-flex align-items-end gap-2 flex-wrap"><input type="hidden" name="tab" value="meal_summary"><div><label class="form-label">Ngày chuẩn bị</label><input type="date" name="date" class="form-control" value="<?= e($date) ?>"></div><button class="btn btn-nt">Xem tổng hợp</button></div></form>
   <?php if (allowed_classes()===null && $canEditCurrent): ?><details class="card card-soft mb-3"><summary class="card-body fw-bold"><i class="bi bi-sliders"></i> Cài đặt giờ khóa và định mức gạo</summary><form method="post" class="card-body border-top">
@@ -769,20 +814,29 @@ form[method="post"]{display:none!important}
     <button class="btn btn-nt mt-3"><i class="bi bi-floppy"></i> Lưu cài đặt</button>
   </form></details><?php endif; ?>
   <?php foreach ($overview['meals'] as $mealKey=>$info): ?>
-    <section class="meal-summary-card">
-      <div class="meal-summary-head"><div><h5 class="mb-1"><i class="bi bi-fork-knife text-primary"></i> <?= e($mealLabels[$mealKey]) ?></h5><span class="badge <?= $info['state']==='locked'?'bg-success':($info['state']==='off'?'bg-danger':'bg-warning text-dark') ?>"><?= $info['state']==='locked'?'Đã chốt':($info['state']==='off'?'Nghỉ':'Đang nhận báo cáo') ?></span><span class="small text-muted ms-2">Khóa lúc <?= e($mealSettings[$mealKey.'_lock_time']??'') ?><?= $mealKey==='sang'?' ngày hôm trước':'' ?></span></div>
+    <section class="meal-summary-card" id="mealCard-<?= e($mealKey) ?>" data-meal-label="<?= e($mealLabels[$mealKey]) ?>" data-date="<?= e(date('d/m/Y',strtotime($date))) ?>" data-total="<?= $info['total'] ?>" data-eat="<?= $info['eat'] ?>" data-absent="<?= $info['absent'] ?>" data-classes="<?= e(implode(', ',array_keys($info['reported']))) ?>">
+      <div class="meal-summary-head"><div><h5 class="mb-1"><i class="bi bi-fork-knife text-primary"></i> <?= e($mealLabels[$mealKey]) ?></h5><span class="small text-muted">Khóa <?= e($mealSettings[$mealKey.'_lock_time']??'') ?><?= $mealKey==='sang'?' hôm trước':'' ?></span></div>
         <?php if (allowed_classes()===null && $canEditCurrent): ?><div class="meal-state-actions">
-          <?php if ($info['state']!=='locked'): ?><form method="post" onsubmit="return confirm('Chốt số liệu <?= e(mb_strtolower($mealLabels[$mealKey],'UTF-8')) ?>? GVCN sẽ không thể sửa sau khi chốt.')"><input type="hidden" name="action" value="meal_state"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="meal" value="<?= e($mealKey) ?>"><input type="hidden" name="status" value="locked"><button class="btn btn-primary btn-sm"><i class="bi bi-lock"></i> Chốt</button></form><?php endif; ?>
           <?php if ($info['state']!=='off'): ?><form method="post" onsubmit="return confirm('Thông báo nghỉ <?= e(mb_strtolower($mealLabels[$mealKey],'UTF-8')) ?>? Số suất chuẩn bị sẽ về 0.')"><input type="hidden" name="action" value="meal_state"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="meal" value="<?= e($mealKey) ?>"><input type="hidden" name="status" value="off"><button class="btn btn-outline-danger btn-sm"><i class="bi bi-calendar-x"></i> Nghỉ</button></form><?php endif; ?>
+          <button class="btn btn-outline-secondary btn-sm" type="button" onclick="downloadMealImage('<?= e($mealKey) ?>')"><i class="bi bi-image"></i> Xuất ảnh</button>
+          <?php if ($info['missing'] && $info['state']==='open'): ?><form method="post" onsubmit="return confirm('Xác nhận tất cả học sinh của <?= count($info['missing']) ?> lớp chưa báo đều ăn <?= e(mb_strtolower($mealLabels[$mealKey],'UTF-8')) ?>?')"><input type="hidden" name="action" value="meal_fill_missing"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="meal" value="<?= e($mealKey) ?>"><button class="btn btn-outline-success btn-sm"><i class="bi bi-check-circle"></i> Còn lại đủ</button></form><?php endif; ?>
+          <?php if ($info['state']==='open'): ?><form method="post" onsubmit="return confirm('Chốt số liệu <?= e(mb_strtolower($mealLabels[$mealKey],'UTF-8')) ?>? GVCN sẽ không thể sửa sau khi chốt.')"><input type="hidden" name="action" value="meal_state"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="meal" value="<?= e($mealKey) ?>"><input type="hidden" name="status" value="locked"><button class="btn btn-primary btn-sm"><i class="bi bi-lock"></i> Chốt (<?= count($info['reported']) ?> lớp)</button></form><?php endif; ?>
           <?php if ($info['state']!=='open'): ?><form method="post"><input type="hidden" name="action" value="meal_state"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="meal" value="<?= e($mealKey) ?>"><input type="hidden" name="status" value="open"><button class="btn btn-outline-secondary btn-sm"><i class="bi bi-unlock"></i> Mở lại</button></form><?php endif; ?>
+          <span class="badge align-self-center <?= $info['state']==='locked'?'bg-success':($info['state']==='off'?'bg-danger':'bg-warning text-dark') ?>"><?= $info['state']==='locked'?'Đã chốt':($info['state']==='off'?'Đã nghỉ':($info['reported']?'Đã báo cáo':'Chưa báo cáo')) ?></span>
         </div><?php endif; ?>
       </div>
-      <div class="meal-report-classes"><?php foreach ($info['reported'] as $class=>$report): ?><span class="border-success text-success"><i class="bi bi-check-circle"></i> <?= e($class) ?></span><?php endforeach; ?></div>
-      <div class="meal-summary-stats"><div><strong><?= $info['total'] ?></strong><small class="d-block">Đã báo</small></div><div class="eat"><strong><?= $info['eat'] ?></strong><small class="d-block">Suất ăn</small></div><div class="absent"><strong><?= $info['absent'] ?></strong><small class="d-block">Nghỉ ăn</small></div></div>
-      <?php if ($info['missing']): ?><details class="alert alert-warning mt-3 mb-0"><summary><strong><?= count($info['missing']) ?> lớp chưa báo:</strong> <?= e(implode(', ',$info['missing'])) ?></summary><div class="small mt-2">Người phụ trách có thể liên hệ GVCN trước khi chốt.</div></details><?php else: ?><div class="alert alert-success py-2 mt-3 mb-0"><i class="bi bi-check-circle"></i> Tất cả lớp đã gửi báo cáo.</div><?php endif; ?>
+      <?php if ($info['reported']): ?>
+        <div class="meal-report-classes"><?php foreach ($info['reported'] as $class=>$report): ?><span><strong><?= e($class) ?></strong></span><?php endforeach; ?></div>
+        <div class="meal-summary-stats"><div><small class="d-block text-muted">Tổng</small><strong><?= $info['total'] ?></strong></div><div class="eat"><small class="d-block">Ăn</small><strong><?= $info['eat'] ?></strong></div><div class="absent"><small class="d-block">Vắng</small><strong><?= $info['absent'] ?></strong></div></div>
+      <?php else: ?><div class="meal-summary-empty">Chưa có báo cáo cho bữa này</div><?php endif; ?>
       <?php if ($info['groups']): ?><details class="mt-3"><summary><strong>Chi tiết theo mâm/nhóm ăn</strong></summary><div class="table-responsive mt-2"><table class="table table-sm"><thead><tr><th>Mâm/nhóm</th><th>Số suất</th></tr></thead><tbody><?php foreach ($info['groups'] as $group=>$count): ?><tr><td><?= e($group) ?></td><td><strong><?= $count ?></strong></td></tr><?php endforeach; ?></tbody></table></div></details><?php endif; ?>
     </section>
   <?php endforeach; ?>
+  <?php $missingMealCount=0; foreach ($overview['meals'] as $info) if ($info['missing']) $missingMealCount=max($missingMealCount,count($info['missing'])); if ($missingMealCount): ?>
+    <details class="meal-missing-box"><summary class="d-flex justify-content-between align-items-center"><strong class="text-warning"><i class="bi bi-exclamation-circle"></i> Lớp chưa báo cáo</strong><span class="badge text-bg-light"><?= $missingMealCount ?> lớp</span></summary>
+      <?php foreach ($overview['meals'] as $mealKey=>$info): if (!$info['missing']) continue; ?><div class="meal-missing-row"><strong><?= e($mealLabels[$mealKey]) ?>: <?= count($info['missing']) ?> lớp</strong><div class="meal-missing-chips"><?php foreach ($info['missing'] as $class): ?><span><?= e($class) ?></span><?php endforeach; ?></div></div><?php endforeach; ?>
+    </details>
+  <?php endif; ?>
   <div class="alert alert-info d-flex justify-content-between align-items-center gap-2 flex-wrap"><div><strong>Tổng gạo dự kiến trong ngày</strong><div class="small">Sáng <?= $overview['meals']['sang']['eat'] ?> suất × <?= e($rice['settings']['sang_grams']??0) ?>g · Trưa <?= $overview['meals']['trua']['eat'] ?> suất × <?= e($rice['settings']['trua_grams']??180) ?>g · Tối <?= $overview['meals']['toi']['eat'] ?> suất × <?= e($rice['settings']['toi_grams']??180) ?>g</div></div><strong class="fs-4"><?= number_format($riceKg,2) ?> kg</strong></div>
 
 <?php elseif ($tab === 'rice'): ?>
@@ -1101,6 +1155,22 @@ function toggleRicePeriod(){
   document.querySelectorAll('[data-rice-period]').forEach(function(box){
     box.hidden=box.dataset.ricePeriod!==type;
   });
+}
+function downloadMealImage(key){
+  var card=document.getElementById('mealCard-'+key); if(!card)return;
+  var canvas=document.createElement('canvas'),ctx=canvas.getContext('2d'),w=900,h=560;
+  canvas.width=w;canvas.height=h;ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+  ctx.textAlign='center';ctx.fillStyle='#64748b';ctx.font='20px Arial';ctx.fillText('TRƯỜNG PTDTNT THCS&THPT XÍN MẦN',w/2,48);
+  ctx.fillStyle='#0284c7';ctx.font='bold 34px Arial';ctx.fillText((card.dataset.mealLabel||'BỮA ĂN').toLocaleUpperCase('vi'),w/2,95);
+  ctx.fillStyle='#334155';ctx.font='21px Arial';ctx.fillText(card.dataset.date||'',w/2,130);
+  ctx.strokeStyle='#0ea5e9';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(80,155);ctx.lineTo(820,155);ctx.stroke();
+  var stats=[['TỔNG',card.dataset.total,'#334155'],['ĂN',card.dataset.eat,'#16a34a'],['VẮNG',card.dataset.absent,'#dc2626']];
+  stats.forEach(function(s,i){var x=95+i*245;ctx.fillStyle=i===1?'#ecfdf5':(i===2?'#fff1f2':'#f1f5f9');ctx.fillRect(x,190,220,110);ctx.fillStyle=s[2];ctx.font='bold 34px Arial';ctx.fillText(s[1]||'0',x+110,238);ctx.font='16px Arial';ctx.fillText(s[0],x+110,270)});
+  ctx.textAlign='left';ctx.fillStyle='#334155';ctx.font='bold 18px Arial';ctx.fillText('Lớp đã báo:',80,350);ctx.font='17px Arial';
+  var classes=card.dataset.classes||'Chưa có';var words=classes.split(', '),line='',y=385;
+  words.forEach(function(word){var next=line?(line+', '+word):word;if(ctx.measureText(next).width>730){ctx.fillText(line,80,y);line=word;y+=30}else line=next});if(line)ctx.fillText(line,80,y);
+  ctx.fillStyle='#64748b';ctx.font='15px Arial';ctx.fillText('Xuất lúc: '+new Date().toLocaleString('vi-VN'),80,510);
+  var link=document.createElement('a');link.download='bao-an-'+key+'-'+(card.dataset.date||'').replaceAll('/','-')+'.png';link.href=canvas.toDataURL('image/png');link.click();
 }
 toggleRicePeriod();
 </script>
