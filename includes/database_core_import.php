@@ -12,6 +12,12 @@ function cds_core_string($row, $key)
     return trim((string)($row[$key] ?? ''));
 }
 
+function cds_core_identity($value)
+{
+    $value = preg_replace('/\s+/', '', trim((string)$value));
+    return $value === '' || preg_match('/^0+$/', $value) ? '' : $value;
+}
+
 function cds_core_bool($row, $key, $default = false)
 {
     if (!array_key_exists($key, $row)) {
@@ -58,7 +64,9 @@ function cds_core_duplicate_values($rows, $field)
         if ($value === '') {
             continue;
         }
-        $key = mb_strtolower($value, 'UTF-8');
+        $key = function_exists('mb_strtolower')
+            ? mb_strtolower($value, 'UTF-8')
+            : strtolower($value);
         if (isset($seen[$key])) {
             $duplicates[$key] = $value;
         } else {
@@ -66,6 +74,27 @@ function cds_core_duplicate_values($rows, $field)
         }
     }
     return array_values($duplicates);
+}
+
+function cds_core_duplicate_identity_groups($rows, $field)
+{
+    $groups = array();
+    foreach ($rows as $row) {
+        $value = cds_core_identity($row[$field] ?? '');
+        if ($value === '') {
+            continue;
+        }
+        $key = function_exists('mb_strtolower')
+            ? mb_strtolower($value, 'UTF-8')
+            : strtolower($value);
+        if (!isset($groups[$key])) {
+            $groups[$key] = array('value' => $value, 'rows' => array());
+        }
+        $groups[$key]['rows'][] = $row;
+    }
+    return array_values(array_filter($groups, function ($group) {
+        return count($group['rows']) > 1;
+    }));
 }
 
 function cds_core_preview()
@@ -128,12 +157,34 @@ function cds_core_preview()
     }
 
     foreach (array('teachers', 'students') as $type) {
-        foreach (array('code', 'cccd') as $field) {
-            $duplicates = cds_core_duplicate_values($data[$type], $field);
-            if ($duplicates) {
-                $warnings[] = ucfirst($type) . ': trùng ' . $field . ' — '
-                    . implode(', ', array_slice($duplicates, 0, 5));
+        $duplicateCodes = cds_core_duplicate_values($data[$type], 'code');
+        if ($duplicateCodes) {
+            $warnings[] = ucfirst($type) . ': trùng code — '
+                . implode(', ', array_slice($duplicateCodes, 0, 5));
+        }
+
+        foreach (cds_core_duplicate_identity_groups($data[$type], 'cccd') as $group) {
+            $people = array();
+            foreach ($group['rows'] as $row) {
+                $label = trim((string)($row['name'] ?? 'Không rõ tên'));
+                if ($type === 'students') {
+                    $classId = trim((string)($row['class_id'] ?? ''));
+                    $className = '';
+                    foreach ($data['classes'] as $classRow) {
+                        if ((string)($classRow['id'] ?? '') === $classId) {
+                            $className = trim((string)($classRow['name'] ?? ''));
+                            break;
+                        }
+                    }
+                    if ($className !== '') {
+                        $label .= ' (' . $className . ')';
+                    }
+                }
+                $label .= ' [ID ' . (string)($row['id'] ?? '?') . ']';
+                $people[] = $label;
             }
+            $errors[] = ucfirst($type) . ': CCCD ' . $group['value']
+                . ' đang dùng cho ' . implode(' và ', $people) . '.';
         }
     }
 
@@ -240,7 +291,7 @@ function cds_core_import_snapshot($actor)
             }
             cds_core_upsert($pdo, $teacherSql, array(
                 (string)$row['id'], cds_core_string($row, 'code'), cds_core_string($row, 'name'),
-                cds_core_string($row, 'cccd'), cds_core_date($row['dob'] ?? ''),
+                cds_core_identity($row['cccd'] ?? ''), cds_core_date($row['dob'] ?? ''),
                 cds_core_string($row, 'gender'), cds_core_string($row, 'ethnicity'),
                 cds_core_string($row, 'phone'), cds_core_string($row, 'email'),
                 cds_core_string($row, 'hometown'), cds_core_string($row, 'address'),
@@ -298,7 +349,7 @@ function cds_core_import_snapshot($actor)
             cds_core_upsert($pdo, $studentSql, array(
                 (string)$row['id'], $currentYearId, $classId !== '' ? $classId : null,
                 cds_core_string($row, 'code'), cds_core_string($row, 'name'),
-                cds_core_string($row, 'cccd'), cds_core_date($row['dob'] ?? ''),
+                cds_core_identity($row['cccd'] ?? ''), cds_core_date($row['dob'] ?? ''),
                 cds_core_string($row, 'gender'), cds_core_string($row, 'ethnicity'),
                 cds_core_string($row, 'hometown'), cds_core_string($row, 'address'),
                 cds_core_string($row, 'phone'), cds_core_string($row, 'parent_name'),
@@ -355,4 +406,3 @@ function cds_core_mysql_counts()
     }
     return $counts;
 }
-
