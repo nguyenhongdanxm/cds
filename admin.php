@@ -44,7 +44,10 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
       <p class="text-muted mb-0">Xin chào, <strong><?= e($user['name'] ?? '') ?></strong> · vai trò: <?= e($user['role'] ?? '') ?></p>
     </div>
     <?php if ($isAdmin): ?>
-    <a href="users.php" class="btn btn-primary btn-sm"><i class="bi bi-shield-lock"></i> Tài khoản & phân quyền</a>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="database_admin.php" class="btn btn-outline-primary btn-sm"><i class="bi bi-database-check"></i> Trạng thái MySQL</a>
+      <a href="users.php" class="btn btn-primary btn-sm"><i class="bi bi-shield-lock"></i> Tài khoản & phân quyền</a>
+    </div>
     <?php endif; ?>
   </div>
 

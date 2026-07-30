@@ -1,0 +1,5 @@
+/data/
+/includes/database.conf
+/.env
+/.env.*
+
