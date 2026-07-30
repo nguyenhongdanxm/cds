@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/database_migrations.php';
+require_once __DIR__ . '/includes/database_core_import.php';
 require_admin();
 
 if (empty($_SESSION['cds_db_csrf'])) {
@@ -28,15 +29,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (($_POST['action'] ?? '') === 'import_core_snapshot') {
+        try {
+            $result = cds_core_import_snapshot(current_user());
+            $counts = $result['counts'];
+            flash(
+                'Đã nhập bản sao JSON vào MySQL: '
+                . $counts['teachers'] . ' giáo viên, '
+                . $counts['classes'] . ' lớp, '
+                . $counts['students'] . ' học sinh. '
+                . 'CDS vẫn tiếp tục sử dụng JSON.',
+                'success'
+            );
+        } catch (Throwable $e) {
+            flash('Không thể nhập dữ liệu lõi: ' . $e->getMessage(), 'danger');
+        }
+    }
+
     header('Location: ' . BASE_URL . 'database_admin.php');
     exit;
 }
 
 $dbStatus = cds_db_status();
 $migrationStatus = null;
+$corePreview = null;
+$mysqlCounts = null;
+$coreTablesReady = false;
 if ($dbStatus['connected']) {
     try {
         $migrationStatus = cds_db_migration_status();
+        $coreTablesReady = !isset(
+            $migrationStatus['pending']['20260730_002_core_school_data']
+        );
+        $corePreview = cds_core_preview();
+        if ($coreTablesReady) {
+            $mysqlCounts = cds_core_mysql_counts();
+        }
     } catch (Throwable $e) {
         $dbStatus['error'] = $e->getMessage();
     }
@@ -155,8 +183,84 @@ include __DIR__ . '/includes/nav_top.php';
       </section>
     </div>
   </div>
+
+  <?php if ($corePreview): ?>
+  <section class="status-card p-3 mt-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+      <div>
+        <h5 class="mb-1"><i class="bi bi-people"></i> Bản sao dữ liệu lõi</h5>
+        <p class="text-muted small mb-0">
+          Kiểm tra JSON trước khi sao chép giáo viên, lớp và học sinh sang MySQL.
+        </p>
+      </div>
+      <span class="badge <?= $corePreview['can_import'] ? 'text-bg-success' : 'text-bg-danger' ?>">
+        <?= $corePreview['can_import'] ? 'Có thể nhập' : 'Cần xử lý mâu thuẫn' ?>
+      </span>
+    </div>
+
+    <div class="row g-2 mt-2">
+      <?php
+      $coreLabels = array(
+          'years' => 'Năm học',
+          'teachers' => 'Giáo viên',
+          'classes' => 'Lớp',
+          'students' => 'Học sinh',
+      );
+      foreach ($coreLabels as $key => $label):
+          $jsonCount = (int)$corePreview['counts'][$key];
+          $mysqlCount = $mysqlCounts !== null ? (int)$mysqlCounts[$key] : null;
+      ?>
+      <div class="col-6 col-lg-3">
+        <div class="border rounded-3 p-2 h-100">
+          <div class="small text-muted"><?= e($label) ?></div>
+          <div class="fw-bold">JSON: <?= $jsonCount ?></div>
+          <div class="small <?= $mysqlCount === $jsonCount ? 'text-success' : 'text-muted' ?>">
+            MySQL: <?= $mysqlCount === null ? 'Chưa có bảng' : $mysqlCount ?>
+          </div>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+
+    <?php if ($corePreview['errors']): ?>
+      <div class="alert alert-danger mt-3 mb-2">
+        <strong>Mâu thuẫn bắt buộc xử lý:</strong>
+        <ul class="mb-0 mt-1">
+          <?php foreach (array_slice($corePreview['errors'], 0, 20) as $message): ?>
+            <li><?= e($message) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endif; ?>
+
+    <?php if ($corePreview['warnings']): ?>
+      <div class="alert alert-warning mt-3 mb-2">
+        <strong>Cảnh báo cần kiểm tra:</strong>
+        <ul class="mb-0 mt-1">
+          <?php foreach (array_slice($corePreview['warnings'], 0, 20) as $message): ?>
+            <li><?= e($message) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endif; ?>
+
+    <?php if (!$coreTablesReady): ?>
+      <div class="alert alert-info mt-3 mb-0">
+        Cài đặt bản nâng cấp cấu trúc đang chờ trước khi nhập dữ liệu.
+      </div>
+    <?php elseif ($corePreview['can_import']): ?>
+      <form method="post" class="mt-3"
+            onsubmit="return confirm('Sao chép ảnh chụp dữ liệu JSON hiện tại vào MySQL? Website vẫn tiếp tục dùng JSON sau thao tác này.');">
+        <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
+        <input type="hidden" name="action" value="import_core_snapshot">
+        <button type="submit" class="btn btn-success">
+          <i class="bi bi-database-up"></i> Nhập bản sao JSON vào MySQL
+        </button>
+      </form>
+    <?php endif; ?>
+  </section>
+  <?php endif; ?>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
