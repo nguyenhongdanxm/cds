@@ -406,3 +406,76 @@ function cds_core_mysql_counts()
     }
     return $counts;
 }
+
+function cds_core_canonicalize($value)
+{
+    if (!is_array($value)) {
+        return $value;
+    }
+
+    $keys = array_keys($value);
+    $isList = $keys === range(0, count($value) - 1);
+    if (!$isList) {
+        ksort($value);
+    }
+    foreach ($value as $key => $item) {
+        $value[$key] = cds_core_canonicalize($item);
+    }
+    return $value;
+}
+
+function cds_core_record_hash($value)
+{
+    return hash('sha256', cds_core_json(cds_core_canonicalize($value)));
+}
+
+function cds_core_compare_snapshot($sourceData = null)
+{
+    $sourceData = is_array($sourceData) ? $sourceData : cds_core_source_data();
+    $tables = array(
+        'years' => 'cds_school_years',
+        'teachers' => 'cds_teachers',
+        'classes' => 'cds_classes',
+        'students' => 'cds_students',
+    );
+    $result = array('types' => array(), 'is_match' => true);
+    $pdo = cds_db();
+
+    foreach ($tables as $type => $table) {
+        $source = array();
+        foreach ($sourceData[$type] as $row) {
+            $source[(string)($row['id'] ?? '')] = cds_core_record_hash($row);
+        }
+
+        $mysql = array();
+        $stmt = $pdo->query('SELECT id, raw_json FROM ' . $table);
+        while ($dbRow = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $decoded = json_decode((string)$dbRow['raw_json'], true);
+            $mysql[(string)$dbRow['id']] = cds_core_record_hash(
+                is_array($decoded) ? $decoded : array()
+            );
+        }
+
+        $missing = array_values(array_diff(array_keys($source), array_keys($mysql)));
+        $extra = array_values(array_diff(array_keys($mysql), array_keys($source)));
+        $changed = array();
+        foreach (array_intersect(array_keys($source), array_keys($mysql)) as $id) {
+            if (!hash_equals($source[$id], $mysql[$id])) {
+                $changed[] = $id;
+            }
+        }
+
+        $typeMatch = !$missing && !$extra && !$changed;
+        $result['types'][$type] = array(
+            'missing' => $missing,
+            'extra' => $extra,
+            'changed' => $changed,
+            'is_match' => $typeMatch,
+        );
+        if (!$typeMatch) {
+            $result['is_match'] = false;
+        }
+    }
+
+    return $result;
+}
