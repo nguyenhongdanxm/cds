@@ -923,6 +923,7 @@ body{background:#f8f0f4}
 .overview-att-main{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;padding:.9rem;border-radius:16px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5)}.overview-att-main strong{font-size:2rem;line-height:1;color:#15803d}.overview-att-main span{color:#64748b;font-size:.82rem}
 .overview-mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin-top:.75rem}.overview-mini{padding:.65rem .45rem;border-radius:13px;background:#f8fafc;text-align:center}.overview-mini strong{display:block;font-size:1.05rem}.overview-mini small{color:#64748b;font-size:.72rem}
 .overview-list{display:grid;gap:.65rem}.overview-list-item{display:flex;align-items:flex-start;gap:.7rem;padding:.7rem;border-radius:14px;background:#f8fafc}.overview-list-date{flex:0 0 48px;padding:.4rem .25rem;border-radius:11px;background:#fff;text-align:center;box-shadow:0 2px 8px rgba(15,23,42,.06)}.overview-list-date strong{display:block;color:#a61e5c}.overview-list-date small{font-size:.68rem;color:#64748b}.overview-list-content{min-width:0;flex:1}.overview-list-content strong,.overview-list-content span{display:block}.overview-list-content span{color:#64748b;font-size:.8rem;white-space:normal}
+.overview-duty-stack{display:grid;gap:.6rem}.overview-duty-shift{padding:.75rem;border:1px solid #e2e8f0;border-radius:15px;background:#f8fafc}.overview-duty-shift.current{border-color:#bae6fd;background:linear-gradient(135deg,#f0f9ff,#f8fcff)}.overview-duty-shift-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.7rem;margin-bottom:.6rem}.overview-duty-status{display:flex;align-items:center;gap:.45rem;font-size:.78rem;font-weight:850;color:#334155}.overview-duty-shift.current .overview-duty-status{color:#0369a1}.overview-duty-date{display:block;margin-top:.12rem;color:#64748b;font-size:.7rem}.overview-duty-countdown{padding:.25rem .48rem;border:1px solid #bae6fd;border-radius:999px;background:#fff;color:#0369a1;font-size:.68rem;font-weight:800;white-space:nowrap}.overview-duty-role{display:grid;grid-template-columns:88px minmax(0,1fr);gap:.55rem;align-items:start;padding:.38rem 0;border-top:1px dashed #dbe4eb}.overview-duty-role:first-of-type{border-top:0}.overview-duty-role-label{display:flex;align-items:center;gap:.35rem;color:#64748b;font-size:.72rem;font-weight:750}.overview-duty-names{display:flex;gap:.32rem;flex-wrap:wrap}.overview-duty-name{display:inline-flex;align-items:center;min-height:27px;padding:.22rem .5rem;border-radius:999px;background:#fff;color:#0f172a;font-size:.73rem;font-weight:750;box-shadow:0 1px 4px rgba(15,23,42,.06)}.overview-duty-name.manager{background:#fff7ed;color:#9a3412}.overview-duty-unassigned{color:#94a3b8;font-size:.74rem;font-style:italic}.overview-duty-note{margin-top:.35rem;color:#64748b;font-size:.7rem}
 .overview-menu{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem}.overview-menu-item{min-height:116px;padding:.8rem;border-radius:15px;background:#fff7ed}.overview-menu-item:nth-child(2){background:#ecfdf5}.overview-menu-item:nth-child(3){background:#eef2ff}.overview-menu-item i{font-size:1.1rem;color:#ea580c}.overview-menu-item:nth-child(2) i{color:#16a34a}.overview-menu-item:nth-child(3) i{color:#4f46e5}.overview-menu-item small{display:block;margin:.25rem 0 .45rem;color:#64748b;font-weight:700}.overview-menu-item strong{display:block;font-size:.88rem;line-height:1.35;color:#273244}
 .overview-empty{padding:1.25rem;text-align:center;color:#64748b}.overview-empty i{display:block;margin-bottom:.45rem;font-size:1.55rem;color:#cbd5e1}
 @media(max-width:767.98px){
@@ -933,7 +934,7 @@ body{background:#f8f0f4}
   .meal-form-card .card-body{padding:.75rem}.meal-form-card .alert{margin-bottom:.65rem;padding:.45rem .6rem;font-size:.82rem}.meal-form-head{margin-bottom:.6rem!important}.meal-form-head h5{font-size:1rem}.meal-form-head .small{font-size:.72rem}
   .meal-quick-actions .btn{padding:.35rem .5rem;font-size:.76rem;white-space:nowrap}.meal-save-bar{padding:.65rem!important}.meal-save-bar .btn{min-height:42px}
   .meal-summary-stats{gap:.4rem}.meal-summary-stats>div{padding:.65rem .25rem}.meal-export-modal .modal-dialog{margin:.5rem}.meal-export-modal .modal-footer{grid-template-columns:1fr}
-  .overview-hero{padding:1.05rem;border-radius:18px}.overview-hero h4{font-size:1.15rem}.overview-metrics{grid-template-columns:1fr 1fr;gap:.55rem}.overview-metric{min-height:78px;padding:.72rem;gap:.55rem;border-radius:15px}.overview-metric-icon{width:38px;height:38px;flex-basis:38px}.overview-metric strong{font-size:1.18rem}.overview-metric small{font-size:.72rem}.overview-grid{grid-template-columns:1fr;gap:.75rem}.overview-panel{border-radius:17px}.overview-panel-head,.overview-panel-body{padding:.85rem}.overview-menu{gap:.4rem}.overview-menu-item{min-height:102px;padding:.65rem}.overview-menu-item strong{font-size:.78rem}
+  .overview-hero{padding:1.05rem;border-radius:18px}.overview-hero h4{font-size:1.15rem}.overview-metrics{grid-template-columns:1fr 1fr;gap:.55rem}.overview-metric{min-height:78px;padding:.72rem;gap:.55rem;border-radius:15px}.overview-metric-icon{width:38px;height:38px;flex-basis:38px}.overview-metric strong{font-size:1.18rem}.overview-metric small{font-size:.72rem}.overview-grid{grid-template-columns:1fr;gap:.75rem}.overview-panel{border-radius:17px}.overview-panel-head,.overview-panel-body{padding:.85rem}.overview-menu{gap:.4rem}.overview-menu-item{min-height:102px;padding:.65rem}.overview-menu-item strong{font-size:.78rem}.overview-duty-role{grid-template-columns:78px minmax(0,1fr)}
 }
 @media(max-width:420px){.meal-student-grid{grid-template-columns:1fr}}
 .btn-nt:hover{background:var(--pd);color:#fff}
@@ -1001,19 +1002,32 @@ form[method="post"]{display:none!important}
     }
     $overviewPresent = $overviewAttCounts['present'] + $overviewAttCounts['late'];
 
-    $overviewDuties = noitru_duty_all();
-    $overviewDutyShiftOrder = ['ngay'=>1, 'sang'=>2, 'toi'=>3, 'dem'=>4];
-    usort($overviewDuties, function ($a, $b) use ($overviewToday, $overviewDutyShiftOrder) {
-        $aFuture = ($a['date'] ?? '') >= $overviewToday ? 0 : 1;
-        $bFuture = ($b['date'] ?? '') >= $overviewToday ? 0 : 1;
-        if ($aFuture !== $bFuture) return $aFuture <=> $bFuture;
-        $dateCompare = $aFuture === 0
-            ? strcmp($a['date'] ?? '', $b['date'] ?? '')
-            : strcmp($b['date'] ?? '', $a['date'] ?? '');
-        if ($dateCompare !== 0) return $dateCompare;
-        return ($overviewDutyShiftOrder[$a['shift'] ?? ''] ?? 9) <=> ($overviewDutyShiftOrder[$b['shift'] ?? ''] ?? 9);
-    });
-    $overviewDuties = array_slice($overviewDuties, 0, 3);
+    $overviewDutySettings = noitru_duty_settings();
+    $overviewDutyStartTime = $overviewDutySettings['start_time'] ?? '06:00';
+    $overviewDutyEndTime = $overviewDutySettings['end_time'] ?? '06:00';
+    $overviewNow = time();
+    $overviewTodayStart = strtotime($overviewToday . ' ' . $overviewDutyStartTime);
+    $overviewCurrentDutyDate = $overviewNow < $overviewTodayStart
+        ? date('Y-m-d', strtotime($overviewToday . ' -1 day'))
+        : $overviewToday;
+    $overviewCurrentDutyStart = strtotime($overviewCurrentDutyDate . ' ' . $overviewDutyStartTime);
+    $overviewCurrentDutyEnd = strtotime($overviewCurrentDutyDate . ' ' . $overviewDutyEndTime);
+    if ($overviewCurrentDutyEnd <= $overviewCurrentDutyStart) {
+        $overviewCurrentDutyEnd = strtotime('+1 day', $overviewCurrentDutyEnd);
+    }
+    $overviewNextDutyDate = date('Y-m-d', $overviewCurrentDutyEnd);
+    $overviewRemainingSeconds = max(0, $overviewCurrentDutyEnd - $overviewNow);
+    $overviewRemainingHours = intdiv($overviewRemainingSeconds, 3600);
+    $overviewRemainingMinutes = intdiv($overviewRemainingSeconds % 3600, 60);
+    $overviewAllDuties = noitru_duty_all();
+    $overviewCurrentDuties = array_values(array_filter($overviewAllDuties, fn($row) =>
+        ($row['date'] ?? '') === $overviewCurrentDutyDate
+    ));
+    $overviewNextDuties = array_values(array_filter($overviewAllDuties, fn($row) =>
+        ($row['date'] ?? '') === $overviewNextDutyDate
+    ));
+    $overviewCurrentManager = noitru_duty_manager_for_date($overviewCurrentDutyDate) ?? [];
+    $overviewNextManager = noitru_duty_manager_for_date($overviewNextDutyDate) ?? [];
 
     $overviewHealth = array_values(array_filter(noitru_health_all(), fn($row) =>
         isset($overviewStudentIds[$row['student_id'] ?? ''])
@@ -1088,18 +1102,35 @@ form[method="post"]{display:none!important}
     <?php if (can_perm('nt.lichtruc')): ?>
     <section class="overview-panel">
       <div class="overview-panel-head">
-        <div class="overview-panel-title"><i class="bi bi-calendar2-week-fill" style="background:#e0f2fe;color:#0369a1"></i><div><h6>Lịch trực hiện tại</h6><small>Ca hôm nay và kế tiếp</small></div></div>
+        <div class="overview-panel-title"><i class="bi bi-calendar2-week-fill" style="background:#e0f2fe;color:#0369a1"></i><div><h6>Lịch trực</h6><small>Người trực và quản lý trực gần nhất</small></div></div>
         <a class="overview-panel-link" href="<?= e(BASE_URL . 'noitru.php?tab=duty') ?>">Xem lịch trực <i class="bi bi-arrow-right"></i></a>
       </div>
       <div class="overview-panel-body">
-        <?php if ($overviewDuties): ?><div class="overview-list">
-          <?php foreach ($overviewDuties as $duty): ?>
-          <div class="overview-list-item">
-            <div class="overview-list-date"><strong><?= e(date('d/m', strtotime($duty['date'] ?? $overviewToday))) ?></strong><small><?= ($duty['date'] ?? '') === $overviewToday ? 'HÔM NAY' : e($overviewShiftLabels[$duty['shift'] ?? ''] ?? '') ?></small></div>
-            <div class="overview-list-content"><strong><?= e($duty['teacher_name'] ?? 'Chưa phân công') ?></strong><span>Ca <?= e($overviewShiftLabels[$duty['shift'] ?? ''] ?? ($duty['shift'] ?? '')) ?><?= trim($duty['note'] ?? '') !== '' ? ' · ' . e($duty['note']) : '' ?></span></div>
+        <div class="overview-duty-stack">
+          <?php foreach ([
+              ['current', 'Đang trực hiện tại', $overviewCurrentDutyDate, $overviewCurrentDuties, $overviewCurrentManager],
+              ['', 'Ca trực tiếp theo', $overviewNextDutyDate, $overviewNextDuties, $overviewNextManager],
+          ] as $dutyBlock):
+              [$blockClass, $blockLabel, $blockDate, $blockRows, $blockManager] = $dutyBlock;
+              $blockWeekday = $overviewDayLabels[(int)date('N', strtotime($blockDate)) - 1] ?? '';
+              $blockManagerNames = array_values(array_filter((array)($blockManager['teacher_names'] ?? []), fn($name) => trim((string)$name) !== ''));
+          ?>
+          <div class="overview-duty-shift <?= e($blockClass) ?>">
+            <div class="overview-duty-shift-head">
+              <div><span class="overview-duty-status"><i class="bi <?= $blockClass === 'current' ? 'bi-broadcast-pin' : 'bi-arrow-right-circle' ?>"></i><?= e($blockLabel) ?></span><small class="overview-duty-date"><?= e($blockWeekday . ', ' . date('d/m/Y', strtotime($blockDate))) ?> · <?= e($overviewDutyStartTime) ?>–<?= e($overviewDutyEndTime) ?> hôm sau</small></div>
+              <?php if ($blockClass === 'current'): ?><span class="overview-duty-countdown"><i class="bi bi-clock"></i> Còn <?= $overviewRemainingHours ?>h <?= $overviewRemainingMinutes ?>p</span><?php endif; ?>
+            </div>
+            <div class="overview-duty-role">
+              <span class="overview-duty-role-label"><i class="bi bi-person-check"></i> Người trực</span>
+              <div class="overview-duty-names"><?php if ($blockRows): foreach ($blockRows as $dutyRow): ?><span class="overview-duty-name"><?= e($dutyRow['teacher_name'] ?? 'Chưa rõ') ?></span><?php endforeach; else: ?><span class="overview-duty-unassigned">Chưa phân công</span><?php endif; ?></div>
+            </div>
+            <div class="overview-duty-role">
+              <span class="overview-duty-role-label"><i class="bi bi-shield-check"></i> Quản lý</span>
+              <div><?php if ($blockManagerNames): ?><div class="overview-duty-names"><?php foreach ($blockManagerNames as $managerName): ?><span class="overview-duty-name manager"><?= e($managerName) ?></span><?php endforeach; ?></div><?php else: ?><span class="overview-duty-unassigned">Chưa phân công quản lý</span><?php endif; ?><?php if (trim((string)($blockManager['note'] ?? '')) !== ''): ?><div class="overview-duty-note"><i class="bi bi-chat-left-text"></i> <?= e($blockManager['note']) ?></div><?php endif; ?></div>
+            </div>
           </div>
           <?php endforeach; ?>
-        </div><?php else: ?><div class="overview-empty"><i class="bi bi-calendar-x"></i>Chưa có lịch trực.</div><?php endif; ?>
+        </div>
       </div>
     </section>
     <?php endif; ?>
