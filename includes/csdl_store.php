@@ -4,6 +4,7 @@
  */
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/database_shadow.php';
+require_once __DIR__ . '/database_read_verify.php';
 
 define('CSDL_TEACHERS', DATA_PATH . '/teachers.json');
 define('CSDL_CLASSES', DATA_PATH . '/classes.json');
@@ -32,6 +33,7 @@ function csdl_years_all() {
         ]];
         save_json(CSDL_YEARS, $years);
     }
+    cds_read_verify_rows('years', $years);
     return $years;
 }
 
@@ -114,8 +116,10 @@ function csdl_classes_all() {
             }
         }
         save_json(CSDL_CLASSES, $seed);
+        cds_read_verify_rows('classes', $seed);
         return $seed;
     }
+    cds_read_verify_rows('classes', $rows);
     return $rows;
 }
 
@@ -159,7 +163,9 @@ function csdl_class_delete($id) {
 
 /* —— Giáo viên —— */
 function csdl_teachers_all() {
-    return load_json(CSDL_TEACHERS, []);
+    $rows = load_json(CSDL_TEACHERS, []);
+    cds_read_verify_rows('teachers', $rows);
+    return $rows;
 }
 
 function csdl_teacher_find($id) {
@@ -202,7 +208,9 @@ function csdl_teacher_delete($id) {
 
 /* —— Học sinh —— */
 function csdl_students_all() {
-    return load_json(CSDL_STUDENTS, []);
+    $rows = load_json(CSDL_STUDENTS, []);
+    cds_read_verify_rows('students', $rows);
+    return $rows;
 }
 
 function csdl_student_find($id) {
