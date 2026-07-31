@@ -16,6 +16,7 @@ define('NOITRU_DUTY_GROUPS', NOITRU_DIR . '/duty_groups.json');
 define('NOITRU_DUTY_ROSTER', NOITRU_DIR . '/duty_roster.json');
 define('NOITRU_HEALTH', NOITRU_DIR . '/health.json');
 define('NOITRU_MENUS', NOITRU_DIR . '/menus.json');
+define('NOITRU_MENU_CONFIG', NOITRU_DIR . '/menu_config.json');
 define('NOITRU_RICE', NOITRU_DIR . '/rice.json');
 
 function noitru_ensure_dir() {
@@ -687,6 +688,40 @@ function noitru_menu_save(array $data) {
         $rows[] = $data;
     }
     save_json(NOITRU_MENUS, $rows);
+}
+
+function noitru_menu_config() {
+    noitru_ensure_dir();
+    $data = load_json(NOITRU_MENU_CONFIG, ['dishes'=>[], 'template'=>[]]);
+    $data['dishes'] = array_values($data['dishes'] ?? []);
+    $data['template'] = $data['template'] ?? [];
+    return $data;
+}
+function noitru_menu_config_save(array $data) {
+    noitru_ensure_dir();
+    $data['dishes'] = array_values($data['dishes'] ?? []);
+    $data['template'] = $data['template'] ?? [];
+    save_json(NOITRU_MENU_CONFIG, $data);
+}
+function noitru_menu_dish_add($name, $category) {
+    $name = trim(preg_replace('/\s+/u', ' ', $name));
+    $allowed = ['breakfast','meat','vegetable'];
+    if ($name === '' || !in_array($category, $allowed, true)) return false;
+    $data = noitru_menu_config();
+    foreach ($data['dishes'] as $dish) if (mb_strtolower($dish['name'] ?? '') === mb_strtolower($name)) return false;
+    $data['dishes'][] = ['id'=>noitru_uid('dish'), 'name'=>$name, 'category'=>$category, 'created_at'=>noitru_now()];
+    noitru_menu_config_save($data);
+    return true;
+}
+function noitru_menu_dish_delete($id) {
+    $data = noitru_menu_config();
+    $data['dishes'] = array_values(array_filter($data['dishes'], fn($dish)=>($dish['id']??'')!==$id));
+    noitru_menu_config_save($data);
+}
+function noitru_menu_template_save(array $template) {
+    $data = noitru_menu_config();
+    $data['template'] = $template;
+    noitru_menu_config_save($data);
 }
 
 function noitru_stats_full($from, $to) {
