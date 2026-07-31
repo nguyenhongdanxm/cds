@@ -59,14 +59,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'duty_swap'=>'nt.lichtruc', 'duty_assign_weekday'=>'nt.lichtruc', 'duty_manager_weekday'=>'nt.lichtruc',
         'duty_roster_save'=>'nt.lichtruc', 'duty_roster_delete'=>'nt.lichtruc',
         'health_save'=>'nt.yte', 'health_delete'=>'nt.yte',
-        'menu_save'=>'nt.thucdon',
+        'menu_save'=>'nt.thucdon', 'menu_dish_add'=>'nt.thucdon', 'menu_dish_delete'=>'nt.thucdon',
+        'menu_template_save'=>'nt.thucdon', 'menu_apply_template'=>'nt.thucdon', 'menu_copy_week'=>'nt.thucdon',
         'rice_settings'=>'nt.baoan', 'rice_in'=>'nt.baoan', 'rice_issue'=>'nt.baoan', 'rice_delete'=>'nt.baoan',
     ];
     if (isset($actionPerms[$action])) {
         $requiredLevel = substr($action, -7) === '_delete' || $action === 'duty_month_clear' ? 'delete' : 'edit';
         require_perm_level($actionPerms[$action], $requiredLevel);
     }
-    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','menu_save'], true)) {
+    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
         noitru_require_global_scope();
     }
     if (in_array($action, ['rice_settings','rice_in','rice_issue','rice_delete'], true)) {
@@ -644,6 +645,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     /* Menu */
+    if ($action === 'menu_dish_add') {
+        $ok = noitru_menu_dish_add($_POST['dish_name'] ?? '', $_POST['dish_category'] ?? 'breakfast');
+        flash($ok ? 'Đã thêm món ăn.' : 'Tên món đã có hoặc chưa hợp lệ.', $ok ? 'success' : 'warning');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=menu&menu_view=dishes'); exit;
+    }
+    if ($action === 'menu_dish_delete') {
+        noitru_menu_dish_delete(trim($_POST['dish_id'] ?? ''));
+        flash('Đã xóa món ăn.', 'warning');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=menu&menu_view=dishes'); exit;
+    }
+    if ($action === 'menu_template_save') {
+        $template = [];
+        foreach (['mon','tue','wed','thu','fri','sat','sun'] as $d) foreach (['sang','trua','toi'] as $mealKey)
+            $template[$d][$mealKey] = trim($_POST[$d . '_' . $mealKey] ?? '');
+        noitru_menu_template_save($template);
+        flash('Đã lưu thực đơn mẫu.');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=menu&menu_view=template'); exit;
+    }
+    if ($action === 'menu_apply_template') {
+        $ws = trim($_POST['week_start'] ?? '');
+        $template = noitru_menu_config()['template'] ?? [];
+        noitru_menu_save(['week_start'=>$ws, 'meals'=>$template]);
+        flash('Đã lên thực đơn tuần từ mẫu.');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=menu&menu_view=week&week=' . urlencode($ws)); exit;
+    }
+    if ($action === 'menu_copy_week') {
+        $ws = trim($_POST['week_start'] ?? ''); $source = trim($_POST['source_week'] ?? '');
+        $sourceMenu = noitru_menu_for_week($source);
+        if ($sourceMenu) { noitru_menu_save(['week_start'=>$ws, 'meals'=>$sourceMenu['meals']??[]]); flash('Đã sao chép thực đơn từ tuần đã chọn.'); }
+        else flash('Tuần nguồn chưa có thực đơn.', 'warning');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=menu&menu_view=week&week=' . urlencode($ws)); exit;
+    }
     if ($action === 'menu_save') {
         $ws = trim($_POST['week_start'] ?? '');
         $days = ['mon','tue','wed','thu','fri','sat','sun'];
@@ -926,6 +959,9 @@ body{background:#f8f0f4}
 .overview-duty-stack{display:grid;gap:.6rem}.overview-duty-shift{padding:.75rem;border:1px solid #e2e8f0;border-radius:15px;background:#f8fafc}.overview-duty-shift.current{border-color:#bae6fd;background:linear-gradient(135deg,#f0f9ff,#f8fcff)}.overview-duty-shift-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.7rem;margin-bottom:.6rem}.overview-duty-status{display:flex;align-items:center;gap:.45rem;font-size:.78rem;font-weight:850;color:#334155}.overview-duty-shift.current .overview-duty-status{color:#0369a1}.overview-duty-date{display:block;margin-top:.12rem;color:#64748b;font-size:.7rem}.overview-duty-countdown{padding:.25rem .48rem;border:1px solid #bae6fd;border-radius:999px;background:#fff;color:#0369a1;font-size:.68rem;font-weight:800;white-space:nowrap}.overview-duty-role{display:grid;grid-template-columns:88px minmax(0,1fr);gap:.55rem;align-items:start;padding:.38rem 0;border-top:1px dashed #dbe4eb}.overview-duty-role:first-of-type{border-top:0}.overview-duty-role-label{display:flex;align-items:center;gap:.35rem;color:#64748b;font-size:.72rem;font-weight:750}.overview-duty-names{display:flex;gap:.32rem;flex-wrap:wrap}.overview-duty-name{display:inline-flex;align-items:center;min-height:27px;padding:.22rem .5rem;border-radius:999px;background:#fff;color:#0f172a;font-size:.73rem;font-weight:750;box-shadow:0 1px 4px rgba(15,23,42,.06)}.overview-duty-name.manager{background:#fff7ed;color:#9a3412}.overview-duty-unassigned{color:#94a3b8;font-size:.74rem;font-style:italic}.overview-duty-note{margin-top:.35rem;color:#64748b;font-size:.7rem}
 .overview-menu{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem}.overview-menu-item{min-height:116px;padding:.8rem;border-radius:15px;background:#fff7ed}.overview-menu-item:nth-child(2){background:#ecfdf5}.overview-menu-item:nth-child(3){background:#eef2ff}.overview-menu-item i{font-size:1.1rem;color:#ea580c}.overview-menu-item:nth-child(2) i{color:#16a34a}.overview-menu-item:nth-child(3) i{color:#4f46e5}.overview-menu-item small{display:block;margin:.25rem 0 .45rem;color:#64748b;font-weight:700}.overview-menu-item strong{display:block;font-size:.88rem;line-height:1.35;color:#273244}
 .overview-empty{padding:1.25rem;text-align:center;color:#64748b}.overview-empty i{display:block;margin-bottom:.45rem;font-size:1.55rem;color:#cbd5e1}
+.menu-subtabs{display:inline-flex;max-width:100%;overflow:auto;padding:5px;border-radius:15px;background:#eaf1f5}.menu-subtabs a{padding:.62rem 1rem;border-radius:12px;color:#526b83;text-decoration:none;font-weight:700;white-space:nowrap}.menu-subtabs a.active{background:#fff;color:#172334;box-shadow:0 2px 8px rgba(15,23,42,.08)}
+.menu-panel{border:1px solid #dce6ed}.menu-add-row{display:grid;grid-template-columns:minmax(220px,1fr) 190px auto;gap:.55rem}.menu-add-row .form-control,.menu-add-row .form-select,.menu-add-row .btn{min-height:52px;border-radius:14px}.menu-chips{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}.menu-chip{display:inline-flex;align-items:center;gap:.45rem;padding:.42rem .72rem;border-radius:999px;background:#e4f4fb;color:#06749f;font-weight:750;white-space:nowrap}.menu-chip.small{padding:.25rem .55rem;font-size:.76rem}.menu-chip form{display:inline-flex}.menu-chip button{padding:0;border:0;background:transparent;color:#ff4d5e;line-height:1}
+.menu-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;min-height:54px}.menu-toolbar .form-control{min-width:190px;border-radius:13px}.menu-grid-wrap{overflow:hidden;border:1px solid #dce6ed}.menu-grid{width:100%;min-width:980px;border-collapse:collapse;table-layout:fixed}.menu-grid th,.menu-grid td{border-right:1px solid #d9e4eb;border-bottom:1px solid #d9e4eb}.menu-grid thead th{height:72px;padding:.65rem;text-align:center;background:#f0f5f8;color:#1f3041;font-size:1rem}.menu-grid thead th:first-child{width:110px;text-align:left}.menu-grid thead small{display:block;color:#59728b;font-weight:500}.menu-grid tbody th{padding:.65rem;background:#fff;width:110px}.menu-grid tbody th span{display:inline-flex;padding:.25rem .65rem;border:1px solid #dce6ed;border-radius:999px}.menu-cell{height:92px;padding:.55rem;vertical-align:middle;text-align:center;cursor:pointer;background:#fff;transition:.15s}.menu-cell:hover{background:#f0f9ff}.menu-cell-content{display:flex;justify-content:center;align-items:center;gap:.35rem;flex-wrap:wrap}.menu-add-hint{color:#607995}.menu-grid-note{padding:1rem;color:#607995;font-size:.9rem}
 @media(max-width:767.98px){
   .meal-student-grid{grid-template-columns:1fr 1fr;gap:.3rem;max-height:46vh}.meal-student{min-height:38px;padding:.32rem .45rem;gap:.4rem;font-size:.88rem}
   .meal-class-list{gap:.35rem;margin-bottom:.55rem!important}.meal-class-list a{min-height:38px;padding:.42rem .7rem;font-size:.88rem}
@@ -935,6 +971,7 @@ body{background:#f8f0f4}
   .meal-quick-actions .btn{padding:.35rem .5rem;font-size:.76rem;white-space:nowrap}.meal-save-bar{padding:.65rem!important}.meal-save-bar .btn{min-height:42px}
   .meal-summary-stats{gap:.4rem}.meal-summary-stats>div{padding:.65rem .25rem}.meal-export-modal .modal-dialog{margin:.5rem}.meal-export-modal .modal-footer{grid-template-columns:1fr}
   .overview-hero{padding:1.05rem;border-radius:18px}.overview-hero h4{font-size:1.15rem}.overview-metrics{grid-template-columns:1fr 1fr;gap:.55rem}.overview-metric{min-height:78px;padding:.72rem;gap:.55rem;border-radius:15px}.overview-metric-icon{width:38px;height:38px;flex-basis:38px}.overview-metric strong{font-size:1.18rem}.overview-metric small{font-size:.72rem}.overview-grid{grid-template-columns:1fr;gap:.75rem}.overview-panel{border-radius:17px}.overview-panel-head,.overview-panel-body{padding:.85rem}.overview-menu{gap:.4rem}.overview-menu-item{min-height:102px;padding:.65rem}.overview-menu-item strong{font-size:.78rem}.overview-duty-role{grid-template-columns:78px minmax(0,1fr)}
+  .menu-subtabs{display:flex}.menu-subtabs a{flex:1;padding:.52rem .7rem;text-align:center;font-size:.83rem}.menu-add-row{grid-template-columns:1fr}.menu-add-row .form-control,.menu-add-row .form-select,.menu-add-row .btn{min-height:44px}.menu-toolbar{align-items:stretch;flex-direction:column}.menu-toolbar>div{justify-content:space-between}.menu-toolbar .form-control{min-width:0}.menu-grid{min-width:820px}.menu-grid thead th:first-child,.menu-grid tbody th{width:78px}.menu-grid thead th{font-size:.86rem}.menu-grid-note{font-size:.8rem}
 }
 @media(max-width:420px){.meal-student-grid{grid-template-columns:1fr}}
 .btn-nt:hover{background:var(--pd);color:#fff}
@@ -1576,48 +1613,81 @@ form[method="post"]{display:none!important}
 
 <?php elseif ($tab === 'menu'): ?>
   <?php
+    $menuView = in_array($_GET['menu_view'] ?? 'dishes', ['dishes','template','week'], true) ? ($_GET['menu_view'] ?? 'dishes') : 'dishes';
     $week = $_GET['week'] ?? date('Y-m-d', strtotime('monday this week'));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $week)) $week = date('Y-m-d', strtotime('monday this week'));
     $menu = noitru_menu_for_week($week);
     $meals = $menu['meals'] ?? [];
-    $dayLabels = ['mon'=>'Thứ 2','tue'=>'Thứ 3','wed'=>'Thứ 4','thu'=>'Thứ 5','fri'=>'Thứ 6','sat'=>'Thứ 7','sun'=>'CN'];
-    $groups = $stats['by_meal'];
+    $menuConfig = noitru_menu_config();
+    $dishes = $menuConfig['dishes'] ?? [];
+    $template = $menuConfig['template'] ?? [];
+    $dayLabels = ['mon'=>'Thứ 2','tue'=>'Thứ 3','wed'=>'Thứ 4','thu'=>'Thứ 5','fri'=>'Thứ 6','sat'=>'Thứ 7','sun'=>'Chủ nhật'];
+    $mealLabels = ['sang'=>'Sáng','trua'=>'Trưa','toi'=>'Tối'];
+    $categoryLabels = ['breakfast'=>'Đồ ăn sáng','meat'=>'Thịt','vegetable'=>'Rau củ'];
+    $weekEnd = date('Y-m-d', strtotime($week . ' +6 days'));
+    $previousWeek = date('Y-m-d', strtotime($week . ' -7 days'));
+    $nextWeek = date('Y-m-d', strtotime($week . ' +7 days'));
+    $cellValue = static function($value) { return is_array($value) ? implode(', ', $value) : trim((string)$value); };
   ?>
-  <div class="row g-3 mb-3">
-    <div class="col-md-8">
-      <form method="get" class="row g-2 align-items-end mb-3">
-        <input type="hidden" name="tab" value="menu">
-        <div class="col-auto"><label class="form-label small mb-1">Tuần (thứ 2)</label><input type="date" name="week" class="form-control" value="<?= e($week) ?>" onchange="this.form.submit()"></div>
-      </form>
-      <form method="post" class="card card-soft"><div class="card-body">
-        <input type="hidden" name="action" value="menu_save">
-        <input type="hidden" name="week_start" value="<?= e($week) ?>">
-        <h6 class="mb-3">Thực đơn tuần <?= e($week) ?></h6>
-        <?php foreach ($dayLabels as $dk => $dl):
-          $row = $meals[$dk] ?? ['sang'=>'','trua'=>'','toi'=>''];
-        ?>
-          <div class="border rounded p-2 mb-2">
-            <div class="fw-semibold small mb-1"><?= $dl ?></div>
-            <div class="row g-1">
-              <div class="col-md-4"><input type="text" name="<?= $dk ?>_sang" class="form-control form-control-sm" placeholder="Sáng" value="<?= e($row['sang']??'') ?>"></div>
-              <div class="col-md-4"><input type="text" name="<?= $dk ?>_trua" class="form-control form-control-sm" placeholder="Trưa" value="<?= e($row['trua']??'') ?>"></div>
-              <div class="col-md-4"><input type="text" name="<?= $dk ?>_toi" class="form-control form-control-sm" placeholder="Tối" value="<?= e($row['toi']??'') ?>"></div>
-            </div>
-          </div>
-        <?php endforeach; ?>
-        <button class="btn btn-nt" type="submit">Lưu thực đơn</button>
-      </div></form>
-    </div>
-    <div class="col-md-4">
-      <div class="card card-soft"><div class="card-body">
-        <h6>Nhóm ăn (từ CSDL)</h6>
-        <p class="small text-muted">Sửa nhóm ăn trên hồ sơ HS ở CSDL, rồi đồng bộ.</p>
-        <?php foreach ($groups as $g=>$n): ?>
-          <div class="d-flex justify-content-between border-bottom py-1 small"><span><?= e($g) ?></span><strong><?= $n ?></strong></div>
-        <?php endforeach; ?>
-        <?php if (!$groups): ?><p class="text-muted small mb-0">Chưa có.</p><?php endif; ?>
-      </div></div>
-    </div>
+  <div class="menu-subtabs mb-3">
+    <a class="<?= $menuView==='dishes'?'active':'' ?>" href="?tab=menu&menu_view=dishes">Danh sách món ăn</a>
+    <a class="<?= $menuView==='template'?'active':'' ?>" href="?tab=menu&menu_view=template">Thực đơn mẫu</a>
+    <a class="<?= $menuView==='week'?'active':'' ?>" href="?tab=menu&menu_view=week&week=<?= e($week) ?>">Thực đơn tuần</a>
   </div>
+
+  <?php if ($menuView === 'dishes'): ?>
+    <div class="card card-soft menu-panel"><div class="card-body p-3 p-md-4">
+      <h5 class="fw-bold mb-3">Danh sách món ăn</h5>
+      <?php if ($canEditCurrent): ?><form method="post" class="menu-add-row mb-3">
+        <input type="hidden" name="action" value="menu_dish_add">
+        <input class="form-control" name="dish_name" maxlength="80" placeholder="Nhập tên món (VD: Xôi, Gà rán...)" required>
+        <select class="form-select" name="dish_category"><option value="breakfast">Đồ ăn sáng</option><option value="meat">Thịt</option><option value="vegetable">Rau củ</option></select>
+        <button class="btn btn-nt px-4"><i class="bi bi-plus-lg me-2"></i>Thêm</button>
+      </form><?php endif; ?>
+      <?php foreach ($categoryLabels as $category=>$label): ?>
+        <section class="mb-3"><h6 class="mb-2"><?= e($label) ?></h6><div class="menu-chips">
+          <?php foreach ($dishes as $dish) if (($dish['category']??'') === $category): ?><span class="menu-chip"><?= e($dish['name']??'') ?>
+            <?php if ($canDeleteCurrent): ?><form method="post" onsubmit="return confirm('Xóa món này?')"><input type="hidden" name="action" value="menu_dish_delete"><input type="hidden" name="dish_id" value="<?= e($dish['id']??'') ?>"><button aria-label="Xóa"><i class="bi bi-trash3"></i></button></form><?php endif; ?>
+          </span><?php endforeach; ?>
+          <?php if (!array_filter($dishes, fn($dish)=>($dish['category']??'')===$category)): ?><span class="text-muted small">Chưa có món.</span><?php endif; ?>
+        </div></section>
+      <?php endforeach; ?>
+    </div></div>
+
+  <?php else: $editingTemplate = $menuView === 'template'; $gridData = $editingTemplate ? $template : $meals; ?>
+    <div class="menu-toolbar mb-3">
+      <?php if ($editingTemplate): ?>
+        <span></span><button type="button" class="btn btn-outline-secondary" onclick="openQuickDishModal()"><i class="bi bi-lightning-charge me-2"></i>Gán nhanh món</button>
+      <?php else: ?>
+        <div class="d-flex align-items-center gap-2">
+          <a class="btn btn-light" href="?tab=menu&menu_view=week&week=<?= e($previousWeek) ?>"><i class="bi bi-chevron-left"></i></a>
+          <form method="get"><input type="hidden" name="tab" value="menu"><input type="hidden" name="menu_view" value="week"><input type="date" class="form-control" name="week" value="<?= e($week) ?>" onchange="this.form.submit()"></form>
+          <a class="btn btn-light" href="?tab=menu&menu_view=week&week=<?= e($nextWeek) ?>"><i class="bi bi-chevron-right"></i></a>
+        </div>
+        <?php if ($canEditCurrent): ?><div class="d-flex gap-2 flex-wrap">
+          <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#copyMenuModal"><i class="bi bi-copy me-2"></i>Sao chép từ tuần khác</button>
+          <form method="post"><input type="hidden" name="action" value="menu_apply_template"><input type="hidden" name="week_start" value="<?= e($week) ?>"><button class="btn btn-nt"><i class="bi bi-check-lg me-2"></i>Lên từ mẫu</button></form>
+        </div><?php endif; ?>
+      <?php endif; ?>
+    </div>
+    <form method="post" id="menuGridForm">
+      <input type="hidden" name="action" value="<?= $editingTemplate?'menu_template_save':'menu_save' ?>">
+      <?php if (!$editingTemplate): ?><input type="hidden" name="week_start" value="<?= e($week) ?>"><?php endif; ?>
+      <div class="card card-soft menu-grid-wrap"><div class="table-responsive"><table class="menu-grid">
+        <thead><tr><th>Bữa</th><?php $dateCursor=$week; foreach ($dayLabels as $dayKey=>$dayLabel): ?><th><?= e($dayLabel) ?><?php if (!$editingTemplate): ?><small><?= date('d/m', strtotime($dateCursor)) ?></small><?php $dateCursor=date('Y-m-d', strtotime($dateCursor.' +1 day')); endif; ?></th><?php endforeach; ?></tr></thead>
+        <tbody><?php foreach ($mealLabels as $mealKey=>$mealLabel): ?><tr><th><span><?= e($mealLabel) ?></span></th><?php foreach ($dayLabels as $dayKey=>$dayLabel): $value=$cellValue($gridData[$dayKey][$mealKey]??''); ?>
+          <td class="menu-cell" data-day="<?= e($dayKey) ?>" data-meal="<?= e($mealKey) ?>" onclick="openDishPicker(this)">
+            <input type="hidden" name="<?= e($dayKey.'_'.$mealKey) ?>" value="<?= e($value) ?>"><div class="menu-cell-content"><?php if ($value!==''): foreach (array_filter(array_map('trim',explode(',',$value))) as $dishName): ?><span class="menu-chip small"><?= e($dishName) ?></span><?php endforeach; else: ?><span class="menu-add-hint">+ Thêm món</span><?php endif; ?></div>
+          </td>
+        <?php endforeach; ?></tr><?php endforeach; ?></tbody>
+      </table></div><div class="menu-grid-note"><i class="bi bi-lightbulb text-warning"></i> Nhấn vào ô trong bảng để chọn món ăn cho bữa đó.</div></div>
+      <?php if ($canEditCurrent): ?><div class="text-end mt-3"><button class="btn btn-nt px-4"><i class="bi bi-check2-circle me-2"></i>Lưu <?= $editingTemplate?'thực đơn mẫu':'thực đơn tuần' ?></button></div><?php endif; ?>
+    </form>
+  <?php endif; ?>
+
+  <div class="modal fade" id="dishPickerModal" tabindex="-1"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Chọn món ăn</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="dishPickerOptions"></div><div class="modal-footer"><button class="btn btn-light" data-bs-dismiss="modal">Hủy</button><button class="btn btn-nt" type="button" onclick="applyDishPicker()">Áp dụng</button></div></div></div></div>
+  <div class="modal fade" id="copyMenuModal" tabindex="-1"><div class="modal-dialog"><form method="post" class="modal-content"><div class="modal-header"><h5 class="modal-title">Sao chép từ tuần khác</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="hidden" name="action" value="menu_copy_week"><input type="hidden" name="week_start" value="<?= e($week) ?>"><label class="form-label">Chọn ngày thứ Hai của tuần nguồn</label><input type="date" class="form-control" name="source_week" required></div><div class="modal-footer"><button class="btn btn-light" data-bs-dismiss="modal" type="button">Hủy</button><button class="btn btn-nt">Sao chép</button></div></form></div></div>
+  <script>window.ntMenuDishes=<?= json_encode(array_values(array_map(fn($dish)=>$dish['name']??'', $dishes)), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;</script>
 
 <?php elseif ($tab === 'stats'): ?>
   <?php
@@ -1871,6 +1941,21 @@ async function shareMealDayExport(){
     downloadMealDayExport();
   },'image/png');
 }
+var ntMenuCell=null;
+function openDishPicker(cell){
+  if(!cell||!document.getElementById('dishPickerModal'))return;
+  ntMenuCell=cell;var current=(cell.querySelector('input')?.value||'').split(',').map(function(v){return v.trim()}).filter(Boolean);
+  var box=document.getElementById('dishPickerOptions');box.replaceChildren();
+  if(!(window.ntMenuDishes||[]).length){var empty=document.createElement('div');empty.className='alert alert-info mb-0';empty.textContent='Chưa có món ăn. Hãy thêm món trong tab Danh sách món ăn trước.';box.append(empty)}
+  (window.ntMenuDishes||[]).forEach(function(name,index){var label=document.createElement('label');label.className='d-flex align-items-center gap-2 border rounded-3 p-2 mb-2';var input=document.createElement('input');input.type='checkbox';input.className='form-check-input m-0';input.value=name;input.id='dishPick'+index;input.checked=current.includes(name);var labelText=document.createElement('span');labelText.textContent=name;label.append(input,labelText);box.append(label)});
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('dishPickerModal')).show();
+}
+function applyDishPicker(){
+  if(!ntMenuCell)return;var values=Array.from(document.querySelectorAll('#dishPickerOptions input:checked')).map(function(input){return input.value});var hidden=ntMenuCell.querySelector('input'),content=ntMenuCell.querySelector('.menu-cell-content');hidden.value=values.join(', ');content.replaceChildren();
+  if(values.length)values.forEach(function(name){var chip=document.createElement('span');chip.className='menu-chip small';chip.textContent=name;content.append(chip)});else{var hint=document.createElement('span');hint.className='menu-add-hint';hint.textContent='+ Thêm món';content.append(hint)}
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('dishPickerModal')).hide();
+}
+function openQuickDishModal(){var first=document.querySelector('.menu-cell');if(first)openDishPicker(first)}
 toggleRicePeriod();
 </script>
 </body>
