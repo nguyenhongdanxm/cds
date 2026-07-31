@@ -208,7 +208,11 @@ function cds_core_upsert(PDO $pdo, $sql, $values)
     $stmt->execute($values);
 }
 
-function cds_core_import_snapshot($actor)
+function cds_core_import_snapshot(
+    $actor,
+    $sourceType = 'json_core',
+    $sourceLabel = 'CSDL JSON lõi'
+)
 {
     $preview = cds_core_preview();
     if (!$preview['can_import']) {
@@ -239,9 +243,11 @@ function cds_core_import_snapshot($actor)
             "INSERT INTO cds_import_batches
                 (source_type, source_label, source_checksum, status, records_total,
                  started_at, created_by, created_at)
-             VALUES ('json_core', 'CSDL JSON lõi', ?, 'running', ?, NOW(), ?, NOW())"
+             VALUES (?, ?, ?, 'running', ?, NOW(), ?, NOW())"
         );
         $batch->execute(array(
+            (string)$sourceType,
+            (string)$sourceLabel,
             $checksum,
             $total,
             (string)($actor['username'] ?? $actor['name'] ?? ''),
@@ -360,6 +366,27 @@ function cds_core_import_snapshot($actor)
             ));
         }
 
+        cds_core_delete_missing_rows(
+            $pdo,
+            'cds_students',
+            array_column($data['students'], 'id')
+        );
+        cds_core_delete_missing_rows(
+            $pdo,
+            'cds_classes',
+            array_column($data['classes'], 'id')
+        );
+        cds_core_delete_missing_rows(
+            $pdo,
+            'cds_teachers',
+            array_column($data['teachers'], 'id')
+        );
+        cds_core_delete_missing_rows(
+            $pdo,
+            'cds_school_years',
+            array_column($data['years'], 'id')
+        );
+
         $done = $pdo->prepare(
             "UPDATE cds_import_batches
              SET status='completed', records_imported=?, completed_at=NOW()
@@ -389,6 +416,33 @@ function cds_core_import_snapshot($actor)
         }
         throw $e;
     }
+}
+
+function cds_core_delete_missing_rows(PDO $pdo, $table, $sourceIds)
+{
+    $allowed = array(
+        'cds_students',
+        'cds_classes',
+        'cds_teachers',
+        'cds_school_years',
+    );
+    if (!in_array($table, $allowed, true)) {
+        throw new InvalidArgumentException('Bảng đồng bộ không hợp lệ.');
+    }
+
+    $sourceIds = array_values(array_filter(array_map('strval', $sourceIds), function ($id) {
+        return $id !== '';
+    }));
+    if (!$sourceIds) {
+        $pdo->exec('DELETE FROM ' . $table);
+        return;
+    }
+
+    $placeholders = implode(',', array_fill(0, count($sourceIds), '?'));
+    $stmt = $pdo->prepare(
+        'DELETE FROM ' . $table . ' WHERE id NOT IN (' . $placeholders . ')'
+    );
+    $stmt->execute($sourceIds);
 }
 
 function cds_core_mysql_counts()
