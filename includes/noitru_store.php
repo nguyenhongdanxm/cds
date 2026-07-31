@@ -10,6 +10,9 @@ define('NOITRU_MEALS', NOITRU_DIR . '/meals_daily.json');
 define('NOITRU_MEAL_REPORTS', NOITRU_DIR . '/meal_reports.json');
 define('NOITRU_ATT', NOITRU_DIR . '/attendance.json');
 define('NOITRU_DUTY', NOITRU_DIR . '/duty.json');
+define('NOITRU_DUTY_SETTINGS', NOITRU_DIR . '/duty_settings.json');
+define('NOITRU_DUTY_MANAGERS', NOITRU_DIR . '/duty_managers.json');
+define('NOITRU_DUTY_GROUPS', NOITRU_DIR . '/duty_groups.json');
 define('NOITRU_HEALTH', NOITRU_DIR . '/health.json');
 define('NOITRU_MENUS', NOITRU_DIR . '/menus.json');
 define('NOITRU_RICE', NOITRU_DIR . '/rice.json');
@@ -488,6 +491,92 @@ function noitru_duty_save(array $data) {
 }
 function noitru_duty_delete($id) {
     save_json(NOITRU_DUTY, array_values(array_filter(noitru_duty_all(), fn($r) => ($r['id'] ?? '') !== $id)));
+}
+function noitru_duty_for_month($month) {
+    return array_values(array_filter(noitru_duty_all(), fn($row) =>
+        str_starts_with((string)($row['date'] ?? ''), $month . '-')
+    ));
+}
+function noitru_duty_delete_month($month) {
+    $rows = noitru_duty_all();
+    $kept = array_values(array_filter($rows, fn($row) =>
+        !str_starts_with((string)($row['date'] ?? ''), $month . '-')
+    ));
+    $deleted = count($rows) - count($kept);
+    if ($deleted > 0) save_json(NOITRU_DUTY, $kept);
+    return $deleted;
+}
+function noitru_duty_settings() {
+    noitru_ensure_dir();
+    return array_merge([
+        'people_per_day' => 3,
+        'max_per_month' => 4,
+        'start_time' => '06:00',
+        'end_time' => '06:00',
+    ], load_json(NOITRU_DUTY_SETTINGS, []));
+}
+function noitru_duty_settings_save(array $data) {
+    $settings = noitru_duty_settings();
+    $settings['people_per_day'] = max(1, min(20, (int)($data['people_per_day'] ?? 3)));
+    $settings['max_per_month'] = max(1, min(31, (int)($data['max_per_month'] ?? 4)));
+    foreach (['start_time','end_time'] as $key) {
+        $value = trim((string)($data[$key] ?? $settings[$key]));
+        if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $value)) $settings[$key] = $value;
+    }
+    save_json(NOITRU_DUTY_SETTINGS, $settings);
+    return $settings;
+}
+function noitru_duty_managers_all() {
+    noitru_ensure_dir();
+    return load_json(NOITRU_DUTY_MANAGERS, []);
+}
+function noitru_duty_manager_for_date($date) {
+    foreach (noitru_duty_managers_all() as $row) {
+        if (($row['date'] ?? '') === $date) return $row;
+    }
+    return null;
+}
+function noitru_duty_manager_save($date, array $teacherIds, array $teacherMap, $note = '') {
+    $rows = noitru_duty_managers_all();
+    $teacherIds = array_values(array_unique(array_filter($teacherIds, fn($id) => isset($teacherMap[$id]))));
+    $record = [
+        'date' => $date,
+        'teacher_ids' => $teacherIds,
+        'teacher_names' => array_values(array_map(fn($id) => $teacherMap[$id], $teacherIds)),
+        'note' => trim((string)$note),
+        'updated_at' => noitru_now(),
+    ];
+    $found = false;
+    foreach ($rows as $i=>$row) {
+        if (($row['date'] ?? '') !== $date) continue;
+        if ($teacherIds || $record['note'] !== '') $rows[$i] = $record;
+        else unset($rows[$i]);
+        $found = true;
+        break;
+    }
+    if (!$found && ($teacherIds || $record['note'] !== '')) $rows[] = $record;
+    save_json(NOITRU_DUTY_MANAGERS, array_values($rows));
+}
+function noitru_duty_groups_all() {
+    noitru_ensure_dir();
+    return load_json(NOITRU_DUTY_GROUPS, []);
+}
+function noitru_duty_group_save($name, array $teacherIds, array $teacherMap) {
+    $name = trim((string)$name);
+    if ($name === '') throw new InvalidArgumentException('Tên nhóm trực không được để trống.');
+    $teacherIds = array_values(array_unique(array_filter($teacherIds, fn($id) => isset($teacherMap[$id]))));
+    $rows = noitru_duty_groups_all();
+    $rows[] = [
+        'id' => noitru_uid('dg'),
+        'name' => $name,
+        'teacher_ids' => $teacherIds,
+        'teacher_names' => array_values(array_map(fn($id) => $teacherMap[$id], $teacherIds)),
+        'created_at' => noitru_now(),
+    ];
+    save_json(NOITRU_DUTY_GROUPS, $rows);
+}
+function noitru_duty_group_delete($id) {
+    save_json(NOITRU_DUTY_GROUPS, array_values(array_filter(noitru_duty_groups_all(), fn($row) => ($row['id'] ?? '') !== $id)));
 }
 
 /* —— Health —— */
