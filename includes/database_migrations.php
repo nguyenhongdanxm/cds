@@ -158,6 +158,22 @@ function cds_db_migrations()
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
             ),
         ),
+        '20260731_003_shadow_write_settings' => array(
+            'description' => 'Công tắc ghi song song JSON sang MySQL',
+            'statements' => array(
+                "CREATE TABLE IF NOT EXISTS cds_runtime_settings (
+                    setting_key VARCHAR(100) NOT NULL,
+                    setting_value VARCHAR(255) NOT NULL DEFAULT '',
+                    updated_by VARCHAR(100) NOT NULL DEFAULT '',
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                        ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (setting_key)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "INSERT IGNORE INTO cds_runtime_settings
+                    (setting_key, setting_value, updated_by)
+                 VALUES ('core_shadow_write', '0', 'migration')",
+            ),
+        ),
     );
 }
 
