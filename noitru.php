@@ -670,6 +670,21 @@ body{background:#f8f0f4}
 .meal-export-modal .modal-content{border:0;border-radius:22px}.meal-export-modal .modal-body{background:#f8fafc}
 .meal-export-modal .modal-footer{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}.meal-export-modal .modal-footer>*{margin:0}
 .meal-missing-box{border:1px solid #f6c76b;border-radius:18px;background:#fffdf7;padding:1rem;margin-top:1rem}.meal-missing-row{padding:.65rem;border-radius:12px;background:#f8fafc;margin-top:.55rem}.meal-missing-chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem}.meal-missing-chips span{padding:.25rem .58rem;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:.78rem;font-weight:700}
+.overview-hero{position:relative;overflow:hidden;border-radius:22px;padding:1.35rem 1.45rem;background:linear-gradient(135deg,#9d174d 0%,#d63384 58%,#f472b6 100%);color:#fff;box-shadow:0 14px 34px rgba(166,30,92,.2)}
+.overview-hero:after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;right:-75px;top:-105px;background:rgba(255,255,255,.12)}
+.overview-hero-date{display:inline-flex;align-items:center;gap:.45rem;padding:.35rem .7rem;border-radius:999px;background:rgba(255,255,255,.16);font-size:.8rem;font-weight:700}
+.overview-hero h4{font-weight:800;margin:.8rem 0 .25rem}.overview-hero p{max-width:650px;margin:0;color:rgba(255,255,255,.83);font-size:.9rem}
+.overview-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;margin:1rem 0}
+.overview-metric{display:flex;align-items:center;gap:.75rem;min-height:92px;padding:1rem;border:1px solid #eef2f7;border-radius:18px;background:#fff;box-shadow:0 7px 22px rgba(15,23,42,.06)}
+.overview-metric-icon{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;border-radius:14px;font-size:1.25rem}.overview-metric strong{display:block;font-size:1.45rem;line-height:1.1;color:#172033}.overview-metric small{display:block;margin-top:.2rem;color:#64748b}
+.overview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.overview-panel{overflow:hidden;border:1px solid #edf1f5;border-radius:20px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.06)}
+.overview-panel-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:1rem 1.1rem;border-bottom:1px solid #eef2f7}.overview-panel-title{display:flex;align-items:center;gap:.7rem}.overview-panel-title i{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;font-size:1.05rem}.overview-panel-title h6{margin:0;font-weight:800}.overview-panel-title small{display:block;margin-top:.12rem;color:#64748b}
+.overview-panel-link{color:#a61e5c;text-decoration:none;font-size:.78rem;font-weight:800;white-space:nowrap}.overview-panel-body{padding:1rem 1.1rem}
+.overview-att-main{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;padding:.9rem;border-radius:16px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5)}.overview-att-main strong{font-size:2rem;line-height:1;color:#15803d}.overview-att-main span{color:#64748b;font-size:.82rem}
+.overview-mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin-top:.75rem}.overview-mini{padding:.65rem .45rem;border-radius:13px;background:#f8fafc;text-align:center}.overview-mini strong{display:block;font-size:1.05rem}.overview-mini small{color:#64748b;font-size:.72rem}
+.overview-list{display:grid;gap:.65rem}.overview-list-item{display:flex;align-items:flex-start;gap:.7rem;padding:.7rem;border-radius:14px;background:#f8fafc}.overview-list-date{flex:0 0 48px;padding:.4rem .25rem;border-radius:11px;background:#fff;text-align:center;box-shadow:0 2px 8px rgba(15,23,42,.06)}.overview-list-date strong{display:block;color:#a61e5c}.overview-list-date small{font-size:.68rem;color:#64748b}.overview-list-content{min-width:0;flex:1}.overview-list-content strong,.overview-list-content span{display:block}.overview-list-content span{color:#64748b;font-size:.8rem;white-space:normal}
+.overview-menu{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem}.overview-menu-item{min-height:116px;padding:.8rem;border-radius:15px;background:#fff7ed}.overview-menu-item:nth-child(2){background:#ecfdf5}.overview-menu-item:nth-child(3){background:#eef2ff}.overview-menu-item i{font-size:1.1rem;color:#ea580c}.overview-menu-item:nth-child(2) i{color:#16a34a}.overview-menu-item:nth-child(3) i{color:#4f46e5}.overview-menu-item small{display:block;margin:.25rem 0 .45rem;color:#64748b;font-weight:700}.overview-menu-item strong{display:block;font-size:.88rem;line-height:1.35;color:#273244}
+.overview-empty{padding:1.25rem;text-align:center;color:#64748b}.overview-empty i{display:block;margin-bottom:.45rem;font-size:1.55rem;color:#cbd5e1}
 @media(max-width:767.98px){
   .meal-student-grid{grid-template-columns:1fr 1fr;gap:.3rem;max-height:46vh}.meal-student{min-height:38px;padding:.32rem .45rem;gap:.4rem;font-size:.88rem}
   .meal-class-list{gap:.35rem;margin-bottom:.55rem!important}.meal-class-list a{min-height:38px;padding:.42rem .7rem;font-size:.88rem}
@@ -678,6 +693,7 @@ body{background:#f8f0f4}
   .meal-form-card .card-body{padding:.75rem}.meal-form-card .alert{margin-bottom:.65rem;padding:.45rem .6rem;font-size:.82rem}.meal-form-head{margin-bottom:.6rem!important}.meal-form-head h5{font-size:1rem}.meal-form-head .small{font-size:.72rem}
   .meal-quick-actions .btn{padding:.35rem .5rem;font-size:.76rem;white-space:nowrap}.meal-save-bar{padding:.65rem!important}.meal-save-bar .btn{min-height:42px}
   .meal-summary-stats{gap:.4rem}.meal-summary-stats>div{padding:.65rem .25rem}.meal-export-modal .modal-dialog{margin:.5rem}.meal-export-modal .modal-footer{grid-template-columns:1fr}
+  .overview-hero{padding:1.05rem;border-radius:18px}.overview-hero h4{font-size:1.15rem}.overview-metrics{grid-template-columns:1fr 1fr;gap:.55rem}.overview-metric{min-height:78px;padding:.72rem;gap:.55rem;border-radius:15px}.overview-metric-icon{width:38px;height:38px;flex-basis:38px}.overview-metric strong{font-size:1.18rem}.overview-metric small{font-size:.72rem}.overview-grid{grid-template-columns:1fr;gap:.75rem}.overview-panel{border-radius:17px}.overview-panel-head,.overview-panel-body{padding:.85rem}.overview-menu{gap:.4rem}.overview-menu-item{min-height:102px;padding:.65rem}.overview-menu-item strong{font-size:.78rem}
 }
 @media(max-width:420px){.meal-student-grid{grid-template-columns:1fr}}
 .btn-nt:hover{background:var(--pd);color:#fff}
@@ -707,24 +723,183 @@ form[method="post"]{display:none!important}
 </div>
 
 <?php if ($tab === 'overview'): ?>
-  <?php $st = $stats; ?>
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$st['total'] ?></div><div class="text-muted small">HS nội trú</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n" style="font-size:.95rem;padding-top:.4rem"><?= $st['last_sync_at'] ? e(date('d/m H:i', strtotime($st['last_sync_at']))) : 'Chưa' ?></div><div class="text-muted small">Đồng bộ CSDL</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= count($st['by_room']) ?></div><div class="text-muted small">Phòng</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= count(array_filter(noitru_exits_all(), fn($x)=>($x['status']??'')==='pending' && noitru_student_in_scope($x['student_id'] ?? ''))) ?></div><div class="text-muted small">Phiếu chờ duyệt</div></div></div>
+  <?php
+    $st = $stats;
+    $overviewToday = date('Y-m-d');
+    $overviewStudentIds = array_fill_keys(array_column($boarders, 'id'), true);
+    $overviewPendingExits = array_values(array_filter(noitru_exits_all(), fn($row) =>
+        ($row['status'] ?? '') === 'pending' && isset($overviewStudentIds[$row['student_id'] ?? ''])
+    ));
+
+    $overviewAttRows = array_values(array_filter(noitru_att_all(), fn($row) =>
+        isset($overviewStudentIds[$row['student_id'] ?? ''])
+    ));
+    $overviewAttDate = '';
+    foreach ($overviewAttRows as $row) {
+        $rowDate = $row['date'] ?? '';
+        if ($rowDate <= $overviewToday && $rowDate > $overviewAttDate) $overviewAttDate = $rowDate;
+    }
+    if ($overviewAttDate === '' && $overviewAttRows) {
+        $overviewAttDate = max(array_column($overviewAttRows, 'date'));
+    }
+    $overviewShiftOrder = ['sang'=>1, 'toi'=>2, 'hoc_toi'=>3];
+    $overviewAttShift = '';
+    foreach ($overviewAttRows as $row) {
+        if (($row['date'] ?? '') !== $overviewAttDate) continue;
+        $candidateShift = $row['shift'] ?? '';
+        if (($overviewShiftOrder[$candidateShift] ?? 0) >= ($overviewShiftOrder[$overviewAttShift] ?? 0)) {
+            $overviewAttShift = $candidateShift;
+        }
+    }
+    $overviewAttCounts = ['present'=>0, 'absent'=>0, 'late'=>0, 'excused'=>0];
+    $overviewAttReported = 0;
+    foreach ($overviewAttRows as $row) {
+        if (($row['date'] ?? '') !== $overviewAttDate || ($row['shift'] ?? '') !== $overviewAttShift) continue;
+        $status = $row['status'] ?? 'present';
+        $overviewAttCounts[$status] = ($overviewAttCounts[$status] ?? 0) + 1;
+        $overviewAttReported++;
+    }
+    $overviewPresent = $overviewAttCounts['present'] + $overviewAttCounts['late'];
+
+    $overviewDuties = noitru_duty_all();
+    $overviewDutyShiftOrder = ['sang'=>1, 'toi'=>2, 'dem'=>3];
+    usort($overviewDuties, function ($a, $b) use ($overviewToday, $overviewDutyShiftOrder) {
+        $aFuture = ($a['date'] ?? '') >= $overviewToday ? 0 : 1;
+        $bFuture = ($b['date'] ?? '') >= $overviewToday ? 0 : 1;
+        if ($aFuture !== $bFuture) return $aFuture <=> $bFuture;
+        $dateCompare = $aFuture === 0
+            ? strcmp($a['date'] ?? '', $b['date'] ?? '')
+            : strcmp($b['date'] ?? '', $a['date'] ?? '');
+        if ($dateCompare !== 0) return $dateCompare;
+        return ($overviewDutyShiftOrder[$a['shift'] ?? ''] ?? 9) <=> ($overviewDutyShiftOrder[$b['shift'] ?? ''] ?? 9);
+    });
+    $overviewDuties = array_slice($overviewDuties, 0, 3);
+
+    $overviewHealth = array_values(array_filter(noitru_health_all(), fn($row) =>
+        isset($overviewStudentIds[$row['student_id'] ?? ''])
+    ));
+    usort($overviewHealth, fn($a, $b) => strcmp($b['date'] ?? '', $a['date'] ?? '') ?: strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
+    $overviewHealthToday = count(array_filter($overviewHealth, fn($row) => ($row['date'] ?? '') === $overviewToday));
+    $overviewHealthLatest = array_slice($overviewHealth, 0, 3);
+
+    $overviewWeekStart = date('Y-m-d', strtotime('monday this week', strtotime($overviewToday)));
+    $overviewMenu = noitru_menu_for_week($overviewWeekStart);
+    $overviewDayKeys = ['mon','tue','wed','thu','fri','sat','sun'];
+    $overviewDayLabels = ['Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy','Chủ Nhật'];
+    $overviewDayIndex = (int)date('N') - 1;
+    $overviewTodayMenu = $overviewMenu['meals'][$overviewDayKeys[$overviewDayIndex]] ?? [];
+    $overviewShiftLabels = ['sang'=>'Sáng', 'toi'=>'Tối', 'hoc_toi'=>'Học tối', 'dem'=>'Đêm'];
+    $overviewHealthTypeLabels = ['kham'=>'Khám', 'thuoc'=>'Thuốc', 'theo_doi'=>'Theo dõi'];
+  ?>
+
+  <section class="overview-hero">
+    <span class="overview-hero-date"><i class="bi bi-calendar3"></i> <?= e($overviewDayLabels[$overviewDayIndex] . ', ' . date('d/m/Y')) ?></span>
+    <h4>Tổng quan hoạt động nội trú</h4>
+    <p>Số liệu mới nhất được tổng hợp từ điểm danh, lịch trực, y tế và thực đơn để theo dõi nhanh trong ngày.</p>
+  </section>
+
+  <div class="overview-metrics">
+    <div class="overview-metric">
+      <span class="overview-metric-icon" style="background:#fce7f3;color:#be185d"><i class="bi bi-people-fill"></i></span>
+      <div><strong><?= (int)$st['total'] ?></strong><small>Học sinh nội trú</small></div>
+    </div>
+    <?php if (can_perm('nt.diemdanh')): ?>
+    <div class="overview-metric">
+      <span class="overview-metric-icon" style="background:#dcfce7;color:#15803d"><i class="bi bi-person-check-fill"></i></span>
+      <div><strong><?= $overviewAttDate ? $overviewPresent . '/' . (int)$st['total'] : '—' ?></strong><small>Có mặt gần nhất</small></div>
+    </div>
+    <?php endif; ?>
+    <?php if (can_perm('nt.ravao')): ?>
+    <div class="overview-metric">
+      <span class="overview-metric-icon" style="background:#fff7ed;color:#c2410c"><i class="bi bi-door-open-fill"></i></span>
+      <div><strong><?= count($overviewPendingExits) ?></strong><small>Phiếu chờ duyệt</small></div>
+    </div>
+    <?php endif; ?>
+    <?php if (can_perm('nt.yte')): ?>
+    <div class="overview-metric">
+      <span class="overview-metric-icon" style="background:#fee2e2;color:#dc2626"><i class="bi bi-heart-pulse-fill"></i></span>
+      <div><strong><?= $overviewHealthToday ?></strong><small>Ghi nhận y tế hôm nay</small></div>
+    </div>
+    <?php endif; ?>
   </div>
-  <div class="row g-3">
-    <div class="col-md-4"><div class="card card-soft"><div class="card-body"><h6>Theo lớp</h6>
-      <?php foreach ($st['by_class'] as $k=>$n): ?><div class="d-flex justify-content-between small border-bottom py-1"><span><?= e($k) ?></span><strong><?= $n ?></strong></div><?php endforeach; ?>
-      <?php if (!$st['by_class']): ?><p class="text-muted small mb-0">Chưa có HS nội trú trong CSDL.</p><?php endif; ?>
-    </div></div></div>
-    <div class="col-md-4"><div class="card card-soft"><div class="card-body"><h6>Theo phòng</h6>
-      <?php foreach ($st['by_room'] as $k=>$n): ?><div class="d-flex justify-content-between small border-bottom py-1"><span><?= e($k) ?></span><strong><?= $n ?></strong></div><?php endforeach; ?>
-    </div></div></div>
-    <div class="col-md-4"><div class="card card-soft"><div class="card-body"><h6>Theo nhóm ăn</h6>
-      <?php foreach ($st['by_meal'] as $k=>$n): ?><div class="d-flex justify-content-between small border-bottom py-1"><span><?= e($k) ?></span><strong><?= $n ?></strong></div><?php endforeach; ?>
-    </div></div></div>
+
+  <div class="overview-grid">
+    <?php if (can_perm('nt.diemdanh')): ?>
+    <section class="overview-panel">
+      <div class="overview-panel-head">
+        <div class="overview-panel-title"><i class="bi bi-clipboard2-check-fill" style="background:#dcfce7;color:#15803d"></i><div><h6>Sỹ số điểm danh</h6><small><?= $overviewAttDate ? 'Cập nhật gần nhất' : 'Chưa có dữ liệu' ?></small></div></div>
+        <a class="overview-panel-link" href="<?= e(BASE_URL . 'noitru.php?tab=attendance') ?>">Xem điểm danh <i class="bi bi-arrow-right"></i></a>
+      </div>
+      <div class="overview-panel-body">
+        <?php if ($overviewAttDate): ?>
+          <div class="overview-att-main"><div><strong><?= $overviewPresent ?>/<?= (int)$st['total'] ?></strong><span class="d-block mt-1">Có mặt · <?= e($overviewShiftLabels[$overviewAttShift] ?? $overviewAttShift) ?></span></div><span><?= e(date('d/m/Y', strtotime($overviewAttDate))) ?><br>Đã ghi nhận <?= $overviewAttReported ?> HS</span></div>
+          <div class="overview-mini-grid">
+            <div class="overview-mini"><strong class="text-danger"><?= $overviewAttCounts['absent'] ?></strong><small>Vắng</small></div>
+            <div class="overview-mini"><strong style="color:#d97706"><?= $overviewAttCounts['excused'] ?></strong><small>Có phép</small></div>
+            <div class="overview-mini"><strong style="color:#7c3aed"><?= $overviewAttCounts['late'] ?></strong><small>Đi muộn</small></div>
+          </div>
+        <?php else: ?>
+          <div class="overview-empty"><i class="bi bi-clipboard-x"></i>Chưa có lượt điểm danh nào.</div>
+        <?php endif; ?>
+      </div>
+    </section>
+    <?php endif; ?>
+
+    <?php if (can_perm('nt.lichtruc')): ?>
+    <section class="overview-panel">
+      <div class="overview-panel-head">
+        <div class="overview-panel-title"><i class="bi bi-calendar2-week-fill" style="background:#e0f2fe;color:#0369a1"></i><div><h6>Lịch trực hiện tại</h6><small>Ca hôm nay và kế tiếp</small></div></div>
+        <a class="overview-panel-link" href="<?= e(BASE_URL . 'noitru.php?tab=duty') ?>">Xem lịch trực <i class="bi bi-arrow-right"></i></a>
+      </div>
+      <div class="overview-panel-body">
+        <?php if ($overviewDuties): ?><div class="overview-list">
+          <?php foreach ($overviewDuties as $duty): ?>
+          <div class="overview-list-item">
+            <div class="overview-list-date"><strong><?= e(date('d/m', strtotime($duty['date'] ?? $overviewToday))) ?></strong><small><?= ($duty['date'] ?? '') === $overviewToday ? 'HÔM NAY' : e($overviewShiftLabels[$duty['shift'] ?? ''] ?? '') ?></small></div>
+            <div class="overview-list-content"><strong><?= e($duty['teacher_name'] ?? 'Chưa phân công') ?></strong><span>Ca <?= e($overviewShiftLabels[$duty['shift'] ?? ''] ?? ($duty['shift'] ?? '')) ?><?= trim($duty['note'] ?? '') !== '' ? ' · ' . e($duty['note']) : '' ?></span></div>
+          </div>
+          <?php endforeach; ?>
+        </div><?php else: ?><div class="overview-empty"><i class="bi bi-calendar-x"></i>Chưa có lịch trực.</div><?php endif; ?>
+      </div>
+    </section>
+    <?php endif; ?>
+
+    <?php if (can_perm('nt.thucdon')): ?>
+    <section class="overview-panel">
+      <div class="overview-panel-head">
+        <div class="overview-panel-title"><i class="bi bi-journal-richtext" style="background:#ffedd5;color:#c2410c"></i><div><h6>Thực đơn hôm nay</h6><small><?= e($overviewDayLabels[$overviewDayIndex] . ' · ' . date('d/m/Y')) ?></small></div></div>
+        <a class="overview-panel-link" href="<?= e(BASE_URL . 'noitru.php?tab=menu') ?>">Xem thực đơn <i class="bi bi-arrow-right"></i></a>
+      </div>
+      <div class="overview-panel-body">
+        <?php if (array_filter($overviewTodayMenu)): ?>
+        <div class="overview-menu">
+          <?php foreach (['sang'=>'Bữa sáng', 'trua'=>'Bữa trưa', 'toi'=>'Bữa tối'] as $mealKey=>$mealLabel): ?>
+          <div class="overview-menu-item"><i class="bi <?= $mealKey === 'sang' ? 'bi-sunrise-fill' : ($mealKey === 'trua' ? 'bi-sun-fill' : 'bi-moon-stars-fill') ?>"></i><small><?= $mealLabel ?></small><strong><?= trim($overviewTodayMenu[$mealKey] ?? '') !== '' ? e($overviewTodayMenu[$mealKey]) : 'Chưa cập nhật' ?></strong></div>
+          <?php endforeach; ?>
+        </div>
+        <?php else: ?><div class="overview-empty"><i class="bi bi-journal-x"></i>Thực đơn hôm nay chưa được cập nhật.</div><?php endif; ?>
+      </div>
+    </section>
+    <?php endif; ?>
+
+    <?php if (can_perm('nt.yte')): ?>
+    <section class="overview-panel">
+      <div class="overview-panel-head">
+        <div class="overview-panel-title"><i class="bi bi-heart-pulse-fill" style="background:#fee2e2;color:#dc2626"></i><div><h6>Y tế mới nhất</h6><small><?= $overviewHealthToday ?> ghi nhận trong hôm nay</small></div></div>
+        <a class="overview-panel-link" href="<?= e(BASE_URL . 'noitru.php?tab=health') ?>">Xem y tế <i class="bi bi-arrow-right"></i></a>
+      </div>
+      <div class="overview-panel-body">
+        <?php if ($overviewHealthLatest): ?><div class="overview-list">
+          <?php foreach ($overviewHealthLatest as $healthRow): ?>
+          <div class="overview-list-item">
+            <div class="overview-list-date"><strong><?= e(date('d/m', strtotime($healthRow['date'] ?? $overviewToday))) ?></strong><small><?= e($overviewHealthTypeLabels[$healthRow['type'] ?? ''] ?? 'Y tế') ?></small></div>
+            <div class="overview-list-content"><strong><?= e($healthRow['student_name'] ?? '') ?></strong><span><?= e($healthRow['diagnosis'] ?? 'Chưa ghi tình trạng') ?><?= trim($healthRow['treatment'] ?? '') !== '' ? ' · ' . e($healthRow['treatment']) : '' ?></span></div>
+          </div>
+          <?php endforeach; ?>
+        </div><?php else: ?><div class="overview-empty"><i class="bi bi-heart"></i>Chưa có ghi nhận y tế.</div><?php endif; ?>
+      </div>
+    </section>
+    <?php endif; ?>
   </div>
 
 <?php elseif ($tab === 'exits'): ?>
