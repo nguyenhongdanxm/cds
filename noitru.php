@@ -53,15 +53,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'meal_state'=>'nt.thongke', 'meal_settings'=>'nt.thongke', 'meal_fill_missing'=>'nt.thongke',
         'att_save'=>'nt.diemdanh',
         'duty_save'=>'nt.lichtruc', 'duty_delete'=>'nt.lichtruc',
+        'duty_toggle'=>'nt.lichtruc', 'duty_auto'=>'nt.lichtruc', 'duty_copy'=>'nt.lichtruc',
+        'duty_month_clear'=>'nt.lichtruc', 'duty_manager_save'=>'nt.lichtruc',
+        'duty_settings_save'=>'nt.lichtruc', 'duty_group_save'=>'nt.lichtruc', 'duty_group_delete'=>'nt.lichtruc',
         'health_save'=>'nt.yte', 'health_delete'=>'nt.yte',
         'menu_save'=>'nt.thucdon',
         'rice_settings'=>'nt.baoan', 'rice_in'=>'nt.baoan', 'rice_issue'=>'nt.baoan', 'rice_delete'=>'nt.baoan',
     ];
     if (isset($actionPerms[$action])) {
-        $requiredLevel = substr($action, -7) === '_delete' ? 'delete' : 'edit';
+        $requiredLevel = substr($action, -7) === '_delete' || $action === 'duty_month_clear' ? 'delete' : 'edit';
         require_perm_level($actionPerms[$action], $requiredLevel);
     }
-    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','meal_fill_missing','duty_save','duty_delete','menu_save'], true)) {
+    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','menu_save'], true)) {
         noitru_require_global_scope();
     }
     if (in_array($action, ['rice_settings','rice_in','rice_issue','rice_delete'], true)) {
@@ -372,6 +375,107 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         noitru_duty_delete(trim($_POST['id'] ?? ''));
         flash('Đã xóa ca trực.', 'warning');
         header('Location: ' . BASE_URL . 'noitru.php?tab=duty');
+        exit;
+    }
+    if (str_starts_with($action, 'duty_')) {
+        $month = trim($_POST['month'] ?? date('Y-m'));
+        if (!preg_match('/^\d{4}-\d{2}$/', $month)) $month = date('Y-m');
+        $section = trim($_POST['section'] ?? 'calendar');
+        $teacherMap = [];
+        foreach (array_filter(csdl_teachers_all(), fn($teacher) => !empty($teacher['active'])) as $teacher) {
+            $teacherMap[(string)($teacher['id'] ?? '')] = (string)($teacher['name'] ?? '');
+        }
+        if ($action === 'duty_toggle') {
+            $date = trim($_POST['date'] ?? '');
+            $teacherId = trim($_POST['teacher_id'] ?? '');
+            if (str_starts_with($date, $month . '-') && isset($teacherMap[$teacherId])) {
+                $existing = null;
+                foreach (noitru_duty_all() as $row) {
+                    if (($row['date'] ?? '') === $date && ($row['teacher_id'] ?? '') === $teacherId) { $existing = $row; break; }
+                }
+                if ($existing) noitru_duty_delete($existing['id'] ?? '');
+                else noitru_duty_save(['date'=>$date, 'shift'=>'ngay', 'teacher_id'=>$teacherId, 'teacher_name'=>$teacherMap[$teacherId], 'note'=>'']);
+            }
+        } elseif ($action === 'duty_auto') {
+            $settings = noitru_duty_settings();
+            $perDay = (int)$settings['people_per_day'];
+            $maxPerMonth = (int)$settings['max_per_month'];
+            $teacherIds = array_keys($teacherMap);
+            $monthRows = noitru_duty_for_month($month);
+            $counts = array_fill_keys($teacherIds, 0);
+            $assigned = [];
+            foreach ($monthRows as $row) {
+                $tid = $row['teacher_id'] ?? '';
+                $date = $row['date'] ?? '';
+                if (isset($counts[$tid])) $counts[$tid]++;
+                if ($tid !== '') $assigned[$date][$tid] = true;
+            }
+            $days = (int)date('t', strtotime($month . '-01'));
+            $cursor = 0;
+            $added = 0;
+            for ($day=1; $day<=$days; $day++) {
+                $date = $month . '-' . str_pad((string)$day, 2, '0', STR_PAD_LEFT);
+                $need = max(0, $perDay - count($assigned[$date] ?? []));
+                for ($slot=0; $slot<$need; $slot++) {
+                    $picked = null;
+                    for ($try=0; $try<count($teacherIds); $try++) {
+                        if (!$teacherIds) break;
+                        $tid = $teacherIds[$cursor % count($teacherIds)];
+                        $cursor++;
+                        if (($counts[$tid] ?? 0) >= $maxPerMonth || isset($assigned[$date][$tid])) continue;
+                        $picked = $tid; break;
+                    }
+                    if ($picked === null) break;
+                    noitru_duty_save(['date'=>$date, 'shift'=>'ngay', 'teacher_id'=>$picked, 'teacher_name'=>$teacherMap[$picked], 'note'=>'Tự động phân công']);
+                    $assigned[$date][$picked] = true;
+                    $counts[$picked] = ($counts[$picked] ?? 0) + 1;
+                    $added++;
+                }
+            }
+            flash('Đã tự động bổ sung ' . $added . ' lượt trực.', $added ? 'success' : 'warning');
+        } elseif ($action === 'duty_copy') {
+            $sourceMonth = date('Y-m', strtotime($month . '-01 -1 month'));
+            $targetDays = (int)date('t', strtotime($month . '-01'));
+            $existingKeys = [];
+            foreach (noitru_duty_for_month($month) as $row) $existingKeys[($row['date'] ?? '') . '|' . ($row['teacher_id'] ?? '')] = true;
+            $copied = 0;
+            foreach (noitru_duty_for_month($sourceMonth) as $row) {
+                $day = min((int)substr((string)$row['date'], 8, 2), $targetDays);
+                $date = $month . '-' . str_pad((string)$day, 2, '0', STR_PAD_LEFT);
+                $key = $date . '|' . ($row['teacher_id'] ?? '');
+                if (isset($existingKeys[$key])) continue;
+                unset($row['id'], $row['created_at'], $row['updated_at']);
+                $row['date'] = $date;
+                $row['note'] = trim(($row['note'] ?? '') . ' · Sao chép tháng trước', ' ·');
+                noitru_duty_save($row);
+                $existingKeys[$key] = true;
+                $copied++;
+            }
+            flash('Đã sao chép ' . $copied . ' lượt trực từ tháng trước.', $copied ? 'success' : 'warning');
+        } elseif ($action === 'duty_month_clear') {
+            $deleted = noitru_duty_delete_month($month);
+            flash('Đã xóa ' . $deleted . ' lượt trực trong tháng ' . date('m/Y', strtotime($month . '-01')) . '.', 'warning');
+        } elseif ($action === 'duty_manager_save') {
+            $date = trim($_POST['date'] ?? '');
+            if (str_starts_with($date, $month . '-')) {
+                noitru_duty_manager_save($date, (array)($_POST['teacher_ids'] ?? []), $teacherMap, $_POST['note'] ?? '');
+                flash('Đã cập nhật quản lý trực ngày ' . date('d/m/Y', strtotime($date)) . '.');
+            }
+        } elseif ($action === 'duty_settings_save') {
+            noitru_duty_settings_save($_POST);
+            flash('Đã lưu cài đặt lịch trực.');
+        } elseif ($action === 'duty_group_save') {
+            try {
+                noitru_duty_group_save($_POST['name'] ?? '', (array)($_POST['teacher_ids'] ?? []), $teacherMap);
+                flash('Đã tạo nhóm trực.');
+            } catch (Throwable $error) {
+                flash($error->getMessage(), 'danger');
+            }
+        } elseif ($action === 'duty_group_delete') {
+            noitru_duty_group_delete(trim($_POST['id'] ?? ''));
+            flash('Đã xóa nhóm trực.', 'warning');
+        }
+        header('Location: ' . BASE_URL . 'noitru.php?' . http_build_query(['tab'=>'duty','section'=>$section,'month'=>$month]));
         exit;
     }
 
@@ -762,7 +866,7 @@ form[method="post"]{display:none!important}
     $overviewPresent = $overviewAttCounts['present'] + $overviewAttCounts['late'];
 
     $overviewDuties = noitru_duty_all();
-    $overviewDutyShiftOrder = ['sang'=>1, 'toi'=>2, 'dem'=>3];
+    $overviewDutyShiftOrder = ['ngay'=>1, 'sang'=>2, 'toi'=>3, 'dem'=>4];
     usort($overviewDuties, function ($a, $b) use ($overviewToday, $overviewDutyShiftOrder) {
         $aFuture = ($a['date'] ?? '') >= $overviewToday ? 0 : 1;
         $bFuture = ($b['date'] ?? '') >= $overviewToday ? 0 : 1;
@@ -788,7 +892,7 @@ form[method="post"]{display:none!important}
     $overviewDayLabels = ['Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy','Chủ Nhật'];
     $overviewDayIndex = (int)date('N') - 1;
     $overviewTodayMenu = $overviewMenu['meals'][$overviewDayKeys[$overviewDayIndex]] ?? [];
-    $overviewShiftLabels = ['sang'=>'Sáng', 'toi'=>'Tối', 'hoc_toi'=>'Học tối', 'dem'=>'Đêm'];
+    $overviewShiftLabels = ['ngay'=>'Ca ngày', 'sang'=>'Sáng', 'toi'=>'Tối', 'hoc_toi'=>'Học tối', 'dem'=>'Đêm'];
     $overviewHealthTypeLabels = ['kham'=>'Khám', 'thuoc'=>'Thuốc', 'theo_doi'=>'Theo dõi'];
   ?>
 
@@ -1258,47 +1362,7 @@ form[method="post"]{display:none!important}
   </form>
 
 <?php elseif ($tab === 'duty'): ?>
-  <?php
-    $duties = noitru_duty_all();
-    usort($duties, fn($a,$b) => strcmp($b['date']??'', $a['date']??''));
-  ?>
-  <div class="row g-3">
-    <div class="col-md-4"><div class="card card-soft"><div class="card-body">
-      <h6>Thêm ca trực</h6>
-      <form method="post">
-        <input type="hidden" name="action" value="duty_save">
-        <div class="mb-2"><label class="form-label small">Ngày</label><input type="date" name="date" class="form-control form-control-sm" required value="<?= date('Y-m-d') ?>"></div>
-        <div class="mb-2"><label class="form-label small">Ca</label>
-          <select name="shift" class="form-select form-select-sm"><option value="sang">Sáng</option><option value="toi" selected>Tối</option><option value="dem">Đêm</option></select>
-        </div>
-        <div class="mb-2"><label class="form-label small">Giáo viên (CSDL)</label>
-          <select name="teacher_id" class="form-select form-select-sm" onchange="var o=this.options[this.selectedIndex];document.getElementById('tn').value=o.getAttribute('data-name')||''">
-            <option value="">—</option>
-            <?php foreach ($teachers as $t): ?>
-              <option value="<?= e($t['id']) ?>" data-name="<?= e($t['name']??'') ?>"><?= e($t['name']??'') ?></option>
-            <?php endforeach; ?>
-          </select>
-          <input type="hidden" name="teacher_name" id="tn" value="">
-        </div>
-        <div class="mb-2"><label class="form-label small">Ghi chú</label><input type="text" name="note" class="form-control form-control-sm"></div>
-        <button class="btn btn-nt btn-sm w-100">Lưu</button>
-      </form>
-    </div></div></div>
-    <div class="col-md-8"><div class="card card-soft"><div class="table-responsive">
-      <table class="table table-sm mb-0"><thead><tr><th>Ngày</th><th>Ca</th><th>GV</th><th>Ghi chú</th><th></th></tr></thead><tbody>
-      <?php foreach ($duties as $d): ?>
-        <tr>
-          <td><?= e($d['date']??'') ?></td>
-          <td><?= e($d['shift']??'') ?></td>
-          <td><?= e($d['teacher_name']??'') ?></td>
-          <td class="small"><?= e($d['note']??'') ?></td>
-          <td><?php if ($canDeleteCurrent): ?><form method="post" onsubmit="return confirm('Xóa?')"><input type="hidden" name="action" value="duty_delete"><input type="hidden" name="id" value="<?= e($d['id']) ?>"><button class="btn btn-sm btn-outline-danger">Xóa</button></form><?php endif; ?></td>
-        </tr>
-      <?php endforeach; ?>
-      <?php if (!$duties): ?><tr><td colspan="5" class="text-muted text-center py-3">Chưa có lịch.</td></tr><?php endif; ?>
-      </tbody></table>
-    </div></div></div>
-  </div>
+  <?php require __DIR__ . '/includes/noitru_duty_view.php'; ?>
 
 <?php elseif ($tab === 'health'): ?>
   <?php
