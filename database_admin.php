@@ -3,6 +3,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/database_migrations.php';
 require_once __DIR__ . '/includes/database_core_import.php';
 require_once __DIR__ . '/includes/database_shadow.php';
+require_once __DIR__ . '/includes/database_read_verify.php';
 require_admin();
 
 if (empty($_SESSION['cds_db_csrf'])) {
@@ -62,6 +63,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (($_POST['action'] ?? '') === 'set_core_read_verify') {
+        try {
+            $enabled = ($_POST['enabled'] ?? '') === '1';
+            cds_read_verify_set($enabled, current_user());
+            flash(
+                $enabled
+                    ? 'Đã bật kiểm chứng đọc MySQL. Giao diện vẫn tiếp tục dùng JSON.'
+                    : 'Đã tắt kiểm chứng đọc MySQL.',
+                'success'
+            );
+        } catch (Throwable $e) {
+            flash('Không thể đổi chế độ kiểm chứng đọc: ' . $e->getMessage(), 'danger');
+        }
+    }
+
     header('Location: ' . BASE_URL . 'database_admin.php');
     exit;
 }
@@ -73,6 +89,9 @@ $mysqlCounts = null;
 $coreComparison = null;
 $shadowWriteReady = false;
 $shadowWriteEnabled = false;
+$readVerifyReady = false;
+$readVerifyEnabled = false;
+$readVerifyStatus = array();
 $coreTablesReady = false;
 if ($dbStatus['connected']) {
     try {
@@ -89,6 +108,13 @@ if ($dbStatus['connected']) {
             );
             if ($shadowWriteReady) {
                 $shadowWriteEnabled = cds_shadow_write_enabled();
+            }
+            $readVerifyReady = !isset(
+                $migrationStatus['pending']['20260731_004_read_verification']
+            );
+            if ($readVerifyReady) {
+                $readVerifyEnabled = cds_read_verify_enabled();
+                $readVerifyStatus = cds_read_verify_status();
             }
         }
     } catch (Throwable $e) {
@@ -341,6 +367,62 @@ include __DIR__ . '/includes/nav_top.php';
       <button type="submit" class="btn <?= $shadowWriteEnabled ? 'btn-outline-secondary' : 'btn-primary' ?>">
         <i class="bi <?= $shadowWriteEnabled ? 'bi-pause-circle' : 'bi-play-circle' ?>"></i>
         <?= $shadowWriteEnabled ? 'Tắt ghi song song' : 'Bật ghi song song' ?>
+      </button>
+    </form>
+  </section>
+  <?php endif; ?>
+
+  <?php if ($coreComparison && $coreComparison['is_match'] && $readVerifyReady): ?>
+  <section class="status-card p-3 mt-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div>
+        <h5 class="mb-1"><i class="bi bi-shield-check"></i> Kiểm chứng đọc MySQL</h5>
+        <p class="text-muted small mb-0">
+          Website vẫn trả dữ liệu JSON; MySQL chỉ được đọc âm thầm để đối chiếu.
+        </p>
+      </div>
+      <span class="badge <?= $readVerifyEnabled ? 'text-bg-success' : 'text-bg-secondary' ?>">
+        <?= $readVerifyEnabled ? 'Đang bật' : 'Đang tắt' ?>
+      </span>
+    </div>
+
+    <?php if ($readVerifyEnabled): ?>
+      <div class="row g-2 mt-2">
+        <?php foreach ($coreLabels as $key => $label):
+            $verify = $readVerifyStatus[$key] ?? null;
+            $matched = $verify && $verify['verify_status'] === 'match';
+        ?>
+          <div class="col-6 col-lg-3">
+            <div class="border rounded-3 p-2 h-100">
+              <div class="small text-muted"><?= e($label) ?></div>
+              <div class="fw-bold <?= $matched ? 'text-success' : 'text-warning' ?>">
+                <?= !$verify ? 'Chưa kiểm tra' : ($matched ? 'Đang khớp' : 'Có sai lệch') ?>
+              </div>
+              <?php if ($verify): ?>
+                <div class="small text-muted">
+                  JSON <?= (int)$verify['json_count'] ?> · MySQL <?= (int)$verify['mysql_count'] ?>
+                </div>
+                <div class="small text-muted"><?= e((string)$verify['checked_at']) ?></div>
+              <?php endif; ?>
+            </div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+      <div class="alert alert-info mt-3 mb-0">
+        Nếu MySQL lỗi hoặc có sai lệch, website vẫn sử dụng JSON và tiếp tục hoạt động.
+      </div>
+    <?php endif; ?>
+
+    <form method="post" class="mt-3"
+          onsubmit="return confirm('<?= $readVerifyEnabled
+              ? 'Tắt kiểm chứng đọc MySQL?'
+              : 'Bật đọc MySQL để đối chiếu âm thầm? Giao diện vẫn dùng JSON.' ?>');">
+      <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
+      <input type="hidden" name="action" value="set_core_read_verify">
+      <input type="hidden" name="enabled" value="<?= $readVerifyEnabled ? '0' : '1' ?>">
+      <button type="submit" class="btn <?= $readVerifyEnabled ? 'btn-outline-secondary' : 'btn-primary' ?>">
+        <i class="bi <?= $readVerifyEnabled ? 'bi-pause-circle' : 'bi-play-circle' ?>"></i>
+        <?= $readVerifyEnabled ? 'Tắt kiểm chứng đọc' : 'Bật kiểm chứng đọc' ?>
       </button>
     </form>
   </section>
