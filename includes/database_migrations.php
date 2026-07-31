@@ -174,6 +174,24 @@ function cds_db_migrations()
                  VALUES ('core_shadow_write', '0', 'migration')",
             ),
         ),
+        '20260731_004_read_verification' => array(
+            'description' => 'Kiểm chứng dữ liệu đọc giữa JSON và MySQL',
+            'statements' => array(
+                "CREATE TABLE IF NOT EXISTS cds_read_verification_status (
+                    entity_type VARCHAR(50) NOT NULL,
+                    verify_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    json_count INT UNSIGNED NOT NULL DEFAULT 0,
+                    mysql_count INT UNSIGNED NOT NULL DEFAULT 0,
+                    details_json LONGTEXT NULL,
+                    checked_at DATETIME NULL,
+                    PRIMARY KEY (entity_type),
+                    KEY idx_cds_read_verify_status (verify_status)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "INSERT IGNORE INTO cds_runtime_settings
+                    (setting_key, setting_value, updated_by)
+                 VALUES ('core_read_verify', '0', 'migration')",
+            ),
+        ),
     );
 }
 
