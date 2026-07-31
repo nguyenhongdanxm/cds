@@ -54,6 +54,7 @@ $dbStatus = cds_db_status();
 $migrationStatus = null;
 $corePreview = null;
 $mysqlCounts = null;
+$coreComparison = null;
 $coreTablesReady = false;
 if ($dbStatus['connected']) {
     try {
@@ -64,6 +65,7 @@ if ($dbStatus['connected']) {
         $corePreview = cds_core_preview();
         if ($coreTablesReady) {
             $mysqlCounts = cds_core_mysql_counts();
+            $coreComparison = cds_core_compare_snapshot($corePreview['data']);
         }
     } catch (Throwable $e) {
         $dbStatus['error'] = $e->getMessage();
@@ -222,6 +224,34 @@ include __DIR__ . '/includes/nav_top.php';
       <?php endforeach; ?>
     </div>
 
+    <?php if ($coreComparison): ?>
+      <div class="alert <?= $coreComparison['is_match'] ? 'alert-success' : 'alert-warning' ?> mt-3 mb-2">
+        <strong>
+          <i class="bi <?= $coreComparison['is_match'] ? 'bi-shield-check' : 'bi-exclamation-triangle' ?>"></i>
+          <?= $coreComparison['is_match']
+              ? 'Đối chiếu chi tiết: toàn bộ ID và nội dung bản ghi đang khớp.'
+              : 'Đối chiếu chi tiết: bản sao MySQL đã khác dữ liệu JSON hiện tại.' ?>
+        </strong>
+        <?php if (!$coreComparison['is_match']): ?>
+          <ul class="mb-0 mt-1">
+            <?php foreach ($coreLabels as $key => $label):
+                $comparison = $coreComparison['types'][$key];
+                if ($comparison['is_match']) {
+                    continue;
+                }
+            ?>
+              <li>
+                <?= e($label) ?>:
+                thiếu <?= count($comparison['missing']) ?>,
+                thừa <?= count($comparison['extra']) ?>,
+                thay đổi <?= count($comparison['changed']) ?>.
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        <?php endif; ?>
+      </div>
+    <?php endif; ?>
+
     <?php if ($corePreview['errors']): ?>
       <div class="alert alert-danger mt-3 mb-2">
         <strong>Mâu thuẫn bắt buộc xử lý:</strong>
@@ -254,7 +284,10 @@ include __DIR__ . '/includes/nav_top.php';
         <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
         <input type="hidden" name="action" value="import_core_snapshot">
         <button type="submit" class="btn btn-success">
-          <i class="bi bi-database-up"></i> Nhập bản sao JSON vào MySQL
+          <i class="bi bi-database-up"></i>
+          <?= $mysqlCounts && array_sum($mysqlCounts) > 0
+              ? 'Cập nhật bản sao JSON vào MySQL'
+              : 'Nhập bản sao JSON vào MySQL' ?>
         </button>
       </form>
     <?php endif; ?>
