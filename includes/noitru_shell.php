@@ -35,8 +35,8 @@ $ntItems = [
 ];
 $ntItems = array_filter($ntItems, fn($item) => can_perm($item[3] ?? ''));
 $ntGroups = [
-    'boarding' => ['label'=>'NỘI TRÚ','icon'=>'bi-building-fill','items'=>['duty','attendance','exits']],
-    'meals' => ['label'=>'BỮA ĂN','icon'=>'bi-basket2-fill','items'=>['meals','menu','meal_summary','rice']],
+    'boarding' => ['label'=>'Nội trú','icon'=>'bi-building-fill','items'=>['duty','attendance','exits']],
+    'meals' => ['label'=>'Bữa ăn','icon'=>'bi-basket2-fill','items'=>['meals','menu','meal_summary','rice']],
 ];
 $ntInGroup = function ($group) use ($ntGroups, $nt_sec) {
     return in_array($nt_sec, $ntGroups[$group]['items'] ?? [], true);
@@ -48,11 +48,12 @@ $ntInGroup = function ($group) use ($ntGroups, $nt_sec) {
     <span><strong>Quản lý Nội trú</strong><small><?= e(SCHOOL_SHORT) ?></small></span>
   </a>
   <nav class="nt-side-nav">
+    <div class="nt-side-section-label">MỤC CHÍNH</div>
     <?php foreach (['overview','boarders'] as $key): if (!isset($ntItems[$key])) continue; $item=$ntItems[$key]; ?>
-      <a href="<?= e($item[0]) ?>" class="<?= $nt_sec === $key ? 'active' : '' ?>"><i class="bi <?= e($item[1]) ?>"></i><span><?= e($item[2]) ?></span></a>
+      <a href="<?= e($item[0]) ?>" class="nt-side-main <?= $nt_sec === $key ? 'active' : '' ?>"><i class="bi <?= e($item[1]) ?>"></i><span><?= e($item[2]) ?></span></a>
     <?php endforeach; ?>
     <?php foreach ($ntGroups as $groupKey=>$group): ?>
-      <button type="button" class="nt-side-parent <?= $ntInGroup($groupKey)?'open':'' ?>" data-nt-group="<?= e($groupKey) ?>" aria-expanded="<?= $ntInGroup($groupKey)?'true':'false' ?>">
+      <button type="button" class="nt-side-parent nt-side-main <?= $ntInGroup($groupKey)?'open':'' ?>" data-nt-group="<?= e($groupKey) ?>" aria-expanded="<?= $ntInGroup($groupKey)?'true':'false' ?>">
         <i class="bi <?= e($group['icon']) ?>"></i><span><?= e($group['label']) ?></span><i class="bi bi-chevron-down nt-chevron"></i>
       </button>
       <div class="nt-side-children <?= $ntInGroup($groupKey)?'open':'' ?>" data-nt-children="<?= e($groupKey) ?>">
@@ -62,7 +63,7 @@ $ntInGroup = function ($group) use ($ntGroups, $nt_sec) {
       </div>
     <?php endforeach; ?>
     <?php foreach (['health','stats'] as $key): if (!isset($ntItems[$key])) continue; $item=$ntItems[$key]; ?>
-      <a href="<?= e($item[0]) ?>" class="<?= $nt_sec === $key ? 'active' : '' ?>"><i class="bi <?= e($item[1]) ?>"></i><span><?= e($item[2]) ?></span></a>
+      <a href="<?= e($item[0]) ?>" class="nt-side-main <?= $nt_sec === $key ? 'active' : '' ?>"><i class="bi <?= e($item[1]) ?>"></i><span><?= e($item[2]) ?></span></a>
     <?php endforeach; ?>
   </nav>
   <div class="nt-side-footer">
@@ -74,17 +75,17 @@ $ntInGroup = function ($group) use ($ntGroups, $nt_sec) {
 
 <nav class="nt-bottom-nav" aria-label="Điều hướng Nội trú trên điện thoại">
   <?php if (isset($ntItems['overview'])): ?><a href="<?= e($ntItems['overview'][0]) ?>" class="<?= $nt_sec==='overview'?'active':'' ?>"><i class="bi bi-grid-1x2-fill"></i><span>Tổng quan</span></a><?php endif; ?>
+  <?php if (isset($ntItems['boarders'])): ?><a href="<?= e($ntItems['boarders'][0]) ?>" class="<?= $nt_sec==='boarders'?'active':'' ?>"><i class="bi bi-people-fill"></i><span>Danh sách</span></a><?php endif; ?>
   <button type="button" class="<?= $ntInGroup('boarding')?'active':'' ?>" data-nt-sheet="boarding"><i class="bi bi-building-fill"></i><span>Nội trú</span></button>
   <button type="button" class="<?= $ntInGroup('meals')?'active':'' ?>" data-nt-sheet="meals"><i class="bi bi-basket2-fill"></i><span>Bữa ăn</span></button>
-  <?php if (isset($ntItems['boarders'])): ?><a href="<?= e($ntItems['boarders'][0]) ?>" class="<?= $nt_sec==='boarders'?'active':'' ?>"><i class="bi bi-people-fill"></i><span>Danh sách</span></a><?php endif; ?>
-  <button type="button" class="<?= in_array($nt_sec,['health','stats'],true)?'active':'' ?>" data-nt-sheet="other"><i class="bi bi-three-dots"></i><span>Khác</span></button>
+  <?php if (isset($ntItems['health'])): ?><a href="<?= e($ntItems['health'][0]) ?>" class="<?= $nt_sec==='health'?'active':'' ?>"><i class="bi bi-heart-pulse-fill"></i><span>Y tế</span></a><?php endif; ?>
+  <?php if (isset($ntItems['stats'])): ?><a href="<?= e($ntItems['stats'][0]) ?>" class="<?= $nt_sec==='stats'?'active':'' ?>"><i class="bi bi-bar-chart-fill"></i><span>Thống kê</span></a><?php endif; ?>
 </nav>
 <div class="nt-sheet-backdrop" data-nt-close></div>
 <?php
 $mobileSheets = [
   'boarding'=>['title'=>'NỘI TRÚ','items'=>$ntGroups['boarding']['items']],
   'meals'=>['title'=>'BỮA ĂN','items'=>$ntGroups['meals']['items']],
-  'other'=>['title'=>'CHỨC NĂNG KHÁC','items'=>['health','stats']],
 ];
 foreach ($mobileSheets as $sheetKey=>$sheet):
 ?>
