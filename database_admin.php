@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/database_migrations.php';
 require_once __DIR__ . '/includes/database_core_import.php';
+require_once __DIR__ . '/includes/database_shadow.php';
 require_admin();
 
 if (empty($_SESSION['cds_db_csrf'])) {
@@ -46,6 +47,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (($_POST['action'] ?? '') === 'set_core_shadow_write') {
+        try {
+            $enabled = ($_POST['enabled'] ?? '') === '1';
+            cds_shadow_write_set($enabled, current_user());
+            flash(
+                $enabled
+                    ? 'Đã bật ghi song song JSON → MySQL.'
+                    : 'Đã tắt ghi song song; website tiếp tục dùng JSON.',
+                'success'
+            );
+        } catch (Throwable $e) {
+            flash('Không thể đổi chế độ ghi song song: ' . $e->getMessage(), 'danger');
+        }
+    }
+
     header('Location: ' . BASE_URL . 'database_admin.php');
     exit;
 }
@@ -55,6 +71,8 @@ $migrationStatus = null;
 $corePreview = null;
 $mysqlCounts = null;
 $coreComparison = null;
+$shadowWriteReady = false;
+$shadowWriteEnabled = false;
 $coreTablesReady = false;
 if ($dbStatus['connected']) {
     try {
@@ -66,6 +84,12 @@ if ($dbStatus['connected']) {
         if ($coreTablesReady) {
             $mysqlCounts = cds_core_mysql_counts();
             $coreComparison = cds_core_compare_snapshot($corePreview['data']);
+            $shadowWriteReady = !isset(
+                $migrationStatus['pending']['20260731_003_shadow_write_settings']
+            );
+            if ($shadowWriteReady) {
+                $shadowWriteEnabled = cds_shadow_write_enabled();
+            }
         }
     } catch (Throwable $e) {
         $dbStatus['error'] = $e->getMessage();
@@ -291,6 +315,34 @@ include __DIR__ . '/includes/nav_top.php';
         </button>
       </form>
     <?php endif; ?>
+  </section>
+  <?php endif; ?>
+
+  <?php if ($coreComparison && $coreComparison['is_match'] && $shadowWriteReady): ?>
+  <section class="status-card p-3 mt-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div>
+        <h5 class="mb-1"><i class="bi bi-arrow-left-right"></i> Ghi song song dữ liệu lõi</h5>
+        <p class="text-muted small mb-0">
+          JSON vẫn là nguồn chính; MySQL được cập nhật tự động sau mỗi lần lưu.
+        </p>
+      </div>
+      <span class="badge <?= $shadowWriteEnabled ? 'text-bg-success' : 'text-bg-secondary' ?>">
+        <?= $shadowWriteEnabled ? 'Đang bật' : 'Đang tắt' ?>
+      </span>
+    </div>
+    <form method="post" class="mt-3"
+          onsubmit="return confirm('<?= $shadowWriteEnabled
+              ? 'Tắt ghi song song MySQL?'
+              : 'Bật ghi song song JSON sang MySQL? JSON vẫn là nguồn chính.' ?>');">
+      <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
+      <input type="hidden" name="action" value="set_core_shadow_write">
+      <input type="hidden" name="enabled" value="<?= $shadowWriteEnabled ? '0' : '1' ?>">
+      <button type="submit" class="btn <?= $shadowWriteEnabled ? 'btn-outline-secondary' : 'btn-primary' ?>">
+        <i class="bi <?= $shadowWriteEnabled ? 'bi-pause-circle' : 'bi-play-circle' ?>"></i>
+        <?= $shadowWriteEnabled ? 'Tắt ghi song song' : 'Bật ghi song song' ?>
+      </button>
+    </form>
   </section>
   <?php endif; ?>
 </main>
