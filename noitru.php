@@ -1646,7 +1646,7 @@ form[method="post"]{display:none!important}
       </form><?php endif; ?>
       <?php foreach ($categoryLabels as $category=>$label): ?>
         <section class="mb-3"><h6 class="mb-2"><?= e($label) ?></h6><div class="menu-chips">
-          <?php foreach ($dishes as $dish) if (($dish['category']??'') === $category): ?><span class="menu-chip"><?= e($dish['name']??'') ?>
+          <?php foreach ($dishes as $dish): if (($dish['category']??'') !== $category) continue; ?><span class="menu-chip"><?= e($dish['name']??'') ?>
             <?php if ($canDeleteCurrent): ?><form method="post" onsubmit="return confirm('Xóa món này?')"><input type="hidden" name="action" value="menu_dish_delete"><input type="hidden" name="dish_id" value="<?= e($dish['id']??'') ?>"><button aria-label="Xóa"><i class="bi bi-trash3"></i></button></form><?php endif; ?>
           </span><?php endforeach; ?>
           <?php if (!array_filter($dishes, fn($dish)=>($dish['category']??'')===$category)): ?><span class="text-muted small">Chưa có món.</span><?php endif; ?>
