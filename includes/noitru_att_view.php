@@ -6,7 +6,7 @@
   <title>Điểm danh nội trú – CDS</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="<?= BASE_URL ?>includes/noitru_layout.css?v=20260729-3" rel="stylesheet">
+  <link href="<?= BASE_URL ?>includes/noitru_layout.css?v=20260731-4" rel="stylesheet">
   <style>
     .att-shell{background:#fff;border:1px solid #dce5ec;border-radius:18px;overflow:hidden}
     .att-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #dce5ec}
