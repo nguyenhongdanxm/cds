@@ -44,7 +44,8 @@ function nt_boarders_table(array $list) {
     foreach ($list as $i => $s) {
         echo '<tr>';
         echo '<td>' . ($i + 1) . '</td>';
-        echo '<td><strong>' . e($s['name']) . '</strong>';
+        $studentJson = json_encode($s, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        echo '<td><button type="button" class="nt-student-name" data-bs-toggle="modal" data-bs-target="#ntStudentDetailModal" data-student="' . e($studentJson) . '" aria-label="Xem hồ sơ ' . e($s['name']) . '">' . e($s['name']) . '</button>';
         if (!empty($s['code'])) echo '<div class="small text-muted">' . e($s['code']) . '</div>';
         echo '</td>';
         echo '<td>' . e($s['class_name'] ?: '—') . '</td>';
@@ -258,3 +259,62 @@ $subTabs = [
   <?php endif; ?>
 
 <?php endif; ?>
+
+<div class="modal fade nt-profile-modal" id="ntStudentDetailModal" tabindex="-1" aria-labelledby="ntStudentDetailTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="nt-profile-head">
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        <div class="nt-profile-person">
+          <div class="nt-profile-avatar"><i class="bi bi-person-fill"></i></div>
+          <div><h5 id="ntStudentDetailTitle" data-student-field="name">Thông tin học sinh</h5><p><span data-student-field="code">—</span> · Lớp <span data-student-field="class_name">—</span></p></div>
+        </div>
+      </div>
+      <div class="nt-profile-body">
+        <section class="nt-profile-section">
+          <div class="nt-profile-section-title"><i class="bi bi-person-vcard"></i> Thông tin cá nhân</div>
+          <div class="nt-profile-grid">
+            <div class="nt-profile-field"><small>Ngày sinh</small><strong data-student-field="dob">—</strong></div>
+            <div class="nt-profile-field"><small>Giới tính</small><strong data-student-field="gender">—</strong></div>
+            <div class="nt-profile-field"><small>Dân tộc</small><strong data-student-field="ethnicity">—</strong></div>
+            <div class="nt-profile-field"><small>CCCD/Mã định danh</small><strong data-student-field="cccd">—</strong></div>
+            <div class="nt-profile-field"><small>Số điện thoại</small><strong data-student-field="phone">—</strong></div>
+            <div class="nt-profile-field"><small>Lớp</small><strong data-student-field="class_name">—</strong></div>
+            <div class="nt-profile-field full"><small>Quê quán</small><strong data-student-field="hometown">—</strong></div>
+            <div class="nt-profile-field full"><small>Địa chỉ</small><strong data-student-field="address">—</strong></div>
+          </div>
+        </section>
+        <section class="nt-profile-section">
+          <div class="nt-profile-section-title"><i class="bi bi-people"></i> Gia đình và liên hệ</div>
+          <div class="nt-profile-grid">
+            <div class="nt-profile-field"><small>Phụ huynh</small><strong data-student-field="parent_name">—</strong></div>
+            <div class="nt-profile-field"><small>Điện thoại phụ huynh</small><strong data-student-field="parent_phone">—</strong></div>
+          </div>
+        </section>
+        <section class="nt-profile-section">
+          <div class="nt-profile-section-title"><i class="bi bi-building"></i> Thông tin nội trú</div>
+          <div class="nt-profile-grid">
+            <div class="nt-profile-field"><small>Phòng KTX</small><strong data-student-field="room_ktx">—</strong></div>
+            <div class="nt-profile-field"><small>Mâm/nhóm ăn</small><strong data-student-field="meal_group">—</strong></div>
+            <div class="nt-profile-field full"><small>Ghi chú</small><strong class="nt-profile-note" data-student-field="note">—</strong></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('ntStudentDetailModal')?.addEventListener('show.bs.modal', function (event) {
+  var trigger = event.relatedTarget;
+  var student = {};
+  try { student = JSON.parse(trigger?.dataset.student || '{}'); } catch (error) { student = {}; }
+  this.querySelectorAll('[data-student-field]').forEach(function (field) {
+    var key = field.dataset.studentField;
+    var value = String(student[key] ?? '').trim();
+    if (key === 'dob' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      var parts = value.split('-'); value = parts[2] + '/' + parts[1] + '/' + parts[0];
+    }
+    field.textContent = value || '—';
+  });
+});
+</script>
