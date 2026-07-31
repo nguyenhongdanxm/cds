@@ -3,6 +3,7 @@
  * CSDL dùng chung – lớp lưu trữ (JSON)
  */
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/database_shadow.php';
 
 define('CSDL_TEACHERS', DATA_PATH . '/teachers.json');
 define('CSDL_CLASSES', DATA_PATH . '/classes.json');
@@ -49,6 +50,7 @@ function csdl_year_set_current($id) {
     }
     unset($y);
     save_json(CSDL_YEARS, $years);
+    cds_shadow_refresh_core('school_year', $id);
 }
 
 function csdl_year_save($data) {
@@ -68,6 +70,7 @@ function csdl_year_save($data) {
         $years[] = $data;
     }
     save_json(CSDL_YEARS, $years);
+    cds_shadow_refresh_core('school_year', $data['id'] ?? $id);
     return $data['id'] ?? $id;
 }
 
@@ -83,6 +86,7 @@ function csdl_year_delete($id) {
         $years[0]['is_current'] = true;
     }
     save_json(CSDL_YEARS, $years);
+    cds_shadow_refresh_core('school_year', $id);
 }
 
 /* —— Lớp / khối —— */
@@ -143,12 +147,14 @@ function csdl_class_save($data) {
         $rows[] = $data;
     }
     save_json(CSDL_CLASSES, $rows);
+    cds_shadow_refresh_core('class', $id);
     return $id;
 }
 
 function csdl_class_delete($id) {
     $rows = array_values(array_filter(csdl_classes_all(), fn($c) => ($c['id'] ?? '') !== $id));
     save_json(CSDL_CLASSES, $rows);
+    cds_shadow_refresh_core('class', $id);
 }
 
 /* —— Giáo viên —— */
@@ -184,12 +190,14 @@ function csdl_teacher_save($data) {
         $rows[] = $data;
     }
     save_json(CSDL_TEACHERS, $rows);
+    cds_shadow_refresh_core('teacher', $id);
     return $id;
 }
 
 function csdl_teacher_delete($id) {
     $rows = array_values(array_filter(csdl_teachers_all(), fn($t) => ($t['id'] ?? '') !== $id));
     save_json(CSDL_TEACHERS, $rows);
+    cds_shadow_refresh_core('teacher', $id);
 }
 
 /* —— Học sinh —— */
@@ -225,12 +233,14 @@ function csdl_student_save($data) {
         $rows[] = $data;
     }
     save_json(CSDL_STUDENTS, $rows);
+    cds_shadow_refresh_core('student', $id);
     return $id;
 }
 
 function csdl_student_delete($id) {
     $rows = array_values(array_filter(csdl_students_all(), fn($s) => ($s['id'] ?? '') !== $id));
     save_json(CSDL_STUDENTS, $rows);
+    cds_shadow_refresh_core('student', $id);
 }
 
 function csdl_stats() {
