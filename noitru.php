@@ -56,6 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'duty_toggle'=>'nt.lichtruc', 'duty_auto'=>'nt.lichtruc', 'duty_copy'=>'nt.lichtruc',
         'duty_month_clear'=>'nt.lichtruc', 'duty_manager_save'=>'nt.lichtruc',
         'duty_settings_save'=>'nt.lichtruc', 'duty_group_save'=>'nt.lichtruc', 'duty_group_delete'=>'nt.lichtruc',
+        'duty_swap'=>'nt.lichtruc', 'duty_assign_weekday'=>'nt.lichtruc', 'duty_manager_weekday'=>'nt.lichtruc',
+        'duty_roster_save'=>'nt.lichtruc', 'duty_roster_delete'=>'nt.lichtruc',
         'health_save'=>'nt.yte', 'health_delete'=>'nt.yte',
         'menu_save'=>'nt.thucdon',
         'rice_settings'=>'nt.baoan', 'rice_in'=>'nt.baoan', 'rice_issue'=>'nt.baoan', 'rice_delete'=>'nt.baoan',
@@ -64,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $requiredLevel = substr($action, -7) === '_delete' || $action === 'duty_month_clear' ? 'delete' : 'edit';
         require_perm_level($actionPerms[$action], $requiredLevel);
     }
-    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','menu_save'], true)) {
+    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','menu_save'], true)) {
         noitru_require_global_scope();
     }
     if (in_array($action, ['rice_settings','rice_in','rice_issue','rice_delete'], true)) {
@@ -385,50 +387,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach (array_filter(csdl_teachers_all(), fn($teacher) => !empty($teacher['active'])) as $teacher) {
             $teacherMap[(string)($teacher['id'] ?? '')] = (string)($teacher['name'] ?? '');
         }
+        $rosterRows = noitru_duty_roster_all($teacherMap);
+        $rosterTeacherMap = [];
+        $rosterLimits = [];
+        foreach ($rosterRows as $rosterRow) {
+            $tid = (string)($rosterRow['teacher_id'] ?? '');
+            if ($tid === '') continue;
+            $rosterTeacherMap[$tid] = $teacherMap[$tid] ?? ($rosterRow['teacher_name'] ?? '');
+            $rosterLimits[$tid] = (int)($rosterRow['max_per_month'] ?? 0);
+        }
         if ($action === 'duty_toggle') {
             $date = trim($_POST['date'] ?? '');
             $teacherId = trim($_POST['teacher_id'] ?? '');
-            if (str_starts_with($date, $month . '-') && isset($teacherMap[$teacherId])) {
+            if (str_starts_with($date, $month . '-') && isset($rosterTeacherMap[$teacherId])) {
                 $existing = null;
                 foreach (noitru_duty_all() as $row) {
                     if (($row['date'] ?? '') === $date && ($row['teacher_id'] ?? '') === $teacherId) { $existing = $row; break; }
                 }
                 if ($existing) noitru_duty_delete($existing['id'] ?? '');
-                else noitru_duty_save(['date'=>$date, 'shift'=>'ngay', 'teacher_id'=>$teacherId, 'teacher_name'=>$teacherMap[$teacherId], 'note'=>'']);
+                else {
+                    $settings = noitru_duty_settings();
+                    $dayCount = count(array_filter(noitru_duty_all(), fn($row) => ($row['date'] ?? '') === $date));
+                    if ($dayCount >= (int)$settings['people_per_day'] && empty($_POST['force'])) {
+                        flash('Ngày ' . date('d/m/Y', strtotime($date)) . ' đã đủ ' . $settings['people_per_day'] . ' người. Hãy xác nhận nếu vẫn muốn phân công thêm.', 'warning');
+                    } else {
+                        noitru_duty_save(['date'=>$date, 'shift'=>'ngay', 'teacher_id'=>$teacherId, 'teacher_name'=>$rosterTeacherMap[$teacherId], 'note'=>'']);
+                    }
+                }
             }
         } elseif ($action === 'duty_auto') {
             $settings = noitru_duty_settings();
             $perDay = (int)$settings['people_per_day'];
             $maxPerMonth = (int)$settings['max_per_month'];
-            $teacherIds = array_keys($teacherMap);
+            $teacherIds = array_keys($rosterTeacherMap);
             $monthRows = noitru_duty_for_month($month);
             $counts = array_fill_keys($teacherIds, 0);
+            $sundayCounts = array_fill_keys($teacherIds, 0);
+            $previousCounts = array_fill_keys($teacherIds, 0);
+            $previousSundayCounts = array_fill_keys($teacherIds, 0);
             $assigned = [];
             foreach ($monthRows as $row) {
                 $tid = $row['teacher_id'] ?? '';
                 $date = $row['date'] ?? '';
                 if (isset($counts[$tid])) $counts[$tid]++;
+                if (isset($sundayCounts[$tid]) && (int)date('N', strtotime($date)) === 7) $sundayCounts[$tid]++;
                 if ($tid !== '') $assigned[$date][$tid] = true;
             }
+            $previousMonth = date('Y-m', strtotime($month . '-01 -1 month'));
+            foreach (noitru_duty_for_month($previousMonth) as $row) {
+                $tid = $row['teacher_id'] ?? '';
+                $date = $row['date'] ?? '';
+                if (isset($previousCounts[$tid])) $previousCounts[$tid]++;
+                if (isset($previousSundayCounts[$tid]) && (int)date('N', strtotime($date)) === 7) $previousSundayCounts[$tid]++;
+            }
             $days = (int)date('t', strtotime($month . '-01'));
-            $cursor = 0;
             $added = 0;
             for ($day=1; $day<=$days; $day++) {
                 $date = $month . '-' . str_pad((string)$day, 2, '0', STR_PAD_LEFT);
+                $isSunday = (int)date('N', strtotime($date)) === 7;
                 $need = max(0, $perDay - count($assigned[$date] ?? []));
                 for ($slot=0; $slot<$need; $slot++) {
-                    $picked = null;
-                    for ($try=0; $try<count($teacherIds); $try++) {
-                        if (!$teacherIds) break;
-                        $tid = $teacherIds[$cursor % count($teacherIds)];
-                        $cursor++;
-                        if (($counts[$tid] ?? 0) >= $maxPerMonth || isset($assigned[$date][$tid])) continue;
-                        $picked = $tid; break;
-                    }
+                    $candidates = array_values(array_filter($teacherIds, function ($tid) use ($counts, $maxPerMonth, $rosterLimits, $assigned, $date) {
+                        $limit = ($rosterLimits[$tid] ?? 0) > 0 ? $rosterLimits[$tid] : $maxPerMonth;
+                        return ($counts[$tid] ?? 0) < $limit && !isset($assigned[$date][$tid]);
+                    }));
+                    usort($candidates, function ($a, $b) use ($isSunday, $sundayCounts, $previousSundayCounts, $counts, $previousCounts, $rosterTeacherMap) {
+                        if ($isSunday) {
+                            $cmp = (($sundayCounts[$a] ?? 0) + ($previousSundayCounts[$a] ?? 0)) <=> (($sundayCounts[$b] ?? 0) + ($previousSundayCounts[$b] ?? 0));
+                            if ($cmp !== 0) return $cmp;
+                        }
+                        $cmp = (($counts[$a] ?? 0) + ($previousCounts[$a] ?? 0)) <=> (($counts[$b] ?? 0) + ($previousCounts[$b] ?? 0));
+                        return $cmp !== 0 ? $cmp : strcasecmp($rosterTeacherMap[$a] ?? '', $rosterTeacherMap[$b] ?? '');
+                    });
+                    $picked = $candidates[0] ?? null;
                     if ($picked === null) break;
-                    noitru_duty_save(['date'=>$date, 'shift'=>'ngay', 'teacher_id'=>$picked, 'teacher_name'=>$teacherMap[$picked], 'note'=>'Tự động phân công']);
+                    noitru_duty_save(['date'=>$date, 'shift'=>'ngay', 'teacher_id'=>$picked, 'teacher_name'=>$rosterTeacherMap[$picked], 'note'=>'Tự động phân công cân bằng']);
                     $assigned[$date][$picked] = true;
                     $counts[$picked] = ($counts[$picked] ?? 0) + 1;
+                    if ($isSunday) $sundayCounts[$picked] = ($sundayCounts[$picked] ?? 0) + 1;
                     $added++;
                 }
             }
@@ -455,12 +491,112 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'duty_month_clear') {
             $deleted = noitru_duty_delete_month($month);
             flash('Đã xóa ' . $deleted . ' lượt trực trong tháng ' . date('m/Y', strtotime($month . '-01')) . '.', 'warning');
+        } elseif ($action === 'duty_swap') {
+            $rowAId = trim($_POST['row_a'] ?? '');
+            $rowBId = trim($_POST['row_b'] ?? '');
+            $rowA = $rowB = null;
+            foreach (noitru_duty_for_month($month) as $row) {
+                if (($row['id'] ?? '') === $rowAId) $rowA = $row;
+                if (($row['id'] ?? '') === $rowBId) $rowB = $row;
+            }
+            if (!$rowA || !$rowB || $rowAId === $rowBId) {
+                flash('Vui lòng chọn hai lượt trực khác nhau trong tháng.', 'warning');
+            } elseif (($rowA['date'] ?? '') === ($rowB['date'] ?? '')) {
+                flash('Hai người đang trực cùng ngày nên không cần đổi lịch.', 'warning');
+            } else {
+                $dateA = $rowA['date'];
+                $dateB = $rowB['date'];
+                $conflict = false;
+                foreach (noitru_duty_for_month($month) as $row) {
+                    $id = $row['id'] ?? '';
+                    if ($id === $rowAId || $id === $rowBId) continue;
+                    if ((($row['teacher_id'] ?? '') === ($rowA['teacher_id'] ?? '') && ($row['date'] ?? '') === $dateB)
+                        || (($row['teacher_id'] ?? '') === ($rowB['teacher_id'] ?? '') && ($row['date'] ?? '') === $dateA)) { $conflict = true; break; }
+                }
+                if ($conflict) {
+                    flash('Không thể đổi vì một trong hai người đã có lịch ở ngày nhận mới.', 'warning');
+                } else {
+                    $rowA['date'] = $dateB;
+                    $rowB['date'] = $dateA;
+                    $rowA['note'] = trim(($rowA['note'] ?? '') . ' · Đổi lịch', ' ·');
+                    $rowB['note'] = trim(($rowB['note'] ?? '') . ' · Đổi lịch', ' ·');
+                    noitru_duty_save($rowA);
+                    noitru_duty_save($rowB);
+                    flash('Đã đổi lịch trực giữa ' . ($rowA['teacher_name'] ?? '') . ' và ' . ($rowB['teacher_name'] ?? '') . '.');
+                }
+            }
+        } elseif ($action === 'duty_assign_weekday') {
+            $teacherId = trim($_POST['teacher_id'] ?? '');
+            $weekdays = array_values(array_unique(array_filter(array_map('intval', (array)($_POST['weekdays'] ?? [])), fn($day) => $day >= 1 && $day <= 7)));
+            if (!isset($rosterTeacherMap[$teacherId]) || !$weekdays) {
+                flash('Hãy chọn người trực và ít nhất một thứ trong tuần.', 'warning');
+            } else {
+                $settings = noitru_duty_settings();
+                $perDay = max(1, (int)$settings['people_per_day']);
+                $monthlyLimit = ($rosterLimits[$teacherId] ?? 0) > 0 ? $rosterLimits[$teacherId] : max(1, (int)$settings['max_per_month']);
+                $rows = noitru_duty_for_month($month);
+                $keys = [];
+                $dailyCounts = [];
+                foreach ($rows as $row) {
+                    $date = (string)($row['date'] ?? '');
+                    $keys[$date . '|' . ($row['teacher_id'] ?? '')] = true;
+                    $dailyCounts[$date] = ($dailyCounts[$date] ?? 0) + 1;
+                }
+                $added = $skippedFull = 0;
+                $teacherCount = count(array_filter($rows, fn($row) => ($row['teacher_id'] ?? '') === $teacherId));
+                $days = (int)date('t', strtotime($month . '-01'));
+                for ($day=1; $day<=$days; $day++) {
+                    $date = $month . '-' . str_pad((string)$day, 2, '0', STR_PAD_LEFT);
+                    if (!in_array((int)date('N', strtotime($date)), $weekdays, true) || isset($keys[$date . '|' . $teacherId])) continue;
+                    if ($teacherCount >= $monthlyLimit) break;
+                    if (($dailyCounts[$date] ?? 0) >= $perDay) { $skippedFull++; continue; }
+                    noitru_duty_save(['date'=>$date, 'shift'=>'ngay', 'teacher_id'=>$teacherId, 'teacher_name'=>$rosterTeacherMap[$teacherId], 'note'=>'Gán nhanh theo thứ']);
+                    $dailyCounts[$date] = ($dailyCounts[$date] ?? 0) + 1;
+                    $teacherCount++;
+                    $added++;
+                }
+                $message = 'Đã gán nhanh ' . $added . ' lượt cho ' . $rosterTeacherMap[$teacherId] . '.';
+                if ($skippedFull) $message .= ' Bỏ qua ' . $skippedFull . ' ngày đã đủ người.';
+                flash($message, $added ? ($skippedFull ? 'warning' : 'success') : 'warning');
+            }
         } elseif ($action === 'duty_manager_save') {
             $date = trim($_POST['date'] ?? '');
             if (str_starts_with($date, $month . '-')) {
                 noitru_duty_manager_save($date, (array)($_POST['teacher_ids'] ?? []), $teacherMap, $_POST['note'] ?? '');
                 flash('Đã cập nhật quản lý trực ngày ' . date('d/m/Y', strtotime($date)) . '.');
             }
+        } elseif ($action === 'duty_manager_weekday') {
+            $teacherId = trim($_POST['teacher_id'] ?? '');
+            $weekdays = array_values(array_unique(array_filter(array_map('intval', (array)($_POST['weekdays'] ?? [])), fn($day) => $day >= 1 && $day <= 7)));
+            $append = !empty($_POST['append']);
+            if (!isset($teacherMap[$teacherId]) || !$weekdays) {
+                flash('Hãy chọn quản lý và ít nhất một thứ trong tuần.', 'warning');
+            } else {
+                $updated = 0;
+                $days = (int)date('t', strtotime($month . '-01'));
+                for ($day=1; $day<=$days; $day++) {
+                    $date = $month . '-' . str_pad((string)$day, 2, '0', STR_PAD_LEFT);
+                    if (!in_array((int)date('N', strtotime($date)), $weekdays, true)) continue;
+                    $ids = [$teacherId];
+                    if ($append) {
+                        $existingManager = noitru_duty_manager_for_date($date);
+                        $ids = array_values(array_unique(array_merge((array)($existingManager['teacher_ids'] ?? []), $ids)));
+                    }
+                    noitru_duty_manager_save($date, $ids, $teacherMap, 'Gán nhanh theo thứ');
+                    $updated++;
+                }
+                flash('Đã gán ' . $teacherMap[$teacherId] . ' quản lý ' . $updated . ' ngày trong tháng.');
+            }
+        } elseif ($action === 'duty_roster_save') {
+            try {
+                noitru_duty_roster_save(trim($_POST['teacher_id'] ?? ''), $teacherMap, (int)($_POST['max_per_month'] ?? 0), $_POST['note'] ?? '');
+                flash('Đã lưu người trực trong danh sách.');
+            } catch (Throwable $error) {
+                flash($error->getMessage(), 'danger');
+            }
+        } elseif ($action === 'duty_roster_delete') {
+            noitru_duty_roster_delete(trim($_POST['teacher_id'] ?? ''), $teacherMap);
+            flash('Đã xóa người khỏi danh sách trực. Lịch đã phân công trước đây vẫn được giữ nguyên.', 'warning');
         } elseif ($action === 'duty_settings_save') {
             noitru_duty_settings_save($_POST);
             flash('Đã lưu cài đặt lịch trực.');
