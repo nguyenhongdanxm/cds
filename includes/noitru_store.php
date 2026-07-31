@@ -13,6 +13,7 @@ define('NOITRU_DUTY', NOITRU_DIR . '/duty.json');
 define('NOITRU_DUTY_SETTINGS', NOITRU_DIR . '/duty_settings.json');
 define('NOITRU_DUTY_MANAGERS', NOITRU_DIR . '/duty_managers.json');
 define('NOITRU_DUTY_GROUPS', NOITRU_DIR . '/duty_groups.json');
+define('NOITRU_DUTY_ROSTER', NOITRU_DIR . '/duty_roster.json');
 define('NOITRU_HEALTH', NOITRU_DIR . '/health.json');
 define('NOITRU_MENUS', NOITRU_DIR . '/menus.json');
 define('NOITRU_RICE', NOITRU_DIR . '/rice.json');
@@ -577,6 +578,53 @@ function noitru_duty_group_save($name, array $teacherIds, array $teacherMap) {
 }
 function noitru_duty_group_delete($id) {
     save_json(NOITRU_DUTY_GROUPS, array_values(array_filter(noitru_duty_groups_all(), fn($row) => ($row['id'] ?? '') !== $id)));
+}
+function noitru_duty_roster_all(array $teacherMap = []) {
+    noitru_ensure_dir();
+    if (!is_file(NOITRU_DUTY_ROSTER)) {
+        $rows = [];
+        foreach ($teacherMap as $teacherId=>$teacherName) {
+            $rows[] = ['teacher_id'=>$teacherId, 'teacher_name'=>$teacherName, 'max_per_month'=>0, 'note'=>''];
+        }
+        return $rows;
+    }
+    $rows = load_json(NOITRU_DUTY_ROSTER, []);
+    $out = [];
+    foreach ($rows as $row) {
+        $teacherId = (string)($row['teacher_id'] ?? '');
+        if ($teacherId === '' || ($teacherMap && !isset($teacherMap[$teacherId]))) continue;
+        $row['teacher_name'] = $teacherMap[$teacherId] ?? ($row['teacher_name'] ?? '');
+        $row['max_per_month'] = max(0, (int)($row['max_per_month'] ?? 0));
+        $row['note'] = trim((string)($row['note'] ?? ''));
+        $out[] = $row;
+    }
+    usort($out, fn($a,$b) => strcasecmp((string)($a['teacher_name'] ?? ''), (string)($b['teacher_name'] ?? '')));
+    return $out;
+}
+function noitru_duty_roster_save($teacherId, array $teacherMap, $maxPerMonth = 0, $note = '') {
+    $teacherId = trim((string)$teacherId);
+    if (!isset($teacherMap[$teacherId])) throw new InvalidArgumentException('Giáo viên không hợp lệ.');
+    $rows = noitru_duty_roster_all($teacherMap);
+    $record = [
+        'teacher_id'=>$teacherId,
+        'teacher_name'=>$teacherMap[$teacherId],
+        'max_per_month'=>max(0, min(31, (int)$maxPerMonth)),
+        'note'=>trim((string)$note),
+        'updated_at'=>noitru_now(),
+    ];
+    $found = false;
+    foreach ($rows as $i=>$row) {
+        if (($row['teacher_id'] ?? '') !== $teacherId) continue;
+        $rows[$i] = array_merge($row, $record);
+        $found = true;
+        break;
+    }
+    if (!$found) $rows[] = $record;
+    save_json(NOITRU_DUTY_ROSTER, array_values($rows));
+}
+function noitru_duty_roster_delete($teacherId, array $teacherMap = []) {
+    $rows = noitru_duty_roster_all($teacherMap);
+    save_json(NOITRU_DUTY_ROSTER, array_values(array_filter($rows, fn($row) => ($row['teacher_id'] ?? '') !== $teacherId)));
 }
 
 /* —— Health —— */
