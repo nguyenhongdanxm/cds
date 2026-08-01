@@ -87,6 +87,35 @@ body.nt-body{margin:0;background:var(--nt-bg);color:var(--nt-text);overflow-x:hi
 @media(max-width:575.98px){.health-page{gap:.7rem}.health-tabs{position:sticky;top:.25rem;z-index:20}.health-tabs a{min-height:48px;font-size:.76rem}.health-panel{padding:.8rem;border-radius:13px}.health-class-chips{flex-wrap:nowrap;overflow:auto;padding-bottom:.25rem}.health-class-chips button{white-space:nowrap}.health-form-actions{position:sticky;bottom:calc(var(--nt-bottom) + .25rem);z-index:10;padding:.5rem;background:rgba(255,255,255,.94);border-radius:12px}.health-history-head,.health-inventory-head{align-items:flex-start;flex-direction:column}.health-history-filter{grid-template-columns:1fr}.health-summary-cards,.health-inventory-stats{grid-template-columns:1fr}.health-summary-cards>div{min-height:72px}.health-inventory-stats a{min-height:84px}.health-medicine-row{grid-template-columns:minmax(0,1fr) 76px 44px}.health-range-actions{width:100%;overflow-x:auto;flex-wrap:nowrap}.health-range-actions>*{flex:0 0 auto}.health-table{min-width:760px}}
 @media print{.nt-sidebar,.nt-bottom-nav,.health-tabs,.health-heading .btn,.btn,.health-history-filter{display:none!important}.nt-main{margin:0;padding:0}.health-panel{box-shadow:none}.health-page{display:block}.health-summary-cards{margin:1rem 0}}
 
+/* Bố cục Y tế 2026-08: cân đối theo màn hình quản lý sức khỏe */
+body.nt-body:has(.health-page){background:#f7fafc}
+.health-page{--health-blue:#079fda;--health-border:#dce8ee;color:#172534;gap:1rem}
+.health-heading{align-items:center;padding:.1rem .1rem .35rem}
+.health-heading h4{font-size:clamp(1.35rem,1.5vw,1.7rem)}
+.health-heading .subtitle{font-size:.9rem;color:#58738a}
+.health-heading .btn{min-height:44px;padding-inline:1rem;border-color:var(--health-border);background:#fff}
+.health-tabs{border-radius:15px}.health-tabs a{min-height:48px}.health-tabs a.active{box-shadow:0 2px 7px rgba(15,23,42,.08)}
+.health-panel{padding:1.35rem;border-radius:16px}
+.health-record-layout{grid-template-columns:minmax(310px,.95fr) minmax(0,1.95fr);align-items:stretch}
+.health-record-layout>.health-panel{min-height:620px}
+.health-form-panel{display:flex;flex-direction:column}.health-form-panel>.row{align-content:start;flex:1}.health-form-panel textarea{resize:vertical}
+.health-student-list{align-content:start;height:420px;max-height:none;scrollbar-gutter:stable}
+.health-student-item{min-height:58px;padding:.65rem .75rem}
+.health-medicine-row{grid-template-columns:minmax(0,1fr) 100px 42px}
+.health-form-actions .btn{min-height:44px}
+.health-table th,.health-table td{padding:.85rem}.health-table th{background:#f4f8fa}
+.health-inventory-head .btn{min-height:42px}
+.health-inventory-stats a{min-height:112px}
+@media(max-width:991.98px){
+  .health-record-layout{grid-template-columns:1fr}.health-record-layout>.health-panel{min-height:0}.health-student-list{height:300px}
+}
+@media(max-width:575.98px){
+  .health-heading{align-items:flex-start}.health-heading .btn{width:100%}
+  .health-tabs a{gap:.3rem;font-size:.78rem}.health-panel{padding:.85rem}
+  .health-student-list{height:270px}.health-record-layout{gap:.7rem}
+  .health-inventory-head>div{display:grid;grid-template-columns:1fr 1fr;width:100%}.health-inventory-head .btn{width:100%}
+}
+
 @media(max-width:1199.98px){
   :root{--nt-sidebar:210px}
   .nt-side-nav a{font-size:.82rem;padding-inline:.58rem}
