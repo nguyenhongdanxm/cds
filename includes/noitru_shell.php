@@ -34,6 +34,7 @@ $ntItems = [
     'stats'      => [BASE_URL . 'noitru.php?tab=stats',          'bi-bar-chart-fill',   'Thống kê',    'nt.thongke'],
 ];
 $ntItems = array_filter($ntItems, fn($item) => can_perm($item[3] ?? ''));
+require_once __DIR__.'/module_switcher.php';
 $ntGroups = [
     'boarding' => ['label'=>'Nội trú','icon'=>'bi-building-fill','items'=>['duty','attendance','exits']],
     'meals' => ['label'=>'Bữa ăn','icon'=>'bi-basket2-fill','items'=>['meals','menu','meal_summary','rice']],
