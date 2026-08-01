@@ -6,6 +6,10 @@ $user = current_user();
 $logoPath = BASE_URL . 'assets/logo.png';
 $logoExists = file_exists(__DIR__ . '/assets/logo.png');
 $nModules = count($modules);
+$coreHref = $user
+    ? BASE_URL . 'admin.php'
+    : BASE_URL . 'login.php?next=' . urlencode(BASE_URL . 'admin.php');
+$coreLabel = $user ? 'Mở trang quản trị' : 'Đăng nhập để vào hệ thống';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -206,6 +210,26 @@ body::after{
   width:34%;height:34%;z-index:5;
   display:flex;align-items:center;justify-content:center;
 }
+.core-click-rays{
+  position:absolute;left:50%;top:50%;width:210%;height:210%;
+  transform:translate(-50%,-50%) scale(.25) rotate(0deg);
+  pointer-events:none;z-index:0;opacity:0;border-radius:50%;
+  background:repeating-conic-gradient(
+    from 0deg,
+    rgba(255,255,255,.95) 0deg 2deg,
+    rgba(70,190,255,.72) 2deg 5deg,
+    transparent 5deg 15deg
+  );
+  -webkit-mask:radial-gradient(circle,transparent 0 24%,#000 32% 58%,transparent 76%);
+  mask:radial-gradient(circle,transparent 0 24%,#000 32% 58%,transparent 76%);
+  filter:drop-shadow(0 0 10px #63c9ff) drop-shadow(0 0 24px rgba(62,157,255,.9));
+}
+.eco-core.core-activating .core-click-rays{animation:coreBurst .68s ease-out both}
+@keyframes coreBurst{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.25) rotate(0deg)}
+  28%{opacity:1}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.15) rotate(16deg)}
+}
 .core-glow{
   position:absolute;inset:-16%;border-radius:50%;pointer-events:none;
   background:radial-gradient(circle,rgba(100,190,255,.48) 0%, rgba(40,120,220,.16) 42%, transparent 70%);
@@ -218,6 +242,18 @@ body::after{
   box-shadow:0 0 0 3px rgba(255,255,255,.7),0 0 0 8px rgba(70,160,255,.28),0 0 32px rgba(80,170,255,.4),0 10px 28px rgba(0,0,0,.4);
   overflow:hidden;display:flex;align-items:center;justify-content:center;
   animation:logoFloat 5s ease-in-out infinite;
+  cursor:pointer;text-decoration:none;
+}
+.logo-wrap.is-authenticated{
+  box-shadow:0 0 0 3px #fff,0 0 0 9px rgba(89,205,255,.48),0 0 38px rgba(105,215,255,.86),0 0 74px rgba(35,130,255,.52),0 10px 28px rgba(0,0,0,.4);
+}
+.logo-wrap:hover,.logo-wrap:focus-visible{
+  filter:brightness(1.08);outline:none;
+  box-shadow:0 0 0 4px #fff,0 0 0 11px rgba(88,205,255,.48),0 0 45px rgba(100,220,255,.9),0 0 84px rgba(40,135,255,.58),0 12px 30px rgba(0,0,0,.42);
+}
+.eco-core.core-activating .logo-wrap{
+  animation:none;transform:scale(1.08);
+  filter:brightness(1.18) saturate(1.12);
 }
 @keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 .logo-wrap img{width:94%;height:94%;object-fit:contain;border-radius:50%}
@@ -499,13 +535,18 @@ body::after{
 
     <div class="eco-core">
       <div class="core-glow"></div>
-      <div class="logo-wrap">
+      <div class="core-click-rays" aria-hidden="true"></div>
+      <a class="logo-wrap core-link<?= $user ? ' is-authenticated' : '' ?>"
+         href="<?= e($coreHref) ?>"
+         data-authenticated="<?= $user ? '1' : '0' ?>"
+         aria-label="<?= e($coreLabel) ?>"
+         title="<?= e($coreLabel) ?>">
         <?php if ($logoExists): ?>
           <img src="<?= e($logoPath) ?>" alt="Logo <?= e(SCHOOL_NAME) ?>">
         <?php else: ?>
           <div class="logo-fallback">XÍN<br>MẦN</div>
         <?php endif; ?>
-      </div>
+      </a>
     </div>
 
     <?php
@@ -604,6 +645,19 @@ body::after{
       nodes.forEach(function(n){ n.classList.remove('show-label'); });
     }
   });
+
+  var coreLink = document.querySelector('.core-link');
+  if (coreLink) {
+    coreLink.addEventListener('click', function(e){
+      if (coreLink.getAttribute('data-authenticated') !== '1') return;
+      e.preventDefault();
+      var core = coreLink.closest('.eco-core');
+      if (core && core.classList.contains('core-activating')) return;
+      if (core) core.classList.add('core-activating');
+      var destination = coreLink.href;
+      window.setTimeout(function(){ window.location.href = destination; }, 560);
+    });
+  }
 })();
 </script>
 </body>
