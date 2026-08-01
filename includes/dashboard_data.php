@@ -121,32 +121,144 @@ function cds_dashboard_quote(): string {
     return $quotes[((int)date('z')) % count($quotes)];
 }
 
+function cds_dashboard_lower($value): string {
+    $value = trim((string)$value);
+    return function_exists('mb_strtolower') ? mb_strtolower($value, 'UTF-8') : strtolower($value);
+}
+
+function cds_dashboard_feed_kind($value): string {
+    $value = cds_dashboard_lower($value);
+    if ($value === '') return '';
+    if (preg_match('/(observation|lesson.?observation|du.?gio|dự.?giờ)/u', $value)) return 'observations';
+    if (preg_match('/(task|nhiem.?vu|nhiệm.?vụ|giao.?viec|giao.?việc)/u', $value)) return 'tasks';
+    if (preg_match('/(notice|notification|announcement|document|van.?ban|văn.?bản|thong.?bao|thông.?báo|ke.?hoach|kế.?hoạch|plan)/u', $value)) return 'notices';
+    return '';
+}
+
+function cds_dashboard_feed_title(array $row): string {
+    foreach (['title','name','subject','content','tieu_de','tieude','ten_van_ban','tenvanban','noi_dung','noidung','task_name'] as $key) {
+        if (isset($row[$key]) && !is_array($row[$key]) && trim((string)$row[$key]) !== '') return trim((string)$row[$key]);
+    }
+    return '';
+}
+
+function cds_dashboard_feed_row_kind(array $row, string $hint = ''): string {
+    foreach (['kind','type','category','module','record_type','loai','loai_noi_dung'] as $key) {
+        $kind = cds_dashboard_feed_kind($row[$key] ?? '');
+        if ($kind !== '') return $kind;
+    }
+    if ($hint !== '') return $hint;
+    foreach (['deadline','due_date','due_at','assignee','assignee_id','assigned_to','nguoi_thuc_hien'] as $key) if (!empty($row[$key])) return 'tasks';
+    foreach (['publish_date','published_at','notification_date','visible_from','ngay_hieu_luc','ngay_ban_hanh'] as $key) if (!empty($row[$key])) return 'notices';
+    return '';
+}
+
+function cds_dashboard_feed_collect($node, string $hint, array &$out, string $module = '', string $defaultUrl = '', int $depth = 0): void {
+    if (!is_array($node) || $depth > 4) return;
+    $isList = function_exists('array_is_list') ? array_is_list($node) : array_keys($node) === range(0, count($node) - 1);
+    if ($isList) {
+        foreach ($node as $row) {
+            if (!is_array($row)) continue;
+            $title = cds_dashboard_feed_title($row);
+            $kind = cds_dashboard_feed_row_kind($row, $hint);
+            if ($title !== '' && $kind !== '') {
+                $row['title'] = $title;
+                $row['_dashboard_module'] = $module;
+                if (empty($row['url']) && empty($row['link']) && $defaultUrl !== '') $row['url'] = $defaultUrl;
+                $out[$kind][] = $row;
+            } else {
+                cds_dashboard_feed_collect($row, $hint, $out, $module, $defaultUrl, $depth + 1);
+            }
+        }
+        return;
+    }
+    $title = cds_dashboard_feed_title($node);
+    $rowKind = cds_dashboard_feed_row_kind($node, $hint);
+    if ($title !== '' && $rowKind !== '') {
+        $node['title'] = $title;
+        $node['_dashboard_module'] = $module;
+        if (empty($node['url']) && empty($node['link']) && $defaultUrl !== '') $node['url'] = $defaultUrl;
+        $out[$rowKind][] = $node;
+        return;
+    }
+    foreach ($node as $key => $child) {
+        if (!is_array($child)) continue;
+        $childHint = cds_dashboard_feed_kind((string)$key) ?: $hint;
+        if ($childHint !== '' || in_array(cds_dashboard_lower($key), ['data','items','records','entries','result','results'], true)) {
+            cds_dashboard_feed_collect($child, $childHint, $out, $module, $defaultUrl, $depth + 1);
+        }
+    }
+}
+
 function cds_dashboard_feed_data(): array {
     $out = ['notices'=>[],'tasks'=>[],'observations'=>[]];
-    $sources = [DATA_PATH . '/dashboard_feed.json'];
-    if (defined('PCCM_DATA_PATH') && PCCM_DATA_PATH !== '') {
-        foreach (['dashboard_feed.json','dashboard.json','notifications.json','tasks.json','observations.json','lesson_observations.json'] as $file) $sources[] = rtrim(PCCM_DATA_PATH,'/') . '/' . $file;
+    $sources = [];
+    $addSource = function(string $file, string $module = '', string $url = '') use (&$sources): void {
+        if (!is_file($file) || filesize($file) > 5 * 1024 * 1024) return;
+        $real = realpath($file) ?: $file;
+        $sources[$real] = ['file'=>$file,'module'=>$module,'url'=>$url,'hint'=>cds_dashboard_feed_kind(basename($file))];
+    };
+    $addSource(DATA_PATH . '/dashboard_feed.json');
+    foreach (glob(DATA_PATH . '/*.json') ?: [] as $file) {
+        if (cds_dashboard_feed_kind(basename($file)) !== '') $addSource($file);
     }
-    foreach (array_unique($sources) as $file) {
-        if (!is_file($file)) continue; $data = load_json($file, []); if (!is_array($data)) continue;
-        foreach (array_keys($out) as $key) if (isset($data[$key]) && is_array($data[$key])) $out[$key] = array_merge($out[$key], array_values($data[$key]));
-        $base = basename($file);
-        if ($base === 'notifications.json' && array_is_list($data)) $out['notices'] = array_merge($out['notices'], $data);
-        if ($base === 'tasks.json' && array_is_list($data)) $out['tasks'] = array_merge($out['tasks'], $data);
-        if (in_array($base, ['observations.json','lesson_observations.json'], true) && array_is_list($data)) $out['observations'] = array_merge($out['observations'], $data);
+    if (defined('PCCM_DATA_PATH') && PCCM_DATA_PATH !== '' && is_dir(PCCM_DATA_PATH)) {
+        $pccmUrl = defined('URL_CHUYEN_MON') ? URL_CHUYEN_MON : '/chuyenmon/';
+        foreach (array_merge(glob(rtrim(PCCM_DATA_PATH,'/') . '/*.json') ?: [], glob(rtrim(PCCM_DATA_PATH,'/') . '/*/*.json') ?: []) as $file) {
+            if (cds_dashboard_feed_kind(basename($file)) !== '') $addSource($file, 'chuyenmon', $pccmUrl);
+        }
+    }
+    foreach ($sources as $source) {
+        $data = load_json($source['file'], []);
+        if (!is_array($data)) continue;
+        cds_dashboard_feed_collect($data, $source['hint'], $out, $source['module'], $source['url']);
+    }
+    foreach ($out as $kind => $rows) {
+        $unique = [];
+        foreach ($rows as $row) {
+            $key = (string)($row['id'] ?? $row['uuid'] ?? '') . '|' . cds_dashboard_feed_title($row) . '|' . cds_dashboard_feed_date($row);
+            $unique[$key] = $row;
+        }
+        $out[$kind] = array_values($unique);
     }
     return $out;
 }
 function cds_dashboard_feed_date(array $row): string {
-    foreach (['due_date','deadline','date','start_date','created_at','updated_at'] as $key) if (!empty($row[$key])) return substr((string)$row[$key],0,10);
+    foreach (['due_date','deadline','due_at','date','ngay','start_date','from_date','publish_date','published_at','notification_date','visible_from','ngay_hieu_luc','ngay_ban_hanh','created_at','updated_at'] as $key) {
+        if (empty($row[$key]) || is_array($row[$key])) continue;
+        $raw = trim((string)$row[$key]);
+        $timestamp = strtotime($raw);
+        if ($timestamp !== false) return date('Y-m-d', $timestamp);
+    }
     return '';
+}
+
+function cds_dashboard_feed_visible(array $row): bool {
+    if (array_key_exists('active', $row) && !$row['active']) return false;
+    $status = cds_dashboard_lower($row['status'] ?? $row['trang_thai'] ?? '');
+    if (in_array($status, ['draft','inactive','deleted','cancelled','canceled','archived','nháp','da_xoa','đã xóa','hủy'], true)) return false;
+    $today = date('Y-m-d');
+    foreach (['visible_to','expires_at','expiry_date','end_date','to_date','ngay_ket_thuc'] as $key) {
+        if (empty($row[$key]) || is_array($row[$key])) continue;
+        $timestamp = strtotime((string)$row[$key]);
+        if ($timestamp !== false && date('Y-m-d', $timestamp) < $today) return false;
+    }
+    return true;
 }
 function cds_dashboard_notice_tasks(array $user, int $limit = 5): array {
     $feed = cds_dashboard_feed_data(); $rows = [];
-    foreach ($feed['notices'] as $row) { $row['kind']='notice'; $rows[]=$row; }
+    foreach ($feed['notices'] as $row) {
+        if (!cds_dashboard_feed_visible($row)) continue;
+        if (($row['_dashboard_module'] ?? '') === 'chuyenmon' && ($user['role'] ?? '') !== 'admin' && !can_module('chuyenmon', 'view')) continue;
+        $row['kind']='notice'; $rows[]=$row;
+    }
     foreach ($feed['tasks'] as $row) {
-        $assignee = (string)($row['assignee_id'] ?? $row['assigned_to'] ?? '');
-        if ($assignee !== '' && !in_array($assignee, [(string)($user['id']??''),(string)($user['username']??''),(string)($user['name']??'')], true) && ($user['role']??'')!=='admin') continue;
+        if (!cds_dashboard_feed_visible($row)) continue;
+        if (($row['_dashboard_module'] ?? '') === 'chuyenmon' && ($user['role'] ?? '') !== 'admin' && !can_module('chuyenmon', 'view')) continue;
+        $assigneeRaw = $row['assignee_id'] ?? $row['assigned_to'] ?? $row['assignee'] ?? $row['nguoi_thuc_hien'] ?? '';
+        $assignees = is_array($assigneeRaw) ? array_map('strval', $assigneeRaw) : array_filter(array_map('trim', preg_split('/[,;|]/', (string)$assigneeRaw) ?: []));
+        $identities = [(string)($user['id']??''),(string)($user['username']??''),(string)($user['name']??'')];
+        if ($assignees && !array_intersect($assignees, $identities) && ($user['role']??'')!=='admin') continue;
         $status = (string)($row['status'] ?? '');
         $status = function_exists('mb_strtolower') ? mb_strtolower($status, 'UTF-8') : strtolower($status);
         if (in_array($status, ['done','completed','hoàn thành'], true)) continue;
