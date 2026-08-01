@@ -824,10 +824,40 @@ function noitru_stats_full($from, $to) {
         if (isset($exitSum[$st])) $exitSum[$st]++;
     }
     $healthN = 0;
+    $healthTypes = ['medicine'=>0,'first_aid'=>0,'hospital'=>0,'family_pickup'=>0,'other'=>0];
     foreach (noitru_health_all() as $h) {
         $d = substr($h['date'] ?? '', 0, 10);
-        if ($d >= $from && $d <= $to) $healthN++;
+        if ($d >= $from && $d <= $to) {
+            $healthN++;
+            $type = $h['type'] ?? 'other';
+            if (!isset($healthTypes[$type])) $type = 'other';
+            $healthTypes[$type]++;
+        }
     }
+    $dutyN = 0;
+    foreach (noitru_duty_all() as $duty) {
+        $date = substr($duty['date'] ?? '', 0, 10);
+        if ($date >= $from && $date <= $to) $dutyN++;
+    }
+    $riceUsage = noitru_rice_usage_summary($from, $to, noitru_rice_data());
+    $medicineIssued = 0;
+    foreach (noitru_medicine_transactions() as $transaction) {
+        $date = substr($transaction['created_at'] ?? '', 0, 10);
+        if ($date >= $from && $date <= $to && ($transaction['type'] ?? '') === 'issue') $medicineIssued += (int)($transaction['quantity'] ?? 0);
+    }
+    $daily = [];
+    for ($cursor=$from; $cursor<=$to; $cursor=date('Y-m-d', strtotime($cursor.' +1 day'))) {
+        $daily[$cursor] = ['meals'=>['sang'=>0,'trua'=>0,'toi'=>0], 'attendance'=>['present'=>0,'absent'=>0,'late'=>0,'excused'=>0], 'exits'=>0, 'health'=>0, 'duty'=>0, 'rice_kg'=>0.0];
+    }
+    foreach ($mealSum['days'] as $date=>$counts) if (isset($daily[$date])) $daily[$date]['meals'] = array_merge($daily[$date]['meals'], $counts);
+    foreach (noitru_att_all() as $row) { $date=$row['date']??''; $status=$row['status']??'present'; if(isset($daily[$date]['attendance'][$status])) $daily[$date]['attendance'][$status]++; }
+    foreach (noitru_exits_all() as $row) { $date=substr($row['from_date']??'',0,10); if(isset($daily[$date])) $daily[$date]['exits']++; }
+    foreach (noitru_health_all() as $row) { $date=substr($row['date']??'',0,10); if(isset($daily[$date])) $daily[$date]['health']++; }
+    foreach (noitru_duty_all() as $row) { $date=substr($row['date']??'',0,10); if(isset($daily[$date])) $daily[$date]['duty']++; }
+    foreach ($riceUsage['days'] ?? [] as $date=>$row) if(isset($daily[$date])) $daily[$date]['rice_kg']=(float)($row['kg']??0);
+    $classes = [];
+    foreach (noitru_boarders_live() as $student) { $class=trim($student['class_name']??'') ?: '(Chưa lớp)'; $classes[$class]=($classes[$class]??0)+1; }
+    ksort($classes, SORT_NATURAL);
     return [
         'from' => $from, 'to' => $to,
         'boarders' => count(noitru_boarders_live()),
@@ -835,5 +865,11 @@ function noitru_stats_full($from, $to) {
         'attendance' => $attSum,
         'exits' => $exitSum,
         'health' => $healthN,
+        'health_types'=>$healthTypes,
+        'duty'=>$dutyN,
+        'rice'=>$riceUsage,
+        'medicine_issued'=>$medicineIssued,
+        'daily'=>$daily,
+        'classes'=>$classes,
     ];
 }
