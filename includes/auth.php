@@ -94,8 +94,11 @@ function session_user_from_record(array $u) {
 
 function attempt_login($username, $password) {
     $u = find_user($username);
-    if (!$u || empty($u['active'])) return false;
-    if (!password_verify($password, $u['password_hash'] ?? '')) return false;
+    if (!$u || empty($u['active']) || !password_verify($password, $u['password_hash'] ?? '')) {
+        require_once __DIR__ . '/audit.php';
+        cds_audit_log('login_failed', 'auth', ['username'=>$username], ['username'=>$username]);
+        return false;
+    }
 
     $_SESSION['cds_user'] = session_user_from_record($u);
 
@@ -107,10 +110,15 @@ function attempt_login($username, $password) {
         || in_array($cmLevel, ['edit', 'admin'], true)
         || in_array('cm.pccm', $u['perms'] ?? [], true);
 
+    require_once __DIR__ . '/audit.php';
+    cds_audit_log('login_success', 'auth');
+
     return true;
 }
 
 function logout_user() {
+    require_once __DIR__ . '/audit.php';
+    if (is_logged_in()) cds_audit_log('logout', 'auth');
     unset($_SESSION['cds_user'], $_SESSION['pccm_admin']);
 }
 
@@ -152,3 +160,5 @@ function show_flash() {
 
 init_users();
 require_once __DIR__ . '/permissions.php';
+require_once __DIR__ . '/audit.php';
+cds_audit_touch();
