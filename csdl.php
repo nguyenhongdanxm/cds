@@ -269,6 +269,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
 </style>
 </head>
 <body>
+<?php require_once __DIR__.'/includes/module_switcher.php'; ?>
 <nav class="navbar navbar-dark mb-4">
   <div class="container-fluid px-3 px-lg-4">
     <a class="navbar-brand fw-bold" href="<?= BASE_URL ?>csdl.php"><i class="bi bi-database"></i> Cơ sở dữ liệu</a>
