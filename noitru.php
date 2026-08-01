@@ -968,7 +968,7 @@ if ($tab === 'rice' && ($_GET['export'] ?? '') === 'excel') {
 <title>Quản lý nội trú – CDS</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<link href="<?= BASE_URL ?>includes/noitru_layout.css?v=20260731-4" rel="stylesheet">
+<link href="<?= BASE_URL ?>includes/noitru_layout.css?v=20260801-health2" rel="stylesheet">
 <style>
 :root{--primary:#d63384;--pd:#a61e5c}
 body{background:#f8f0f4}
@@ -1044,7 +1044,7 @@ form[method="post"]{display:none!important}
 <main class="nt-main"><div class="nt-content">
 <?php show_flash(); ?>
 
-<div class="nt-page-head">
+<?php if ($tab !== 'health'): ?><div class="nt-page-head">
   <div>
     <h3 class="mb-0">Quản lý nội trú</h3>
     <div class="text-muted small">Nguồn HS: <strong>CSDL</strong> · <?= e(SCHOOL_NAME) ?></div>
@@ -1055,7 +1055,7 @@ form[method="post"]{display:none!important}
     <button class="btn btn-nt btn-sm" type="submit"><i class="bi bi-arrow-repeat"></i> Đồng bộ từ CSDL</button>
   </form>
   <?php endif; ?>
-</div>
+</div><?php endif; ?>
 
 <?php if ($tab === 'overview'): ?>
   <?php
