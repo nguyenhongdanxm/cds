@@ -959,6 +959,26 @@ if ($tab === 'rice' && ($_GET['export'] ?? '') === 'excel') {
         'filename'=>'bao-cao-gao-'.$filePart.'.xlsx',
     ]);
 }
+if ($tab === 'stats' && ($_GET['export'] ?? '') === 'csv') {
+    $month = trim($_GET['month'] ?? date('Y-m'));
+    if (!preg_match('/^\d{4}-\d{2}$/', $month)) $month = date('Y-m');
+    $from = $month . '-01'; $to = date('Y-m-t', strtotime($from));
+    $report = noitru_stats_full($from, $to);
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="bao-cao-noi-tru-thang-' . $month . '.csv"');
+    echo "\xEF\xBB\xBF"; $fp=fopen('php://output','w');
+    fputcsv($fp, [defined('SCHOOL_NAME')?SCHOOL_NAME:'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN']);
+    fputcsv($fp, ['BÁO CÁO TỔNG HỢP CÔNG TÁC NỘI TRÚ THÁNG '.date('m/Y',strtotime($from))]);
+    fputcsv($fp, ['Ngày','Sáng','Trưa','Tối','Có mặt','Vắng','Muộn','Có phép','Phiếu KTX','Y tế','Ca trực','Gạo (kg)']);
+    foreach ($report['daily'] as $date=>$row) fputcsv($fp,[date('d/m/Y',strtotime($date)),$row['meals']['sang'],$row['meals']['trua'],$row['meals']['toi'],$row['attendance']['present'],$row['attendance']['absent'],$row['attendance']['late'],$row['attendance']['excused'],$row['exits'],$row['health'],$row['duty'],number_format($row['rice_kg'],3,'.','')]);
+    fputcsv($fp,[]); fputcsv($fp,['TỔNG HỢP']);
+    fputcsv($fp,['Học sinh nội trú',$report['boarders']]);
+    fputcsv($fp,['Suất sáng',$report['meals']['sang'],'Suất trưa',$report['meals']['trua'],'Suất tối',$report['meals']['toi']]);
+    fputcsv($fp,['Vắng điểm danh',$report['attendance']['absent'],'Phiếu KTX',array_sum($report['exits']),'Hồ sơ y tế',$report['health'],'Ca trực',$report['duty'],'Gạo sử dụng (kg)',number_format($report['rice']['total_kg']??0,3,'.','')]);
+    fputcsv($fp,[]); fputcsv($fp,['HỌC SINH NỘI TRÚ THEO LỚP']);
+    fputcsv($fp,['Lớp','Số học sinh']); foreach($report['classes'] as $class=>$count) fputcsv($fp,[$class,$count]);
+    fputcsv($fp,[]); fputcsv($fp,['Xuất lúc',date('d/m/Y H:i'),'Người xuất',$user['name']??'']); fclose($fp); exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -968,7 +988,7 @@ if ($tab === 'rice' && ($_GET['export'] ?? '') === 'excel') {
 <title>Quản lý nội trú – CDS</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<link href="<?= BASE_URL ?>includes/noitru_layout.css?v=20260801-health2" rel="stylesheet">
+<link href="<?= BASE_URL ?>includes/noitru_layout.css?v=20260801-stats1" rel="stylesheet">
 <style>
 :root{--primary:#d63384;--pd:#a61e5c}
 body{background:#f8f0f4}
@@ -1708,50 +1728,46 @@ form[method="post"]{display:none!important}
 
 <?php elseif ($tab === 'stats'): ?>
   <?php
-    $from = $_GET['from'] ?? date('Y-m-01');
-    $to = $_GET['to'] ?? date('Y-m-d');
+    $reportMonth = trim($_GET['month'] ?? date('Y-m'));
+    if (!preg_match('/^\d{4}-\d{2}$/', $reportMonth)) $reportMonth = date('Y-m');
+    $from = $reportMonth . '-01';
+    $to = date('Y-m-t', strtotime($from));
     $full = noitru_stats_full($from, $to);
+    $attTotal = array_sum($full['attendance']);
+    $exitTotal = array_sum($full['exits']);
+    $mealTotal = $full['meals']['sang']+$full['meals']['trua']+$full['meals']['toi'];
+    $healthTypeLabels = ['medicine'=>'Phát thuốc','first_aid'=>'Sơ cứu','hospital'=>'Vào viện','family_pickup'=>'Gia đình đón','other'=>'Khác'];
   ?>
-  <form method="get" class="row g-2 mb-3 align-items-end">
-    <input type="hidden" name="tab" value="stats">
-    <div class="col-auto"><label class="form-label small mb-1">Từ</label><input type="date" name="from" class="form-control" value="<?= e($from) ?>"></div>
-    <div class="col-auto"><label class="form-label small mb-1">Đến</label><input type="date" name="to" class="form-control" value="<?= e($to) ?>"></div>
-    <div class="col-auto"><button class="btn btn-nt">Xem</button></div>
-  </form>
-  <div class="row g-3 mb-3">
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$full['boarders'] ?></div><div class="text-muted small">HS nội trú</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$full['meals']['sang'] ?></div><div class="text-muted small">Suất sáng</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$full['meals']['trua'] ?></div><div class="text-muted small">Suất trưa</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$full['meals']['toi'] ?></div><div class="text-muted small">Suất tối</div></div></div>
+  <section class="stats-report">
+  <div class="stats-report-heading">
+    <div><h4><i class="bi bi-bar-chart-line"></i> Báo cáo tổng hợp nội trú</h4><p>Thống kê đầy đủ hoạt động nội trú theo tháng</p></div>
+    <form method="get" class="stats-month-form"><input type="hidden" name="tab" value="stats"><input class="form-control" type="month" name="month" value="<?= e($reportMonth) ?>" onchange="this.form.submit()"></form>
+    <div class="stats-actions"><a class="btn btn-outline-success" href="<?= e(BASE_URL.'noitru.php?tab=stats&month='.$reportMonth.'&export=csv') ?>"><i class="bi bi-file-earmark-spreadsheet"></i> Xuất bảng dữ liệu</a><button class="btn btn-nt" type="button" onclick="window.print()"><i class="bi bi-printer"></i> In / Lưu PDF</button></div>
   </div>
-  <div class="row g-3">
-    <div class="col-md-4"><div class="card card-soft"><div class="card-body">
-      <h6>Điểm danh</h6>
-      <?php foreach ($full['attendance'] as $k=>$v): ?>
-        <div class="d-flex justify-content-between small border-bottom py-1"><span><?= e(nt_att_label($k)) ?></span><strong><?= (int)$v ?></strong></div>
-      <?php endforeach; ?>
-    </div></div></div>
-    <div class="col-md-4"><div class="card card-soft"><div class="card-body">
-      <h6>Phiếu KTX</h6>
-      <?php foreach ($full['exits'] as $k=>$v): ?>
-        <div class="d-flex justify-content-between small border-bottom py-1"><span><?= e($k) ?></span><strong><?= (int)$v ?></strong></div>
-      <?php endforeach; ?>
-    </div></div></div>
-    <div class="col-md-4"><div class="card card-soft"><div class="card-body">
-      <h6>Y tế</h6>
-      <div class="d-flex justify-content-between small"><span>Hồ sơ trong kỳ</span><strong><?= (int)$full['health'] ?></strong></div>
-    </div></div></div>
+
+  <header class="stats-print-header"><div><strong><?= e(defined('SCHOOL_NAME')?SCHOOL_NAME:'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN') ?></strong></div><div><strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br>Độc lập - Tự do - Hạnh phúc</div><h2>BÁO CÁO TỔNG HỢP CÔNG TÁC NỘI TRÚ</h2><p>Tháng <?= e(date('m/Y',strtotime($from))) ?></p></header>
+
+  <div class="stats-kpis">
+    <div><i class="bi bi-people"></i><strong><?= (int)$full['boarders'] ?></strong><span>Học sinh nội trú</span></div>
+    <div><i class="bi bi-egg-fried"></i><strong><?= number_format($mealTotal) ?></strong><span>Tổng lượt ăn</span></div>
+    <div><i class="bi bi-clipboard-check"></i><strong><?= number_format($attTotal) ?></strong><span>Lượt điểm danh</span></div>
+    <div><i class="bi bi-door-open"></i><strong><?= number_format($exitTotal) ?></strong><span>Phiếu ra/vào KTX</span></div>
+    <div><i class="bi bi-heart-pulse"></i><strong><?= number_format($full['health']) ?></strong><span>Hồ sơ y tế</span></div>
+    <div><i class="bi bi-calendar2-week"></i><strong><?= number_format($full['duty']) ?></strong><span>Ca trực</span></div>
+    <div><i class="bi bi-box-seam"></i><strong><?= number_format($full['rice']['total_kg']??0,2) ?></strong><span>Kg gạo sử dụng</span></div>
+    <div><i class="bi bi-capsule"></i><strong><?= number_format($full['medicine_issued']) ?></strong><span>Đơn vị thuốc đã phát</span></div>
   </div>
-  <?php if ($full['meals']['days']): ?>
-  <div class="card card-soft mt-3"><div class="card-body">
-    <h6>Suất ăn theo ngày</h6>
-    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Ngày</th><th>Sáng</th><th>Trưa</th><th>Tối</th></tr></thead><tbody>
-    <?php foreach ($full['meals']['days'] as $d=>$c): ?>
-      <tr><td><?= e($d) ?></td><td><?= (int)$c['sang'] ?></td><td><?= (int)$c['trua'] ?></td><td><?= (int)$c['toi'] ?></td></tr>
-    <?php endforeach; ?>
-    </tbody></table></div>
-  </div></div>
-  <?php endif; ?>
+
+  <div class="stats-section"><h5>I. Bảng tổng hợp hoạt động theo ngày</h5><div class="table-responsive"><table class="table stats-daily-table align-middle"><thead><tr><th rowspan="2">Ngày</th><th colspan="3">Suất ăn</th><th colspan="4">Điểm danh</th><th rowspan="2">Ra/vào</th><th rowspan="2">Y tế</th><th rowspan="2">Ca trực</th><th rowspan="2">Gạo (kg)</th></tr><tr><th>Sáng</th><th>Trưa</th><th>Tối</th><th>Có mặt</th><th>Vắng</th><th>Muộn</th><th>Có phép</th></tr></thead><tbody>
+    <?php foreach($full['daily'] as $date=>$row): ?><tr><td><?= e(date('d/m',strtotime($date))) ?></td><td><?= $row['meals']['sang'] ?></td><td><?= $row['meals']['trua'] ?></td><td><?= $row['meals']['toi'] ?></td><td><?= $row['attendance']['present'] ?></td><td class="text-danger"><?= $row['attendance']['absent'] ?></td><td><?= $row['attendance']['late'] ?></td><td><?= $row['attendance']['excused'] ?></td><td><?= $row['exits'] ?></td><td><?= $row['health'] ?></td><td><?= $row['duty'] ?></td><td><?= number_format($row['rice_kg'],3) ?></td></tr><?php endforeach; ?>
+  </tbody><tfoot><tr><th>Tổng</th><th><?= $full['meals']['sang'] ?></th><th><?= $full['meals']['trua'] ?></th><th><?= $full['meals']['toi'] ?></th><th><?= $full['attendance']['present'] ?></th><th><?= $full['attendance']['absent'] ?></th><th><?= $full['attendance']['late'] ?></th><th><?= $full['attendance']['excused'] ?></th><th><?= $exitTotal ?></th><th><?= $full['health'] ?></th><th><?= $full['duty'] ?></th><th><?= number_format($full['rice']['total_kg']??0,3) ?></th></tr></tfoot></table></div></div>
+
+  <div class="stats-detail-grid">
+    <div class="stats-section"><h5>II. Học sinh nội trú theo lớp</h5><table class="table table-sm mb-0"><thead><tr><th>Lớp</th><th class="text-end">Số học sinh</th></tr></thead><tbody><?php foreach($full['classes'] as $class=>$count): ?><tr><td><?= e($class) ?></td><td class="text-end"><strong><?= $count ?></strong></td></tr><?php endforeach; ?></tbody><tfoot><tr><th>Tổng</th><th class="text-end"><?= $full['boarders'] ?></th></tr></tfoot></table></div>
+    <div class="stats-section"><h5>III. Tổng hợp nghiệp vụ</h5><div class="stats-summary-list"><div><span>Điểm danh có mặt</span><strong><?= $full['attendance']['present'] ?></strong></div><div><span>Vắng</span><strong><?= $full['attendance']['absent'] ?></strong></div><div><span>Có phép</span><strong><?= $full['attendance']['excused'] ?></strong></div><div><span>Phiếu đã duyệt</span><strong><?= $full['exits']['approved'] ?></strong></div><div><span>Phiếu chờ duyệt</span><strong><?= $full['exits']['pending'] ?></strong></div><?php foreach($healthTypeLabels as $key=>$label): ?><div><span>Y tế: <?= e($label) ?></span><strong><?= $full['health_types'][$key]??0 ?></strong></div><?php endforeach; ?></div></div>
+  </div>
+  <div class="stats-signatures"><div><strong>NGƯỜI LẬP BÁO CÁO</strong><small>(Ký, ghi rõ họ tên)</small></div><div><em>Pà Vầy Sủ, ngày ..... tháng ..... năm <?= date('Y',strtotime($from)) ?></em><strong>HIỆU TRƯỞNG</strong><small>(Ký, đóng dấu)</small></div></div>
+  </section>
 
 <?php endif; ?>
 </div></main>
