@@ -3,6 +3,7 @@ require_once 'includes/auth.php';
 require_once 'includes/modules.php';
 require_once 'includes/dashboard.php';
 require_once 'includes/dashboard_data.php';
+register_shutdown_function(function(){require __DIR__.'/includes/module_switcher.php';});
 require_login();
 $user=current_user();$isAdmin=($user['role']??'')==='admin';
 $allModules=get_ecosystem_modules();$modules=[];
