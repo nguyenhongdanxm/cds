@@ -24,7 +24,7 @@ $preferences = cds_dashboard_preferences($user);
 $birthday = cds_dashboard_birthday($teachers, $preferences['muted_birthdays'] ?? []);
 $dashboard = cds_dashboard_scope_data($user);
 $quickActions = cds_dashboard_quick_actions($user);
-$feedItems = cds_dashboard_notice_tasks($user, 5);
+$feedItems = cds_dashboard_notice_tasks($user, 10);
 $observations = can_module('chuyenmon','view') ? cds_dashboard_observations() : [];
 $lunar = cds_dashboard_solar_to_lunar((int)date('d'), (int)date('m'), (int)date('Y'));
 $weekdays = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
@@ -98,13 +98,28 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
 
   <div class="content-grid">
     <section class="panel feed-panel">
-      <div class="panel-head"><div><span class="section-kicker">Cần chú ý</span><h2>Thông báo & nhiệm vụ</h2></div><span class="count-pill"><?= count($feedItems) ?>/5</span></div>
-      <div class="feed-list">
-        <?php foreach ($feedItems as $item): $feedDate=cds_dashboard_feed_date($item);$title=$item['title']??$item['name']??$item['subject']??$item['content']??'Nội dung mới';$url=$item['url']??$item['link']??''; ?>
-          <?php if ($url): ?><a href="<?= e($url) ?>" class="feed-row"><?php else: ?><div class="feed-row"><?php endif; ?><span class="feed-icon <?= ($item['kind']??'')==='task'?'task':'notice' ?>"><i class="bi <?= ($item['kind']??'')==='task'?'bi-check2-square':'bi-megaphone' ?>"></i></span><span class="feed-copy"><strong><?= e($title) ?></strong><small><?= ($item['kind']??'')==='task'?'Nhiệm vụ':'Thông báo' ?><?= $feedDate ? ' · ' . e(date('d/m/Y',strtotime($feedDate))) : '' ?></small></span><?php if($feedDate && $feedDate>=date('Y-m-d') && $feedDate<=date('Y-m-d',strtotime('+3 days'))): ?><span class="due-pill">Sắp hạn</span><?php endif; ?><?php if ($url): ?></a><?php else: ?></div><?php endif; ?>
+      <div class="panel-head"><div><span class="section-kicker">Chuyên môn</span><h2>Công việc đang và sắp diễn ra</h2></div><span class="count-pill"><?= count($feedItems) ?>/10</span></div>
+      <div class="feed-list" id="professionalFeed">
+        <?php foreach ($feedItems as $feedIndex => $item):
+          $title = cds_dashboard_feed_title($item) ?: 'Nội dung Chuyên môn';
+          $url = $item['url'] ?? $item['link'] ?? '';
+          $nearestDate = $item['_dashboard_nearest'] ?? '';
+          $endDate = $item['_dashboard_end'] ?? '';
+          $state = $item['_dashboard_state'] ?? 'Đang diễn ra';
+          $assigneeText = implode(', ', array_slice($item['_dashboard_assignees'] ?? [], 0, 3));
+        ?>
+          <?php if ($url): ?><a href="<?= e($url) ?>" class="feed-row<?= $feedIndex >= 5 ? ' feed-page-hidden' : '' ?>" data-feed-item data-feed-page="<?= intdiv($feedIndex, 5) + 1 ?>"><?php else: ?><div class="feed-row<?= $feedIndex >= 5 ? ' feed-page-hidden' : '' ?>" data-feed-item data-feed-page="<?= intdiv($feedIndex, 5) + 1 ?>"><?php endif; ?>
+            <span class="feed-icon task"><i class="bi bi-check2-square"></i></span>
+            <span class="feed-copy">
+              <strong><?= e($title) ?></strong>
+              <small><i class="bi bi-person-check"></i> <?= e($assigneeText) ?><?php if ($nearestDate): ?> · <i class="bi bi-calendar-event"></i> <?= $endDate ? 'Hạn ' : '' ?><?= e(date('d/m/Y', strtotime($nearestDate))) ?><?php endif; ?></small>
+            </span>
+            <span class="schedule-pill <?= $state === 'Sắp diễn ra' ? 'upcoming' : 'active' ?>"><?= e($state) ?></span>
+          <?php if ($url): ?></a><?php else: ?></div><?php endif; ?>
         <?php endforeach; ?>
-        <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có thông báo hoặc nhiệm vụ mới</strong><span>Thông báo, văn bản và nhiệm vụ có ngày hiển thị phù hợp sẽ tự xuất hiện tại đây.</span></div><?php endif; ?>
+        <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có công việc Chuyên môn phù hợp</strong><span>Chỉ hiện nội dung có thời gian hoặc hạn thực hiện và đã giao người phụ trách.</span></div><?php endif; ?>
       </div>
+      <?php if (count($feedItems) > 5): ?><nav class="feed-pagination" aria-label="Trang công việc Chuyên môn"><button type="button" class="active" data-feed-page-button="1" aria-current="page">1</button><button type="button" data-feed-page-button="2">2</button></nav><?php endif; ?>
     </section>
 
     <div class="side-stack">
@@ -133,6 +148,11 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
   function tick(){clock.textContent=new Intl.DateTimeFormat('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date())}
   tick();setInterval(tick,1000);
   document.getElementById('mobileModules')?.addEventListener('click',function(){document.querySelector('.module-picker').open=true;document.querySelector('.module-picker summary').focus()});
+  document.querySelectorAll('[data-feed-page-button]').forEach(function(button){button.addEventListener('click',function(){
+    const page=button.dataset.feedPageButton;
+    document.querySelectorAll('[data-feed-item]').forEach(function(item){item.classList.toggle('feed-page-hidden',item.dataset.feedPage!==page)});
+    document.querySelectorAll('[data-feed-page-button]').forEach(function(other){const active=other===button;other.classList.toggle('active',active);if(active)other.setAttribute('aria-current','page');else other.removeAttribute('aria-current')});
+  })});
   document.addEventListener('click',function(e){document.querySelectorAll('details[open]').forEach(function(d){if(!d.contains(e.target)&&!e.target.closest('#mobileModules'))d.open=false})});
 })();
 </script>
