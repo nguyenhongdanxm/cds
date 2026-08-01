@@ -89,3 +89,4 @@ body > nav.navbar-dark:not(.cds-nav){display:none!important}
     </div>
   </div>
 </nav>
+<?php require_once __DIR__.'/module_switcher.php'; ?>
