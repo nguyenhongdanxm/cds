@@ -1,33 +1,139 @@
 <?php
-require_once 'includes/auth.php';
-require_once 'includes/modules.php';
-require_once 'includes/dashboard.php';
-require_once 'includes/dashboard_data.php';
-register_shutdown_function(function(){require __DIR__.'/includes/module_switcher.php';});
+require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/modules.php';
+require_once __DIR__ . '/includes/dashboard_data.php';
 require_login();
-$user=current_user();$isAdmin=($user['role']??'')==='admin';
-$allModules=get_ecosystem_modules();$modules=[];
-foreach($allModules as $module){$id=$module['id']??'';if($module['status']==='soon')continue;if($module['status']==='link'||$isAdmin||can_module($id,'view'))$modules[]=$module;}
-$widgets=cds_dashboard_user_widgets($user);
-$recent=cds_audit_read(date('Y-m-d',strtotime('-7 days')),date('Y-m-d'),(string)($user['id']??''),'',20);
-$actions=array_values(array_filter($recent,fn($row)=>($row['action']??'')!=='page_view'));
-$scope=allowed_classes();$scopeText=$scope===null?'Toàn trường':($scope?implode(', ',$scope):'Chưa được gán lớp');
-$dashboardData=cds_dashboard_scope_data($user);$quickActions=cds_dashboard_quick_actions($user);
-$hour=(int)date('G');$greeting=$hour<11?'Chào buổi sáng':($hour<18?'Chào buổi chiều':'Chào buổi tối');
-$actionLabels=['login_success'=>'Đăng nhập','logout'=>'Đăng xuất','page_view'=>'Mở trang','create'=>'Tạo dữ liệu','update'=>'Cập nhật','delete'=>'Xóa dữ liệu','export'=>'Xuất báo cáo'];
+
+$user = current_user();
+$isAdmin = ($user['role'] ?? '') === 'admin';
+if (empty($_SESSION['dashboard_csrf'])) $_SESSION['dashboard_csrf'] = bin2hex(random_bytes(20));
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mute_birthday') {
+    $token = (string)($_POST['csrf'] ?? '');
+    if (hash_equals((string)$_SESSION['dashboard_csrf'], $token)) cds_dashboard_mute_birthday($user, trim((string)($_POST['teacher_id'] ?? '')));
+    header('Location: ' . BASE_URL . 'admin.php'); exit;
+}
+
+$modules = [];
+foreach (get_ecosystem_modules() as $module) {
+    $id = $module['id'] ?? '';
+    if (($module['status'] ?? '') === 'soon') continue;
+    if (($module['status'] ?? '') === 'link' || $isAdmin || can_module($id, 'view')) $modules[] = $module;
+}
+$teachers = array_values(array_filter(csdl_teachers_all(), fn($row)=>!isset($row['active']) || !empty($row['active'])));
+$preferences = cds_dashboard_preferences($user);
+$birthday = cds_dashboard_birthday($teachers, $preferences['muted_birthdays'] ?? []);
+$dashboard = cds_dashboard_scope_data($user);
+$quickActions = cds_dashboard_quick_actions($user);
+$feedItems = cds_dashboard_notice_tasks($user, 5);
+$observations = can_module('chuyenmon','view') ? cds_dashboard_observations() : [];
+$lunar = cds_dashboard_solar_to_lunar((int)date('d'), (int)date('m'), (int)date('Y'));
+$weekdays = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
+$shiftLabels = ['morning'=>'Buổi sáng','noon'=>'Giờ ngủ trưa','afternoon'=>'Buổi chiều','evening'=>'Buổi tối','night'=>'Ban đêm','sang'=>'Buổi sáng','trua'=>'Buổi trưa','toi'=>'Buổi tối'];
+$hour = (int)date('G');
+$greeting = $hour < 11 ? 'Chào buổi sáng' : ($hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối');
+$scope = allowed_classes();
+$scopeText = $scope === null ? 'Toàn trường' : ($scope ? implode(', ', $scope) : 'Chưa được gán lớp');
+$avatarName = (string)($user['name'] ?? 'U');
+$avatar = function_exists('mb_substr') ? mb_substr($avatarName, 0, 1, 'UTF-8') : substr($avatarName, 0, 1);
+$avatarUpper = function_exists('mb_strtoupper') ? mb_strtoupper($avatar, 'UTF-8') : strtoupper($avatar);
+$duty = $dashboard['noitru']['duty'] ?? null;
+$dutyHours = $duty ? intdiv((int)$duty['remaining'], 3600) : 0;
+$dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
 ?>
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tổng quan CDS – <?= e(SCHOOL_SHORT) ?></title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"><style>
-:root{--blue:#2563eb;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f4f7fb}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.shell{display:grid;grid-template-columns:245px minmax(0,1fr);min-height:100vh}.side{position:sticky;top:0;height:100vh;padding:18px 14px;background:#0b1730;color:#fff}.brand{display:flex;align-items:center;gap:10px;padding:7px 8px 20px;color:#fff;text-decoration:none}.brand-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#60a5fa,#2563eb);font-size:20px}.brand small{display:block;color:#8fa3c5}.nav-label{margin:14px 10px 7px;color:#7185a8;font-size:11px;font-weight:800;text-transform:uppercase}.side a.nav{display:flex;align-items:center;gap:10px;padding:10px 11px;margin:3px 0;border-radius:10px;color:#afbfda;text-decoration:none;font-size:14px}.side a.nav:hover,.side a.nav.active{background:#172747;color:#fff}.side-foot{position:absolute;left:14px;right:14px;bottom:16px}.main{min-width:0}.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;height:68px;padding:0 28px;border-bottom:1px solid rgba(226,232,240,.85);background:rgba(255,255,255,.9);backdrop-filter:blur(12px)}.search{display:flex;align-items:center;gap:9px;width:min(440px,50vw);padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#f8fafc;color:var(--muted)}.search input{width:100%;border:0;outline:0;background:transparent}.profile{display:flex;align-items:center;gap:9px}.avatar{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#dbeafe;color:#1d4ed8;font-weight:900}.content{padding:26px;max-width:1500px;margin:auto}.hero{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:20px;padding:22px 24px;border-radius:20px;color:#fff;background:linear-gradient(115deg,#1d4ed8,#2563eb 55%,#0891b2);box-shadow:0 14px 35px rgba(37,99,235,.18)}.hero h1{margin:0 0 5px;font-size:25px}.hero p{margin:0;color:#dbeafe}.hero-date{text-align:right;color:#e0f2fe}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}.kpi,.card{border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 4px 18px rgba(15,23,42,.045)}.kpi{display:flex;align-items:center;gap:13px;padding:17px}.kpi i{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#eff6ff;color:#2563eb;font-size:20px}.kpi strong{display:block;font-size:22px}.kpi span{font-size:12px;color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{padding:18px}.card.wide{grid-column:1/-1}.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.card-head h2{display:flex;align-items:center;gap:9px;margin:0;font-size:16px}.card-head i{color:var(--accent)}.module-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.module{display:block;padding:14px;border:1px solid var(--line);border-radius:14px;color:var(--ink);text-decoration:none;transition:.16s}.module:hover{transform:translateY(-2px);border-color:var(--mc);box-shadow:0 8px 20px rgba(15,23,42,.08)}.module i{display:grid;place-items:center;width:39px;height:39px;margin-bottom:10px;border-radius:11px;background:color-mix(in srgb,var(--mc) 12%,white);color:var(--mc);font-size:19px}.module strong{display:block;font-size:14px}.module small{display:block;margin-top:3px;color:var(--muted);line-height:1.35}.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}.quick a{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;color:var(--ink);text-decoration:none}.quick a:hover{background:#f8fafc}.timeline{display:grid;gap:3px}.event{display:grid;grid-template-columns:34px 1fr auto;gap:9px;align-items:center;padding:9px 4px;border-bottom:1px solid #f1f5f9}.event i{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#f1f5f9;color:#475569}.event small{color:var(--muted)}.account-list{display:grid;grid-template-columns:1fr 1fr;gap:10px}.account-list div{padding:12px;border-radius:12px;background:#f8fafc}.account-list small{display:block;color:var(--muted)}.empty{padding:22px;text-align:center;color:var(--muted)}.mobile-nav{display:none}
-.quick a i{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#f1f5f9;color:var(--qc,#2563eb)}.metric-list{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.metric-list div{padding:13px;border-radius:12px;background:#f8fafc}.metric-list strong{display:block;font-size:21px}.metric-list small{color:var(--muted)}.module-foot{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.module-foot a{padding:7px 10px;border-radius:9px;background:#f1f5f9;color:#334155;text-decoration:none;font-size:12px;font-weight:700}
-@media(max-width:1050px){.module-grid{grid-template-columns:repeat(2,1fr)}.kpis{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.shell{display:block}.side{display:none}.top{height:58px;padding:0 14px}.search{width:auto;flex:1}.profile span{display:none}.content{padding:14px 12px 82px}.hero{padding:18px}.hero h1{font-size:20px}.hero-date{display:none}.grid{grid-template-columns:1fr}.card.wide{grid-column:auto}.kpis{gap:9px}.kpi{padding:12px}.kpi strong{font-size:18px}.module-grid{grid-template-columns:1fr 1fr}.module small{display:none}.mobile-nav{position:fixed;display:flex;z-index:40;inset:auto 0 0;height:66px;border-top:1px solid var(--line);background:#fff}.mobile-nav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:11px;text-decoration:none}.mobile-nav i{font-size:18px}.quick,.account-list{grid-template-columns:1fr}.metric-list{grid-template-columns:1fr 1fr}}
-</style></head><body><div class="shell"><aside class="side"><a class="brand" href="admin.php"><span class="brand-icon"><i class="bi bi-grid-fill"></i></span><span><strong>CDS XÍN MẦN</strong><small>Hệ sinh thái số</small></span></a><div class="nav-label">Không gian làm việc</div><a class="nav active" href="admin.php"><i class="bi bi-house-door"></i>Tổng quan</a><?php foreach($modules as $m): ?><a class="nav" href="<?= e($m['url']) ?>"><i class="bi <?= e($m['icon']) ?>"></i><?= e($m['title']) ?></a><?php endforeach; ?><?php if($isAdmin): ?><div class="nav-label">Quản trị</div><a class="nav" href="users.php"><i class="bi bi-people"></i>Tài khoản & quyền</a><a class="nav" href="activity.php"><i class="bi bi-activity"></i>Nhật ký hoạt động</a><a class="nav" href="dashboard_settings.php"><i class="bi bi-sliders"></i>Cấu hình trang chủ</a><?php endif; ?><div class="side-foot"><a class="nav" href="logout.php"><i class="bi bi-box-arrow-left"></i>Đăng xuất</a></div></aside><main class="main"><header class="top"><label class="search"><i class="bi bi-search"></i><input id="moduleSearch" placeholder="Tìm module, chức năng..." autocomplete="off"></label><div class="profile"><span><strong><?= e($user['name']??'') ?></strong><small style="display:block;color:#64748b"><?= e($user['role']??'') ?></small></span><span class="avatar"><?= e(mb_substr($user['name']??'U',0,1)) ?></span></div></header><div class="content"><section class="hero"><div><h1><?= e($greeting) ?>, <?= e($user['name']??'') ?>!</h1><p>Đây là những thông tin và công cụ thuộc phạm vi của thầy/cô.</p></div><div class="hero-date"><strong><?= date('d/m/Y') ?></strong><div><?= e(SCHOOL_YEAR) ?></div></div></section><section class="kpis"><div class="kpi"><i class="bi bi-grid"></i><div><strong><?= count($modules) ?></strong><span>Module được truy cập</span></div></div><div class="kpi"><i class="bi bi-clock-history"></i><div><strong><?= count($recent) ?></strong><span>Hoạt động 7 ngày</span></div></div><div class="kpi"><i class="bi bi-shield-check"></i><div><strong><?= count(permission_effective_access_for_user($user)) ?></strong><span>Chức năng được cấp</span></div></div><div class="kpi"><i class="bi bi-calendar-check"></i><div><strong><?= date('W') ?></strong><span>Tuần làm việc hiện tại</span></div></div></section><section class="grid">
-<?php foreach($widgets as $id=>$widget): ?><article class="card <?= $widget['size']==='wide'?'wide':'' ?>" data-widget="<?= e($id) ?>" style="--accent:<?= e($widget['color']) ?>"><div class="card-head"><h2><i class="bi <?= e($widget['icon']) ?>"></i><?= e($widget['title']) ?></h2></div>
-<?php if($id==='welcome'): ?><div class="account-list"><div><small>Phạm vi dữ liệu</small><strong><?= e($scopeText) ?></strong></div><div><small>Nhóm vai trò</small><strong><?= e(implode(', ',$user['groups']??[])?:($user['role']??'')) ?></strong></div></div>
-<?php elseif($id==='modules'): ?><div class="module-grid"><?php foreach($modules as $m): ?><a class="module" href="<?= e($m['url']) ?>" style="--mc:<?= e($m['color']) ?>" data-search="<?= e(mb_strtolower($m['title'].' '.$m['subtitle'])) ?>"><i class="bi <?= e($m['icon']) ?>"></i><strong><?= e($m['title']) ?></strong><small><?= e($m['subtitle']) ?></small></a><?php endforeach; ?></div>
-<?php elseif($id==='quick_actions'): ?><div class="quick"><?php foreach($quickActions as $action): ?><a href="<?= e($action['url']) ?>" style="--qc:<?= e($action['color']) ?>"><i class="bi <?= e($action['icon']) ?>"></i><span><?= e($action['label']) ?></span></a><?php endforeach;if(!$quickActions): ?><div class="empty">Chưa có chức năng thao tác được phân công.</div><?php endif; ?></div>
-<?php elseif($id==='recent_activity'): ?><div class="timeline"><?php foreach(array_slice($recent,0,6) as $row): ?><div class="event"><i class="bi bi-arrow-right-short"></i><div><strong><?= e($actionLabels[$row['action']??'']??$row['action']??'') ?></strong><small style="display:block"><?= e($row['module']??'') ?></small></div><small><?= e(date('H:i d/m',strtotime($row['at']))) ?></small></div><?php endforeach; if(!$recent): ?><div class="empty">Chưa có hoạt động.</div><?php endif; ?></div>
-<?php elseif($id==='csdl'): ?><div class="metric-list"><div><strong><?= $dashboardData['csdl']['teachers'] ?></strong><small>Giáo viên, nhân viên</small></div><div><strong><?= $dashboardData['csdl']['students'] ?></strong><small>Học sinh trong phạm vi</small></div><div><strong><?= $dashboardData['csdl']['classes'] ?></strong><small>Lớp được xem</small></div></div><div class="module-foot"><a href="csdl.php?tab=students">Học sinh</a><a href="csdl.php?tab=teachers">Giáo viên</a><a href="csdl.php?tab=classes">Lớp học</a></div>
-<?php elseif($id==='noitru'): ?><div class="metric-list"><div><strong><?= $dashboardData['noitru']['boarders'] ?></strong><small>Học sinh nội trú</small></div><div><strong><?= $dashboardData['noitru']['present'] ?>/<?= $dashboardData['noitru']['boarders'] ?></strong><small>Có mặt gần nhất</small></div><div><strong><?= $dashboardData['noitru']['pending_exits'] ?></strong><small>Phiếu chờ duyệt</small></div><div><strong><?= $dashboardData['noitru']['health_today'] ?></strong><small>Y tế hôm nay</small></div><div><strong><?= $dashboardData['noitru']['low_medicine'] ?></strong><small>Thuốc sắp hết</small></div><div><strong><?= $dashboardData['noitru']['absent'] ?></strong><small>Vắng gần nhất</small></div></div><div class="module-foot"><a href="noitru.php?tab=overview">Tổng quan</a><a href="noitru.php?tab=attendance">Điểm danh</a><a href="noitru.php?tab=health">Y tế</a><a href="noitru.php?tab=meals">Báo ăn</a><a href="noitru.php?tab=stats">Thống kê</a></div>
-<?php elseif($id==='thidua'): ?><div class="metric-list"><div><strong><?= $dashboardData['thidua']['scored_classes'] ?></strong><small>Lớp đã có điểm tuần</small></div><div><strong><?= e($dashboardData['thidua']['leader']) ?></strong><small>Dẫn đầu · <?= e($dashboardData['thidua']['leader_score']) ?> điểm</small></div><div><strong><?= $dashboardData['thidua']['absence_month'] ?></strong><small>Lượt nghỉ tháng này</small></div></div><div class="module-foot"><a href="thidua.php?section=teacher_attendance">Chấm công</a><a href="thidua.php?section=teacher_achievement">Thành tích</a><a href="thidua.php?section=student_score">Bảng thi đua</a><a href="thidua.php?section=stats">Thống kê</a></div>
-<?php elseif($id==='account'): ?><div class="account-list"><div><small>Tài khoản</small><strong><?= e($user['username']??'') ?></strong></div><div><small>Lần truy cập hiện tại</small><strong><?= date('H:i d/m/Y') ?></strong></div></div><?php endif; ?></article><?php endforeach; ?></section></div></main></div><nav class="mobile-nav"><a href="admin.php"><i class="bi bi-house-fill"></i>Tổng quan</a><?php foreach(array_slice($modules,0,3) as $m): ?><a href="<?= e($m['url']) ?>"><i class="bi <?= e($m['icon']) ?>"></i><?= e($m['title']) ?></a><?php endforeach; ?><a href="logout.php"><i class="bi bi-box-arrow-right"></i>Thoát</a></nav><script>document.getElementById('moduleSearch').addEventListener('input',function(){const q=this.value.trim().toLocaleLowerCase('vi');document.querySelectorAll('.module[data-search]').forEach(x=>x.style.display=!q||x.dataset.search.includes(q)?'block':'none')})</script></body></html>
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f4c81">
+  <title>Trang chủ quản trị – <?= e(SCHOOL_SHORT) ?></title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260801" rel="stylesheet">
+</head>
+<body>
+<header class="app-header">
+  <a class="school-brand" href="<?= e(BASE_URL) ?>">
+    <span class="school-mark"><i class="bi bi-mortarboard-fill"></i></span>
+    <span><strong><?= e(SCHOOL_NAME) ?></strong><small>Hệ sinh thái quản lý nhà trường</small></span>
+  </a>
+  <div class="header-actions">
+    <details class="module-picker">
+      <summary><i class="bi bi-grid-3x3-gap-fill"></i><span>Chuyển module</span><i class="bi bi-chevron-down"></i></summary>
+      <div class="module-menu">
+        <?php foreach ($modules as $module): ?><a href="<?= e($module['url']) ?>" style="--module-color:<?= e($module['color']) ?>"><i class="bi <?= e($module['icon']) ?>"></i><span><?= e($module['title']) ?></span></a><?php endforeach; ?>
+        <?php if ($isAdmin): ?><a href="users.php" style="--module-color:#7c3aed"><i class="bi bi-shield-check"></i><span>Phân quyền</span></a><a href="activity.php" style="--module-color:#475569"><i class="bi bi-activity"></i><span>Nhật ký</span></a><?php endif; ?>
+      </div>
+    </details>
+    <details class="user-picker">
+      <summary><span class="avatar"><?= e($avatarUpper) ?></span><span class="user-copy"><strong><?= e($user['name'] ?? '') ?></strong><small><?= e($scopeText) ?></small></span><i class="bi bi-chevron-down"></i></summary>
+      <div class="user-menu"><?php if ($isAdmin): ?><a href="users.php"><i class="bi bi-person-gear"></i>Tài khoản và quyền</a><?php endif; ?><a href="logout.php" class="logout"><i class="bi bi-box-arrow-right"></i>Đăng xuất</a></div>
+    </details>
+  </div>
+</header>
+
+<main class="dashboard">
+  <section class="welcome-card">
+    <div class="clock-block">
+      <strong id="liveClock"><?= date('H:i') ?></strong>
+      <span><?= e($weekdays[(int)date('w')]) ?>, <?= date('d/m/Y') ?></span>
+      <small>Âm lịch: ngày <?= (int)$lunar['day'] ?> tháng <?= (int)$lunar['month'] ?><?= $lunar['leap'] ? ' nhuận' : '' ?> năm <?= (int)$lunar['year'] ?></small>
+    </div>
+    <div class="welcome-copy">
+      <span class="eyebrow"><i class="bi bi-stars"></i><?= e($greeting) ?></span>
+      <h1><?= e($user['name'] ?? 'Thầy/Cô') ?></h1>
+      <?php if ($birthday): ?>
+        <div class="birthday-line"><span class="birthday-icon">🎂</span><div><strong><?= $birthday['today'] ? 'Chúc mừng sinh nhật ' : 'Sinh nhật sắp tới: ' ?><?= e($birthday['name']) ?></strong><small><?= $birthday['today'] ? 'Chúc một tuổi mới nhiều sức khỏe, niềm vui và thành công!' : 'Còn ' . (int)$birthday['days'] . ' ngày · ' . date('d/m', strtotime($birthday['date'])) ?></small></div><form method="post"><input type="hidden" name="action" value="mute_birthday"><input type="hidden" name="csrf" value="<?= e($_SESSION['dashboard_csrf']) ?>"><input type="hidden" name="teacher_id" value="<?= e($birthday['id']) ?>"><button title="Ẩn thông báo sinh nhật của người này" aria-label="Ẩn thông báo sinh nhật"><i class="bi bi-x-lg"></i></button></form></div>
+      <?php else: ?><p class="daily-quote">“<?= e(cds_dashboard_quote()) ?>”</p><?php endif; ?>
+    </div>
+    <div class="school-year"><i class="bi bi-calendar3"></i><span>Năm học</span><strong><?= e(SCHOOL_YEAR) ?></strong></div>
+  </section>
+
+  <section class="stat-grid" aria-label="Số liệu toàn trường">
+    <article class="stat-card class-stat"><i class="bi bi-buildings"></i><div><span>Số lớp</span><strong><?= (int)$dashboard['csdl']['classes'] ?></strong><small>Trong phạm vi được xem</small></div></article>
+    <article class="stat-card student-stat"><i class="bi bi-people-fill"></i><div><span>Học sinh</span><strong><?= (int)$dashboard['csdl']['students']['total'] ?></strong><small><b><?= (int)$dashboard['csdl']['students']['male'] ?></b> nam · <b><?= (int)$dashboard['csdl']['students']['female'] ?></b> nữ</small></div></article>
+    <article class="stat-card teacher-stat"><i class="bi bi-person-badge-fill"></i><div><span>CBGVNV</span><strong><?= (int)$dashboard['csdl']['teachers']['total'] ?></strong><small><b><?= (int)$dashboard['csdl']['teachers']['male'] ?></b> nam · <b><?= (int)$dashboard['csdl']['teachers']['female'] ?></b> nữ</small></div></article>
+  </section>
+
+  <?php if ($quickActions): ?><section class="quick-section"><div class="section-heading"><div><span class="section-kicker">Truy cập nhanh</span><h2>Thao tác thường dùng</h2></div></div><div class="quick-grid"><?php foreach ($quickActions as $action): ?><a href="<?= e($action['url']) ?>" style="--quick-color:<?= e($action['color']) ?>"><i class="bi <?= e($action['icon']) ?>"></i><span><?= e($action['label']) ?></span><i class="bi bi-arrow-up-right"></i></a><?php endforeach; ?></div></section><?php endif; ?>
+
+  <div class="content-grid">
+    <section class="panel feed-panel">
+      <div class="panel-head"><div><span class="section-kicker">Cần chú ý</span><h2>Thông báo & nhiệm vụ</h2></div><span class="count-pill"><?= count($feedItems) ?>/5</span></div>
+      <div class="feed-list">
+        <?php foreach ($feedItems as $item): $feedDate=cds_dashboard_feed_date($item);$title=$item['title']??$item['name']??$item['subject']??$item['content']??'Nội dung mới';$url=$item['url']??$item['link']??''; ?>
+          <?php if ($url): ?><a href="<?= e($url) ?>" class="feed-row"><?php else: ?><div class="feed-row"><?php endif; ?><span class="feed-icon <?= ($item['kind']??'')==='task'?'task':'notice' ?>"><i class="bi <?= ($item['kind']??'')==='task'?'bi-check2-square':'bi-megaphone' ?>"></i></span><span class="feed-copy"><strong><?= e($title) ?></strong><small><?= ($item['kind']??'')==='task'?'Nhiệm vụ':'Thông báo' ?><?= $feedDate ? ' · ' . e(date('d/m/Y',strtotime($feedDate))) : '' ?></small></span><?php if($feedDate && $feedDate>=date('Y-m-d') && $feedDate<=date('Y-m-d',strtotime('+3 days'))): ?><span class="due-pill">Sắp hạn</span><?php endif; ?><?php if ($url): ?></a><?php else: ?></div><?php endif; ?>
+        <?php endforeach; ?>
+        <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có thông báo hoặc nhiệm vụ mới</strong><span>Khi module Chuyên môn phát sinh dữ liệu, 5 nội dung cần chú ý nhất sẽ tự hiện tại đây.</span></div><?php endif; ?>
+      </div>
+    </section>
+
+    <div class="side-stack">
+      <?php if ($observations): ?><section class="panel observation-panel"><div class="panel-head"><div><span class="section-kicker">Chuyên môn</span><h2>Lịch dự giờ sắp tới</h2></div><i class="bi bi-journal-check panel-symbol"></i></div><div class="compact-list"><?php foreach($observations as $row): ?><div><time><strong><?= date('d',strtotime($row['dashboard_date'])) ?></strong><span>Th <?= date('m',strtotime($row['dashboard_date'])) ?></span></time><p><strong><?= e($row['teacher']??$row['teacher_name']??$row['name']??'Lịch dự giờ') ?></strong><small><?= e(implode(' · ',array_filter([$row['time']??'',$row['subject']??'',$row['class']??$row['class_name']??'']))) ?></small></p></div><?php endforeach; ?></div></section><?php endif; ?>
+
+      <section class="panel leave-panel"><div class="panel-head"><div><span class="section-kicker">Nhân sự</span><h2>Lịch nghỉ giáo viên</h2></div><i class="bi bi-calendar2-week panel-symbol"></i></div><div class="compact-list leave-list"><?php foreach($dashboard['leave'] as $row): ?><div><time><strong><?= date('d',strtotime($row['from'])) ?></strong><span>Th <?= date('m',strtotime($row['from'])) ?></span></time><p><strong><?= e($row['name']) ?></strong><small><?= e($row['reason'] ?: $row['permission']) ?><?= $row['to']!==$row['from']?' · đến '.date('d/m',strtotime($row['to'])):'' ?></small></p></div><?php endforeach; ?><?php if(!$dashboard['leave']): ?><div class="mini-empty"><i class="bi bi-calendar-check"></i><span>Không có lịch nghỉ hiện tại hoặc sắp tới.</span></div><?php endif; ?></div></section>
+    </div>
+
+    <?php if(can_module('noitru','view')): ?><section class="panel operation-panel">
+      <div class="panel-head"><div><span class="section-kicker">Nội trú</span><h2>Vận hành hôm nay</h2></div><a href="noitru.php?tab=overview">Xem chi tiết <i class="bi bi-arrow-right"></i></a></div>
+      <div class="operation-grid">
+        <article class="duty-box"><span class="op-icon"><i class="bi bi-calendar2-check"></i></span><div class="op-copy"><span>Lịch trực hiện tại</span><?php if($duty && $duty['people']): ?><strong><?= e(implode(', ',$duty['people'])) ?></strong><small><?= e($duty['start']) ?> – <?= e($duty['end']) ?> hôm sau · còn <?= $dutyHours ?>h <?= $dutyMinutes ?>p</small><?php else: ?><strong>Chưa phân công</strong><small>Chưa có người trực trong ca hiện tại</small><?php endif; ?><?php if($duty && $duty['managers']): ?><em>Quản lý: <?= e(implode(', ',$duty['managers'])) ?></em><?php endif; ?></div></article>
+        <article class="attendance-box"><span class="op-icon"><i class="bi bi-person-check-fill"></i></span><div class="op-copy"><span>Sĩ số điểm danh gần nhất</span><?php if($dashboard['noitru']['attendance_date']): ?><strong><b><?= (int)$dashboard['noitru']['present'] ?></b> có mặt · <b class="absent"><?= (int)$dashboard['noitru']['absent'] ?></b> vắng</strong><small><?= e($shiftLabels[$dashboard['noitru']['attendance_shift']]??$dashboard['noitru']['attendance_shift']) ?> · <?= date('d/m/Y',strtotime($dashboard['noitru']['attendance_date'])) ?></small><?php else: ?><strong>Chưa có dữ liệu</strong><small>Chưa ghi nhận báo cáo điểm danh</small><?php endif; ?></div><a href="noitru.php?tab=attendance" aria-label="Mở điểm danh"><i class="bi bi-chevron-right"></i></a></article>
+      </div>
+    </section><?php endif; ?>
+  </div>
+
+  <section class="module-section"><div class="section-heading"><div><span class="section-kicker">Hệ sinh thái CDS</span><h2>Các module được sử dụng</h2></div></div><div class="module-grid"><?php foreach($modules as $module): ?><a href="<?= e($module['url']) ?>" style="--module-color:<?= e($module['color']) ?>"><i class="bi <?= e($module['icon']) ?>"></i><span><strong><?= e($module['title']) ?></strong><small><?= e($module['subtitle']) ?></small></span><i class="bi bi-chevron-right"></i></a><?php endforeach; ?></div></section>
+</main>
+
+<nav class="mobile-dock" aria-label="Điều hướng nhanh"><a class="active" href="admin.php"><i class="bi bi-house-fill"></i><span>Trang chủ</span></a><?php foreach(array_slice($quickActions,0,3) as $action): ?><a href="<?= e($action['url']) ?>"><i class="bi <?= e($action['icon']) ?>"></i><span><?= e($action['label']) ?></span></a><?php endforeach; ?><button type="button" id="mobileModules"><i class="bi bi-grid-fill"></i><span>Module</span></button></nav>
+
+<script>
+(function(){
+  const clock=document.getElementById('liveClock');
+  function tick(){clock.textContent=new Intl.DateTimeFormat('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date())}
+  tick();setInterval(tick,1000);
+  document.getElementById('mobileModules')?.addEventListener('click',function(){document.querySelector('.module-picker').open=true;document.querySelector('.module-picker summary').focus()});
+  document.addEventListener('click',function(e){document.querySelectorAll('details[open]').forEach(function(d){if(!d.contains(e.target)&&!e.target.closest('#mobileModules'))d.open=false})});
+})();
+</script>
+</body></html>
