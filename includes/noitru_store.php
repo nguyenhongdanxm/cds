@@ -15,6 +15,8 @@ define('NOITRU_DUTY_MANAGERS', NOITRU_DIR . '/duty_managers.json');
 define('NOITRU_DUTY_GROUPS', NOITRU_DIR . '/duty_groups.json');
 define('NOITRU_DUTY_ROSTER', NOITRU_DIR . '/duty_roster.json');
 define('NOITRU_HEALTH', NOITRU_DIR . '/health.json');
+define('NOITRU_MEDICINES', NOITRU_DIR . '/medicines.json');
+define('NOITRU_MEDICINE_TX', NOITRU_DIR . '/medicine_transactions.json');
 define('NOITRU_MENUS', NOITRU_DIR . '/menus.json');
 define('NOITRU_MENU_CONFIG', NOITRU_DIR . '/menu_config.json');
 define('NOITRU_RICE', NOITRU_DIR . '/rice.json');
@@ -640,6 +642,7 @@ function noitru_health_save(array $data) {
     foreach ($rows as &$r) {
         if (($r['id'] ?? '') === $id) {
             $r = array_merge($r, $data);
+            $r['updated_at'] = noitru_now();
             $found = true;
             break;
         }
@@ -656,6 +659,74 @@ function noitru_health_save(array $data) {
 }
 function noitru_health_delete($id) {
     save_json(NOITRU_HEALTH, array_values(array_filter(noitru_health_all(), fn($r) => ($r['id'] ?? '') !== $id)));
+}
+
+function noitru_medicines_all() {
+    noitru_ensure_dir();
+    $rows = load_json(NOITRU_MEDICINES, []);
+    return array_values(array_filter($rows, fn($row) => !isset($row['active']) || !empty($row['active'])));
+}
+function noitru_medicines_save_all(array $rows) {
+    noitru_ensure_dir();
+    save_json(NOITRU_MEDICINES, array_values($rows));
+}
+function noitru_medicine_find($id) {
+    foreach (noitru_medicines_all() as $row) if (($row['id'] ?? '') === $id) return $row;
+    return null;
+}
+function noitru_medicine_save(array $data) {
+    $rows = load_json(NOITRU_MEDICINES, []);
+    $id = trim($data['id'] ?? '');
+    $found = false;
+    foreach ($rows as &$row) {
+        if (($row['id'] ?? '') !== $id || $id === '') continue;
+        $row = array_merge($row, $data, ['updated_at'=>noitru_now()]);
+        $found = true;
+        break;
+    }
+    unset($row);
+    if (!$found) {
+        $data['id'] = $id ?: noitru_uid('med');
+        $data['active'] = true;
+        $data['created_at'] = noitru_now();
+        $rows[] = $data;
+    }
+    noitru_medicines_save_all($rows);
+    return $data['id'] ?? $id;
+}
+function noitru_medicine_adjust($id, $delta, $type, $note = '', $by = '') {
+    $rows = load_json(NOITRU_MEDICINES, []);
+    $changed = null;
+    foreach ($rows as &$row) {
+        if (($row['id'] ?? '') !== $id || empty($row['active'])) continue;
+        $before = max(0, (int)($row['quantity'] ?? 0));
+        $after = max(0, $before + (int)$delta);
+        if ((int)$delta < 0 && $after !== $before + (int)$delta) throw new RuntimeException('Số lượng thuốc trong kho không đủ.');
+        $row['quantity'] = $after;
+        $row['updated_at'] = noitru_now();
+        $changed = ['before'=>$before, 'after'=>$after, 'medicine'=>$row];
+        break;
+    }
+    unset($row);
+    if (!$changed) throw new RuntimeException('Không tìm thấy thuốc trong kho.');
+    noitru_medicines_save_all($rows);
+    $tx = load_json(NOITRU_MEDICINE_TX, []);
+    $tx[] = ['id'=>noitru_uid('mtx'),'medicine_id'=>$id,'type'=>$type,'quantity'=>abs((int)$delta),'before'=>$changed['before'],'after'=>$changed['after'],'note'=>$note,'by'=>$by,'created_at'=>noitru_now()];
+    save_json(NOITRU_MEDICINE_TX, $tx);
+    return $changed['medicine'];
+}
+function noitru_medicine_delete($id) {
+    $rows = load_json(NOITRU_MEDICINES, []);
+    foreach ($rows as &$row) if (($row['id'] ?? '') === $id) { $row['active'] = false; $row['updated_at'] = noitru_now(); }
+    unset($row);
+    noitru_medicines_save_all($rows);
+}
+function noitru_medicine_transactions($medicineId = '') {
+    noitru_ensure_dir();
+    $rows = load_json(NOITRU_MEDICINE_TX, []);
+    if ($medicineId !== '') $rows = array_values(array_filter($rows, fn($row) => ($row['medicine_id'] ?? '') === $medicineId));
+    usort($rows, fn($a,$b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
+    return $rows;
 }
 
 /* —— Menus —— */
