@@ -5,6 +5,7 @@ if (is_logged_in()) {
     exit;
 }
 $error = '';
+$user = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user = trim($_POST['username'] ?? '');
     $pass = $_POST['password'] ?? '';
@@ -41,14 +42,19 @@ background:radial-gradient(ellipse at center,#124a8a 0%,#0a2a5c 60%,#061428 100%
     </div>
     <div class="card-body p-4">
       <?php if ($error): ?><div class="alert alert-danger py-2"><?= e($error) ?></div><?php endif; ?>
-      <form method="post">
+      <form method="post" id="loginForm" autocomplete="on">
         <div class="mb-3">
           <label class="form-label fw-semibold">Tài khoản</label>
-          <input type="text" name="username" class="form-control" required autofocus autocomplete="username">
+          <input type="text" name="username" class="form-control" value="<?= e($user) ?>" required autofocus autocomplete="username">
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Mật khẩu</label>
           <input type="password" name="password" class="form-control" required autocomplete="current-password">
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="rememberLogin">
+          <label class="form-check-label fw-semibold" for="rememberLogin">Ghi nhớ tài khoản và mật khẩu</label>
+          <div class="form-text">Mật khẩu được lưu an toàn bởi trình duyệt. Không chọn trên máy dùng chung.</div>
         </div>
         <button class="btn btn-primary w-100" style="background:#1F4E79;border:0">
           <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
@@ -60,5 +66,32 @@ background:radial-gradient(ellipse at center,#124a8a 0%,#0a2a5c 60%,#061428 100%
     </div>
   </div>
 </div>
+<script>
+(function () {
+  const form = document.getElementById('loginForm');
+  const username = form.querySelector('input[name="username"]');
+  const remember = document.getElementById('rememberLogin');
+  const storageKey = 'cds_remember_username';
+
+  try {
+    const savedUsername = localStorage.getItem(storageKey);
+    if (savedUsername) {
+      if (!username.value) username.value = savedUsername;
+      remember.checked = true;
+    }
+  } catch (error) {
+    // Trình duyệt có thể chặn bộ nhớ cục bộ; đăng nhập vẫn hoạt động bình thường.
+  }
+
+  form.addEventListener('submit', function () {
+    try {
+      if (remember.checked) localStorage.setItem(storageKey, username.value.trim());
+      else localStorage.removeItem(storageKey);
+    } catch (error) {
+      // Không ảnh hưởng tới quá trình gửi biểu mẫu đăng nhập.
+    }
+  });
+})();
+</script>
 </body>
 </html>
