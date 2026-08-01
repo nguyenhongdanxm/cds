@@ -3,6 +3,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_store.php';
 require_login();
 require_module('thidua', 'view');
+register_shutdown_function(function(){require __DIR__.'/includes/module_switcher.php';});
 $user = current_user();
 $canEdit = can_perm_level('td.capnhat', 'edit') || can_module('thidua', 'edit');
 $canDelete = can_perm_level('td.capnhat', 'delete') || can_module('thidua', 'admin');
