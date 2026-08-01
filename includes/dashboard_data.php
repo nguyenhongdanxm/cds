@@ -136,7 +136,7 @@ function cds_dashboard_feed_kind($value): string {
 }
 
 function cds_dashboard_feed_title(array $row): string {
-    foreach (['title','name','subject','content','tieu_de','tieude','ten_van_ban','tenvanban','noi_dung','noidung','task_name'] as $key) {
+    foreach (['title','name','subject','content','tieu_de','tieude','ten_van_ban','tenvanban','noi_dung','noidung','task_name','ten_cong_viec','work_title','document_title','mo_ta','description'] as $key) {
         if (isset($row[$key]) && !is_array($row[$key]) && trim((string)$row[$key]) !== '') return trim((string)$row[$key]);
     }
     return '';
@@ -148,7 +148,7 @@ function cds_dashboard_feed_row_kind(array $row, string $hint = ''): string {
         if ($kind !== '') return $kind;
     }
     if ($hint !== '') return $hint;
-    foreach (['deadline','due_date','due_at','assignee','assignee_id','assigned_to','nguoi_thuc_hien'] as $key) if (!empty($row[$key])) return 'tasks';
+    foreach (['deadline','due_date','due_at','assignee','assignees','assignee_id','assigned_to','assigned_users','assigned_to_ids','nguoi_thuc_hien','nguoi_phu_trach','nguoi_nhan','nguoi_duoc_giao','executor','responsible','performers','members','teacher_id'] as $key) if (!empty($row[$key])) return 'tasks';
     foreach (['publish_date','published_at','notification_date','visible_from','ngay_hieu_luc','ngay_ban_hanh'] as $key) if (!empty($row[$key])) return 'notices';
     return '';
 }
@@ -184,9 +184,7 @@ function cds_dashboard_feed_collect($node, string $hint, array &$out, string $mo
     foreach ($node as $key => $child) {
         if (!is_array($child)) continue;
         $childHint = cds_dashboard_feed_kind((string)$key) ?: $hint;
-        if ($childHint !== '' || in_array(cds_dashboard_lower($key), ['data','items','records','entries','result','results'], true)) {
-            cds_dashboard_feed_collect($child, $childHint, $out, $module, $defaultUrl, $depth + 1);
-        }
+        cds_dashboard_feed_collect($child, $childHint, $out, $module, $defaultUrl, $depth + 1);
     }
 }
 
@@ -204,8 +202,12 @@ function cds_dashboard_feed_data(): array {
     }
     if (defined('PCCM_DATA_PATH') && PCCM_DATA_PATH !== '' && is_dir(PCCM_DATA_PATH)) {
         $pccmUrl = defined('URL_CHUYEN_MON') ? URL_CHUYEN_MON : '/chuyenmon/';
-        foreach (array_merge(glob(rtrim(PCCM_DATA_PATH,'/') . '/*.json') ?: [], glob(rtrim(PCCM_DATA_PATH,'/') . '/*/*.json') ?: []) as $file) {
-            if (cds_dashboard_feed_kind(basename($file)) !== '') $addSource($file, 'chuyenmon', $pccmUrl);
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(PCCM_DATA_PATH, FilesystemIterator::SKIP_DOTS));
+        $sourceCount = 0;
+        foreach ($iterator as $entry) {
+            if ($sourceCount >= 200 || $iterator->getDepth() > 3 || !$entry->isFile() || cds_dashboard_lower($entry->getExtension()) !== 'json') continue;
+            $addSource($entry->getPathname(), 'chuyenmon', $pccmUrl);
+            $sourceCount++;
         }
     }
     foreach ($sources as $source) {
@@ -223,14 +225,65 @@ function cds_dashboard_feed_data(): array {
     }
     return $out;
 }
+function cds_dashboard_parse_date($value): string {
+    if (is_array($value) || is_object($value)) return '';
+    $raw = trim((string)$value);
+    if ($raw === '') return '';
+    if (preg_match('/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/', $raw, $match)) {
+        return sprintf('%04d-%02d-%02d', (int)$match[3], (int)$match[2], (int)$match[1]);
+    }
+    $timestamp = strtotime($raw);
+    return $timestamp === false ? '' : date('Y-m-d', $timestamp);
+}
+
 function cds_dashboard_feed_date(array $row): string {
-    foreach (['due_date','deadline','due_at','date','ngay','start_date','from_date','publish_date','published_at','notification_date','visible_from','ngay_hieu_luc','ngay_ban_hanh','created_at','updated_at'] as $key) {
+    foreach (['due_date','deadline','due_at','han_hoan_thanh','han_xu_ly','ngay_het_han','end_date','to_date','ngay_ket_thuc','date','ngay','start_date','from_date','ngay_bat_dau','starts_at','start_at','publish_date','published_at','notification_date','visible_from','ngay_hieu_luc','ngay_ban_hanh','created_at','updated_at'] as $key) {
         if (empty($row[$key]) || is_array($row[$key])) continue;
-        $raw = trim((string)$row[$key]);
-        $timestamp = strtotime($raw);
-        if ($timestamp !== false) return date('Y-m-d', $timestamp);
+        $date = cds_dashboard_parse_date($row[$key]);
+        if ($date !== '') return $date;
     }
     return '';
+}
+
+function cds_dashboard_feed_assignees(array $row): array {
+    $values = [];
+    $flatten = function($value) use (&$values, &$flatten): void {
+        if (is_array($value)) {
+            foreach (['name','full_name','username','id','user_id','teacher_id','ho_ten'] as $key) {
+                if (isset($value[$key]) && !is_array($value[$key]) && trim((string)$value[$key]) !== '') {
+                    $values[] = trim((string)$value[$key]);
+                    return;
+                }
+            }
+            foreach ($value as $child) $flatten($child);
+            return;
+        }
+        if (!is_object($value)) foreach (preg_split('/[,;|]/u', trim((string)$value)) ?: [] as $part) if (trim($part) !== '') $values[] = trim($part);
+    };
+    foreach (['assignee_id','assigned_to','assignee','assignees','assigned_users','assigned_to_ids','recipient_ids','responsible_ids','nguoi_thuc_hien','nguoi_phu_trach','nguoi_nhan','nguoi_duoc_giao','executor','responsible','performers','members','teacher_id','teacher'] as $key) {
+        if (array_key_exists($key, $row)) $flatten($row[$key]);
+    }
+    return array_values(array_unique($values));
+}
+
+function cds_dashboard_feed_schedule(array $row): array {
+    $start = ''; $end = '';
+    foreach (['start_date','from_date','ngay_bat_dau','starts_at','start_at','effective_from','publish_date','published_at','notification_date','visible_from','ngay_hieu_luc','ngay','date'] as $key) {
+        if (!empty($row[$key])) { $start = cds_dashboard_parse_date($row[$key]); if ($start !== '') break; }
+    }
+    foreach (['due_date','deadline','due_at','han_hoan_thanh','han_xu_ly','ngay_het_han','end_date','to_date','ngay_ket_thuc','expires_at','expiry_date','visible_to'] as $key) {
+        if (!empty($row[$key])) { $end = cds_dashboard_parse_date($row[$key]); if ($end !== '') break; }
+    }
+    if ($start === '' && $end === '') return [];
+    $today = date('Y-m-d');
+    if ($end !== '' && $end < $today) return [];
+    $upcoming = $start !== '' && $start > $today;
+    return [
+        'start' => $start,
+        'end' => $end,
+        'state' => $upcoming ? 'Sắp diễn ra' : 'Đang diễn ra',
+        'nearest' => $upcoming ? $start : ($end !== '' ? $end : $start),
+    ];
 }
 
 function cds_dashboard_feed_visible(array $row): bool {
@@ -245,33 +298,37 @@ function cds_dashboard_feed_visible(array $row): bool {
     }
     return true;
 }
-function cds_dashboard_notice_tasks(array $user, int $limit = 5): array {
-    $feed = cds_dashboard_feed_data(); $rows = [];
-    foreach ($feed['notices'] as $row) {
-        if (!cds_dashboard_feed_visible($row)) continue;
-        if (($row['_dashboard_module'] ?? '') === 'chuyenmon' && ($user['role'] ?? '') !== 'admin' && !can_module('chuyenmon', 'view')) continue;
-        $row['kind']='notice'; $rows[]=$row;
+function cds_dashboard_notice_tasks(array $user, int $limit = 10): array {
+    if (($user['role'] ?? '') !== 'admin' && !can_module('chuyenmon', 'view')) return [];
+    $feed = cds_dashboard_feed_data();
+    $rows = [];
+    $identities = array_values(array_filter(array_map('strval', [$user['id'] ?? '', $user['username'] ?? '', $user['name'] ?? ''])));
+    $identityLower = array_map('cds_dashboard_lower', $identities);
+    foreach (array_merge($feed['tasks'], $feed['notices']) as $row) {
+        if (($row['_dashboard_module'] ?? '') !== 'chuyenmon' || !cds_dashboard_feed_visible($row)) continue;
+        $assignees = cds_dashboard_feed_assignees($row);
+        $schedule = cds_dashboard_feed_schedule($row);
+        if (!$assignees || !$schedule) continue;
+        $status = cds_dashboard_lower($row['status'] ?? $row['trang_thai'] ?? '');
+        if (in_array($status, ['done','completed','complete','finished','hoàn thành','đã hoàn thành','da_hoan_thanh'], true)) continue;
+        if (($user['role'] ?? '') !== 'admin') {
+            $assigneeLower = array_map('cds_dashboard_lower', $assignees);
+            if (!array_intersect($assigneeLower, $identityLower)) continue;
+        }
+        $row['kind'] = 'task';
+        $row['_dashboard_assignees'] = $assignees;
+        $row['_dashboard_start'] = $schedule['start'];
+        $row['_dashboard_end'] = $schedule['end'];
+        $row['_dashboard_state'] = $schedule['state'];
+        $row['_dashboard_nearest'] = $schedule['nearest'];
+        $rows[] = $row;
     }
-    foreach ($feed['tasks'] as $row) {
-        if (!cds_dashboard_feed_visible($row)) continue;
-        if (($row['_dashboard_module'] ?? '') === 'chuyenmon' && ($user['role'] ?? '') !== 'admin' && !can_module('chuyenmon', 'view')) continue;
-        $assigneeRaw = $row['assignee_id'] ?? $row['assigned_to'] ?? $row['assignee'] ?? $row['nguoi_thuc_hien'] ?? '';
-        $assignees = is_array($assigneeRaw) ? array_map('strval', $assigneeRaw) : array_filter(array_map('trim', preg_split('/[,;|]/', (string)$assigneeRaw) ?: []));
-        $identities = [(string)($user['id']??''),(string)($user['username']??''),(string)($user['name']??'')];
-        if ($assignees && !array_intersect($assignees, $identities) && ($user['role']??'')!=='admin') continue;
-        $status = (string)($row['status'] ?? '');
-        $status = function_exists('mb_strtolower') ? mb_strtolower($status, 'UTF-8') : strtolower($status);
-        if (in_array($status, ['done','completed','hoàn thành'], true)) continue;
-        $row['kind']='task'; $rows[]=$row;
-    }
-    $today = date('Y-m-d');
-    usort($rows, function($a,$b) use ($today) {
-        $da=cds_dashboard_feed_date($a);$db=cds_dashboard_feed_date($b);
-        $aUpcoming=$da!==''&&$da>=$today;$bUpcoming=$db!==''&&$db>=$today;
-        if($aUpcoming!==$bUpcoming)return $aUpcoming?-1:1;
-        return $aUpcoming?strcmp($da,$db):strcmp($db,$da);
+    usort($rows, function($a, $b) {
+        $dateOrder = strcmp((string)($a['_dashboard_nearest'] ?? ''), (string)($b['_dashboard_nearest'] ?? ''));
+        if ($dateOrder !== 0) return $dateOrder;
+        return strnatcasecmp(cds_dashboard_feed_title($a), cds_dashboard_feed_title($b));
     });
-    return array_slice($rows,0,$limit);
+    return array_slice($rows, 0, $limit);
 }
 function cds_dashboard_observations(): array {
     $today=date('Y-m-d');$rows=[];
