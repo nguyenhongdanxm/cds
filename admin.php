@@ -103,7 +103,7 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
         <?php foreach ($feedItems as $item): $feedDate=cds_dashboard_feed_date($item);$title=$item['title']??$item['name']??$item['subject']??$item['content']??'Nội dung mới';$url=$item['url']??$item['link']??''; ?>
           <?php if ($url): ?><a href="<?= e($url) ?>" class="feed-row"><?php else: ?><div class="feed-row"><?php endif; ?><span class="feed-icon <?= ($item['kind']??'')==='task'?'task':'notice' ?>"><i class="bi <?= ($item['kind']??'')==='task'?'bi-check2-square':'bi-megaphone' ?>"></i></span><span class="feed-copy"><strong><?= e($title) ?></strong><small><?= ($item['kind']??'')==='task'?'Nhiệm vụ':'Thông báo' ?><?= $feedDate ? ' · ' . e(date('d/m/Y',strtotime($feedDate))) : '' ?></small></span><?php if($feedDate && $feedDate>=date('Y-m-d') && $feedDate<=date('Y-m-d',strtotime('+3 days'))): ?><span class="due-pill">Sắp hạn</span><?php endif; ?><?php if ($url): ?></a><?php else: ?></div><?php endif; ?>
         <?php endforeach; ?>
-        <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có thông báo hoặc nhiệm vụ mới</strong><span>Khi module Chuyên môn phát sinh dữ liệu, 5 nội dung cần chú ý nhất sẽ tự hiện tại đây.</span></div><?php endif; ?>
+        <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có thông báo hoặc nhiệm vụ mới</strong><span>Thông báo, văn bản và nhiệm vụ có ngày hiển thị phù hợp sẽ tự xuất hiện tại đây.</span></div><?php endif; ?>
       </div>
     </section>
 
