@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pass = $_POST['password'] ?? '';
     if (attempt_login($user, $pass)) {
         $next = $_GET['next'] ?? (BASE_URL . 'admin.php');
-        if (strpos($next, '://') !== false) $next = BASE_URL . 'admin.php';
+        if (!str_starts_with($next, '/') || str_starts_with($next, '//') || str_contains($next, '://')) $next = BASE_URL . 'admin.php';
         header('Location: ' . $next);
         exit;
     }
