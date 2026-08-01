@@ -56,7 +56,7 @@ function get_ecosystem_modules() {
             'title' => 'Thi đua',
             'subtitle' => 'Thi đua · khen thưởng · xếp loại',
             'icon' => 'bi-trophy', 'color' => '#ffc107',
-            'status' => 'soon', 'url' => '', 'external' => false,
+            'status' => 'live', 'url' => BASE_URL . 'thidua.php', 'external' => false,
         ],
     ];
 }
