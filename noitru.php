@@ -59,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'duty_swap'=>'nt.lichtruc', 'duty_assign_weekday'=>'nt.lichtruc', 'duty_manager_weekday'=>'nt.lichtruc',
         'duty_roster_save'=>'nt.lichtruc', 'duty_roster_delete'=>'nt.lichtruc',
         'health_save'=>'nt.yte', 'health_delete'=>'nt.yte',
+        'medicine_save'=>'nt.yte', 'medicine_restock'=>'nt.yte', 'medicine_delete'=>'nt.yte',
         'menu_save'=>'nt.thucdon', 'menu_dish_add'=>'nt.thucdon', 'menu_dish_delete'=>'nt.thucdon',
         'menu_template_save'=>'nt.thucdon', 'menu_apply_template'=>'nt.thucdon', 'menu_copy_week'=>'nt.thucdon',
         'rice_settings'=>'nt.baoan', 'rice_in'=>'nt.baoan', 'rice_issue'=>'nt.baoan', 'rice_delete'=>'nt.baoan',
@@ -620,21 +621,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'health_save') {
         $sid = trim($_POST['student_id'] ?? '');
         noitru_require_student_scope($sid);
-        $name = '';
-        foreach (noitru_boarders_live() as $s) if ($s['id'] === $sid) { $name = $s['name']; break; }
-        noitru_health_save([
+        $student = null;
+        foreach (noitru_boarders_live() as $s) if (($s['id'] ?? '') === $sid) { $student = $s; break; }
+        $diagnosis = trim($_POST['diagnosis'] ?? '');
+        if (!$student || $diagnosis === '') {
+            flash('Vui lòng chọn học sinh và nhập chẩn đoán / triệu chứng.', 'danger');
+            header('Location: ' . BASE_URL . 'noitru.php?tab=health&health_view=record'); exit;
+        }
+        $type = trim($_POST['type'] ?? 'medicine');
+        if (!in_array($type, ['medicine','first_aid','hospital','family_pickup'], true)) $type = 'medicine';
+        $medicineItems = [];
+        if ($type === 'medicine') {
+            $medicineIds = (array)($_POST['medicine_id'] ?? []);
+            $medicineQtys = (array)($_POST['medicine_qty'] ?? []);
+            foreach ($medicineIds as $index=>$medicineId) {
+                $medicineId = trim((string)$medicineId);
+                $quantity = max(0, (int)($medicineQtys[$index] ?? 0));
+                if ($medicineId === '' || $quantity < 1) continue;
+                $medicine = noitru_medicine_find($medicineId);
+                if (!$medicine || (int)($medicine['quantity'] ?? 0) < $quantity) {
+                    flash('Thuốc được chọn không tồn tại hoặc không đủ số lượng.', 'danger');
+                    header('Location: ' . BASE_URL . 'noitru.php?tab=health&health_view=record'); exit;
+                }
+                $medicineItems[] = ['id'=>$medicineId,'name'=>$medicine['name'] ?? '','unit'=>$medicine['unit'] ?? '','quantity'=>$quantity];
+            }
+        }
+        $recordId = noitru_health_save([
             'id' => trim($_POST['id'] ?? ''),
             'student_id' => $sid,
-            'student_name' => $name,
+            'student_name' => $student['name'] ?? '',
+            'class_name' => $student['class_name'] ?? '',
             'date' => trim($_POST['date'] ?? date('Y-m-d')),
-            'type' => trim($_POST['type'] ?? 'kham'),
-            'diagnosis' => trim($_POST['diagnosis'] ?? ''),
+            'type' => $type,
+            'diagnosis' => $diagnosis,
             'treatment' => trim($_POST['treatment'] ?? ''),
+            'medicines' => $medicineItems,
+            'parent_contacted' => !empty($_POST['parent_contacted']),
             'note' => trim($_POST['note'] ?? ''),
             'by' => $user['name'] ?? '',
         ]);
+        foreach ($medicineItems as $item) noitru_medicine_adjust($item['id'], -$item['quantity'], 'issue', 'Phát cho ' . ($student['name'] ?? '') . ' · ' . $diagnosis . ' · Hồ sơ ' . $recordId, $user['name'] ?? '');
         flash('Đã lưu hồ sơ y tế.');
-        header('Location: ' . BASE_URL . 'noitru.php?tab=health');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=health&health_view=record');
         exit;
     }
     if ($action === 'health_delete') {
@@ -642,6 +670,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('Đã xóa hồ sơ.', 'warning');
         header('Location: ' . BASE_URL . 'noitru.php?tab=health');
         exit;
+    }
+    if ($action === 'medicine_save') {
+        $name = trim($_POST['name'] ?? '');
+        if ($name === '') { flash('Vui lòng nhập tên thuốc.', 'danger'); header('Location: ' . BASE_URL . 'noitru.php?tab=health&health_view=inventory'); exit; }
+        $id = trim($_POST['id'] ?? '');
+        $initialQty = max(0, (int)($_POST['quantity'] ?? 0));
+        $savedId = noitru_medicine_save([
+            'id'=>$id, 'name'=>$name, 'unit'=>trim($_POST['unit'] ?? 'viên') ?: 'viên',
+            'expiry_date'=>trim($_POST['expiry_date'] ?? ''), 'low_stock'=>max(0, (int)($_POST['low_stock'] ?? 10)),
+            'note'=>trim($_POST['note'] ?? ''), 'quantity'=>$id !== '' ? (int)(noitru_medicine_find($id)['quantity'] ?? 0) : 0,
+        ]);
+        if ($id === '' && $initialQty > 0) noitru_medicine_adjust($savedId, $initialQty, 'initial', 'Nhập kho ban đầu', $user['name'] ?? '');
+        flash($id === '' ? 'Đã thêm thuốc mới.' : 'Đã cập nhật thông tin thuốc.');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=health&health_view=inventory'); exit;
+    }
+    if ($action === 'medicine_restock') {
+        $medicineId = trim($_POST['id'] ?? '');
+        $quantity = max(0, (int)($_POST['quantity'] ?? 0));
+        try {
+            if ($quantity < 1) throw new RuntimeException('Số lượng bổ sung phải lớn hơn 0.');
+            noitru_medicine_adjust($medicineId, $quantity, 'restock', trim($_POST['note'] ?? '') ?: 'Bổ sung kho', $user['name'] ?? '');
+            flash('Đã bổ sung thuốc vào kho.');
+        } catch (Throwable $error) { flash($error->getMessage(), 'danger'); }
+        header('Location: ' . BASE_URL . 'noitru.php?tab=health&health_view=inventory'); exit;
+    }
+    if ($action === 'medicine_delete') {
+        noitru_medicine_delete(trim($_POST['id'] ?? ''));
+        flash('Đã xóa thuốc khỏi danh sách.', 'warning');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=health&health_view=inventory'); exit;
     }
 
     /* Menu */
@@ -1569,47 +1626,7 @@ form[method="post"]{display:none!important}
   <?php require __DIR__ . '/includes/noitru_duty_view.php'; ?>
 
 <?php elseif ($tab === 'health'): ?>
-  <?php
-    $health = array_values(array_filter(noitru_health_all(), fn($row) => noitru_student_in_scope($row['student_id'] ?? '')));
-    usort($health, fn($a,$b) => strcmp($b['date']??'', $a['date']??''));
-  ?>
-  <div class="row g-3">
-    <div class="col-md-4"><div class="card card-soft"><div class="card-body">
-      <h6>Ghi nhận y tế</h6>
-      <form method="post">
-        <input type="hidden" name="action" value="health_save">
-        <div class="mb-2"><label class="form-label small">HS</label>
-          <select name="student_id" class="form-select form-select-sm" required>
-            <option value="">—</option>
-            <?php foreach ($boarders as $s): ?><option value="<?= e($s['id']) ?>"><?= e($s['name']) ?></option><?php endforeach; ?>
-          </select>
-        </div>
-        <div class="mb-2"><label class="form-label small">Ngày</label><input type="date" name="date" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>"></div>
-        <div class="mb-2"><label class="form-label small">Loại</label>
-          <select name="type" class="form-select form-select-sm"><option value="kham">Khám</option><option value="thuoc">Thuốc</option><option value="theo_doi">Theo dõi</option></select>
-        </div>
-        <div class="mb-2"><label class="form-label small">Chẩn đoán / tình trạng</label><input type="text" name="diagnosis" class="form-control form-control-sm" required></div>
-        <div class="mb-2"><label class="form-label small">Xử trí</label><input type="text" name="treatment" class="form-control form-control-sm"></div>
-        <div class="mb-2"><label class="form-label small">Ghi chú</label><input type="text" name="note" class="form-control form-control-sm"></div>
-        <button class="btn btn-nt btn-sm w-100">Lưu</button>
-      </form>
-    </div></div></div>
-    <div class="col-md-8"><div class="card card-soft"><div class="table-responsive">
-      <table class="table table-sm mb-0"><thead><tr><th>Ngày</th><th>HS</th><th>Loại</th><th>Tình trạng</th><th>Xử trí</th><th></th></tr></thead><tbody>
-      <?php foreach ($health as $h): ?>
-        <tr>
-          <td class="small"><?= e($h['date']??'') ?></td>
-          <td><?= e($h['student_name']??'') ?></td>
-          <td><?= e($h['type']??'') ?></td>
-          <td class="small"><?= e($h['diagnosis']??'') ?></td>
-          <td class="small"><?= e($h['treatment']??'') ?></td>
-          <td><?php if ($canDeleteCurrent): ?><form method="post" onsubmit="return confirm('Xóa?')"><input type="hidden" name="action" value="health_delete"><input type="hidden" name="id" value="<?= e($h['id']) ?>"><button class="btn btn-sm btn-outline-danger">Xóa</button></form><?php endif; ?></td>
-        </tr>
-      <?php endforeach; ?>
-      <?php if (!$health): ?><tr><td colspan="6" class="text-muted text-center py-3">Chưa có hồ sơ.</td></tr><?php endif; ?>
-      </tbody></table>
-    </div></div></div>
-  </div>
+  <?php require __DIR__ . '/includes/noitru_health_view.php'; ?>
 
 <?php elseif ($tab === 'menu'): ?>
   <?php
