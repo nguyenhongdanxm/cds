@@ -1,91 +1,28 @@
 <?php
 require_once 'includes/auth.php';
 require_once 'includes/modules.php';
+require_once 'includes/dashboard.php';
 require_login();
-$user = current_user();
-$modules = get_ecosystem_modules();
-$live = count(array_filter($modules, fn($m) => $m['status'] !== 'soon'));
-$soon = count($modules) - $live;
-$isAdmin = ($user['role'] ?? '') === 'admin';
+$user=current_user();$isAdmin=($user['role']??'')==='admin';
+$allModules=get_ecosystem_modules();$modules=[];
+foreach($allModules as $module){$id=$module['id']??'';if($module['status']==='soon')continue;if($module['status']==='link'||$isAdmin||can_module($id,'view'))$modules[]=$module;}
+$widgets=cds_dashboard_user_widgets($user);
+$recent=cds_audit_read(date('Y-m-d',strtotime('-7 days')),date('Y-m-d'),(string)($user['id']??''),'',20);
+$actions=array_values(array_filter($recent,fn($row)=>($row['action']??'')!=='page_view'));
+$scope=allowed_classes();$scopeText=$scope===null?'Toàn trường':($scope?implode(', ',$scope):'Chưa được gán lớp');
+$hour=(int)date('G');$greeting=$hour<11?'Chào buổi sáng':($hour<18?'Chào buổi chiều':'Chào buổi tối');
+$actionLabels=['login_success'=>'Đăng nhập','logout'=>'Đăng xuất','page_view'=>'Mở trang','create'=>'Tạo dữ liệu','update'=>'Cập nhật','delete'=>'Xóa dữ liệu','export'=>'Xuất báo cáo'];
 ?>
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quản trị CDS – <?= e(SCHOOL_SHORT) ?></title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<style>
-:root{--primary:#1F4E79}
-body{background:#f0f4f8}
-.stat{background:#fff;border-radius:12px;padding:1.25rem;box-shadow:0 2px 12px rgba(0,0,0,.06);text-align:center}
-.stat .n{font-size:1.75rem;font-weight:800;color:var(--primary)}
-.mod-card{background:#fff;border-radius:12px;padding:1rem;box-shadow:0 2px 10px rgba(0,0,0,.06);height:100%;border-left:4px solid #ccc}
-.mod-card.live{border-left-color:#198754}
-.mod-card.link{border-left-color:#0d6efd}
-.mod-card.soon{border-left-color:#adb5bd;opacity:.85}
-</style>
-</head>
-<body>
-<?php
-$nav_title = 'CDS Quản trị';
-$nav_icon = 'bi-speedometer2';
-$nav_color = '#1F4E79';
-$nav_module = 'admin';
-if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav_top.php';
-?>
-
-<div class="container pb-5">
-  <?php show_flash(); ?>
-  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
-    <div>
-      <h3 class="mb-1">Bảng điều khiển tập trung</h3>
-      <p class="text-muted mb-0">Xin chào, <strong><?= e($user['name'] ?? '') ?></strong> · vai trò: <?= e($user['role'] ?? '') ?></p>
-    </div>
-    <?php if ($isAdmin): ?>
-    <div class="d-flex flex-wrap gap-2">
-      <a href="database_admin.php" class="btn btn-outline-primary btn-sm"><i class="bi bi-database-check"></i> Trạng thái MySQL</a>
-      <a href="users.php" class="btn btn-primary btn-sm"><i class="bi bi-shield-lock"></i> Tài khoản & phân quyền</a>
-    </div>
-    <?php endif; ?>
-  </div>
-
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= count($modules) ?></div><div class="text-muted small">Tổng module</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n text-success"><?= $live ?></div><div class="text-muted small">Đang có / liên kết</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n text-secondary"><?= $soon ?></div><div class="text-muted small">Đang xây dựng</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><i class="bi bi-person-check"></i></div><div class="text-muted small">SSO session</div></div></div>
-  </div>
-
-  <h5 class="mb-3">Các nhánh hệ sinh thái</h5>
-  <div class="row g-3">
-    <?php foreach ($modules as $m):
-      $modId = $m['id'] ?? '';
-      // map id sang key quyền
-      $permKey = $modId === 'chuyenmon' ? 'chuyenmon' : ($modId === 'csdl' ? 'csdl' : ($modId === 'noitru' ? 'noitru' : $modId));
-      $allowed = ($user['role'] ?? '') === 'admin' || can_module($permKey, 'view') || $m['status'] === 'link' || $m['status'] === 'soon';
-      if (!$allowed && in_array($modId, ['chuyenmon','csdl','noitru'], true)) continue;
-    ?>
-    <div class="col-md-6 col-lg-3">
-      <div class="mod-card <?= e($m['status']) ?>">
-        <div class="d-flex align-items-center gap-2 mb-2">
-          <i class="bi <?= e($m['icon']) ?> fs-4" style="color:<?= e($m['color']) ?>"></i>
-          <strong><?= e($m['title']) ?></strong>
-        </div>
-        <div class="small text-muted mb-2"><?= e($m['subtitle']) ?></div>
-        <?php if ($m['status'] === 'soon'): ?>
-          <span class="badge bg-secondary">Sắp ra mắt</span>
-        <?php else: ?>
-          <a href="<?= e($m['url']) ?>" class="btn btn-sm btn-outline-primary" <?= !empty($m['external']) ? 'target="_blank"' : '' ?>>
-            Mở <i class="bi bi-arrow-right-short"></i>
-          </a>
-        <?php endif; ?>
-      </div>
-    </div>
-    <?php endforeach; ?>
-  </div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tổng quan CDS – <?= e(SCHOOL_SHORT) ?></title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"><style>
+:root{--blue:#2563eb;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f4f7fb}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.shell{display:grid;grid-template-columns:245px minmax(0,1fr);min-height:100vh}.side{position:sticky;top:0;height:100vh;padding:18px 14px;background:#0b1730;color:#fff}.brand{display:flex;align-items:center;gap:10px;padding:7px 8px 20px;color:#fff;text-decoration:none}.brand-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#60a5fa,#2563eb);font-size:20px}.brand small{display:block;color:#8fa3c5}.nav-label{margin:14px 10px 7px;color:#7185a8;font-size:11px;font-weight:800;text-transform:uppercase}.side a.nav{display:flex;align-items:center;gap:10px;padding:10px 11px;margin:3px 0;border-radius:10px;color:#afbfda;text-decoration:none;font-size:14px}.side a.nav:hover,.side a.nav.active{background:#172747;color:#fff}.side-foot{position:absolute;left:14px;right:14px;bottom:16px}.main{min-width:0}.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;height:68px;padding:0 28px;border-bottom:1px solid rgba(226,232,240,.85);background:rgba(255,255,255,.9);backdrop-filter:blur(12px)}.search{display:flex;align-items:center;gap:9px;width:min(440px,50vw);padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#f8fafc;color:var(--muted)}.search input{width:100%;border:0;outline:0;background:transparent}.profile{display:flex;align-items:center;gap:9px}.avatar{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#dbeafe;color:#1d4ed8;font-weight:900}.content{padding:26px;max-width:1500px;margin:auto}.hero{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:20px;padding:22px 24px;border-radius:20px;color:#fff;background:linear-gradient(115deg,#1d4ed8,#2563eb 55%,#0891b2);box-shadow:0 14px 35px rgba(37,99,235,.18)}.hero h1{margin:0 0 5px;font-size:25px}.hero p{margin:0;color:#dbeafe}.hero-date{text-align:right;color:#e0f2fe}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}.kpi,.card{border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 4px 18px rgba(15,23,42,.045)}.kpi{display:flex;align-items:center;gap:13px;padding:17px}.kpi i{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#eff6ff;color:#2563eb;font-size:20px}.kpi strong{display:block;font-size:22px}.kpi span{font-size:12px;color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{padding:18px}.card.wide{grid-column:1/-1}.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.card-head h2{display:flex;align-items:center;gap:9px;margin:0;font-size:16px}.card-head i{color:var(--accent)}.module-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.module{display:block;padding:14px;border:1px solid var(--line);border-radius:14px;color:var(--ink);text-decoration:none;transition:.16s}.module:hover{transform:translateY(-2px);border-color:var(--mc);box-shadow:0 8px 20px rgba(15,23,42,.08)}.module i{display:grid;place-items:center;width:39px;height:39px;margin-bottom:10px;border-radius:11px;background:color-mix(in srgb,var(--mc) 12%,white);color:var(--mc);font-size:19px}.module strong{display:block;font-size:14px}.module small{display:block;margin-top:3px;color:var(--muted);line-height:1.35}.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}.quick a{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;color:var(--ink);text-decoration:none}.quick a:hover{background:#f8fafc}.timeline{display:grid;gap:3px}.event{display:grid;grid-template-columns:34px 1fr auto;gap:9px;align-items:center;padding:9px 4px;border-bottom:1px solid #f1f5f9}.event i{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#f1f5f9;color:#475569}.event small{color:var(--muted)}.account-list{display:grid;grid-template-columns:1fr 1fr;gap:10px}.account-list div{padding:12px;border-radius:12px;background:#f8fafc}.account-list small{display:block;color:var(--muted)}.empty{padding:22px;text-align:center;color:var(--muted)}.mobile-nav{display:none}
+@media(max-width:1050px){.module-grid{grid-template-columns:repeat(2,1fr)}.kpis{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.shell{display:block}.side{display:none}.top{height:58px;padding:0 14px}.search{width:auto;flex:1}.profile span{display:none}.content{padding:14px 12px 82px}.hero{padding:18px}.hero h1{font-size:20px}.hero-date{display:none}.grid{grid-template-columns:1fr}.card.wide{grid-column:auto}.kpis{gap:9px}.kpi{padding:12px}.kpi strong{font-size:18px}.module-grid{grid-template-columns:1fr 1fr}.module small{display:none}.mobile-nav{position:fixed;display:flex;z-index:40;inset:auto 0 0;height:66px;border-top:1px solid var(--line);background:#fff}.mobile-nav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:11px;text-decoration:none}.mobile-nav i{font-size:18px}.quick,.account-list{grid-template-columns:1fr}}
+</style></head><body><div class="shell"><aside class="side"><a class="brand" href="admin.php"><span class="brand-icon"><i class="bi bi-grid-fill"></i></span><span><strong>CDS XÍN MẦN</strong><small>Hệ sinh thái số</small></span></a><div class="nav-label">Không gian làm việc</div><a class="nav active" href="admin.php"><i class="bi bi-house-door"></i>Tổng quan</a><?php foreach($modules as $m): ?><a class="nav" href="<?= e($m['url']) ?>"><i class="bi <?= e($m['icon']) ?>"></i><?= e($m['title']) ?></a><?php endforeach; ?><?php if($isAdmin): ?><div class="nav-label">Quản trị</div><a class="nav" href="users.php"><i class="bi bi-people"></i>Tài khoản & quyền</a><a class="nav" href="activity.php"><i class="bi bi-activity"></i>Nhật ký hoạt động</a><a class="nav" href="dashboard_settings.php"><i class="bi bi-sliders"></i>Cấu hình trang chủ</a><?php endif; ?><div class="side-foot"><a class="nav" href="logout.php"><i class="bi bi-box-arrow-left"></i>Đăng xuất</a></div></aside><main class="main"><header class="top"><label class="search"><i class="bi bi-search"></i><input id="moduleSearch" placeholder="Tìm module, chức năng..." autocomplete="off"></label><div class="profile"><span><strong><?= e($user['name']??'') ?></strong><small style="display:block;color:#64748b"><?= e($user['role']??'') ?></small></span><span class="avatar"><?= e(mb_substr($user['name']??'U',0,1)) ?></span></div></header><div class="content"><section class="hero"><div><h1><?= e($greeting) ?>, <?= e($user['name']??'') ?>!</h1><p>Đây là những thông tin và công cụ thuộc phạm vi của thầy/cô.</p></div><div class="hero-date"><strong><?= date('d/m/Y') ?></strong><div><?= e(SCHOOL_YEAR) ?></div></div></section><section class="kpis"><div class="kpi"><i class="bi bi-grid"></i><div><strong><?= count($modules) ?></strong><span>Module được truy cập</span></div></div><div class="kpi"><i class="bi bi-clock-history"></i><div><strong><?= count($recent) ?></strong><span>Hoạt động 7 ngày</span></div></div><div class="kpi"><i class="bi bi-shield-check"></i><div><strong><?= count(permission_effective_access_for_user($user)) ?></strong><span>Chức năng được cấp</span></div></div><div class="kpi"><i class="bi bi-calendar-check"></i><div><strong><?= date('W') ?></strong><span>Tuần làm việc hiện tại</span></div></div></section><section class="grid">
+<?php foreach($widgets as $id=>$widget): ?><article class="card <?= $widget['size']==='wide'?'wide':'' ?>" data-widget="<?= e($id) ?>" style="--accent:<?= e($widget['color']) ?>"><div class="card-head"><h2><i class="bi <?= e($widget['icon']) ?>"></i><?= e($widget['title']) ?></h2></div>
+<?php if($id==='welcome'): ?><div class="account-list"><div><small>Phạm vi dữ liệu</small><strong><?= e($scopeText) ?></strong></div><div><small>Nhóm vai trò</small><strong><?= e(implode(', ',$user['groups']??[])?:($user['role']??'')) ?></strong></div></div>
+<?php elseif($id==='modules'): ?><div class="module-grid"><?php foreach($modules as $m): ?><a class="module" href="<?= e($m['url']) ?>" style="--mc:<?= e($m['color']) ?>" data-search="<?= e(mb_strtolower($m['title'].' '.$m['subtitle'])) ?>"><i class="bi <?= e($m['icon']) ?>"></i><strong><?= e($m['title']) ?></strong><small><?= e($m['subtitle']) ?></small></a><?php endforeach; ?></div>
+<?php elseif($id==='quick_actions'): ?><div class="quick"><?php foreach(array_slice($modules,0,4) as $m): ?><a href="<?= e($m['url']) ?>"><i class="bi <?= e($m['icon']) ?>" style="color:<?= e($m['color']) ?>"></i><span>Mở <?= e($m['title']) ?></span></a><?php endforeach; ?></div>
+<?php elseif($id==='recent_activity'): ?><div class="timeline"><?php foreach(array_slice($recent,0,6) as $row): ?><div class="event"><i class="bi bi-arrow-right-short"></i><div><strong><?= e($actionLabels[$row['action']??'']??$row['action']??'') ?></strong><small style="display:block"><?= e($row['module']??'') ?></small></div><small><?= e(date('H:i d/m',strtotime($row['at']))) ?></small></div><?php endforeach; if(!$recent): ?><div class="empty">Chưa có hoạt động.</div><?php endif; ?></div>
+<?php elseif($id==='noitru'): ?><div class="quick"><a href="noitru.php"><i class="bi bi-person-check"></i><span>Điểm danh nội trú</span></a><a href="noitru.php?tab=health"><i class="bi bi-heart-pulse"></i><span>Y tế học đường</span></a><a href="noitru.php?tab=meals"><i class="bi bi-cup-hot"></i><span>Bữa ăn, thực đơn</span></a><a href="noitru.php?tab=stats"><i class="bi bi-bar-chart"></i><span>Thống kê</span></a></div>
+<?php elseif($id==='thidua'): ?><div class="quick"><a href="thidua.php?section=teacher_attendance"><i class="bi bi-person-check"></i><span>Chấm công</span></a><a href="thidua.php?section=student_score"><i class="bi bi-trophy"></i><span>Bảng thi đua</span></a></div>
+<?php elseif($id==='account'): ?><div class="account-list"><div><small>Tài khoản</small><strong><?= e($user['username']??'') ?></strong></div><div><small>Lần truy cập hiện tại</small><strong><?= date('H:i d/m/Y') ?></strong></div></div><?php endif; ?></article><?php endforeach; ?></section></div></main></div><nav class="mobile-nav"><a href="admin.php"><i class="bi bi-house-fill"></i>Tổng quan</a><?php foreach(array_slice($modules,0,3) as $m): ?><a href="<?= e($m['url']) ?>"><i class="bi <?= e($m['icon']) ?>"></i><?= e($m['title']) ?></a><?php endforeach; ?><a href="logout.php"><i class="bi bi-box-arrow-right"></i>Thoát</a></nav><script>document.getElementById('moduleSearch').addEventListener('input',function(){const q=this.value.trim().toLocaleLowerCase('vi');document.querySelectorAll('.module[data-search]').forEach(x=>x.style.display=!q||x.dataset.search.includes(q)?'block':'none')})</script></body></html>
