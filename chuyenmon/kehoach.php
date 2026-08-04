@@ -59,9 +59,14 @@ if ($tab === 'chitieu' && !empty($_GET['article'])) {
     foreach ($items as $candidate) if (($candidate['id'] ?? '') === (string)$_GET['article']) { $articleView = $candidate; break; }
 }
 function cm_article_body($html) {
-    $html=trim((string)$html);if($html==='')return '<span class="text-muted">Bài viết chưa có nội dung.</span>';if($html===strip_tags($html))return nl2br(e($html));
-    $html=strip_tags($html,'<p><br><div><strong><b><em><i><u><h2><h3><ul><ol><li><blockquote><a>');
-    $html=preg_replace('/\\s+on[a-z]+\\s*=\\s*(["\\']).*?\\1/isu','',$html);$html=preg_replace('/href\\s*=\\s*(["\\'])\\s*javascript:[^"\\']*\\1/iu','href="#"',$html);return $html;
+    $html = trim((string) $html);
+    if ($html === '') {
+        return '<span class="text-muted">Bài viết chưa có nội dung.</span>';
+    }
+    if ($html === strip_tags($html)) {
+        return nl2br(e($html));
+    }
+    return strip_tags($html, '<p><br><div><strong><b><em><i><u><h2><h3><ul><ol><li><blockquote><a>');
 }
 require_once 'includes/header.php';
 ?>
