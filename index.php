@@ -563,6 +563,9 @@ body::after{
         $href = 'javascript:void(0)';
       } elseif ($status === 'link' || $status === 'live') {
         $href = $m['url'] ?: '#';
+        if (($m['id'] ?? '') === 'chuyenmon' && !$user) {
+          $href = BASE_URL . 'login.php?next=' . urlencode($m['url'] ?: (BASE_URL . 'admin.php'));
+        }
         if (!empty($m['external'])) $target = ' target="_blank" rel="noopener"';
       }
       $delay = number_format($i * 0.28, 2) . 's';
