@@ -17,8 +17,12 @@ $tabPerms = [
 require_perm($tabPerms[$tab] ?? 'nt.tongquan');
 
 function noitru_student_in_scope($studentId) {
+    global $tab;
     foreach (noitru_boarders_live() as $student) {
         if (($student['id'] ?? '') !== $studentId) continue;
+        // Điểm danh là dữ liệu dùng chung: quyền Xem/Sửa quyết định thao tác,
+        // không giới hạn theo lớp chủ nhiệm.
+        if ($tab === 'attendance' && can_perm('nt.diemdanh')) return true;
         return can_class($student['class_name'] ?? '');
     }
     return false;
@@ -752,7 +756,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$boarders = array_values(array_filter(noitru_boarders_live(), fn($student) => can_class($student['class_name'] ?? '')));
+$boarders = $tab === 'attendance' && can_perm('nt.diemdanh')
+    ? array_values(noitru_boarders_live())
+    : array_values(array_filter(noitru_boarders_live(), fn($student) => can_class($student['class_name'] ?? '')));
 $stats = noitru_stats();
 if (allowed_classes() !== null) {
     $stats['total'] = count($boarders);
@@ -1627,7 +1633,7 @@ form[method="post"]{display:none!important}
             <td><?= e($s['class_name']) ?></td>
             <td><?= e($s['room_ktx']) ?></td>
             <td>
-              <select name="status[]" class="form-select form-select-sm" style="max-width:140px">
+              <select name="status[]" class="form-select form-select-sm" style="max-width:140px" <?= !$canEditCurrent?'disabled aria-disabled="true"':'' ?>>
                 <?php foreach (['present'=>'Có mặt','absent'=>'Vắng','late'=>'Muộn','excused'=>'Có phép'] as $k=>$v): ?>
                   <option value="<?= $k ?>" <?= $cur===$k?'selected':'' ?>><?= $v ?></option>
                 <?php endforeach; ?>
@@ -1639,7 +1645,7 @@ form[method="post"]{display:none!important}
         </tbody>
       </table>
     </div>
-    <?php if ($boarders): ?><div class="card-body border-top"><button class="btn btn-nt" type="submit">Lưu điểm danh</button></div><?php endif; ?>
+    <?php if ($boarders && $canEditCurrent): ?><div class="card-body border-top"><button class="btn btn-nt" type="submit">Lưu điểm danh</button></div><?php endif; ?>
     </div>
   </form>
 
