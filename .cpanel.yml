@@ -5,4 +5,4 @@ deployment:
     - /bin/cp -R assets $DEPLOYPATH
     - /bin/cp -R includes $DEPLOYPATH
     - /bin/bash tools/install_chuyenmon_switcher_host.sh $DEPLOYPATH
-    - /bin/cp activity.php admin.php chuyenmon.php csdl.php csdl_export.php dashboard_settings.php database_admin.php index.php login.php logout.php noitru.php noitru_attendance.php noitru_list.php thidua.php users.php $DEPLOYPATH
+    - /bin/cp activity.php admin.php chuyenmon.php csdl.php csdl_export.php dashboard_settings.php database_admin.php index.php login.php logout.php noitru.php noitru_attendance.php noitru_list.php thidua.php thidua_baiviet.php users.php $DEPLOYPATH
