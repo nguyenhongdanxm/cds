@@ -16,9 +16,32 @@ $tabPerms = [
 ];
 require_perm($tabPerms[$tab] ?? 'nt.tongquan');
 
+function noitru_attendance_students_all() {
+    $classMap = [];
+    foreach (csdl_classes_all() as $class) {
+        $classMap[(string)($class['id'] ?? '')] = (string)($class['name'] ?? '');
+    }
+    $students = [];
+    foreach (csdl_students_all() as $student) {
+        if (isset($student['active']) && empty($student['active'])) continue;
+        $student['class_name'] = trim((string)($student['class_name'] ?? ''));
+        if ($student['class_name'] === '') {
+            $student['class_name'] = $classMap[(string)($student['class_id'] ?? '')] ?? '';
+        }
+        $student['room_ktx'] = (string)($student['room_ktx'] ?? '');
+        $students[] = $student;
+    }
+    usort($students, function($a, $b) {
+        $classCompare = strnatcasecmp((string)($a['class_name'] ?? ''), (string)($b['class_name'] ?? ''));
+        return $classCompare !== 0 ? $classCompare : strnatcasecmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
+    });
+    return $students;
+}
+
 function noitru_student_in_scope($studentId) {
     global $tab;
-    foreach (noitru_boarders_live() as $student) {
+    $source = $tab === 'attendance' ? noitru_attendance_students_all() : noitru_boarders_live();
+    foreach ($source as $student) {
         if (($student['id'] ?? '') !== $studentId) continue;
         // Điểm danh là dữ liệu dùng chung: quyền Xem/Sửa quyết định thao tác,
         // không giới hạn theo lớp chủ nhiệm.
@@ -757,7 +780,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $boarders = $tab === 'attendance' && can_perm('nt.diemdanh')
-    ? array_values(noitru_boarders_live())
+    ? noitru_attendance_students_all()
     : array_values(array_filter(noitru_boarders_live(), fn($student) => can_class($student['class_name'] ?? '')));
 $stats = noitru_stats();
 if (allowed_classes() !== null) {
