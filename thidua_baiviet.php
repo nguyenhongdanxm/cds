@@ -13,6 +13,17 @@ foreach (($data['articles'] ?? []) as $row) {
         break;
     }
 }
+
+function safe_article_html($html) {
+    $html = trim((string)$html);
+    if ($html === '') return '<span class="text-muted">Bài viết chưa có nội dung.</span>';
+    if ($html === strip_tags($html)) return nl2br(e($html));
+    $html = strip_tags($html, '<p><br><div><strong><b><em><i><u><h2><h3><ul><ol><li><blockquote><a>');
+    $html = preg_replace('/\s+on[a-z]+\s*=\s*(["\']).*?\1/isu', '', $html);
+    $html = preg_replace('/href\s*=\s*(["\'])\s*javascript:[^"\']*\1/iu', 'href="#"', $html);
+    return $html;
+}
+
 if (!$article) http_response_code(404);
 ?>
 <!doctype html>
@@ -39,7 +50,7 @@ body{background:#f5f7fa;color:#172033;font-family:system-ui,-apple-system,"Segoe
 <div class="article-meta"><i class="bi bi-calendar3"></i> <?= e(date('d/m/Y', strtotime($article['date'] ?? 'now'))) ?><?php if (!empty($article['created_by'])): ?> · <i class="bi bi-person"></i> <?= e($article['created_by']) ?><?php endif; ?></div>
 </header>
 <div class="article-body">
-<div class="article-content"><?= nl2br(e($article['content'] ?? '')) ?: '<span class="text-muted">Bài viết chưa có nội dung.</span>' ?></div>
+<div class="article-content"><?= safe_article_html($article['content'] ?? '') ?></div>
 <div class="article-docs mt-4"><strong class="d-block mb-2"><i class="bi bi-paperclip"></i> Văn bản liên quan</strong><?php if (!empty($article['link'])): ?><a class="btn btn-outline-primary" href="<?= e($article['link']) ?>" target="_blank" rel="noopener"><i class="bi bi-link-45deg"></i> Mở liên kết văn bản</a><?php else: ?><span class="text-muted">Chưa có liên kết văn bản.</span><?php endif; ?></div>
 </div>
 </article>
