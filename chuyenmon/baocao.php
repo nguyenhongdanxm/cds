@@ -255,15 +255,27 @@ function cm_view_btns($it) {
 
 <?php if ($tab === 'tiendo'): ?>
 <style>
-.progress-toolbar{display:flex;gap:.75rem;align-items:end;flex-wrap:wrap;margin-bottom:1rem}
-.progress-toolbar>div{min-width:190px}.progress-table{min-width:1680px}
+.progress-toolbar{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:1rem;
+  align-items:end;
+  width:100%;
+  margin-bottom:1rem
+}
+.progress-toolbar>div{min-width:0!important;width:100%;margin:0!important}
+.progress-toolbar .form-select,.progress-toolbar .btn{width:100%}
+.progress-table{min-width:1680px}
 .progress-table th{font-size:.78rem;vertical-align:middle;text-align:center;white-space:normal;min-width:115px}
 .progress-table th:first-child{min-width:190px}.progress-table th:nth-child(2){min-width:80px}.progress-table th:nth-child(3){min-width:140px}
 .progress-table td{vertical-align:middle}.progress-table input{min-width:92px;text-align:center}
 .progress-derived{font-weight:700;text-align:center;white-space:nowrap}
 .progress-summary{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:.75rem;margin-bottom:1rem}
 .progress-summary .card-body{text-align:center}.progress-summary strong{font-size:1.8rem;display:block}
-@media(max-width:767px){.progress-summary{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:767px){
+  .progress-toolbar{grid-template-columns:1fr}
+  .progress-summary{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
   <div>
