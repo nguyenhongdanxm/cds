@@ -66,7 +66,7 @@ if ($section === 'teacher_attendance' && !$isSystemAdmin) {
   } else {
     $teachers = array_values(array_filter($teachers, fn($row)=>(string)($row['id']??'') === $linkedTeacherId));
   }
-} elseif (!$canViewAll) {
+} elseif (!$canViewAll && $section !== 'student_score') {
   $teachers = array_values(array_filter($teachers, fn($row)=>(string)($row['id']??'') === $linkedTeacherId));
   $students = array_values(array_filter($students, fn($row)=>in_array((string)($classMap[$row['class_id']??'']??''), $scopeClasses, true)));
   $classes = array_values(array_filter($classes, fn($row)=>in_array((string)($row['name']??''), $scopeClasses, true)));
@@ -82,6 +82,7 @@ $tdCanAccessRecord = function(array $row) use ($canViewAll,$isSystemAdmin,$isTea
     if ($isTeamLeader && $linkedTeacherTeam !== '') return (string)($row['team']??'') === $linkedTeacherTeam;
     return (string)($row['person_id']??'') === $linkedTeacherId;
   }
+  if (($row['type']??'') === 'student_score') return true;
   if ($canViewAll) return true;
   if (($row['person_type']??'') === 'teacher') return (string)($row['person_id']??'') === $linkedTeacherId;
   return in_array((string)($row['class_name']??''), $scopeClasses, true);
