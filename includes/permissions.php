@@ -259,7 +259,17 @@ function permission_effective_access_for_user(array $user) {
         if (level_rank($level) > level_rank($access[$code] ?? 'none')) $access[$code] = $level;
     }
 
-    foreach (($user['permission_overrides'] ?? []) as $code => $level) {
+    $overrides = is_array($user['permission_overrides'] ?? null) ? $user['permission_overrides'] : [];
+    $legacyTdOverride = $overrides['td.capnhat'] ?? ($overrides['td.xem'] ?? 'inherit');
+    if (in_array($legacyTdOverride, ['none','view','edit','delete'], true)) {
+        foreach (['td.teacher_attendance','td.teacher_achievement','td.teacher_rating','td.student_score','td.student_profile','td.stats'] as $childCode) {
+            if (!array_key_exists($childCode, $overrides)) $overrides[$childCode] = $legacyTdOverride;
+        }
+    }
+    if (isset($overrides['td.duyet']) && !array_key_exists('td.all_data', $overrides)) {
+        $overrides['td.all_data'] = $overrides['td.duyet'] === 'none' ? 'none' : 'view';
+    }
+    foreach ($overrides as $code => $level) {
         if (!isset(permission_features_catalog()[$code])) continue;
         if ($level === 'inherit') continue;
         if (in_array($level, ['none','view','edit','delete'], true)) $access[$code] = $level;
