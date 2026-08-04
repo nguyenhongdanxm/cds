@@ -97,7 +97,8 @@ foreach ($progressAssignmentsAll as $assignment) {
     if (empty($assignment['teacher']) || empty($assignment['class']) || empty($assignment['subject'])) continue;
     $progressAssignmentMap[cm_progress_assignment_key($assignment)] = $assignment;
 }
-$progressIsAdmin = !empty($_SESSION['pccm_admin']);
+$progressIsAdmin = (($GLOBALS['_SESSION']['cds_user']['role'] ?? '') === 'admin')
+    || cds_can_feature('cm.baocao.tiendo', 'delete');
 $sessionTeacherName = trim($_SESSION['cds_user']['teacher_name'] ?? $_SESSION['cds_user']['name'] ?? '');
 $progressTeacher = $progressIsAdmin ? trim($_GET['teacher'] ?? $sessionTeacherName) : $sessionTeacherName;
 $progressView = ($progressIsAdmin && ($_GET['view'] ?? '') === 'thongke') ? 'thongke' : 'nhaplieu';
