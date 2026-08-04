@@ -5,8 +5,8 @@ require_once 'includes/cm_docs.php';
 require_login();
 
 $tabs = [
-    'vanban' => ['Văn bản kế hoạch', 'bi-file-earmark-pdf'],
     'thongbao' => ['Thông báo chuyên môn', 'bi-megaphone'],
+    'vanban' => ['Văn bản kế hoạch', 'bi-file-earmark-pdf'],
     'chitieu' => ['Chỉ tiêu', 'bi-bullseye'],
 ];
 $tab = $_GET['tab'] ?? 'vanban';
