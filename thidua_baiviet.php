@@ -5,10 +5,10 @@ require_module('thidua', 'view');
 register_shutdown_function(function(){require __DIR__.'/includes/module_switcher.php';});
 
 $id = trim((string)($_GET['id'] ?? ''));
-$data = load_json(DATA_PATH . '/thidua.json', ['records'=>[]]);
+$data = load_json(DATA_PATH . '/thidua.json', ['articles'=>[]]);
 $article = null;
-foreach (($data['records'] ?? []) as $row) {
-    if (($row['id'] ?? '') === $id && ($row['type'] ?? '') === 'student_profile') {
+foreach (($data['articles'] ?? []) as $row) {
+    if (($row['id'] ?? '') === $id) {
         $article = $row;
         break;
     }
@@ -36,11 +36,10 @@ body{background:#f5f7fa;color:#172033;font-family:system-ui,-apple-system,"Segoe
 <header class="article-head">
 <div class="small text-uppercase">Hồ sơ thi đua học sinh</div>
 <h1><?= e($article['title'] ?? '') ?></h1>
-<div class="article-meta"><i class="bi bi-person"></i> <?= e($article['person_name'] ?? '') ?><?php if (!empty($article['class_name'])): ?> · Lớp <?= e($article['class_name']) ?><?php endif; ?> · <i class="bi bi-calendar3"></i> <?= e(date('d/m/Y', strtotime($article['date'] ?? 'now'))) ?></div>
+<div class="article-meta"><i class="bi bi-calendar3"></i> <?= e(date('d/m/Y', strtotime($article['date'] ?? 'now'))) ?><?php if (!empty($article['created_by'])): ?> · <i class="bi bi-person"></i> <?= e($article['created_by']) ?><?php endif; ?></div>
 </header>
 <div class="article-body">
-<?php if (!empty($article['category'])): ?><span class="badge text-bg-warning mb-3"><?= e($article['category']) ?></span><?php endif; ?>
-<div class="article-content"><?= nl2br(e($article['note'] ?? '')) ?: '<span class="text-muted">Bài viết chưa có nội dung.</span>' ?></div>
+<div class="article-content"><?= nl2br(e($article['content'] ?? '')) ?: '<span class="text-muted">Bài viết chưa có nội dung.</span>' ?></div>
 <div class="article-docs mt-4"><strong class="d-block mb-2"><i class="bi bi-paperclip"></i> Văn bản liên quan</strong><?php if (!empty($article['link'])): ?><a class="btn btn-outline-primary" href="<?= e($article['link']) ?>" target="_blank" rel="noopener"><i class="bi bi-link-45deg"></i> Mở liên kết văn bản</a><?php else: ?><span class="text-muted">Chưa có liên kết văn bản.</span><?php endif; ?></div>
 </div>
 </article>
