@@ -28,7 +28,6 @@ function permission_features_catalog() {
         'cm.nhaplieu' => ['module' => 'chuyenmon', 'label' => 'Nhập liệu (GV · môn · lớp · kiêm nhiệm)', 'group' => 'PCCM'],
         'cm.thongke'  => ['module' => 'chuyenmon', 'label' => 'Thống kê PCCM', 'group' => 'PCCM'],
         'cm.kehoach'  => ['module' => 'chuyenmon', 'label' => 'Kế hoạch (văn bản · TB · chỉ tiêu)', 'group' => 'Kế hoạch'],
-        'cm.baocao'   => ['module' => 'chuyenmon', 'label' => 'Báo cáo chuyên môn (menu cha)', 'group' => 'Báo cáo'],
         'cm.baocao.dinhky' => ['module' => 'chuyenmon', 'label' => 'Báo cáo định kỳ', 'group' => 'Báo cáo'],
         'cm.baocao.tiendo' => ['module' => 'chuyenmon', 'label' => 'Tiến độ chương trình', 'group' => 'Báo cáo'],
         'cm.baocao.dugio'  => ['module' => 'chuyenmon', 'label' => 'Dự giờ', 'group' => 'Báo cáo'],
@@ -95,7 +94,8 @@ function permission_default_groups() {
     $edit = function (array $codes) {
         return array_fill_keys($codes, 'edit');
     };
-    $cmView = ['cm.dashboard','cm.tracuu','cm.thongke','cm.kehoach','cm.baocao'];
+    $cmReports = ['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
+    $cmView = array_merge(['cm.dashboard','cm.tracuu','cm.thongke','cm.kehoach'], $cmReports);
     $cmEdit = ['cm.pccm','cm.nhaplieu'];
     $ntView = ['nt.tongquan','nt.danhsach','nt.thongke'];
     $ntEdit = ['nt.diemdanh','nt.baoan','nt.ravao'];
@@ -110,7 +110,7 @@ function permission_default_groups() {
         ],
         'totruong' => [
             'label' => 'Tổ trưởng chuyên môn',
-            'access' => array_merge($view(['cm.dashboard','cm.tracuu','cm.thongke','cm.kehoach','cm.baocao','csdl.view']), $edit(['cm.pccm'])),
+            'access' => array_merge($view(array_merge(['cm.dashboard','cm.tracuu','cm.thongke','cm.kehoach','csdl.view'], $cmReports)), $edit(['cm.pccm'])),
         ],
         'gvcn' => [
             'label' => 'Giáo viên chủ nhiệm',
@@ -118,7 +118,7 @@ function permission_default_groups() {
         ],
         'gv' => [
             'label' => 'Giáo viên',
-            'access' => $view(['cm.dashboard','cm.tracuu','cm.baocao']),
+            'access' => $view(array_merge(['cm.dashboard','cm.tracuu'], $cmReports)),
         ],
         'qlnt' => [
             'label' => 'Cán bộ nội trú / y tế',
@@ -166,6 +166,20 @@ function permission_groups_all() {
         $saved[$key]['label'] = trim((string)($saved[$key]['label'] ?? $group['label'])) ?: $group['label'];
         $saved[$key]['access'] = is_array($saved[$key]['access'] ?? null) ? $saved[$key]['access'] : [];
     }
+
+    // Tự chuyển nhóm cũ từ quyền Báo cáo gộp sang bốn quyền menu con.
+    foreach ($saved as &$group) {
+        if (!is_array($group)) continue;
+        $group['access'] = is_array($group['access'] ?? null) ? $group['access'] : [];
+        if (isset($group['access']['cm.baocao'])) {
+            $legacyLevel = $group['access']['cm.baocao'];
+            foreach (['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'] as $childCode) {
+                if (!isset($group['access'][$childCode])) $group['access'][$childCode] = $legacyLevel;
+            }
+            unset($group['access']['cm.baocao']);
+        }
+    }
+    unset($group);
     return $saved;
 }
 
@@ -198,7 +212,13 @@ function permission_group_access_for_user(array $user) {
 
 function permission_legacy_access_for_user(array $user) {
     $access = [];
-    foreach (($user['perms'] ?? []) as $code) $access[$code] = 'view';
+    $legacyPerms = is_array($user['perms'] ?? null) ? $user['perms'] : [];
+    foreach ($legacyPerms as $code) $access[$code] = 'view';
+    if (in_array('cm.baocao', $legacyPerms, true)) {
+        foreach (['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'] as $childCode) {
+            $access[$childCode] = 'view';
+        }
+    }
     foreach (permission_features_catalog() as $code => $meta) {
         $moduleLevel = $user['modules'][$meta['module']] ?? 'none';
         if (level_rank($moduleLevel) >= level_rank('edit')) $access[$code] = 'edit';
@@ -217,14 +237,6 @@ function permission_effective_access_for_user(array $user) {
         : permission_legacy_access_for_user($user);
     foreach (permission_group_access_for_user($user) as $code => $level) {
         if (level_rank($level) > level_rank($access[$code] ?? 'none')) $access[$code] = $level;
-    }
-
-    // Tương thích nhóm quyền cũ: quyền menu cha Báo cáo được kế thừa cho các menu con.
-    $reportParentLevel = $access['cm.baocao'] ?? 'none';
-    foreach (['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'] as $childCode) {
-        if (level_rank($reportParentLevel) > level_rank($access[$childCode] ?? 'none')) {
-            $access[$childCode] = $reportParentLevel;
-        }
     }
 
     foreach (($user['permission_overrides'] ?? []) as $code => $level) {
@@ -247,7 +259,7 @@ function can_perm_level($perm, $level = 'view') {
 
 /** Role mẫu → modules + perms mặc định */
 function permission_role_presets() {
-    $allCm = ['cm.dashboard','cm.tracuu','cm.pccm','cm.nhaplieu','cm.thongke','cm.kehoach','cm.baocao','cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
+    $allCm = ['cm.dashboard','cm.tracuu','cm.pccm','cm.nhaplieu','cm.thongke','cm.kehoach','cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
     $allNt = ['nt.tongquan','nt.danhsach','nt.diemdanh','nt.baoan','nt.ravao','nt.yte','nt.lichtruc','nt.thucdon','nt.thongke'];
     $allCs = ['csdl.view','csdl.edit','csdl.export','csdl.year'];
 
@@ -267,7 +279,7 @@ function permission_role_presets() {
         'totruong' => [
             'label' => 'Tổ trưởng chuyên môn',
             'modules' => ['chuyenmon'=>'edit','csdl'=>'view','noitru'=>'none'],
-            'perms' => ['cm.dashboard','cm.tracuu','cm.pccm','cm.thongke','cm.kehoach','cm.baocao','csdl.view'],
+            'perms' => ['cm.dashboard','cm.tracuu','cm.pccm','cm.thongke','cm.kehoach','cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi','csdl.view'],
             'classes' => [],
         ],
         'gvcn' => [
@@ -279,7 +291,7 @@ function permission_role_presets() {
         'gv' => [
             'label' => 'Giáo viên',
             'modules' => ['chuyenmon'=>'view','csdl'=>'none','noitru'=>'none'],
-            'perms' => ['cm.tracuu','cm.dashboard','cm.baocao'],
+            'perms' => ['cm.tracuu','cm.dashboard','cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'],
             'classes' => [],
         ],
         'ktx' => [
