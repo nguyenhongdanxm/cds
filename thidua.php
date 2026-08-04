@@ -5,25 +5,60 @@ require_login();
 require_module('thidua', 'view');
 register_shutdown_function(function(){require __DIR__.'/includes/module_switcher.php';});
 $user = current_user();
-$canEdit = can_perm_level('td.capnhat', 'edit') || can_module('thidua', 'edit');
-$canDelete = can_perm_level('td.capnhat', 'delete') || can_module('thidua', 'admin');
 $dataFile = DATA_PATH . '/thidua.json';
 $data = load_json($dataFile, ['records'=>[],'score_config'=>[],'weekly_scores'=>[],'articles'=>[]]);
 $data['records'] = array_values($data['records'] ?? []);
 $data['score_config']=array_merge(['columns'=>[['id'=>'ne_nep','name'=>'Nề nếp','weight'=>1],['id'=>'hoc_tap','name'=>'Học tập','weight'=>1],['id'=>'noi_tru','name'=>'Nội trú','weight'=>1]]],$data['score_config']??[]);
 $data['weekly_scores']=array_values($data['weekly_scores']??[]);
 $data['articles']=array_values($data['articles']??[]);
-$sections = ['teacher_attendance','teacher_achievement','teacher_rating','student_score','student_profile','stats'];
-$section = in_array($_GET['section'] ?? 'teacher_attendance', $sections, true) ? $_GET['section'] : 'teacher_attendance';
+$allSections = ['teacher_attendance','teacher_achievement','teacher_rating','student_score','student_profile','stats'];
+$sectionPermissions = [
+  'teacher_attendance'=>'td.teacher_attendance', 'teacher_achievement'=>'td.teacher_achievement',
+  'teacher_rating'=>'td.teacher_rating', 'student_score'=>'td.student_score',
+  'student_profile'=>'td.student_profile', 'stats'=>'td.stats',
+];
 $labels = [
   'teacher_attendance'=>['Chấm công','bi-calendar-check'], 'teacher_achievement'=>['Thành tích','bi-award'],
   'teacher_rating'=>['Xếp loại','bi-star'], 'student_score'=>['Bảng điểm','bi-table'],
   'student_profile'=>['Hồ sơ thi đua','bi-folder2-open'], 'stats'=>['Thống kê','bi-bar-chart-line'],
 ];
+$sections = array_values(array_filter($allSections, fn($key)=>can_perm_level($sectionPermissions[$key], 'view')));
+$requestedSection = $_GET['section'] ?? '';
+if ($requestedSection !== '' && (!in_array($requestedSection, $allSections, true) || !in_array($requestedSection, $sections, true))) {
+  http_response_code(403); exit('Tài khoản chưa được cấp quyền cho menu Thi đua này.');
+}
+$section = $requestedSection !== '' ? $requestedSection : ($sections[0] ?? '');
+if ($section === '') { http_response_code(403); exit('Tài khoản chưa được cấp menu con nào trong module Thi đua.'); }
+$canEdit = can_perm_level($sectionPermissions[$section], 'edit');
+$canDelete = can_perm_level($sectionPermissions[$section], 'delete');
+$canViewAll = (($user['role']??'') === 'admin') || can_perm_level('td.all_data', 'view');
 $teachers = array_values(array_filter(csdl_teachers_all(), fn($row)=>!empty($row['active'])));
 $students = array_values(array_filter(csdl_students_all(), fn($row)=>!empty($row['active'])));
 $classMap=[]; foreach(csdl_classes_all() as $classRow) $classMap[$classRow['id']??'']=$classRow['name']??'';
 $classes=array_values(array_filter(csdl_classes_all(),fn($row)=>!isset($row['active'])||!empty($row['active'])));usort($classes,fn($a,$b)=>strnatcasecmp($a['name']??'',$b['name']??''));
+
+$linkedTeacherName = trim((string)($user['teacher_name'] ?? $user['name'] ?? ''));
+$linkedTeacherId = '';
+foreach ($teachers as $teacherRow) {
+  if (mb_strtolower(trim((string)($teacherRow['name']??'')),'UTF-8') === mb_strtolower($linkedTeacherName,'UTF-8')) {
+    $linkedTeacherId = (string)($teacherRow['id']??''); break;
+  }
+}
+$scopeClasses = array_values(array_unique(array_filter(array_map('strval', array_merge(
+  is_array($user['classes']??null)?$user['classes']:[],
+  is_array($user['homeroom_classes']??null)?$user['homeroom_classes']:[]
+)))));
+if (!$canViewAll) {
+  $teachers = array_values(array_filter($teachers, fn($row)=>(string)($row['id']??'') === $linkedTeacherId));
+  $students = array_values(array_filter($students, fn($row)=>in_array((string)($classMap[$row['class_id']??'']??''), $scopeClasses, true)));
+  $classes = array_values(array_filter($classes, fn($row)=>in_array((string)($row['name']??''), $scopeClasses, true)));
+}
+$tdCanAccessRecord = function(array $row) use ($canViewAll,$linkedTeacherId,$scopeClasses) {
+  if ($canViewAll) return true;
+  if (($row['person_type']??'') === 'teacher') return (string)($row['person_id']??'') === $linkedTeacherId;
+  return in_array((string)($row['class_name']??''), $scopeClasses, true);
+};
+$visibleRecords = array_values(array_filter($data['records'], $tdCanAccessRecord));
 function td_teacher_team(array $teacher) {
   $raw=mb_strtolower(trim((string)($teacher['to_chuyen_mon']??$teacher['pccm_group']??'')),'UTF-8');
   if(str_contains($raw,'khtn')||str_contains($raw,'tự nhiên')) return 'KHTN';
@@ -59,7 +94,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id=trim($_POST['id']??'');$data['articles']=array_values(array_filter($data['articles'],fn($row)=>($row['id']??'')!==$id));save_json($dataFile,$data);flash('Đã xóa bài viết.','warning');header('Location: '.BASE_URL.'thidua.php?section=student_profile');exit;
   }
   if ($action === 'delete' && $canDelete) {
-    $id=trim($_POST['id']??''); $data['records']=array_values(array_filter($data['records'],fn($row)=>($row['id']??'')!==$id));
+    $id=trim($_POST['id']??'');
+    $target=null; foreach($data['records'] as $candidate)if(($candidate['id']??'')===$id){$target=$candidate;break;}
+    if(!$target || !$tdCanAccessRecord($target)){http_response_code(403);exit('Không được xóa dữ liệu của người khác.');}
+    $data['records']=array_values(array_filter($data['records'],fn($row)=>($row['id']??'')!==$id));
     save_json($dataFile,$data); flash('Đã xóa bản ghi.','warning'); header('Location: '.BASE_URL.'thidua.php?section='.urlencode($_POST['section']??$section)); exit;
   }
   if ($action === 'save') {
@@ -79,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Location: '.BASE_URL.'thidua.php?section='.$type); exit;
   }
 }
-$records=array_values(array_filter($data['records'],fn($row)=>($row['type']??'')===$section));
+$records=array_values(array_filter($visibleRecords,fn($row)=>($row['type']??'')===$section));
 usort($records,fn($a,$b)=>strcmp(($b['date']??'').($b['created_at']??''),($a['date']??'').($a['created_at']??'')));
 $statType=$_GET['period_type']??'month'; $statAnchor=$_GET['anchor']??date('Y-m-d');
 if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$statAnchor))$statAnchor=date('Y-m-d');
@@ -87,11 +125,11 @@ if($statType==='week'){$sharedStatWeek=csdl_week_for_date($statAnchor);if($share
 elseif($statType==='semester'){$year=(int)date('Y',strtotime($statAnchor));$month=(int)date('m',strtotime($statAnchor));if($month>=8){$statFrom="$year-08-01";$statTo=($year+1).'-01-31';}else{$statFrom=($year-1).'-02-01';$statTo="$year-07-31";}}
 elseif($statType==='custom'){$statFrom=$_GET['from']??date('Y-m-01');$statTo=$_GET['to']??date('Y-m-d');}
 else{$statFrom=date('Y-m-01',strtotime($statAnchor));$statTo=date('Y-m-t',strtotime($statAnchor));$statType='month';}
-$statRecords=array_values(array_filter($data['records'],fn($row)=>($row['date']??'')>=$statFrom&&($row['date']??'')<=$statTo));
+$statRecords=array_values(array_filter($visibleRecords,fn($row)=>($row['date']??'')>=$statFrom&&($row['date']??'')<=$statTo));
 $statTotals=['teacher_attendance'=>0,'teacher_achievement'=>0,'teacher_rating'=>0,'student_score'=>0,'student_profile'=>0,'score'=>0.0];
 foreach($statRecords as $row){if(isset($statTotals[$row['type']??'']))$statTotals[$row['type']]++;$statTotals['score']+=(float)($row['score']??0);}
 $attendanceView=($_GET['attendance_view']??'board')==='stats'?'stats':'board';
-$attendanceRows=array_values(array_filter($data['records'],fn($row)=>($row['type']??'')==='teacher_attendance'));
+$attendanceRows=array_values(array_filter($visibleRecords,fn($row)=>($row['type']??'')==='teacher_attendance'));
 $absenceByTeam=['KHTN'=>['people'=>0,'days'=>0,'records'=>0],'KHXH'=>['people'=>0,'days'=>0,'records'=>0],'Văn phòng'=>['people'=>0,'days'=>0,'records'=>0]];$absenceByPerson=[];$teamPeople=[];
 foreach($attendanceRows as $row){$start=$row['from_date']??$row['date']??'';$end=$row['to_date']??$start;if($end<$statFrom||$start>$statTo)continue;$a=max($start,$statFrom);$b=min($end,$statTo);$days=max(1,(int)((strtotime($b)-strtotime($a))/86400)+1);$team=$row['team']??'Văn phòng';if(!isset($absenceByTeam[$team]))$team='Văn phòng';$absenceByTeam[$team]['days']+=$days;$absenceByTeam[$team]['records']++;$teamPeople[$team][$row['person_id']??'']=true;$pid=$row['person_id']??'';if(!isset($absenceByPerson[$pid]))$absenceByPerson[$pid]=['name'=>$row['person_name']??'','team'=>$team,'days'=>0,'records'=>0,'permitted'=>0,'unpermitted'=>0];$absenceByPerson[$pid]['days']+=$days;$absenceByPerson[$pid]['records']++;if(($row['permission']??'')==='Có phép')$absenceByPerson[$pid]['permitted']+=$days;else$absenceByPerson[$pid]['unpermitted']+=$days;}
 foreach($absenceByTeam as $team=>$values)$absenceByTeam[$team]['people']=count($teamPeople[$team]??[]);uasort($absenceByPerson,fn($a,$b)=>$b['days']<=>$a['days']);
