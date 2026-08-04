@@ -158,9 +158,10 @@ function noitru_meals_all() {
 }
 function noitru_meal_reports_data() {
     noitru_ensure_dir();
-    $data = load_json(NOITRU_MEAL_REPORTS, ['reports'=>[], 'states'=>[], 'settings'=>[]]);
+    $data = load_json(NOITRU_MEAL_REPORTS, ['reports'=>[], 'states'=>[], 'settings'=>[], 'history'=>[]]);
     $data['reports'] = $data['reports'] ?? [];
     $data['states'] = $data['states'] ?? [];
+    $data['history'] = $data['history'] ?? [];
     $data['settings'] = array_merge([
         'sang_lock_time'=>'20:00',
         'trua_lock_time'=>'09:00',
@@ -172,6 +173,7 @@ function noitru_meal_reports_save(array $data) {
     noitru_ensure_dir();
     $data['reports'] = array_values($data['reports'] ?? []);
     $data['states'] = array_values($data['states'] ?? []);
+    $data['history'] = array_values($data['history'] ?? []);
     $data['settings'] = $data['settings'] ?? [];
     save_json(NOITRU_MEAL_REPORTS, $data);
 }
@@ -195,8 +197,10 @@ function noitru_meal_report_for($date, $class, $meal) {
 function noitru_meal_report_upsert(array $row) {
     $data = noitru_meal_reports_data();
     $found = false;
+    $previous = null;
     foreach ($data['reports'] as &$saved) {
         if (($saved['date'] ?? '') === ($row['date'] ?? '') && ($saved['class_name'] ?? '') === ($row['class_name'] ?? '') && ($saved['meal'] ?? '') === ($row['meal'] ?? '')) {
+            $previous = $saved;
             $saved = array_merge($saved, $row, ['updated_at'=>noitru_now()]);
             $found = true;
             break;
@@ -204,7 +208,47 @@ function noitru_meal_report_upsert(array $row) {
     }
     unset($saved);
     if (!$found) $data['reports'][] = array_merge(['id'=>noitru_uid('mr'), 'created_at'=>noitru_now()], $row);
+    $data['history'][] = [
+        'id'=>noitru_uid('mh'),
+        'date'=>$row['date'] ?? '',
+        'class_name'=>$row['class_name'] ?? '',
+        'meal'=>$row['meal'] ?? '',
+        'action'=>$found ? 'updated' : 'created',
+        'reported_by'=>$row['reported_by'] ?? '',
+        'student_count'=>(int)($row['student_count'] ?? 0),
+        'eat_count'=>(int)($row['eat_count'] ?? 0),
+        'absent_count'=>(int)($row['absent_count'] ?? 0),
+        'previous_eat_count'=>$previous === null ? null : (int)($previous['eat_count'] ?? 0),
+        'previous_absent_count'=>$previous === null ? null : (int)($previous['absent_count'] ?? 0),
+        'saved_at'=>noitru_now(),
+    ];
+    if (count($data['history']) > 5000) $data['history'] = array_slice($data['history'], -5000);
     noitru_meal_reports_save($data);
+}
+function noitru_meal_report_history_for($date, $class, $meal = '') {
+    $rows = array_values(array_filter(noitru_meal_reports_data()['history'] ?? [], function($row) use ($date, $class, $meal) {
+        return ($row['date'] ?? '') === $date
+            && ($row['class_name'] ?? '') === $class
+            && ($meal === '' || ($row['meal'] ?? '') === $meal);
+    }));
+    usort($rows, fn($a, $b) => strcmp((string)($b['saved_at'] ?? ''), (string)($a['saved_at'] ?? '')));
+    return $rows;
+}
+function noitru_meal_user_is_assigned(array $user, $date) {
+    if (($user['role'] ?? '') === 'admin') return true;
+    $manager = noitru_duty_manager_for_date($date);
+    if (!$manager) return false;
+    $normalize = static function($value) {
+        return mb_strtolower(preg_replace('/\s+/u', ' ', trim((string)$value)), 'UTF-8');
+    };
+    $userNames = array_values(array_unique(array_filter([
+        $normalize($user['name'] ?? ''),
+        $normalize($user['teacher_name'] ?? ''),
+    ])));
+    foreach (($manager['teacher_names'] ?? []) as $name) {
+        if (in_array($normalize($name), $userNames, true)) return true;
+    }
+    return false;
 }
 function noitru_meal_state($date, $meal) {
     $saved = null;
