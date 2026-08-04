@@ -31,7 +31,16 @@ $section = $requestedSection !== '' ? $requestedSection : ($sections[0] ?? '');
 if ($section === '') { http_response_code(403); exit('Tài khoản chưa được cấp menu con nào trong module Thi đua.'); }
 $canEdit = can_perm_level($sectionPermissions[$section], 'edit');
 $canDelete = can_perm_level($sectionPermissions[$section], 'delete');
-$canViewAll = (($user['role']??'') === 'admin') || can_perm_level('td.all_data', 'view');
+$isSystemAdmin = (($user['role']??'') === 'admin');
+$isTeamLeader = (($user['role']??'') === 'totruong')
+  || in_array('totruong', is_array($user['groups']??null)?$user['groups']:[], true);
+$canViewAll = $isSystemAdmin || can_perm_level('td.all_data', 'view');
+function td_teacher_team(array $teacher) {
+  $raw=mb_strtolower(trim((string)($teacher['to_chuyen_mon']??$teacher['pccm_group']??'')),'UTF-8');
+  if(str_contains($raw,'khtn')||str_contains($raw,'tự nhiên')) return 'KHTN';
+  if(str_contains($raw,'khxh')||str_contains($raw,'xã hội')) return 'KHXH';
+  return 'Văn phòng';
+}
 $teachers = array_values(array_filter(csdl_teachers_all(), fn($row)=>!empty($row['active'])));
 $students = array_values(array_filter(csdl_students_all(), fn($row)=>!empty($row['active'])));
 $classMap=[]; foreach(csdl_classes_all() as $classRow) $classMap[$classRow['id']??'']=$classRow['name']??'';
@@ -39,36 +48,56 @@ $classes=array_values(array_filter(csdl_classes_all(),fn($row)=>!isset($row['act
 
 $linkedTeacherName = trim((string)($user['teacher_name'] ?? $user['name'] ?? ''));
 $linkedTeacherId = '';
+$linkedTeacherTeam = '';
 foreach ($teachers as $teacherRow) {
   if (mb_strtolower(trim((string)($teacherRow['name']??'')),'UTF-8') === mb_strtolower($linkedTeacherName,'UTF-8')) {
-    $linkedTeacherId = (string)($teacherRow['id']??''); break;
+    $linkedTeacherId = (string)($teacherRow['id']??'');
+    $linkedTeacherTeam = td_teacher_team($teacherRow);
+    break;
   }
 }
 $scopeClasses = array_values(array_unique(array_filter(array_map('strval', array_merge(
   is_array($user['classes']??null)?$user['classes']:[],
   is_array($user['homeroom_classes']??null)?$user['homeroom_classes']:[]
 )))));
-if (!$canViewAll) {
+if ($section === 'teacher_attendance' && !$isSystemAdmin) {
+  if ($isTeamLeader && $linkedTeacherTeam !== '') {
+    $teachers = array_values(array_filter($teachers, fn($row)=>td_teacher_team($row) === $linkedTeacherTeam));
+  } else {
+    $teachers = array_values(array_filter($teachers, fn($row)=>(string)($row['id']??'') === $linkedTeacherId));
+  }
+} elseif (!$canViewAll) {
   $teachers = array_values(array_filter($teachers, fn($row)=>(string)($row['id']??'') === $linkedTeacherId));
   $students = array_values(array_filter($students, fn($row)=>in_array((string)($classMap[$row['class_id']??'']??''), $scopeClasses, true)));
   $classes = array_values(array_filter($classes, fn($row)=>in_array((string)($row['name']??''), $scopeClasses, true)));
 }
-$tdCanAccessRecord = function(array $row) use ($canViewAll,$linkedTeacherId,$scopeClasses) {
+$canManageAttendance = $isSystemAdmin || ($isTeamLeader && $linkedTeacherTeam !== '');
+if ($section === 'teacher_attendance') {
+  $canEdit = $canEdit && $canManageAttendance;
+  $canDelete = $canDelete && $canManageAttendance;
+}
+$tdCanAccessRecord = function(array $row) use ($canViewAll,$isSystemAdmin,$isTeamLeader,$linkedTeacherTeam,$linkedTeacherId,$scopeClasses) {
+  if (($row['type']??'') === 'teacher_attendance') {
+    if ($isSystemAdmin) return true;
+    if ($isTeamLeader && $linkedTeacherTeam !== '') return (string)($row['team']??'') === $linkedTeacherTeam;
+    return (string)($row['person_id']??'') === $linkedTeacherId;
+  }
   if ($canViewAll) return true;
   if (($row['person_type']??'') === 'teacher') return (string)($row['person_id']??'') === $linkedTeacherId;
   return in_array((string)($row['class_name']??''), $scopeClasses, true);
 };
 $visibleRecords = array_values(array_filter($data['records'], $tdCanAccessRecord));
-function td_teacher_team(array $teacher) {
-  $raw=mb_strtolower(trim((string)($teacher['to_chuyen_mon']??$teacher['pccm_group']??'')),'UTF-8');
-  if(str_contains($raw,'khtn')||str_contains($raw,'tự nhiên')) return 'KHTN';
-  if(str_contains($raw,'khxh')||str_contains($raw,'xã hội')) return 'KHXH';
-  return 'Văn phòng';
-}
 $teacherTeams=['KHTN'=>[],'KHXH'=>[],'Văn phòng'=>[]]; foreach($teachers as $teacher)$teacherTeams[td_teacher_team($teacher)][]=$teacher;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if (!$canEdit) { flash('Bạn không có quyền cập nhật thi đua.', 'danger'); header('Location: '.BASE_URL.'thidua.php'); exit; }
   $action = $_POST['action'] ?? '';
+  $actionSections = [
+    'score_config_save'=>'student_score', 'weekly_scores_save'=>'student_score',
+    'article_save'=>'student_profile', 'article_delete'=>'student_profile',
+  ];
+  if (isset($actionSections[$action]) && $section !== $actionSections[$action]) {
+    http_response_code(403); exit('Thao tác không thuộc menu đã được cấp quyền.');
+  }
   if($action==='score_config_save'){
     $names=$_POST['column_name']??[];$weights=$_POST['column_weight']??[];$columns=[];
     foreach($names as $i=>$name){$name=trim($name);if($name==='')continue;$columns[]=['id'=>'c_'.substr(sha1($name.'|'.$i),0,8),'name'=>$name,'weight'=>max(.01,(float)($weights[$i]??1))];}
@@ -103,12 +132,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($action === 'delete' && $canDelete) {
     $id=trim($_POST['id']??'');
     $target=null; foreach($data['records'] as $candidate)if(($candidate['id']??'')===$id){$target=$candidate;break;}
-    if(!$target || !$tdCanAccessRecord($target)){http_response_code(403);exit('Không được xóa dữ liệu của người khác.');}
+    if(!$target || ($target['type']??'') !== $section || !$tdCanAccessRecord($target)){http_response_code(403);exit('Không được xóa dữ liệu ngoài menu hoặc phạm vi được giao.');}
     $data['records']=array_values(array_filter($data['records'],fn($row)=>($row['id']??'')!==$id));
     save_json($dataFile,$data); flash('Đã xóa bản ghi.','warning'); header('Location: '.BASE_URL.'thidua.php?section='.urlencode($_POST['section']??$section)); exit;
   }
   if ($action === 'save') {
     $type = in_array($_POST['type']??'', array_slice($sections,0,5), true) ? $_POST['type'] : '';
+    if ($type !== $section) { http_response_code(403); exit('Không được ghi dữ liệu sang menu khác.'); }
     if ($type !== '') {
       $personType = str_starts_with($type,'teacher_') ? 'teacher' : 'student';
       $personId = trim($_POST['person_id']??''); $personName=''; $className='';
@@ -163,6 +193,7 @@ function td_article_body($html) {
 ?>
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Thi đua – CDS</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"><link href="<?= BASE_URL ?>assets/article-editor.css?v=20260804" rel="stylesheet">
+<style>.att-toolbar{margin-bottom:.75rem!important}.att-teams{gap:.65rem!important}.att-team-head{padding:.58rem .8rem!important}.att-teacher-grid{grid-template-columns:repeat(auto-fill,minmax(205px,1fr))!important;gap:.4rem!important;padding:.65rem!important}.att-person{min-height:48px!important;padding:.45rem .55rem!important;border-radius:10px!important}.att-person:disabled{opacity:.55;cursor:not-allowed;background:#f8fafc}.att-avatar{flex-basis:30px!important;width:30px!important;height:30px!important;font-size:.82rem}.att-person strong{font-size:.88rem;line-height:1.15}.att-person small{font-size:.66rem!important}</style>
 <style>
 :root{--td:#e6a700;--td-dark:#9a6b00;--td-soft:#fff8dd;--ink:#172033;--muted:#64748b}*{box-sizing:border-box}body{margin:0;background:#f5f7fa;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}.td-shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh}.td-side{position:sticky;top:0;height:100vh;padding:1rem;background:linear-gradient(180deg,#704d00,#3d2a00);color:#fff}.td-brand{display:flex;gap:.7rem;align-items:center;padding:.5rem .45rem 1rem;color:#fff;text-decoration:none}.td-brand i{display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:rgba(255,255,255,.15);font-size:1.3rem}.td-brand small{display:block;opacity:.7}.td-nav-title{margin:1rem .55rem .35rem;color:rgba(255,255,255,.55);font-size:.68rem;font-weight:800;text-transform:uppercase}.td-nav a{display:flex;align-items:center;gap:.65rem;padding:.65rem .75rem;border-radius:10px;color:rgba(255,255,255,.82);text-decoration:none;font-size:.88rem;font-weight:650}.td-nav a:hover,.td-nav a.active{background:#fff;color:#704d00}.td-back{position:absolute;bottom:1rem;left:1rem;right:1rem}.td-main{min-width:0;padding:1.25rem}.td-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem}.td-head h3{margin:0;font-weight:800}.td-head p{margin:.2rem 0 0;color:var(--muted)}.td-card{border:1px solid #e2e8f0;border-radius:17px;background:#fff;box-shadow:0 4px 18px rgba(15,23,42,.05)}.td-layout{display:grid;grid-template-columns:minmax(280px,.72fr) minmax(0,1.28fr);gap:1rem}.td-form,.td-list{padding:1.15rem}.td-form h5,.td-list h5{margin:0 0 1rem;font-weight:800}.form-control,.form-select,.btn{border-radius:10px;min-height:42px}.btn-td{background:var(--td);border-color:var(--td);color:#fff}.td-table th{background:#fff8dd;color:#725100;white-space:nowrap}.td-empty{padding:2rem;text-align:center;color:var(--muted)}.td-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:.7rem;margin-bottom:1rem}.td-kpis>div{padding:1rem;border:1px solid #e2e8f0;border-radius:15px;background:#fff}.td-kpis strong{display:block;font-size:1.45rem}.td-kpis span{color:var(--muted);font-size:.75rem}.td-stat-filter{display:flex;align-items:end;gap:.6rem;flex-wrap:wrap;padding:1rem;margin-bottom:1rem}.td-stat-filter>div{min-width:160px}.td-mobile-nav{display:none}.att-toolbar{display:flex;justify-content:space-between;gap:.7rem;align-items:center;margin-bottom:1rem}.att-teams{display:grid;gap:1rem}.att-team{overflow:hidden}.att-team-head{display:flex;justify-content:space-between;padding:.8rem 1rem;background:#fff8dd;border-bottom:1px solid #eadca5}.att-teacher-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.55rem;padding:1rem}.att-person{display:flex;align-items:center;gap:.55rem;min-height:58px;padding:.65rem;border:1px solid #e2e8f0;border-radius:12px;background:#fff;text-align:left}.att-person:hover{border-color:var(--td);background:#fffdf4}.att-avatar{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:var(--td-soft);color:var(--td-dark);font-weight:800}.att-person strong,.att-person small{display:block}.att-person small{color:var(--muted);font-size:.7rem}.att-stats-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-bottom:1rem}.att-stats-cards>div{padding:1rem;border-radius:15px;background:#fff;border:1px solid #e2e8f0}.att-stats-cards strong{font-size:1.4rem}.att-stats-cards span{display:block;color:var(--muted);font-size:.75rem}.absence-reason-other{display:none}
 .score-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;padding:.4rem;margin-bottom:1rem;border-radius:14px;background:#efece2}.score-tabs a{padding:.7rem;text-align:center;border-radius:10px;color:#65552c;text-decoration:none;font-weight:700}.score-tabs a.active{background:#fff;color:var(--td-dark);box-shadow:0 2px 8px rgba(0,0,0,.07)}.score-toolbar{display:flex;justify-content:space-between;align-items:end;gap:.7rem;padding:1rem;margin-bottom:1rem}.score-table{min-width:850px;text-align:center}.score-table input{min-width:82px;text-align:center}.score-final{font-size:1.05rem;color:var(--td-dark)}.score-rank{display:inline-grid;place-items:center;min-width:34px;height:34px;padding:0 .45rem;border:3px solid #94a3b8;border-radius:50%;background:#fff;color:#475569;font-weight:900}.score-rank.rank-1{border-color:#f2b705;background:#fff8d7;color:#8a6200}.score-rank.rank-2{border-color:#aab2bd;background:#f3f4f6;color:#586270}.score-rank.rank-3{border-color:#b96d32;background:#fff0e3;color:#874519}.score-rank.rank-last{border-color:#ef4444;background:#fff0f0;color:#b91c1c}.score-formula{padding:.8rem 1rem;margin-bottom:1rem;border:1px solid #f0d778;border-radius:12px;background:#fffbee;color:#6f5500}.score-setting-row{display:grid;grid-template-columns:minmax(0,1fr) 130px 44px;gap:.55rem;margin-bottom:.55rem}.score-settings-grid{display:grid;grid-template-columns:1fr;gap:1rem}.article-news{display:grid;gap:.8rem}.article-news-item{display:flex;gap:1rem;padding:1rem;border:1px solid #e2e8f0;border-radius:14px;background:#fff}.article-news-date{flex:0 0 62px;padding:.55rem .3rem;border-radius:11px;background:#fff8dd;color:#805a00;text-align:center}.article-news-date strong,.article-news-date span{display:block}.article-news-date strong{font-size:1.25rem}.article-news-copy{min-width:0;flex:1}.article-news-copy a{color:#805a00;font-size:1.05rem;font-weight:800;text-decoration:none}.article-news-copy a:hover{text-decoration:underline}.article-news-copy p{margin:.3rem 0 0;color:var(--muted)}.article-manage>summary{display:inline-flex;gap:.45rem;align-items:center;margin-top:1rem;padding:.65rem 1rem;border:1px solid #d8bf62;border-radius:10px;background:#fffbee;color:#704d00;font-weight:750;cursor:pointer;list-style:none}.article-manage[open]>summary{margin-bottom:1rem}
@@ -170,7 +201,7 @@ function td_article_body($html) {
 </style></head><body><div class="td-shell"><aside class="td-side"><a class="td-brand" href="<?= e(BASE_URL) ?>"><i class="bi bi-trophy-fill"></i><div><strong>QUẢN LÝ THI ĐUA</strong><small><?= e(SCHOOL_SHORT) ?></small></div></a><nav class="td-nav"><div class="td-nav-title">Giáo viên, nhân viên</div><?php foreach(['teacher_attendance','teacher_achievement','teacher_rating'] as $key): ?><a class="<?= $section===$key?'active':'' ?>" href="?section=<?= $key ?>"><i class="bi <?= $labels[$key][1] ?>"></i><?= e($labels[$key][0]) ?></a><?php endforeach; ?><div class="td-nav-title">Học sinh</div><?php foreach(['student_score','student_profile'] as $key): ?><a class="<?= $section===$key?'active':'' ?>" href="?section=<?= $key ?>"><i class="bi <?= $labels[$key][1] ?>"></i><?= e($labels[$key][0]) ?></a><?php endforeach; ?><div class="td-nav-title">Báo cáo</div><a class="<?= $section==='stats'?'active':'' ?>" href="?section=stats"><i class="bi bi-bar-chart-line"></i>Thống kê</a></nav><a class="td-back btn btn-outline-light" href="<?= e(BASE_URL) ?>"><i class="bi bi-house"></i> Trang chủ</a></aside><main class="td-main"><?php show_flash(); ?><div class="td-head"><div><h3><i class="bi <?= $labels[$section][1] ?> text-warning"></i> <?= e($labels[$section][0]) ?></h3><p>Module thi đua · Năm học <?= e(SCHOOL_YEAR) ?></p></div><div class="badge text-bg-warning p-2"><i class="bi bi-person"></i> <?= e($user['name']??'') ?></div></div>
 <?php if($section==='teacher_attendance'): ?>
 <div class="att-toolbar"><div><strong>Bảng chấm công giáo viên, nhân viên</strong><div class="text-muted small">Chọn một người để báo nghỉ</div></div><div class="d-flex gap-2"><a class="btn <?= $attendanceView==='board'?'btn-td':'btn-outline-secondary' ?>" href="?section=teacher_attendance"><i class="bi bi-person-check"></i> Chấm công</a><a class="btn <?= $attendanceView==='stats'?'btn-td':'btn-outline-secondary' ?>" href="?section=teacher_attendance&attendance_view=stats&period_type=week"><i class="bi bi-bar-chart"></i> Xem thống kê</a></div></div>
-<?php if($attendanceView==='board'): ?><div class="att-teams"><?php foreach($teacherTeams as $team=>$teamTeachers): ?><section class="td-card att-team"><div class="att-team-head"><strong><?= e($team) ?></strong><span><?= count($teamTeachers) ?> người</span></div><div class="att-teacher-grid"><?php foreach($teamTeachers as $teacher): ?><button class="att-person" type="button" data-bs-toggle="modal" data-bs-target="#absenceModal" onclick='selectAbsentTeacher(<?= json_encode(['id'=>$teacher['id']??'','name'=>$teacher['name']??'','team'=>$team],JSON_HEX_APOS|JSON_HEX_QUOT) ?>)'><span class="att-avatar"><?= e(mb_substr(trim($teacher['name']??'?'),0,1)) ?></span><span><strong><?= e($teacher['name']??'') ?></strong><small><?= e($team) ?></small></span></button><?php endforeach; if(!$teamTeachers): ?><div class="td-empty">Chưa có người thuộc tổ này trong CSDL.</div><?php endif; ?></div></section><?php endforeach; ?></div>
+<?php if($attendanceView==='board'): ?><div class="att-teams"><?php foreach($teacherTeams as $team=>$teamTeachers): if(!$teamTeachers)continue; ?><section class="td-card att-team"><div class="att-team-head"><strong><?= e($team) ?></strong><span><?= count($teamTeachers) ?> người</span></div><div class="att-teacher-grid"><?php foreach($teamTeachers as $teacher): ?><button class="att-person" type="button" <?= $canEdit?'data-bs-toggle="modal" data-bs-target="#absenceModal"':'disabled aria-disabled="true"' ?> onclick='selectAbsentTeacher(<?= json_encode(['id'=>$teacher['id']??'','name'=>$teacher['name']??'','team'=>$team],JSON_HEX_APOS|JSON_HEX_QUOT) ?>)'><span class="att-avatar"><?= e(mb_substr(trim($teacher['name']??'?'),0,1)) ?></span><span><strong><?= e($teacher['name']??'') ?></strong><small><?= e($team) ?></small></span></button><?php endforeach; ?></div></section><?php endforeach; ?></div>
 <?php else: ?><form method="get" class="td-card td-stat-filter"><input type="hidden" name="section" value="teacher_attendance"><input type="hidden" name="attendance_view" value="stats"><div><label class="form-label">Thống kê theo</label><select class="form-select" name="period_type"><option value="week" <?= $statType==='week'?'selected':'' ?>>Tuần</option><option value="month" <?= $statType==='month'?'selected':'' ?>>Tháng</option><option value="custom" <?= $statType==='custom'?'selected':'' ?>>Giai đoạn</option></select></div><div><label class="form-label">Ngày tham chiếu</label><input class="form-control" type="date" name="anchor" value="<?= e($statAnchor) ?>"></div><div><label class="form-label">Từ ngày</label><input class="form-control" type="date" name="from" value="<?= e($statFrom) ?>"></div><div><label class="form-label">Đến ngày</label><input class="form-control" type="date" name="to" value="<?= e($statTo) ?>"></div><button class="btn btn-td">Xem</button></form><div class="att-stats-cards"><?php foreach($absenceByTeam as $team=>$summary): ?><div><strong><?= $summary['days'] ?> ngày</strong><span><?= e($team) ?> · <?= $summary['people'] ?> người · <?= $summary['records'] ?> lượt nghỉ</span></div><?php endforeach; ?></div><section class="td-card td-list"><h5>Thống kê vắng từng cá nhân</h5><div class="table-responsive"><table class="table td-table"><thead><tr><th>Họ tên</th><th>Tổ</th><th>Lượt nghỉ</th><th>Số ngày</th><th>Có phép</th><th>Không phép</th></tr></thead><tbody><?php foreach($absenceByPerson as $summary): ?><tr><td><strong><?= e($summary['name']) ?></strong></td><td><?= e($summary['team']) ?></td><td><?= $summary['records'] ?></td><td><?= $summary['days'] ?></td><td><?= $summary['permitted'] ?></td><td class="text-danger"><?= $summary['unpermitted'] ?></td></tr><?php endforeach; if(!$absenceByPerson): ?><tr><td colspan="6" class="td-empty">Không có trường hợp nghỉ trong giai đoạn này.</td></tr><?php endif; ?></tbody></table></div></section><?php endif; ?>
 <div class="modal fade" id="absenceModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><form method="post" class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Báo nghỉ</h5><small class="text-muted" id="absenceTeacherLabel"></small></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="hidden" name="action" value="save"><input type="hidden" name="type" value="teacher_attendance"><input type="hidden" name="person_id" id="absenceTeacherId"><div class="row g-3"><div class="col-6"><label class="form-label">Nghỉ từ ngày *</label><input class="form-control" type="date" name="from_date" value="<?= date('Y-m-d') ?>" required></div><div class="col-6"><label class="form-label">Đến ngày *</label><input class="form-control" type="date" name="to_date" value="<?= date('Y-m-d') ?>" required></div><div class="col-12"><label class="form-label">Tình trạng *</label><div class="d-flex gap-3"><label><input class="form-check-input" type="radio" name="permission" value="Có phép" checked> Có phép</label><label><input class="form-check-input" type="radio" name="permission" value="Không phép"> Không phép</label></div></div><div class="col-12"><label class="form-label">Lý do *</label><select class="form-select" name="reason" id="absenceReason" required><option value="Ốm">Ốm</option><option value="Công tác">Công tác</option><option value="Việc gia đình">Việc gia đình</option><option value="Việc khác">Việc khác</option></select></div><div class="col-12 absence-reason-other" id="absenceOtherBox"><label class="form-label">Nhập lý do khác *</label><textarea class="form-control" name="reason_detail" id="absenceReasonDetail" rows="3"></textarea></div><div class="col-12"><label class="form-label">Ghi chú</label><textarea class="form-control" name="note" rows="2"></textarea></div></div></div><div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-td" <?= !$canEdit?'disabled':'' ?>>Lưu báo nghỉ</button></div></form></div></div></div>
 <?php elseif($section==='student_score'): ?>
