@@ -70,6 +70,14 @@ function cm_article_body($html) {
 }
 require_once 'includes/header.php';
 ?>
+<style>
+body > main.container,
+body > .container,
+main.container {
+    width: 100% !important;
+    max-width: none !important;
+}
+</style>
 
 <h3 class="mb-3"><i class="bi bi-calendar2-week"></i> Kế hoạch chuyên môn</h3>
 
@@ -84,7 +92,7 @@ require_once 'includes/header.php';
 </ul>
 
 <?php if ($tab === 'chitieu'): ?>
-<link href="<?= BASE_URL ?>../assets/article-editor.css?v=20260804" rel="stylesheet">
+<link href="<?= BASE_URL ?>../assets/article-editor.css?v=20260804-2" rel="stylesheet">
 <?php if ($articleView): ?>
 <a class="btn btn-outline-secondary mb-3" href="<?= BASE_URL ?>kehoach.php?tab=chitieu"><i class="bi bi-arrow-left"></i> Quay lại danh sách</a>
 <article class="article-compose"><h1 class="h3 text-primary mb-3"><?= e($articleView['title']??'') ?></h1><div class="article-editor-area p-0"><?= cm_article_body($articleView['content']??'') ?></div><div class="mt-4"><?php if(!empty($articleView['link'])): ?><a class="btn btn-outline-primary me-2" target="_blank" rel="noopener" href="<?= e($articleView['link']) ?>"><i class="bi bi-link-45deg"></i> Mở văn bản liên quan</a><?php endif; ?><?php if(!empty($articleView['file_path'])): ?><a class="btn btn-outline-success" target="_blank" rel="noopener" href="<?= e(cm_file_url($articleView['file_path'])) ?>"><i class="bi bi-file-earmark-arrow-down"></i> File đính kèm</a><?php endif; ?></div></article>
