@@ -182,6 +182,9 @@ function permission_groups_all() {
     if (isset($saved['gvcn']) && !isset($saved['gvcn']['access']['td.student_score'])) {
         $saved['gvcn']['access']['td.student_score'] = 'view';
     }
+    if (isset($saved['gvcn']) && level_rank($saved['gvcn']['access']['nt.diemdanh'] ?? 'none') < level_rank('edit')) {
+        $saved['gvcn']['access']['nt.diemdanh'] = 'edit';
+    }
     if (isset($saved['doandoi']) && level_rank($saved['doandoi']['access']['td.teacher_attendance'] ?? 'none') > level_rank('view')) {
         $saved['doandoi']['access']['td.teacher_attendance'] = 'view';
     }
@@ -210,6 +213,7 @@ function permission_groups_all() {
     // Chuẩn hóa lại sau khi chuyển quyền cũ.
     if (isset($saved['totruong'])) $saved['totruong']['access']['td.teacher_attendance'] = 'edit';
     if (isset($saved['gvcn']) && !isset($saved['gvcn']['access']['td.student_score'])) $saved['gvcn']['access']['td.student_score'] = 'view';
+    if (isset($saved['gvcn'])) $saved['gvcn']['access']['nt.diemdanh'] = 'edit';
     if (isset($saved['doandoi']) && level_rank($saved['doandoi']['access']['td.teacher_attendance'] ?? 'none') > level_rank('view')) {
         $saved['doandoi']['access']['td.teacher_attendance'] = 'view';
     }
@@ -235,7 +239,12 @@ function permission_groups_save(array $groups) {
 function permission_group_access_for_user(array $user) {
     $access = [];
     $groups = permission_groups_all();
-    foreach (($user['groups'] ?? []) as $groupKey) {
+    $userGroups = is_array($user['groups'] ?? null) ? $user['groups'] : [];
+    // Vai trò chuẩn tự nhận nhóm quyền cùng tên. Điều này sửa các tài khoản
+    // cũ đã chọn vai trò GVCN nhưng chưa lưu checkbox nhóm GVCN.
+    $roleGroup = (string)($user['role'] ?? '');
+    if (isset($groups[$roleGroup]) && !in_array($roleGroup, $userGroups, true)) $userGroups[] = $roleGroup;
+    foreach ($userGroups as $groupKey) {
         foreach (($groups[$groupKey]['access'] ?? []) as $code => $level) {
             if (level_rank($level) > level_rank($access[$code] ?? 'none')) $access[$code] = $level;
         }
