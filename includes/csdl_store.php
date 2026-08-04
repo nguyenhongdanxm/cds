@@ -45,6 +45,108 @@ function csdl_year_current() {
     return $all[0] ?? null;
 }
 
+function csdl_year_find($id) {
+    foreach (csdl_years_all() as $year) {
+        if (($year['id'] ?? '') === $id) return $year;
+    }
+    return null;
+}
+
+function csdl_date_valid($value) {
+    if (!is_string($value) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $value)) return false;
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+    return $date && $date->format('Y-m-d') === $value;
+}
+
+/**
+ * Lịch tuần chuẩn của một năm học.
+ * Mỗi module dùng hàm này thay vì tự tính "monday this week".
+ */
+function csdl_year_weeks($year = null) {
+    if (is_string($year)) $year = csdl_year_find($year);
+    if (!is_array($year)) $year = csdl_year_current();
+    if (!$year) return [];
+
+    $start = $year['start'] ?? '';
+    $end = $year['end'] ?? '';
+    if (!csdl_date_valid($start) || !csdl_date_valid($end) || $end < $start) return [];
+
+    $saved = [];
+    foreach (($year['weeks'] ?? []) as $row) {
+        $number = (int)($row['number'] ?? 0);
+        $weekStart = $row['start'] ?? '';
+        if ($number > 0 && csdl_date_valid($weekStart)) $saved[$number] = $weekStart;
+    }
+
+    $weeks = [];
+    $cursor = new DateTimeImmutable($start);
+    $endDate = new DateTimeImmutable($end);
+    for ($number = 1; $number <= 60 && $cursor <= $endDate; $number++) {
+        if (isset($saved[$number])) $cursor = new DateTimeImmutable($saved[$number]);
+        $weekEnd = $cursor->modify('+6 days');
+        $weeks[] = [
+            'number' => $number,
+            'start' => $cursor->format('Y-m-d'),
+            'end' => $weekEnd->format('Y-m-d'),
+            'label' => 'Tuần ' . $number,
+        ];
+        $cursor = $cursor->modify('+7 days');
+    }
+    return $weeks;
+}
+
+function csdl_year_week_adjust($yearId, $weekNumber, $newStart) {
+    $weekNumber = (int)$weekNumber;
+    if ($weekNumber < 1 || !csdl_date_valid($newStart)) {
+        return ['ok' => false, 'message' => 'Tuần hoặc ngày bắt đầu không hợp lệ.'];
+    }
+
+    $years = csdl_years_all();
+    foreach ($years as &$year) {
+        if (($year['id'] ?? '') !== $yearId) continue;
+        $weeks = csdl_year_weeks($year);
+        if (!$weeks || $weekNumber > count($weeks)) {
+            unset($year);
+            return ['ok' => false, 'message' => 'Không tìm thấy tuần trong năm học.'];
+        }
+
+        $newCursor = new DateTimeImmutable($newStart);
+        foreach ($weeks as &$week) {
+            if ((int)$week['number'] < $weekNumber) continue;
+            $offset = ((int)$week['number'] - $weekNumber) * 7;
+            $startDate = $newCursor->modify('+' . $offset . ' days');
+            $week['start'] = $startDate->format('Y-m-d');
+            $week['end'] = $startDate->modify('+6 days')->format('Y-m-d');
+        }
+        unset($week);
+        $year['weeks'] = array_map(fn($week) => [
+            'number' => (int)$week['number'],
+            'start' => $week['start'],
+            'end' => $week['end'],
+        ], $weeks);
+        $year['weeks_updated_at'] = csdl_now();
+        save_json(CSDL_YEARS, $years);
+        cds_shadow_refresh_core('school_year', $yearId);
+        unset($year);
+        return ['ok' => true, 'message' => 'Đã cập nhật lịch tuần dùng chung.'];
+    }
+    unset($year);
+    return ['ok' => false, 'message' => 'Không tìm thấy năm học.'];
+}
+
+function csdl_week_for_date($date = null, $year = null) {
+    $date = $date ?: date('Y-m-d');
+    if (!csdl_date_valid($date)) $date = date('Y-m-d');
+    foreach (csdl_year_weeks($year) as $week) {
+        if ($date >= $week['start'] && $date <= $week['end']) return $week;
+    }
+    return null;
+}
+
+function csdl_current_week($date = null) {
+    return csdl_week_for_date($date ?: date('Y-m-d'), csdl_year_current());
+}
+
 function csdl_year_set_current($id) {
     $years = csdl_years_all();
     foreach ($years as &$y) {
@@ -61,7 +163,12 @@ function csdl_year_save($data) {
     $found = false;
     foreach ($years as &$y) {
         if (($y['id'] ?? '') === $id) {
+            $oldStart = $y['start'] ?? '';
+            $oldEnd = $y['end'] ?? '';
             $y = array_merge($y, $data);
+            if (($y['start'] ?? '') !== $oldStart || ($y['end'] ?? '') !== $oldEnd) {
+                unset($y['weeks'], $y['weeks_updated_at']);
+            }
             $found = true;
             break;
         }
