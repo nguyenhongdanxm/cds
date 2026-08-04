@@ -22,7 +22,7 @@ if (function_exists('noitru_boarders_live')) {
 } else {
     $boarders = [];
 }
-$boarders = array_values(array_filter($boarders, fn($student) => can_class($student['class_name'] ?? $student['lop'] ?? '')));
+$boarders = array_values($boarders);
 $stats = function_exists('noitru_boarders_stats') ? noitru_boarders_stats($boarders) : [
     'total' => count($boarders), 'male' => 0, 'female' => 0, 'rooms' => 0, 'meals' => 0,
 ];
