@@ -127,7 +127,7 @@ function permission_default_groups() {
         ],
         'gv' => [
             'label' => 'Giáo viên',
-            'access' => $view(array_merge(['cm.dashboard','cm.tracuu'], $cmReports)),
+            'access' => $view(array_merge(['cm.dashboard','cm.tracuu','nt.danhsach'], $cmReports)),
         ],
         'qlnt' => [
             'label' => 'Cán bộ nội trú / y tế',
@@ -185,6 +185,11 @@ function permission_groups_all() {
     if (isset($saved['gvcn']) && level_rank($saved['gvcn']['access']['nt.diemdanh'] ?? 'none') < level_rank('edit')) {
         $saved['gvcn']['access']['nt.diemdanh'] = 'edit';
     }
+    foreach (['gv','gvcn'] as $teacherGroup) {
+        if (isset($saved[$teacherGroup]) && level_rank($saved[$teacherGroup]['access']['nt.danhsach'] ?? 'none') < level_rank('view')) {
+            $saved[$teacherGroup]['access']['nt.danhsach'] = 'view';
+        }
+    }
     if (isset($saved['doandoi']) && level_rank($saved['doandoi']['access']['td.teacher_attendance'] ?? 'none') > level_rank('view')) {
         $saved['doandoi']['access']['td.teacher_attendance'] = 'view';
     }
@@ -214,6 +219,9 @@ function permission_groups_all() {
     if (isset($saved['totruong'])) $saved['totruong']['access']['td.teacher_attendance'] = 'edit';
     if (isset($saved['gvcn']) && !isset($saved['gvcn']['access']['td.student_score'])) $saved['gvcn']['access']['td.student_score'] = 'view';
     if (isset($saved['gvcn'])) $saved['gvcn']['access']['nt.diemdanh'] = 'edit';
+    foreach (['gv','gvcn'] as $teacherGroup) {
+        if (isset($saved[$teacherGroup])) $saved[$teacherGroup]['access']['nt.danhsach'] = 'view';
+    }
     if (isset($saved['doandoi']) && level_rank($saved['doandoi']['access']['td.teacher_attendance'] ?? 'none') > level_rank('view')) {
         $saved['doandoi']['access']['td.teacher_attendance'] = 'view';
     }
@@ -350,7 +358,7 @@ function permission_role_presets() {
         'gv' => [
             'label' => 'Giáo viên',
             'modules' => ['chuyenmon'=>'view','csdl'=>'none','noitru'=>'none'],
-            'perms' => ['cm.tracuu','cm.dashboard','cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'],
+            'perms' => ['cm.tracuu','cm.dashboard','cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi','nt.danhsach'],
             'classes' => [],
         ],
         'ktx' => [
