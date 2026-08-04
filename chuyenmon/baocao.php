@@ -92,6 +92,21 @@ $progressIsAdmin = !empty($_SESSION['pccm_admin']);
 $sessionTeacherName = trim($_SESSION['cds_user']['teacher_name'] ?? $_SESSION['cds_user']['name'] ?? '');
 $progressTeacher = $progressIsAdmin ? trim($_GET['teacher'] ?? $sessionTeacherName) : $sessionTeacherName;
 $progressView = ($progressIsAdmin && ($_GET['view'] ?? '') === 'thongke') ? 'thongke' : 'nhaplieu';
+$progressStatusFilter = in_array($_GET['status'] ?? 'all', ['all','fast','slow','ontime','missing'], true) ? ($_GET['status'] ?? 'all') : 'all';
+$progressSubjectFilter = trim($_GET['subject'] ?? '');
+$progressTeacherFilter = trim($_GET['filter_teacher'] ?? '');
+$progressFilterSubjects = [];
+$progressFilterTeachers = [];
+foreach ($progressAssignmentMap as $assignment) {
+    $subjectName = trim($assignment['subject'] ?? '');
+    $teacherName = trim($assignment['teacher'] ?? '');
+    if ($subjectName !== '') $progressFilterSubjects[$subjectName] = true;
+    if ($teacherName !== '') $progressFilterTeachers[$teacherName] = true;
+}
+$progressFilterSubjects = array_keys($progressFilterSubjects);
+$progressFilterTeachers = array_keys($progressFilterTeachers);
+sort($progressFilterSubjects, SORT_NATURAL | SORT_FLAG_CASE);
+sort($progressFilterTeachers, SORT_NATURAL | SORT_FLAG_CASE);
 $progressAssignments = array_values(array_filter($progressAssignmentMap, function($assignment) use ($progressTeacher) {
     return $progressTeacher !== '' && mb_strtolower(trim($assignment['teacher'] ?? ''), 'UTF-8') === mb_strtolower($progressTeacher, 'UTF-8');
 }));
@@ -278,6 +293,31 @@ function cm_view_btns($it) {
       <?php foreach ($teachers as $teacher): ?><option value="<?= e($teacher) ?>" <?= $teacher===$progressTeacher?'selected':'' ?>><?= e($teacher) ?></option><?php endforeach; ?>
     </select>
   </div>
+  <?php elseif ($progressView === 'thongke'): ?>
+  <div><label class="form-label fw-semibold">Tiến độ</label>
+    <select class="form-select" name="status" onchange="this.form.submit()">
+      <option value="all" <?= $progressStatusFilter==='all'?'selected':'' ?>>Tất cả trạng thái</option>
+      <option value="fast" <?= $progressStatusFilter==='fast'?'selected':'' ?>>Nhanh tiến độ</option>
+      <option value="slow" <?= $progressStatusFilter==='slow'?'selected':'' ?>>Chậm tiến độ</option>
+      <option value="ontime" <?= $progressStatusFilter==='ontime'?'selected':'' ?>>Đúng tiến độ</option>
+      <option value="missing" <?= $progressStatusFilter==='missing'?'selected':'' ?>>Chưa nhập</option>
+    </select>
+  </div>
+  <div><label class="form-label fw-semibold">Môn học</label>
+    <select class="form-select" name="subject" onchange="this.form.submit()">
+      <option value="">Tất cả môn</option>
+      <?php foreach ($progressFilterSubjects as $subjectName): ?><option value="<?= e($subjectName) ?>" <?= $subjectName===$progressSubjectFilter?'selected':'' ?>><?= e($subjectName) ?></option><?php endforeach; ?>
+    </select>
+  </div>
+  <div><label class="form-label fw-semibold">Giáo viên</label>
+    <select class="form-select" name="filter_teacher" onchange="this.form.submit()">
+      <option value="">Tất cả giáo viên</option>
+      <?php foreach ($progressFilterTeachers as $teacherName): ?><option value="<?= e($teacherName) ?>" <?= $teacherName===$progressTeacherFilter?'selected':'' ?>><?= e($teacherName) ?></option><?php endforeach; ?>
+    </select>
+  </div>
+  <?php if ($progressStatusFilter!=='all' || $progressSubjectFilter!=='' || $progressTeacherFilter!==''): ?>
+  <div><a class="btn btn-outline-secondary w-100" href="<?= BASE_URL ?>baocao.php?tab=tiendo&view=thongke&week=<?= $progressWeekNumber ?>"><i class="bi bi-x-circle"></i> Xóa bộ lọc</a></div>
+  <?php endif; ?>
   <?php endif; ?>
   <noscript><button class="btn btn-primary">Xem</button></noscript>
 </form>
@@ -342,16 +382,19 @@ document.querySelectorAll('[data-progress-row]').forEach(function(row){
 <?php else:
   $statsRows=[];$fast=0;$slow=0;$onTime=0;$missing=0;
   foreach($progressAssignmentMap as $key=>$assignment){
+    if($progressSubjectFilter!=='' && ($assignment['subject']??'')!==$progressSubjectFilter)continue;
+    if($progressTeacherFilter!=='' && ($assignment['teacher']??'')!==$progressTeacherFilter)continue;
     $record=$progressByAssignment[$key]??null;
-    if(!$record){$missing++;$statsRows[]=['assignment'=>$assignment,'record'=>null,'diff'=>null];continue;}
-    $diff=(float)($record['actual_period']??0)-(float)($record['ppct_period']??0);
-    if($diff>0)$fast++;elseif($diff<0)$slow++;else$onTime++;
-    $statsRows[]=['assignment'=>$assignment,'record'=>$record,'diff'=>$diff];
+    $diff=$record ? (float)($record['actual_period']??0)-(float)($record['ppct_period']??0) : null;
+    $status=$diff===null?'missing':($diff>0?'fast':($diff<0?'slow':'ontime'));
+    if($progressStatusFilter!=='all' && $status!==$progressStatusFilter)continue;
+    if($status==='missing')$missing++;elseif($status==='fast')$fast++;elseif($status==='slow')$slow++;else$onTime++;
+    $statsRows[]=['assignment'=>$assignment,'record'=>$record,'diff'=>$diff,'status'=>$status];
   }
   usort($statsRows,function($a,$b){if($a['diff']===null)return 1;if($b['diff']===null)return -1;return abs($b['diff'])<=>abs($a['diff']);});
 ?>
 <div class="progress-summary">
-  <div class="card"><div class="card-body"><strong class="text-primary"><?= count($progressAssignmentMap) ?></strong>Tổng môn/lớp</div></div>
+  <div class="card"><div class="card-body"><strong class="text-primary"><?= count($statsRows) ?></strong>Kết quả lọc</div></div>
   <div class="card"><div class="card-body"><strong class="text-success"><?= $onTime ?></strong>Đúng tiến độ</div></div>
   <div class="card"><div class="card-body"><strong class="text-warning"><?= $fast+$slow ?></strong>Cần điều chỉnh</div></div>
   <div class="card"><div class="card-body"><strong class="text-secondary"><?= $missing ?></strong>Chưa nhập</div></div>
@@ -359,6 +402,7 @@ document.querySelectorAll('[data-progress-row]').forEach(function(row){
 <?php if($fast+$slow): ?><div class="alert alert-warning"><i class="bi bi-exclamation-triangle-fill"></i> Tuần <?= $progressWeekNumber ?> có <strong><?= $fast ?></strong> môn/lớp nhanh và <strong><?= $slow ?></strong> môn/lớp chậm so với PPCT.</div><?php endif; ?>
 <div class="card"><div class="card-header">Thống kê tiến độ tuần <?= $progressWeekNumber ?></div><div class="table-responsive">
 <table class="table table-hover align-middle mb-0"><thead><tr><th>Giáo viên</th><th>Lớp</th><th>Môn</th><th>Thực tế</th><th>PPCT</th><th>Nhanh/chậm</th><th>Cảnh báo</th><th>Cập nhật</th></tr></thead><tbody>
+<?php if(!$statsRows): ?><tr><td colspan="8" class="text-center text-muted py-4">Không có môn/lớp phù hợp với bộ lọc.</td></tr><?php endif; ?>
 <?php foreach($statsRows as $item):$a=$item['assignment'];$r=$item['record'];$d=$item['diff']; ?>
 <tr class="<?= $d!==null&&abs($d)>=2?'table-danger':($d!==null&&$d!=0?'table-warning':'') ?>">
 <td><strong><?= e($a['teacher']??'') ?></strong></td><td><?= e($a['class']??'') ?></td><td><?= e($a['subject']??'') ?></td>
