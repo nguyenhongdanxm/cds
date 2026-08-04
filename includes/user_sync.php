@@ -64,8 +64,8 @@ function user_group_presets() {
         'gv' => [
             'label' => 'Giáo viên',
             'role' => 'gv',
-            'modules' => ['chuyenmon'=>'view','csdl'=>'none','noitru'=>'none','vanban'=>'none','thidua'=>'none'],
-            'perms' => ['cm.tracuu','cm.dashboard','cm.baocao'],
+            'modules' => ['chuyenmon'=>'view','csdl'=>'none','noitru'=>'view','vanban'=>'none','thidua'=>'none'],
+            'perms' => ['cm.tracuu','cm.dashboard','cm.baocao','nt.danhsach'],
         ],
     ];
 }
