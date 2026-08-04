@@ -209,7 +209,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $date = trim($_POST['date'] ?? date('Y-m-d'));
         $meal = trim($_POST['meal'] ?? '');
         $className = trim($_POST['class_name'] ?? '');
-        if (!in_array($meal, ['all','sang','trua','toi'], true) || $className === '' || !can_class($className)) {
+        $isAssignedMealManager = noitru_meal_user_is_assigned($user, $date);
+        if (!in_array($meal, ['all','sang','trua','toi'], true) || $className === '' || (!can_class($className) && !$isAssignedMealManager)) {
             flash('Lớp hoặc bữa ăn không hợp lệ.', 'danger');
             header('Location: ' . BASE_URL . 'noitru.php?tab=meals'); exit;
         }
@@ -229,13 +230,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $targetDates = [];
         for ($cursor = $longFrom; $cursor <= $longUntil; $cursor = date('Y-m-d', strtotime($cursor . ' +1 day'))) $targetDates[] = $cursor;
 
-        if (allowed_classes() !== null) {
-            foreach ($targetDates as $targetDate) foreach ($targetMeals as $targetMeal) {
-                $state = noitru_meal_state($targetDate, $targetMeal)['status'] ?? 'open';
-                if ($state !== 'open') {
-                    flash('Có bữa ăn trong khoảng đã chọn đã khóa hoặc thông báo nghỉ. Báo cáo chưa được cập nhật.', 'warning');
-                    header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date) . '&class=' . urlencode($className) . '&meal=' . urlencode($meal)); exit;
-                }
+        foreach ($targetDates as $targetDate) foreach ($targetMeals as $targetMeal) {
+            $state = noitru_meal_state($targetDate, $targetMeal)['status'] ?? 'open';
+            $canEditLocked = noitru_meal_user_is_assigned($user, $targetDate);
+            if ($state === 'off' || ($state === 'locked' && !$canEditLocked)) {
+                flash($state === 'off'
+                    ? 'Bữa ăn đã được thông báo nghỉ nên không thể sửa.'
+                    : 'Bữa ăn đã khóa. Chỉ người được phân công quản lý trực ngày này mới được sửa.', 'warning');
+                header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date) . '&class=' . urlencode($className) . '&meal=' . urlencode($meal)); exit;
             }
         }
 
@@ -245,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($ids as $i=>$sid) {
             $sid = trim($sid);
             if ($sid === '') continue;
-            noitru_require_student_scope($sid);
+            if (!$isAssignedMealManager) noitru_require_student_scope($sid);
             $student = $studentMap[$sid] ?? null;
             if (!$student || ($student['class_name'] ?? '') !== $className) continue;
             $validStudents[] = ['id'=>$sid, 'value'=>(($statuses[$i] ?? 'yes') === 'no' ? 'no' : 'yes')];
@@ -267,7 +269,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'sang'=>$values['sang'], 'trua'=>$values['trua'], 'toi'=>$values['toi'],
                     'source'=>$submissionMode==='long'?'gvcn_long':'gvcn',
                     'reported_by'=>$user['name'] ?? '',
-                    'force'=>allowed_classes() === null,
+                    'force'=>noitru_meal_user_is_assigned($user, $targetDate),
                 ]);
             }
             foreach ($targetMeals as $targetMeal) {
@@ -779,9 +781,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$mealScopeDate = trim($_GET['date'] ?? date('Y-m-d', strtotime('+1 day')));
+$mealAssignedScope = $tab === 'meals' && noitru_meal_user_is_assigned($user, $mealScopeDate);
 $boarders = $tab === 'attendance'
     ? noitru_attendance_students_all()
-    : array_values(array_filter(noitru_boarders_live(), fn($student) => can_class($student['class_name'] ?? '')));
+    : ($mealAssignedScope
+        ? array_values(noitru_boarders_live())
+        : array_values(array_filter(noitru_boarders_live(), fn($student) => can_class($student['class_name'] ?? ''))));
 $stats = noitru_stats();
 if (allowed_classes() !== null) {
     $stats['total'] = count($boarders);
@@ -1398,7 +1404,9 @@ form[method="post"]{display:none!important}
     foreach ($viewMeals as $viewMeal) $mealStates[$viewMeal] = noitru_meal_state($date, $viewMeal)['status'] ?? 'open';
     $mealState = count(array_filter($mealStates, fn($state)=>$state==='open')) === count($mealStates) ? 'open' : (count(array_filter($mealStates, fn($state)=>$state==='locked')) === count($mealStates) ? 'locked' : 'mixed');
     $mealReport = $className !== '' && $meal !== 'all' ? noitru_meal_report_for($date, $className, $meal) : null;
-    $readOnly = $mealState !== 'open' && allowed_classes() !== null;
+    $mealHistory = $className !== '' ? noitru_meal_report_history_for($date, $className, $meal === 'all' ? '' : $meal) : [];
+    $canEditLockedMeal = noitru_meal_user_is_assigned($user, $date);
+    $readOnly = $mealState === 'off' || ($mealState !== 'open' && !$canEditLockedMeal);
   ?>
   <div class="nt-page-head"><div><h4><i class="bi bi-fork-knife text-primary"></i> Báo ăn lớp chủ nhiệm</h4><div class="subtitle">Chỉ hiển thị học sinh thuộc lớp được giao</div></div>
     <?php if ($className!==''): ?><div class="dropdown"><button class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-file-earmark-excel"></i> Xuất Excel</button><ul class="dropdown-menu dropdown-menu-end"><li><button class="dropdown-item" type="button" onclick="openMealExcelModal('breakfast')">Báo cáo bữa sáng</button></li><li><button class="dropdown-item" type="button" onclick="openMealExcelModal('lunch_dinner')">Báo cáo bữa trưa, tối</button></li></ul></div><?php endif; ?>
@@ -1421,7 +1429,7 @@ form[method="post"]{display:none!important}
       <?php endforeach; ?>
     </div>
   </div></div>
-  <?php if ($mealState !== 'open'): ?><div class="alert alert-info py-2"><i class="bi bi-lock"></i> Có bữa ăn đã được chốt hoặc thông báo nghỉ. Chọn từng bữa để xem chi tiết.</div><?php endif; ?>
+  <?php if ($mealState !== 'open'): ?><div class="alert alert-info py-2"><i class="bi bi-lock"></i> <?= $canEditLockedMeal?'Bữa ăn đã khóa; bạn là người được phân công nên vẫn có thể điều chỉnh.':'Bữa ăn đã khóa hoặc thông báo nghỉ. Chỉ người được phân công quản lý trực mới được sửa.' ?></div><?php endif; ?>
   <form method="post" class="card card-soft meal-form-card" id="mealReportForm" data-regular-meals="<?= $meal==='all'?'sang,trua,toi':e($meal) ?>" onsubmit="return prepareMealConfirmation(event)">
     <input type="hidden" name="action" value="meals_save">
     <input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="class_name" value="<?= e($className) ?>"><input type="hidden" name="meal" value="<?= e($meal) ?>">
@@ -1441,6 +1449,9 @@ form[method="post"]{display:none!important}
     </div>
     <?php if ($classStudents && !$readOnly): ?><div class="card-body border-top meal-save-bar"><button class="btn btn-nt w-100" type="submit"><i class="bi bi-send-check"></i> Kiểm tra và lưu báo ăn <?= e($mealLabels[$meal]) ?></button></div><?php endif; ?>
   </form>
+  <details class="card card-soft mt-3" <?= $mealHistory?'':'open' ?>><summary class="card-body fw-bold"><i class="bi bi-clock-history me-2"></i>Lịch sử báo ăn (<?= count($mealHistory) ?>)</summary><div class="table-responsive border-top"><table class="table table-sm align-middle mb-0"><thead><tr><th>Thời gian</th><th>Bữa</th><th>Người sửa</th><th>Thay đổi</th><th>Ăn</th><th>Vắng</th></tr></thead><tbody>
+    <?php foreach (array_slice($mealHistory,0,50) as $historyRow): ?><tr><td><?= e(date('d/m/Y H:i',strtotime($historyRow['saved_at']??'now'))) ?></td><td><?= e($mealLabels[$historyRow['meal']??'']??($historyRow['meal']??'')) ?></td><td><?= e($historyRow['reported_by']??'') ?></td><td><?= ($historyRow['action']??'')==='created'?'Tạo báo cáo':'Sửa báo cáo' ?></td><td><strong><?= (int)($historyRow['eat_count']??0) ?></strong><?php if (($historyRow['previous_eat_count']??null)!==null): ?><small class="text-muted"> (trước: <?= (int)$historyRow['previous_eat_count'] ?>)</small><?php endif; ?></td><td><?= (int)($historyRow['absent_count']??0) ?><?php if (($historyRow['previous_absent_count']??null)!==null): ?><small class="text-muted"> (trước: <?= (int)$historyRow['previous_absent_count'] ?>)</small><?php endif; ?></td></tr><?php endforeach; if (!$mealHistory): ?><tr><td colspan="6" class="text-center text-muted py-3">Chưa có lịch sử chỉnh sửa.</td></tr><?php endif; ?>
+  </tbody></table></div></details>
   <div class="modal fade" id="longMealModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title"><i class="bi bi-calendar-range me-2"></i>Học sinh nghỉ dài ngày</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
