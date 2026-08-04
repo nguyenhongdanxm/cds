@@ -123,7 +123,7 @@ function permission_default_groups() {
         ],
         'gvcn' => [
             'label' => 'Giáo viên chủ nhiệm',
-            'access' => array_merge($view(['cm.dashboard','cm.tracuu','csdl.view','nt.danhsach']), $edit($ntEdit)),
+            'access' => array_merge($view(['cm.dashboard','cm.tracuu','csdl.view','nt.danhsach','td.student_score']), $edit($ntEdit)),
         ],
         'gv' => [
             'label' => 'Giáo viên',
@@ -179,6 +179,9 @@ function permission_groups_all() {
     if (isset($saved['totruong']) && level_rank($saved['totruong']['access']['td.teacher_attendance'] ?? 'none') < level_rank('edit')) {
         $saved['totruong']['access']['td.teacher_attendance'] = 'edit';
     }
+    if (isset($saved['gvcn']) && !isset($saved['gvcn']['access']['td.student_score'])) {
+        $saved['gvcn']['access']['td.student_score'] = 'view';
+    }
     if (isset($saved['doandoi']) && level_rank($saved['doandoi']['access']['td.teacher_attendance'] ?? 'none') > level_rank('view')) {
         $saved['doandoi']['access']['td.teacher_attendance'] = 'view';
     }
@@ -206,6 +209,7 @@ function permission_groups_all() {
     unset($group);
     // Chuẩn hóa lại sau khi chuyển quyền cũ.
     if (isset($saved['totruong'])) $saved['totruong']['access']['td.teacher_attendance'] = 'edit';
+    if (isset($saved['gvcn']) && !isset($saved['gvcn']['access']['td.student_score'])) $saved['gvcn']['access']['td.student_score'] = 'view';
     if (isset($saved['doandoi']) && level_rank($saved['doandoi']['access']['td.teacher_attendance'] ?? 'none') > level_rank('view')) {
         $saved['doandoi']['access']['td.teacher_attendance'] = 'view';
     }
