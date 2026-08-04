@@ -45,7 +45,7 @@ function noitru_student_in_scope($studentId) {
         if (($student['id'] ?? '') !== $studentId) continue;
         // Điểm danh là dữ liệu dùng chung: quyền Xem/Sửa quyết định thao tác,
         // không giới hạn theo lớp chủ nhiệm.
-        if ($tab === 'attendance' && can_perm('nt.diemdanh')) return true;
+        if ($tab === 'attendance') return true;
         return can_class($student['class_name'] ?? '');
     }
     return false;
@@ -779,7 +779,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$boarders = $tab === 'attendance' && can_perm('nt.diemdanh')
+$boarders = $tab === 'attendance'
     ? noitru_attendance_students_all()
     : array_values(array_filter(noitru_boarders_live(), fn($student) => can_class($student['class_name'] ?? '')));
 $stats = noitru_stats();
