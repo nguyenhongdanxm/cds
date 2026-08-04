@@ -97,10 +97,17 @@ $progressAssignments = array_values(array_filter($progressAssignmentMap, functio
 }));
 usort($progressAssignments, fn($a, $b) => strnatcasecmp(($a['class'] ?? '') . ($a['subject'] ?? ''), ($b['class'] ?? '') . ($b['subject'] ?? '')));
 $progressByAssignment = [];
+$progressPreviousByAssignment = [];
 foreach ($progressRecords as $record) {
     if (($record['year_id'] ?? '') !== ($progressYear['id'] ?? '')) continue;
-    if ((int)($record['week_number'] ?? 0) !== $progressWeekNumber) continue;
-    $progressByAssignment[$record['assignment_key'] ?? ''] = $record;
+    $recordWeek = (int)($record['week_number'] ?? 0);
+    $assignmentKey = $record['assignment_key'] ?? '';
+    if ($recordWeek === $progressWeekNumber) {
+        $progressByAssignment[$assignmentKey] = $record;
+    } elseif ($recordWeek < $progressWeekNumber) {
+        $previousWeek = (int)($progressPreviousByAssignment[$assignmentKey]['week_number'] ?? 0);
+        if ($recordWeek > $previousWeek) $progressPreviousByAssignment[$assignmentKey] = $record;
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -298,7 +305,7 @@ function cm_view_btns($it) {
     </tr></thead>
     <tbody>
     <?php foreach ($progressAssignments as $assignment):
-      $key=cm_progress_assignment_key($assignment);$row=$progressByAssignment[$key]??[];
+      $key=cm_progress_assignment_key($assignment);$row=$progressByAssignment[$key]??($progressPreviousByAssignment[$key]??[]);
       $std=$row['standard_weekly']??($assignment['periods']??0);$actual=$row['actual_period']??0;$ppct=$row['ppct_period']??0;
       $m1=$row['mid_hk1']??0;$f1=$row['final_hk1']??0;$m2=$row['mid_hk2']??0;$f2=$row['final_hk2']??0;
       $diff=(float)$actual-(float)$ppct;
