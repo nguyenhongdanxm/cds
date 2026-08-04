@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 39474)
-Total output lines: 2027
-
 <?php
 require_once 'includes/auth.php';
 require_once 'includes/noitru_store.php';
@@ -1046,7 +1043,399 @@ body{background:#f8f0f4}
 .meal-summary-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-top:1rem}.meal-summary-stats>div{text-align:center;padding:.8rem;border-radius:14px;background:#f1f5f9}
 .meal-summary-stats .eat{background:#ecfdf5;color:#15803d}.meal-summary-stats .absent{background:#fff1f2;color:#dc2626}
 .meal-report-classes{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.75rem}.meal-report-classes span{padding:.25rem .55rem;border:1px solid #dce5ec;border-radius:999px;font-size:.78rem}
-.meal-s…9474 tokens truncated…'' ?> <?= $readOnly?'disabled':'' ?> onchange="this.nextElementSibling.value=this.checked?'no':'yes'"><input type="hidden" name="meal_status[]" value="<?= $value==='no'?'no':'yes' ?>"><span><strong><?= e($student['name']) ?></strong></span></label>
+.meal-state-actions{display:flex;gap:.45rem;flex-wrap:wrap}.meal-state-actions form{display:inline-flex}
+.meal-summary-empty{text-align:center;color:#64748b;padding:1.4rem .5rem .65rem}
+.meal-export-preview{display:block;width:min(100%,540px);max-height:62vh;object-fit:contain;margin:auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px}
+.meal-export-modal .modal-content{border:0;border-radius:22px}.meal-export-modal .modal-body{background:#f8fafc}
+.meal-export-modal .modal-footer{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}.meal-export-modal .modal-footer>*{margin:0}
+.meal-missing-box{border:1px solid #f6c76b;border-radius:18px;background:#fffdf7;padding:1rem;margin-top:1rem}.meal-missing-row{padding:.65rem;border-radius:12px;background:#f8fafc;margin-top:.55rem}.meal-missing-chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem}.meal-missing-chips span{padding:.25rem .58rem;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:.78rem;font-weight:700}
+.overview-hero{position:relative;overflow:hidden;border-radius:22px;padding:1.35rem 1.45rem;background:linear-gradient(135deg,#9d174d 0%,#d63384 58%,#f472b6 100%);color:#fff;box-shadow:0 14px 34px rgba(166,30,92,.2)}
+.overview-hero:after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;right:-75px;top:-105px;background:rgba(255,255,255,.12)}
+.overview-hero-date{display:inline-flex;align-items:center;gap:.45rem;padding:.35rem .7rem;border-radius:999px;background:rgba(255,255,255,.16);font-size:.8rem;font-weight:700}
+.overview-hero h4{font-weight:800;margin:.8rem 0 .25rem}.overview-hero p{max-width:650px;margin:0;color:rgba(255,255,255,.83);font-size:.9rem}
+.overview-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;margin:1rem 0}
+.overview-metric{display:flex;align-items:center;gap:.75rem;min-height:92px;padding:1rem;border:1px solid #eef2f7;border-radius:18px;background:#fff;box-shadow:0 7px 22px rgba(15,23,42,.06)}
+.overview-metric-icon{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;border-radius:14px;font-size:1.25rem}.overview-metric strong{display:block;font-size:1.45rem;line-height:1.1;color:#172033}.overview-metric small{display:block;margin-top:.2rem;color:#64748b}
+.overview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.overview-panel{overflow:hidden;border:1px solid #edf1f5;border-radius:20px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.06)}
+.overview-panel-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:1rem 1.1rem;border-bottom:1px solid #eef2f7}.overview-panel-title{display:flex;align-items:center;gap:.7rem}.overview-panel-title i{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;font-size:1.05rem}.overview-panel-title h6{margin:0;font-weight:800}.overview-panel-title small{display:block;margin-top:.12rem;color:#64748b}
+.overview-panel-link{color:#a61e5c;text-decoration:none;font-size:.78rem;font-weight:800;white-space:nowrap}.overview-panel-body{padding:1rem 1.1rem}
+.overview-att-main{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;padding:.9rem;border-radius:16px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5)}.overview-att-main strong{font-size:2rem;line-height:1;color:#15803d}.overview-att-main span{color:#64748b;font-size:.82rem}
+.overview-mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin-top:.75rem}.overview-mini{padding:.65rem .45rem;border-radius:13px;background:#f8fafc;text-align:center}.overview-mini strong{display:block;font-size:1.05rem}.overview-mini small{color:#64748b;font-size:.72rem}
+.overview-list{display:grid;gap:.65rem}.overview-list-item{display:flex;align-items:flex-start;gap:.7rem;padding:.7rem;border-radius:14px;background:#f8fafc}.overview-list-date{flex:0 0 48px;padding:.4rem .25rem;border-radius:11px;background:#fff;text-align:center;box-shadow:0 2px 8px rgba(15,23,42,.06)}.overview-list-date strong{display:block;color:#a61e5c}.overview-list-date small{font-size:.68rem;color:#64748b}.overview-list-content{min-width:0;flex:1}.overview-list-content strong,.overview-list-content span{display:block}.overview-list-content span{color:#64748b;font-size:.8rem;white-space:normal}
+.overview-duty-stack{display:grid;gap:.6rem}.overview-duty-shift{padding:.75rem;border:1px solid #e2e8f0;border-radius:15px;background:#f8fafc}.overview-duty-shift.current{border-color:#bae6fd;background:linear-gradient(135deg,#f0f9ff,#f8fcff)}.overview-duty-shift-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.7rem;margin-bottom:.6rem}.overview-duty-status{display:flex;align-items:center;gap:.45rem;font-size:.78rem;font-weight:850;color:#334155}.overview-duty-shift.current .overview-duty-status{color:#0369a1}.overview-duty-date{display:block;margin-top:.12rem;color:#64748b;font-size:.7rem}.overview-duty-countdown{padding:.25rem .48rem;border:1px solid #bae6fd;border-radius:999px;background:#fff;color:#0369a1;font-size:.68rem;font-weight:800;white-space:nowrap}.overview-duty-role{display:grid;grid-template-columns:88px minmax(0,1fr);gap:.55rem;align-items:start;padding:.38rem 0;border-top:1px dashed #dbe4eb}.overview-duty-role:first-of-type{border-top:0}.overview-duty-role-label{display:flex;align-items:center;gap:.35rem;color:#64748b;font-size:.72rem;font-weight:750}.overview-duty-names{display:flex;gap:.32rem;flex-wrap:wrap}.overview-duty-name{display:inline-flex;align-items:center;min-height:27px;padding:.22rem .5rem;border-radius:999px;background:#fff;color:#0f172a;font-size:.73rem;font-weight:750;box-shadow:0 1px 4px rgba(15,23,42,.06)}.overview-duty-name.manager{background:#fff7ed;color:#9a3412}.overview-duty-unassigned{color:#94a3b8;font-size:.74rem;font-style:italic}.overview-duty-note{margin-top:.35rem;color:#64748b;font-size:.7rem}
+.overview-menu{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem}.overview-menu-item{min-height:116px;padding:.8rem;border-radius:15px;background:#fff7ed}.overview-menu-item:nth-child(2){background:#ecfdf5}.overview-menu-item:nth-child(3){background:#eef2ff}.overview-menu-item i{font-size:1.1rem;color:#ea580c}.overview-menu-item:nth-child(2) i{color:#16a34a}.overview-menu-item:nth-child(3) i{color:#4f46e5}.overview-menu-item small{display:block;margin:.25rem 0 .45rem;color:#64748b;font-weight:700}.overview-menu-item strong{display:block;font-size:.88rem;line-height:1.35;color:#273244}
+.overview-empty{padding:1.25rem;text-align:center;color:#64748b}.overview-empty i{display:block;margin-bottom:.45rem;font-size:1.55rem;color:#cbd5e1}
+.menu-subtabs{display:inline-flex;max-width:100%;overflow:auto;padding:5px;border-radius:15px;background:#eaf1f5}.menu-subtabs a{padding:.62rem 1rem;border-radius:12px;color:#526b83;text-decoration:none;font-weight:700;white-space:nowrap}.menu-subtabs a.active{background:#fff;color:#172334;box-shadow:0 2px 8px rgba(15,23,42,.08)}
+.menu-panel{border:1px solid #dce6ed}.menu-add-row{display:grid;grid-template-columns:minmax(220px,1fr) 190px auto;gap:.55rem}.menu-add-row .form-control,.menu-add-row .form-select,.menu-add-row .btn{min-height:52px;border-radius:14px}.menu-chips{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}.menu-chip{display:inline-flex;align-items:center;gap:.45rem;padding:.42rem .72rem;border-radius:999px;background:#e4f4fb;color:#06749f;font-weight:750;white-space:nowrap}.menu-chip.small{padding:.25rem .55rem;font-size:.76rem}.menu-chip form{display:inline-flex}.menu-chip button{padding:0;border:0;background:transparent;color:#ff4d5e;line-height:1}
+.menu-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;min-height:54px}.menu-toolbar .form-control{min-width:190px;border-radius:13px}.menu-grid-wrap{overflow:hidden;border:1px solid #dce6ed}.menu-grid{width:100%;min-width:980px;border-collapse:collapse;table-layout:fixed}.menu-grid th,.menu-grid td{border-right:1px solid #d9e4eb;border-bottom:1px solid #d9e4eb}.menu-grid thead th{height:72px;padding:.65rem;text-align:center;background:#f0f5f8;color:#1f3041;font-size:1rem}.menu-grid thead th:first-child{width:110px;text-align:left}.menu-grid thead small{display:block;color:#59728b;font-weight:500}.menu-grid tbody th{padding:.65rem;background:#fff;width:110px}.menu-grid tbody th span{display:inline-flex;padding:.25rem .65rem;border:1px solid #dce6ed;border-radius:999px}.menu-cell{height:92px;padding:.55rem;vertical-align:middle;text-align:center;cursor:pointer;background:#fff;transition:.15s}.menu-cell:hover{background:#f0f9ff}.menu-cell-content{display:flex;justify-content:center;align-items:center;gap:.35rem;flex-wrap:wrap}.menu-add-hint{color:#607995}.menu-grid-note{padding:1rem;color:#607995;font-size:.9rem}
+@media(max-width:767.98px){
+  .meal-student-grid{grid-template-columns:1fr 1fr;gap:.3rem;max-height:46vh}.meal-student{min-height:38px;padding:.32rem .45rem;gap:.4rem;font-size:.88rem}
+  .meal-class-list{gap:.35rem;margin-bottom:.55rem!important}.meal-class-list a{min-height:38px;padding:.42rem .7rem;font-size:.88rem}
+  .meal-tabs{gap:.3rem}.meal-tabs a{min-height:40px;padding:.42rem .2rem;font-size:.77rem;border-radius:10px}.meal-tabs a i{display:block;font-size:.9rem;line-height:1}
+  .meal-report-meta{grid-template-columns:1.2fr .8fr;gap:.4rem}.meal-report-meta .form-label,.meal-report-meta .form-text{display:none}.meal-report-meta .form-control{min-height:40px;padding:.4rem .55rem;font-size:.82rem}
+  .meal-form-card .card-body{padding:.75rem}.meal-form-card .alert{margin-bottom:.65rem;padding:.45rem .6rem;font-size:.82rem}.meal-form-head{margin-bottom:.6rem!important}.meal-form-head h5{font-size:1rem}.meal-form-head .small{font-size:.72rem}
+  .meal-quick-actions .btn{padding:.35rem .5rem;font-size:.76rem;white-space:nowrap}.meal-save-bar{padding:.65rem!important}.meal-save-bar .btn{min-height:42px}
+  .meal-summary-stats{gap:.4rem}.meal-summary-stats>div{padding:.65rem .25rem}.meal-export-modal .modal-dialog{margin:.5rem}.meal-export-modal .modal-footer{grid-template-columns:1fr}
+  .overview-hero{padding:1.05rem;border-radius:18px}.overview-hero h4{font-size:1.15rem}.overview-metrics{grid-template-columns:1fr 1fr;gap:.55rem}.overview-metric{min-height:78px;padding:.72rem;gap:.55rem;border-radius:15px}.overview-metric-icon{width:38px;height:38px;flex-basis:38px}.overview-metric strong{font-size:1.18rem}.overview-metric small{font-size:.72rem}.overview-grid{grid-template-columns:1fr;gap:.75rem}.overview-panel{border-radius:17px}.overview-panel-head,.overview-panel-body{padding:.85rem}.overview-menu{gap:.4rem}.overview-menu-item{min-height:102px;padding:.65rem}.overview-menu-item strong{font-size:.78rem}.overview-duty-role{grid-template-columns:78px minmax(0,1fr)}
+  .menu-subtabs{display:flex}.menu-subtabs a{flex:1;padding:.52rem .7rem;text-align:center;font-size:.83rem}.menu-add-row{grid-template-columns:1fr}.menu-add-row .form-control,.menu-add-row .form-select,.menu-add-row .btn{min-height:44px}.menu-toolbar{align-items:stretch;flex-direction:column}.menu-toolbar>div{justify-content:space-between}.menu-toolbar .form-control{min-width:0}.menu-grid{min-width:820px}.menu-grid thead th:first-child,.menu-grid tbody th{width:78px}.menu-grid thead th{font-size:.86rem}.menu-grid-note{font-size:.8rem}
+}
+@media(max-width:420px){.meal-student-grid{grid-template-columns:1fr}}
+.btn-nt:hover{background:var(--pd);color:#fff}
+.badge-room{background:#fce8f0;color:#a61e5c}
+.badge-meal{background:#e8f5e9;color:#2e7d32}
+<?php if (!$canEditCurrent): ?>
+form[method="post"]{display:none!important}
+<?php endif; ?>
+</style>
+</head>
+<body class="nt-body">
+<?php $nt_sec = $tab; require __DIR__ . '/includes/noitru_shell.php'; ?>
+<main class="nt-main"><div class="nt-content">
+<?php show_flash(); ?>
+
+<?php if ($tab !== 'health'): ?><div class="nt-page-head">
+  <div>
+    <h3 class="mb-0">Quản lý nội trú</h3>
+    <div class="text-muted small">Nguồn HS: <strong>CSDL</strong> · <?= e(SCHOOL_NAME) ?></div>
+  </div>
+  <?php if (allowed_classes() === null && can_edit_perm('nt.danhsach')): ?>
+  <form method="post" class="m-0">
+    <input type="hidden" name="action" value="sync_from_csdl">
+    <button class="btn btn-nt btn-sm" type="submit"><i class="bi bi-arrow-repeat"></i> Đồng bộ từ CSDL</button>
+  </form>
+  <?php endif; ?>
+</div><?php endif; ?>
+
+<?php if ($tab === 'overview'): ?>
+  <?php
+    $st = $stats;
+    $overviewToday = date('Y-m-d');
+    $overviewStudentIds = array_fill_keys(array_column($boarders, 'id'), true);
+    $overviewPendingExits = array_values(array_filter(noitru_exits_all(), fn($row) =>
+        ($row['status'] ?? '') === 'pending' && isset($overviewStudentIds[$row['student_id'] ?? ''])
+    ));
+
+    $overviewAttRows = array_values(array_filter(noitru_att_all(), fn($row) =>
+        isset($overviewStudentIds[$row['student_id'] ?? ''])
+    ));
+    $overviewAttDate = '';
+    foreach ($overviewAttRows as $row) {
+        $rowDate = $row['date'] ?? '';
+        if ($rowDate <= $overviewToday && $rowDate > $overviewAttDate) $overviewAttDate = $rowDate;
+    }
+    if ($overviewAttDate === '' && $overviewAttRows) {
+        $overviewAttDate = max(array_column($overviewAttRows, 'date'));
+    }
+    $overviewShiftOrder = ['sang'=>1, 'toi'=>2, 'hoc_toi'=>3];
+    $overviewAttShift = '';
+    foreach ($overviewAttRows as $row) {
+        if (($row['date'] ?? '') !== $overviewAttDate) continue;
+        $candidateShift = $row['shift'] ?? '';
+        if (($overviewShiftOrder[$candidateShift] ?? 0) >= ($overviewShiftOrder[$overviewAttShift] ?? 0)) {
+            $overviewAttShift = $candidateShift;
+        }
+    }
+    $overviewAttCounts = ['present'=>0, 'absent'=>0, 'late'=>0, 'excused'=>0];
+    $overviewAttReported = 0;
+    foreach ($overviewAttRows as $row) {
+        if (($row['date'] ?? '') !== $overviewAttDate || ($row['shift'] ?? '') !== $overviewAttShift) continue;
+        $status = $row['status'] ?? 'present';
+        $overviewAttCounts[$status] = ($overviewAttCounts[$status] ?? 0) + 1;
+        $overviewAttReported++;
+    }
+    $overviewPresent = $overviewAttCounts['present'] + $overviewAttCounts['late'];
+
+    $overviewDutySettings = noitru_duty_settings();
+    $overviewDutyStartTime = $overviewDutySettings['start_time'] ?? '06:00';
+    $overviewDutyEndTime = $overviewDutySettings['end_time'] ?? '06:00';
+    $overviewNow = time();
+    $overviewTodayStart = strtotime($overviewToday . ' ' . $overviewDutyStartTime);
+    $overviewCurrentDutyDate = $overviewNow < $overviewTodayStart
+        ? date('Y-m-d', strtotime($overviewToday . ' -1 day'))
+        : $overviewToday;
+    $overviewCurrentDutyStart = strtotime($overviewCurrentDutyDate . ' ' . $overviewDutyStartTime);
+    $overviewCurrentDutyEnd = strtotime($overviewCurrentDutyDate . ' ' . $overviewDutyEndTime);
+    if ($overviewCurrentDutyEnd <= $overviewCurrentDutyStart) {
+        $overviewCurrentDutyEnd = strtotime('+1 day', $overviewCurrentDutyEnd);
+    }
+    $overviewNextDutyDate = date('Y-m-d', $overviewCurrentDutyEnd);
+    $overviewRemainingSeconds = max(0, $overviewCurrentDutyEnd - $overviewNow);
+    $overviewRemainingHours = intdiv($overviewRemainingSeconds, 3600);
+    $overviewRemainingMinutes = intdiv($overviewRemainingSeconds % 3600, 60);
+    $overviewAllDuties = noitru_duty_all();
+    $overviewCurrentDuties = array_values(array_filter($overviewAllDuties, fn($row) =>
+        ($row['date'] ?? '') === $overviewCurrentDutyDate
+    ));
+    $overviewNextDuties = array_values(array_filter($overviewAllDuties, fn($row) =>
+        ($row['date'] ?? '') === $overviewNextDutyDate
+    ));
+    $overviewCurrentManager = noitru_duty_manager_for_date($overviewCurrentDutyDate) ?? [];
+    $overviewNextManager = noitru_duty_manager_for_date($overviewNextDutyDate) ?? [];
+
+    $overviewHealth = array_values(array_filter(noitru_health_all(), fn($row) =>
+        isset($overviewStudentIds[$row['student_id'] ?? ''])
+    ));
+    usort($overviewHealth, fn($a, $b) => strcmp($b['date'] ?? '', $a['date'] ?? '') ?: strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
+    $overviewHealthToday = count(array_filter($overviewHealth, fn($row) => ($row['date'] ?? '') === $overviewToday));
+    $overviewHealthLatest = array_slice($overviewHealth, 0, 3);
+
+    $overviewSharedWeek = csdl_week_for_date($overviewToday);
+    $overviewWeekStart = $overviewSharedWeek['start'] ?? date('Y-m-d', strtotime('monday this week', strtotime($overviewToday)));
+    $overviewMenu = noitru_menu_for_week($overviewWeekStart);
+    $overviewDayKeys = ['mon','tue','wed','thu','fri','sat','sun'];
+    $overviewDayLabels = ['Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy','Chủ Nhật'];
+    $overviewDayIndex = (int)date('N') - 1;
+    $overviewTodayMenu = $overviewMenu['meals'][$overviewDayKeys[$overviewDayIndex]] ?? [];
+    $overviewShiftLabels = ['ngay'=>'Ca ngày', 'sang'=>'Sáng', 'toi'=>'Tối', 'hoc_toi'=>'Học tối', 'dem'=>'Đêm'];
+    $overviewHealthTypeLabels = ['kham'=>'Khám', 'thuoc'=>'Thuốc', 'theo_doi'=>'Theo dõi'];
+  ?>
+
+  <section class="overview-hero">
+    <span class="overview-hero-date"><i class="bi bi-calendar3"></i> <?= e($overviewDayLabels[$overviewDayIndex] . ', ' . date('d/m/Y')) ?></span>
+    <h4>Tổng quan hoạt động nội trú</h4>
+    <p>Số liệu mới nhất được tổng hợp từ điểm danh, lịch trực, y tế và thực đơn để theo dõi nhanh trong ngày.</p>
+  </section>
+
+  <div class="overview-metrics">
+    <div class="overview-metric">
+      <span class="overview-metric-icon" style="background:#fce7f3;color:#be185d"><i class="bi bi-people-fill"></i></span>
+      <div><strong><?= (int)$st['total'] ?></strong><small>Học sinh nội trú</small></div>
+    </div>
+    <?php if (can_perm('nt.diemdanh')): ?>
+    <div class="overview-metric">
+      <span class="overview-metric-icon" style="background:#dcfce7;color:#15803d"><i class="bi bi-person-check-fill"></i></span>
+      <div><strong><?= $overviewAttDate ? $overviewPresent . '/' . (int)$st['total'] : '—' ?></strong><small>Có mặt gần nhất</small></div>
+    </div>
+    <?php endif; ?>
+    <?php if (can_perm('nt.ravao')): ?>
+    <div class="overview-metric">
+      <span class="overview-metric-icon" style="background:#fff7ed;color:#c2410c"><i class="bi bi-door-open-fill"></i></span>
+      <div><strong><?= count($overviewPendingExits) ?></strong><small>Phiếu chờ duyệt</small></div>
+    </div>
+    <?php endif; ?>
+    <?php if (can_perm('nt.yte')): ?>
+    <div class="overview-metric">
+      <span class="overview-metric-icon" style="background:#fee2e2;color:#dc2626"><i class="bi bi-heart-pulse-fill"></i></span>
+      <div><strong><?= $overviewHealthToday ?></strong><small>Ghi nhận y tế hôm nay</small></div>
+    </div>
+    <?php endif; ?>
+  </div>
+
+  <div class="overview-grid">
+    <?php if (can_perm('nt.diemdanh')): ?>
+    <section class="overview-panel">
+      <div class="overview-panel-head">
+        <div class="overview-panel-title"><i class="bi bi-clipboard2-check-fill" style="background:#dcfce7;color:#15803d"></i><div><h6>Sỹ số điểm danh</h6><small><?= $overviewAttDate ? 'Cập nhật gần nhất' : 'Chưa có dữ liệu' ?></small></div></div>
+        <a class="overview-panel-link" href="<?= e(BASE_URL . 'noitru.php?tab=attendance') ?>">Xem điểm danh <i class="bi bi-arrow-right"></i></a>
+      </div>
+      <div class="overview-panel-body">
+        <?php if ($overviewAttDate): ?>
+          <div class="overview-att-main"><div><strong><?= $overviewPresent ?>/<?= (int)$st['total'] ?></strong><span class="d-block mt-1">Có mặt · <?= e($overviewShiftLabels[$overviewAttShift] ?? $overviewAttShift) ?></span></div><span><?= e(date('d/m/Y', strtotime($overviewAttDate))) ?><br>Đã ghi nhận <?= $overviewAttReported ?> HS</span></div>
+          <div class="overview-mini-grid">
+            <div class="overview-mini"><strong class="text-danger"><?= $overviewAttCounts['absent'] ?></strong><small>Vắng</small></div>
+            <div class="overview-mini"><strong style="color:#d97706"><?= $overviewAttCounts['excused'] ?></strong><small>Có phép</small></div>
+            <div class="overview-mini"><strong style="color:#7c3aed"><?= $overviewAttCounts['late'] ?></strong><small>Đi muộn</small></div>
+          </div>
+        <?php else: ?>
+          <div class="overview-empty"><i class="bi bi-clipboard-x"></i>Chưa có lượt điểm danh nào.</div>
+        <?php endif; ?>
+      </div>
+    </section>
+    <?php endif; ?>
+
+    <?php if (can_perm('nt.lichtruc')): ?>
+    <section class="overview-panel">
+      <div class="overview-panel-head">
+        <div class="overview-panel-title"><i class="bi bi-calendar2-week-fill" style="background:#e0f2fe;color:#0369a1"></i><div><h6>Lịch trực</h6><small>Người trực và quản lý trực gần nhất</small></div></div>
+        <a class="overview-panel-link" href="<?= e(BASE_URL . 'noitru.php?tab=duty') ?>">Xem lịch trực <i class="bi bi-arrow-right"></i></a>
+      </div>
+      <div class="overview-panel-body">
+        <div class="overview-duty-stack">
+          <?php foreach ([
+              ['current', 'Đang trực hiện tại', $overviewCurrentDutyDate, $overviewCurrentDuties, $overviewCurrentManager],
+              ['', 'Ca trực tiếp theo', $overviewNextDutyDate, $overviewNextDuties, $overviewNextManager],
+          ] as $dutyBlock):
+              [$blockClass, $blockLabel, $blockDate, $blockRows, $blockManager] = $dutyBlock;
+              $blockWeekday = $overviewDayLabels[(int)date('N', strtotime($blockDate)) - 1] ?? '';
+              $blockManagerNames = array_values(array_filter((array)($blockManager['teacher_names'] ?? []), fn($name) => trim((string)$name) !== ''));
+          ?>
+          <div class="overview-duty-shift <?= e($blockClass) ?>">
+            <div class="overview-duty-shift-head">
+              <div><span class="overview-duty-status"><i class="bi <?= $blockClass === 'current' ? 'bi-broadcast-pin' : 'bi-arrow-right-circle' ?>"></i><?= e($blockLabel) ?></span><small class="overview-duty-date"><?= e($blockWeekday . ', ' . date('d/m/Y', strtotime($blockDate))) ?> · <?= e($overviewDutyStartTime) ?>–<?= e($overviewDutyEndTime) ?> hôm sau</small></div>
+              <?php if ($blockClass === 'current'): ?><span class="overview-duty-countdown"><i class="bi bi-clock"></i> Còn <?= $overviewRemainingHours ?>h <?= $overviewRemainingMinutes ?>p</span><?php endif; ?>
+            </div>
+            <div class="overview-duty-role">
+              <span class="overview-duty-role-label"><i class="bi bi-person-check"></i> Người trực</span>
+              <div class="overview-duty-names"><?php if ($blockRows): foreach ($blockRows as $dutyRow): ?><span class="overview-duty-name"><?= e($dutyRow['teacher_name'] ?? 'Chưa rõ') ?></span><?php endforeach; else: ?><span class="overview-duty-unassigned">Chưa phân công</span><?php endif; ?></div>
+            </div>
+            <div class="overview-duty-role">
+              <span class="overview-duty-role-label"><i class="bi bi-shield-check"></i> Quản lý</span>
+              <div><?php if ($blockManagerNames): ?><div class="overview-duty-names"><?php foreach ($blockManagerNames as $managerName): ?><span class="overview-duty-name manager"><?= e($managerName) ?></span><?php endforeach; ?></div><?php else: ?><span class="overview-duty-unassigned">Chưa phân công quản lý</span><?php endif; ?><?php if (trim((string)($blockManager['note'] ?? '')) !== ''): ?><div class="overview-duty-note"><i class="bi bi-chat-left-text"></i> <?= e($blockManager['note']) ?></div><?php endif; ?></div>
+            </div>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </section>
+    <?php endif; ?>
+
+    <?php if (can_perm('nt.thucdon')): ?>
+    <section class="overview-panel">
+      <div class="overview-panel-head">
+        <div class="overview-panel-title"><i class="bi bi-journal-richtext" style="background:#ffedd5;color:#c2410c"></i><div><h6>Thực đơn hôm nay</h6><small><?= e($overviewDayLabels[$overviewDayIndex] . ' · ' . date('d/m/Y')) ?></small></div></div>
+        <a class="overview-panel-link" href="<?= e(BASE_URL . 'noitru.php?tab=menu') ?>">Xem thực đơn <i class="bi bi-arrow-right"></i></a>
+      </div>
+      <div class="overview-panel-body">
+        <?php if (array_filter($overviewTodayMenu)): ?>
+        <div class="overview-menu">
+          <?php foreach (['sang'=>'Bữa sáng', 'trua'=>'Bữa trưa', 'toi'=>'Bữa tối'] as $mealKey=>$mealLabel): ?>
+          <div class="overview-menu-item"><i class="bi <?= $mealKey === 'sang' ? 'bi-sunrise-fill' : ($mealKey === 'trua' ? 'bi-sun-fill' : 'bi-moon-stars-fill') ?>"></i><small><?= $mealLabel ?></small><strong><?= trim($overviewTodayMenu[$mealKey] ?? '') !== '' ? e($overviewTodayMenu[$mealKey]) : 'Chưa cập nhật' ?></strong></div>
+          <?php endforeach; ?>
+        </div>
+        <?php else: ?><div class="overview-empty"><i class="bi bi-journal-x"></i>Thực đơn hôm nay chưa được cập nhật.</div><?php endif; ?>
+      </div>
+    </section>
+    <?php endif; ?>
+
+    <?php if (can_perm('nt.yte')): ?>
+    <section class="overview-panel">
+      <div class="overview-panel-head">
+        <div class="overview-panel-title"><i class="bi bi-heart-pulse-fill" style="background:#fee2e2;color:#dc2626"></i><div><h6>Y tế mới nhất</h6><small><?= $overviewHealthToday ?> ghi nhận trong hôm nay</small></div></div>
+        <a class="overview-panel-link" href="<?= e(BASE_URL . 'noitru.php?tab=health') ?>">Xem y tế <i class="bi bi-arrow-right"></i></a>
+      </div>
+      <div class="overview-panel-body">
+        <?php if ($overviewHealthLatest): ?><div class="overview-list">
+          <?php foreach ($overviewHealthLatest as $healthRow): ?>
+          <div class="overview-list-item">
+            <div class="overview-list-date"><strong><?= e(date('d/m', strtotime($healthRow['date'] ?? $overviewToday))) ?></strong><small><?= e($overviewHealthTypeLabels[$healthRow['type'] ?? ''] ?? 'Y tế') ?></small></div>
+            <div class="overview-list-content"><strong><?= e($healthRow['student_name'] ?? '') ?></strong><span><?= e($healthRow['diagnosis'] ?? 'Chưa ghi tình trạng') ?><?= trim($healthRow['treatment'] ?? '') !== '' ? ' · ' . e($healthRow['treatment']) : '' ?></span></div>
+          </div>
+          <?php endforeach; ?>
+        </div><?php else: ?><div class="overview-empty"><i class="bi bi-heart"></i>Chưa có ghi nhận y tế.</div><?php endif; ?>
+      </div>
+    </section>
+    <?php endif; ?>
+  </div>
+
+<?php elseif ($tab === 'exits'): ?>
+  <?php
+    $exits = array_values(array_filter(noitru_exits_all(), fn($row) => noitru_student_in_scope($row['student_id'] ?? '')));
+    usort($exits, fn($a,$b) => strcmp($b['from_date']??'', $a['from_date']??''));
+  ?>
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card card-soft"><div class="card-body">
+        <h6 class="mb-3">Thêm phiếu xin ra KTX</h6>
+        <form method="post">
+          <input type="hidden" name="action" value="exit_save">
+          <div class="mb-2"><label class="form-label small">Học sinh</label>
+            <select name="student_id" class="form-select form-select-sm" required>
+              <option value="">— Chọn —</option>
+              <?php foreach ($boarders as $s): ?>
+                <option value="<?= e($s['id']) ?>"><?= e($s['name']) ?> (<?= e($s['class_name']) ?>)</option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-6"><label class="form-label small">Từ ngày</label><input type="date" name="from_date" class="form-control form-control-sm" required value="<?= date('Y-m-d') ?>"></div>
+            <div class="col-6"><label class="form-label small">Đến ngày</label><input type="date" name="to_date" class="form-control form-control-sm" required value="<?= date('Y-m-d') ?>"></div>
+          </div>
+          <div class="mb-2"><label class="form-label small">Lý do</label><input type="text" name="reason" class="form-control form-control-sm" required></div>
+          <div class="mb-2"><label class="form-label small">Ghi chú</label><input type="text" name="note" class="form-control form-control-sm"></div>
+          <button class="btn btn-nt btn-sm w-100" type="submit">Lưu phiếu</button>
+        </form>
+      </div></div>
+    </div>
+    <div class="col-lg-8">
+      <div class="card card-soft"><div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead><tr><th>HS</th><th>Thời gian</th><th>Lý do</th><th>TT</th><th></th></tr></thead>
+          <tbody>
+          <?php if (!$exits): ?><tr><td colspan="5" class="text-muted text-center py-3">Chưa có phiếu.</td></tr>
+          <?php else: foreach ($exits as $x):
+            $st = $x['status']??'pending';
+            $badge = $st==='approved'?'success':($st==='rejected'?'danger':'warning');
+          ?>
+            <tr>
+              <td><strong><?= e($x['student_name']??'') ?></strong><br><span class="small text-muted"><?= e($x['class_name']??'') ?></span></td>
+              <td class="small"><?= e($x['from_date']??'') ?> → <?= e($x['to_date']??'') ?></td>
+              <td class="small"><?= e($x['reason']??'') ?></td>
+              <td><span class="badge bg-<?= $badge ?>"><?= e($st) ?></span></td>
+              <td class="text-nowrap">
+                <?php if ($st==='pending'): ?>
+                <form method="post" class="d-inline"><input type="hidden" name="action" value="exit_status"><input type="hidden" name="id" value="<?= e($x['id']) ?>"><input type="hidden" name="status" value="approved"><button class="btn btn-sm btn-success" title="Duyệt">✓</button></form>
+                <form method="post" class="d-inline"><input type="hidden" name="action" value="exit_status"><input type="hidden" name="id" value="<?= e($x['id']) ?>"><input type="hidden" name="status" value="rejected"><button class="btn btn-sm btn-outline-danger" title="Từ chối">✗</button></form>
+                <?php endif; ?>
+                <?php if ($canDeleteCurrent): ?><form method="post" class="d-inline" onsubmit="return confirm('Xóa?')"><input type="hidden" name="action" value="exit_delete"><input type="hidden" name="id" value="<?= e($x['id']) ?>"><button class="btn btn-sm btn-outline-secondary">🗑</button></form><?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; endif; ?>
+          </tbody>
+        </table>
+      </div></div>
+    </div>
+  </div>
+
+<?php elseif ($tab === 'meals'): ?>
+  <?php
+    $date = $_GET['date'] ?? date('Y-m-d', strtotime('+1 day'));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = date('Y-m-d', strtotime('+1 day'));
+    $mealMap = noitru_meals_for_date($date);
+    $meal = $_GET['meal'] ?? 'sang';
+    if (!in_array($meal, ['all','sang','trua','toi'], true)) $meal = 'sang';
+    $mealLabels = ['all'=>'Cả ngày','sang'=>'Bữa sáng','trua'=>'Bữa trưa','toi'=>'Bữa tối'];
+    $mealClasses = [];
+    foreach ($boarders as $student) {
+      $classKey = trim($student['class_name'] ?? '') ?: '(Chưa lớp)';
+      $mealClasses[$classKey][] = $student;
+    }
+    ksort($mealClasses, SORT_NATURAL);
+    $className = trim($_GET['class'] ?? '');
+    if ($className === '' || !isset($mealClasses[$className])) $className = array_key_first($mealClasses) ?? '';
+    $classStudents = $className !== '' ? ($mealClasses[$className] ?? []) : [];
+    $viewMeals = $meal === 'all' ? ['sang','trua','toi'] : [$meal];
+    $mealStates = [];
+    foreach ($viewMeals as $viewMeal) $mealStates[$viewMeal] = noitru_meal_state($date, $viewMeal)['status'] ?? 'open';
+    $mealState = count(array_filter($mealStates, fn($state)=>$state==='open')) === count($mealStates) ? 'open' : (count(array_filter($mealStates, fn($state)=>$state==='locked')) === count($mealStates) ? 'locked' : 'mixed');
+    $mealReport = $className !== '' && $meal !== 'all' ? noitru_meal_report_for($date, $className, $meal) : null;
+    $readOnly = $mealState !== 'open' && allowed_classes() !== null;
+  ?>
+  <div class="nt-page-head"><div><h4><i class="bi bi-fork-knife text-primary"></i> Báo ăn lớp chủ nhiệm</h4><div class="subtitle">Chỉ hiển thị học sinh thuộc lớp được giao</div></div>
+    <?php if ($className!==''): ?><div class="dropdown"><button class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-file-earmark-excel"></i> Xuất Excel</button><ul class="dropdown-menu dropdown-menu-end"><li><button class="dropdown-item" type="button" onclick="openMealExcelModal('breakfast')">Báo cáo bữa sáng</button></li><li><button class="dropdown-item" type="button" onclick="openMealExcelModal('lunch_dinner')">Báo cáo bữa trưa, tối</button></li></ul></div><?php endif; ?>
+  </div>
+  <div class="card card-soft mb-3"><div class="card-body">
+    <form method="get" class="meal-report-meta mb-2">
+      <input type="hidden" name="tab" value="meals"><input type="hidden" name="class" value="<?= e($className) ?>"><input type="hidden" name="meal" value="<?= e($meal) ?>">
+      <div><label class="form-label">Ngày sử dụng bữa ăn</label><input type="date" name="date" class="form-control" value="<?= e($date) ?>" onchange="this.form.submit()"><div class="form-text">Bữa sáng mặc định là ngày hôm sau.</div></div>
+      <div><label class="form-label">Người báo</label><div class="form-control bg-light text-truncate"><i class="bi bi-person-check me-1"></i><?= e($user['name'] ?? '') ?><?= in_array('gvcn',$user['groups']??[],true)?' · GVCN':'' ?></div></div>
+    </form>
+    <label class="form-label">Chọn lớp</label>
+    <div class="meal-class-list mb-3">
+      <?php foreach ($mealClasses as $classKey=>$students): ?><a class="<?= $className===$classKey?'active':'' ?>" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','date'=>$date,'class'=>$classKey,'meal'=>$meal])) ?>"><?= e($classKey) ?> (<?= count($students) ?>)</a><?php endforeach; ?>
+    </div>
+    <div class="meal-tabs">
+      <?php foreach ($mealLabels as $mealKey=>$label): $tabDate=(!isset($_GET['date'])&&!in_array($mealKey,['all','sang'],true))?date('Y-m-d'):$date;
+        if ($mealKey==='all') { $tabStates=[]; foreach (['sang','trua','toi'] as $mk) $tabStates[]=noitru_meal_state($tabDate,$mk)['status']??'open'; $state=count(array_filter($tabStates,fn($s)=>$s==='locked'))===3?'locked':'open'; }
+        else $state=noitru_meal_state($tabDate,$mealKey)['status']??'open'; ?>
+        <a class="<?= $meal===$mealKey?'active':'' ?>" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','date'=>$tabDate,'class'=>$className,'meal'=>$mealKey])) ?>"><i class="bi <?= $mealKey==='all'?'bi-calendar-check':($mealKey==='sang'?'bi-sunrise':($mealKey==='trua'?'bi-sun':'bi-moon-stars')) ?>"></i> <?= e($label) ?><?= $state==='locked'?' · Đã chốt':($state==='off'?' · Nghỉ':'') ?></a>
+      <?php endforeach; ?>
+    </div>
+  </div></div>
+  <?php if ($mealState !== 'open'): ?><div class="alert alert-info py-2"><i class="bi bi-lock"></i> Có bữa ăn đã được chốt hoặc thông báo nghỉ. Chọn từng bữa để xem chi tiết.</div><?php endif; ?>
+  <form method="post" class="card card-soft meal-form-card" id="mealReportForm" data-regular-meals="<?= $meal==='all'?'sang,trua,toi':e($meal) ?>" onsubmit="return prepareMealConfirmation(event)">
+    <input type="hidden" name="action" value="meals_save">
+    <input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="class_name" value="<?= e($className) ?>"><input type="hidden" name="meal" value="<?= e($meal) ?>">
+    <input type="hidden" name="submission_mode" id="mealSubmissionMode" value="regular">
+    <input type="hidden" name="target_meals" id="mealTargetMeals" value="<?= $meal==='all'?'sang,trua,toi':e($meal) ?>">
+    <input type="hidden" name="long_from" id="mealLongFrom" value="<?= e($date) ?>"><input type="hidden" name="long_until" id="mealLongUntil" value="<?= e($date) ?>">
+    <div class="card-body">
+      <div class="d-flex justify-content-between gap-2 flex-wrap meal-form-head mb-3"><div><h5 class="mb-1"><?= e($className) ?> · <?= e($mealLabels[$meal]) ?></h5><div class="small text-muted"><?= $mealReport?'Đã báo bởi '.e($mealReport['reported_by']??'').' lúc '.e(date('d/m/Y H:i',strtotime($mealReport['updated_at']??$mealReport['created_at']??'now'))):($meal==='all'?'Báo đồng thời cả 3 bữa':'Chưa gửi báo cáo') ?></div></div>
+        <?php if (!$readOnly && $classStudents): ?><div class="meal-quick-actions"><button class="btn btn-outline-success btn-sm" type="button" onclick="setMealAbsent(false)">Đủ cả lớp</button><button class="btn btn-outline-danger btn-sm" type="button" onclick="setMealAbsent(true)">Nghỉ cả lớp</button><button class="btn btn-outline-warning btn-sm" type="button" onclick="openLongMealModal()"><i class="bi bi-calendar-range"></i> Nghỉ dài ngày</button></div><?php endif; ?>
+      </div>
+      <div class="alert alert-light border py-2"><strong>Mặc định tất cả học sinh ăn.</strong> Chỉ tích vào học sinh nghỉ ăn.</div>
+      <div class="meal-student-grid">
+        <?php foreach ($classStudents as $i=>$student): $studentMeals=$mealMap[$student['id']]??[]; $value=$meal==='all'?(count(array_filter(['sang','trua','toi'],fn($mk)=>($studentMeals[$mk]??'yes')==='no'))===3?'no':'yes'):($studentMeals[$meal]??'yes'); ?>
+          <label class="meal-student" data-student-name="<?= e($student['name']) ?>"><input type="hidden" name="sid[]" value="<?= e($student['id']) ?>"><input class="form-check-input meal-absent" type="checkbox" <?= $value==='no'?'checked':'' ?> <?= $readOnly?'disabled':'' ?> onchange="this.nextElementSibling.value=this.checked?'no':'yes'"><input type="hidden" name="meal_status[]" value="<?= $value==='no'?'no':'yes' ?>"><span><strong><?= e($student['name']) ?></strong></span></label>
         <?php endforeach; ?>
       </div>
     </div>
