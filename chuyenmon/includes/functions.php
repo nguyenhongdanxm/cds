@@ -525,10 +525,10 @@ function cds_permission_rank($level) {
 
 function cds_default_chuyenmon_groups() {
     return [
-        'bgh' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.thongke'=>'view','cm.kehoach'=>'view','cm.baocao'=>'view','cm.pccm'=>'edit','cm.nhaplieu'=>'edit'],
-        'totruong' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.thongke'=>'view','cm.kehoach'=>'view','cm.baocao'=>'view','cm.pccm'=>'edit'],
+        'bgh' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.thongke'=>'view','cm.kehoach'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view','cm.pccm'=>'edit','cm.nhaplieu'=>'edit'],
+        'totruong' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.thongke'=>'view','cm.kehoach'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view','cm.pccm'=>'edit'],
         'gvcn' => ['cm.dashboard'=>'view','cm.tracuu'=>'view'],
-        'gv' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.baocao'=>'view'],
+        'gv' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view'],
     ];
 }
 
@@ -580,6 +580,14 @@ function cds_feature_access_for_user($user, $code) {
     $access = 'none';
     $reportChildren = ['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
     $isReportChild = in_array($code, $reportChildren, true);
+    if ($code === 'cm.baocao') {
+        $best = 'none';
+        foreach ($reportChildren as $childCode) {
+            $childLevel = cds_feature_access_for_user($user, $childCode);
+            if (cds_permission_rank($childLevel) > cds_permission_rank($best)) $best = $childLevel;
+        }
+        return $best;
+    }
     if ((int)($user['permission_model_version'] ?? 1) < 2) {
         $legacyPerms = is_array($user['perms']??null)?$user['perms']:[];
         if (in_array($code, $legacyPerms, true) || ($isReportChild && in_array('cm.baocao', $legacyPerms, true))) $access = 'view';
@@ -598,9 +606,9 @@ function cds_feature_access_for_user($user, $code) {
     foreach ((array)($user['groups'] ?? []) as $groupKey) {
         $groupAccess = $groups[$groupKey] ?? [];
         $level = $groupAccess[$code] ?? 'none';
-        if ($isReportChild) {
-            $parentLevel = $groupAccess['cm.baocao'] ?? 'none';
-            if (cds_permission_rank($parentLevel) > cds_permission_rank($level)) $level = $parentLevel;
+        if ($isReportChild && !array_key_exists($code, $groupAccess)) {
+            // Nhóm cũ chưa tách quyền: kế thừa một lần từ mã Báo cáo gộp.
+            $level = $groupAccess['cm.baocao'] ?? 'none';
         }
         if (cds_permission_rank($level) > cds_permission_rank($access)) $access = $level;
     }
