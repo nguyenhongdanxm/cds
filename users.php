@@ -777,6 +777,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
             </div>
 
             <h6 class="text-primary"><i class="bi bi-1-circle"></i> Nhóm quyền</h6>
+            <div class="form-text mb-2">Có thể chọn đồng thời nhiều nhóm; hệ thống sẽ cộng quyền cao nhất của các nhóm.</div>
             <div class="perm-box mb-3">
               <?php foreach ($permissionGroups as $groupKey => $group): ?>
               <div class="form-check">
