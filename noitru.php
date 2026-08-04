@@ -1150,7 +1150,8 @@ form[method="post"]{display:none!important}
     $overviewHealthToday = count(array_filter($overviewHealth, fn($row) => ($row['date'] ?? '') === $overviewToday));
     $overviewHealthLatest = array_slice($overviewHealth, 0, 3);
 
-    $overviewWeekStart = date('Y-m-d', strtotime('monday this week', strtotime($overviewToday)));
+    $overviewSharedWeek = csdl_week_for_date($overviewToday);
+    $overviewWeekStart = $overviewSharedWeek['start'] ?? date('Y-m-d', strtotime('monday this week', strtotime($overviewToday)));
     $overviewMenu = noitru_menu_for_week($overviewWeekStart);
     $overviewDayKeys = ['mon','tue','wed','thu','fri','sat','sun'];
     $overviewDayLabels = ['Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy','Chủ Nhật'];
@@ -1651,8 +1652,10 @@ form[method="post"]{display:none!important}
 <?php elseif ($tab === 'menu'): ?>
   <?php
     $menuView = in_array($_GET['menu_view'] ?? 'dishes', ['dishes','template','week'], true) ? ($_GET['menu_view'] ?? 'dishes') : 'dishes';
-    $week = $_GET['week'] ?? date('Y-m-d', strtotime('monday this week'));
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $week)) $week = date('Y-m-d', strtotime('monday this week'));
+    $weekRequest = $_GET['week'] ?? date('Y-m-d');
+    $sharedMenuWeek = csdl_week_for_date($weekRequest);
+    if (!$sharedMenuWeek) $sharedMenuWeek = csdl_current_week();
+    $week = $sharedMenuWeek['start'] ?? date('Y-m-d', strtotime('monday this week'));
     $menu = noitru_menu_for_week($week);
     $meals = $menu['meals'] ?? [];
     $menuConfig = noitru_menu_config();

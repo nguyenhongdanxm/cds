@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $editActions = ['io_import','teacher_save','class_save','student_save'];
     $deleteActions = ['bulk_delete','teacher_delete','class_delete','student_delete'];
-    $yearActions = ['year_set_current','year_save'];
+    $yearActions = ['year_set_current','year_save','year_week_save'];
     if (in_array($action, $editActions, true)) require_perm_level('csdl.edit', 'edit');
     if (in_array($action, $deleteActions, true)) require_perm_level('csdl.edit', 'delete');
     if (in_array($action, $yearActions, true)) require_perm_level('csdl.year', 'edit');
@@ -168,6 +168,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         csdl_year_delete(trim($_POST['id'] ?? ''));
         flash('Đã xóa năm học.', 'warning');
         header('Location: ' . BASE_URL . 'csdl.php?tab=years');
+        exit;
+    }
+    if ($action === 'year_week_save') {
+        $result = csdl_year_week_adjust(
+            trim($_POST['year_id'] ?? ''),
+            (int)($_POST['week_number'] ?? 0),
+            trim($_POST['week_start'] ?? '')
+        );
+        flash($result['message'], !empty($result['ok']) ? 'success' : 'danger');
+        header('Location: ' . BASE_URL . 'csdl.php?tab=years&weeks=' . urlencode(trim($_POST['year_id'] ?? '')));
         exit;
     }
     if ($action === 'year_save') {
