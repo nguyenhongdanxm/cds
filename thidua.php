@@ -102,7 +102,16 @@ $classScoreStats=[];foreach($classes as $class)$classScoreStats[$class['id']??''
 $formulaParts=[];foreach($data['score_config']['columns'] as $column)$formulaParts[]=$column['name'].' × '.$column['weight'];$formulaText='('.implode(' + ',$formulaParts).') / tổng hệ số';
 usort($data['articles'],fn($a,$b)=>strcmp(($b['date']??'').($b['created_at']??''),($a['date']??'').($a['created_at']??'')));
 $articleView=null;if($section==='student_profile'&&!empty($_GET['article']))foreach($data['articles'] as $candidate)if(($candidate['id']??'')===(string)$_GET['article']){$articleView=$candidate;break;}
-function td_article_body($html){$html=trim((string)$html);if($html==='')return '<span class="text-muted">Bài viết chưa có nội dung.</span>';if($html===strip_tags($html))return nl2br(e($html));$html=strip_tags($html,'<p><br><div><strong><b><em><i><u><h2><h3><ul><ol><li><blockquote><a>');$html=preg_replace('/\\s+on[a-z]+\\s*=\\s*(["\\']).*?\\1/isu','',$html);$html=preg_replace('/href\\s*=\\s*(["\\'])\\s*javascript:[^"\\']*\\1/iu','href="#"',$html);return $html;}
+function td_article_body($html) {
+    $html = trim((string) $html);
+    if ($html === '') {
+        return '<span class="text-muted">Bài viết chưa có nội dung.</span>';
+    }
+    if ($html === strip_tags($html)) {
+        return nl2br(e($html));
+    }
+    return strip_tags($html, '<p><br><div><strong><b><em><i><u><h2><h3><ul><ol><li><blockquote><a>');
+}
 ?>
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Thi đua – CDS</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"><link href="<?= BASE_URL ?>assets/article-editor.css?v=20260804" rel="stylesheet">
