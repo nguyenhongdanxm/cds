@@ -92,6 +92,31 @@ function session_user_from_record(array $u) {
     ];
 }
 
+function refresh_current_user_session() {
+    if (empty($_SESSION['cds_user']) || !is_array($_SESSION['cds_user'])) return;
+    $sessionUser = $_SESSION['cds_user'];
+    $record = null;
+    foreach (get_users() as $candidate) {
+        if (!empty($sessionUser['id']) && ($candidate['id'] ?? '') === $sessionUser['id']) { $record = $candidate; break; }
+        if (empty($sessionUser['id']) && strcasecmp($candidate['username'] ?? '', $sessionUser['username'] ?? '') === 0) { $record = $candidate; break; }
+    }
+    if (!$record || empty($record['active'])) {
+        unset($_SESSION['cds_user'], $_SESSION['pccm_admin']);
+        return;
+    }
+
+    $_SESSION['cds_user'] = session_user_from_record($record);
+    $effective = function_exists('permission_effective_access_for_user')
+        ? permission_effective_access_for_user($record)
+        : [];
+    $hasChuyenMon = ($record['role'] ?? '') === 'admin';
+    foreach (permission_features_catalog() as $code => $meta) {
+        if (($meta['module'] ?? '') !== 'chuyenmon') continue;
+        if (level_rank($effective[$code] ?? 'none') >= level_rank('view')) { $hasChuyenMon = true; break; }
+    }
+    $_SESSION['pccm_admin'] = $hasChuyenMon;
+}
+
 function attempt_login($username, $password) {
     $u = find_user($username);
     if (!$u || empty($u['active']) || !password_verify($password, $u['password_hash'] ?? '')) {
@@ -160,5 +185,6 @@ function show_flash() {
 
 init_users();
 require_once __DIR__ . '/permissions.php';
+refresh_current_user_session();
 require_once __DIR__ . '/audit.php';
 cds_audit_touch();
