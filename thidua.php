@@ -86,12 +86,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if($action==='article_save'){
     $id=trim($_POST['id']??'');$title=trim($_POST['title']??'');$content=trim($_POST['content']??'');$link=trim($_POST['link']??'');$found=false;
     if($title===''){flash('Vui lòng nhập tên bài viết.','danger');header('Location: '.BASE_URL.'thidua.php?section=student_profile');exit;}
-    foreach($data['articles'] as &$article)if(($article['id']??'')===$id){$article=array_merge($article,['title'=>$title,'content'=>$content,'link'=>$link,'updated_by'=>$user['name']??'','updated_at'=>date('c')]);$found=true;break;}unset($article);
+    foreach($data['articles'] as &$article)if(($article['id']??'')===$id){
+      $articleOwner=(string)($article['created_by']??$article['updated_by']??'');
+      if(!$canViewAll && $articleOwner!=='' && $articleOwner!==(string)($user['name']??'')){unset($article);http_response_code(403);exit('Không được sửa bài viết của người khác.');}
+      $article=array_merge($article,['title'=>$title,'content'=>$content,'link'=>$link,'updated_by'=>$user['name']??'','updated_at'=>date('c')]);$found=true;break;
+    }unset($article);
     if(!$found)$data['articles'][]=['id'=>'tda_'.bin2hex(random_bytes(4)),'title'=>$title,'date'=>date('Y-m-d'),'content'=>$content,'link'=>$link,'created_by'=>$user['name']??'','created_at'=>date('c')];
     save_json($dataFile,$data);flash($found?'Đã cập nhật bài viết.':'Đã đăng bài viết.');header('Location: '.BASE_URL.'thidua.php?section=student_profile');exit;
   }
   if($action==='article_delete'&&$canDelete){
-    $id=trim($_POST['id']??'');$data['articles']=array_values(array_filter($data['articles'],fn($row)=>($row['id']??'')!==$id));save_json($dataFile,$data);flash('Đã xóa bài viết.','warning');header('Location: '.BASE_URL.'thidua.php?section=student_profile');exit;
+    $id=trim($_POST['id']??'');$targetArticle=null;foreach($data['articles'] as $candidate)if(($candidate['id']??'')===$id){$targetArticle=$candidate;break;}
+    $articleOwner=(string)($targetArticle['created_by']??$targetArticle['updated_by']??'');
+    if(!$targetArticle||(!$canViewAll&&$articleOwner!==''&&$articleOwner!==(string)($user['name']??''))){http_response_code(403);exit('Không được xóa bài viết của người khác.');}
+    $data['articles']=array_values(array_filter($data['articles'],fn($row)=>($row['id']??'')!==$id));save_json($dataFile,$data);flash('Đã xóa bài viết.','warning');header('Location: '.BASE_URL.'thidua.php?section=student_profile');exit;
   }
   if ($action === 'delete' && $canDelete) {
     $id=trim($_POST['id']??'');
