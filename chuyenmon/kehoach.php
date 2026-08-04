@@ -70,23 +70,19 @@ require_once 'includes/header.php';
 </ul>
 
 <?php if ($tab === 'chitieu'): ?>
-<style>
-.news-list{display:grid;gap:.85rem;margin-bottom:1.25rem}.news-item{display:flex;gap:1rem;align-items:flex-start;padding:1rem 1.15rem;border:1px solid #dfe7ef;border-radius:14px;background:#fff;box-shadow:0 3px 12px rgba(15,23,42,.05)}.news-date{flex:0 0 62px;padding:.55rem .35rem;border-radius:11px;background:#e8f0fe;color:#1f4e79;text-align:center}.news-date strong,.news-date span{display:block}.news-date strong{font-size:1.25rem}.news-copy{min-width:0}.news-copy a{font-size:1.06rem;font-weight:750;color:#1f4e79;text-decoration:none}.news-copy a:hover{text-decoration:underline}.news-copy p{margin:.35rem 0 0;color:#64748b}.article-admin{margin-top:1rem}.article-admin>summary{display:inline-flex;align-items:center;gap:.45rem;padding:.65rem 1rem;border:1px solid #b8c8d8;border-radius:10px;background:#fff;color:#1f4e79;font-weight:700;cursor:pointer;list-style:none}.article-admin[open]>summary{margin-bottom:1rem;background:#e8f0fe}
-</style>
-<section>
-  <div class="d-flex justify-content-between align-items-center mb-3"><div><h4 class="mb-1"><i class="bi bi-newspaper"></i> Bài viết chỉ tiêu chuyên môn</h4><div class="text-muted small">Chọn tiêu đề để đọc nội dung và mở văn bản liên quan.</div></div><span class="badge bg-primary rounded-pill"><?= count($items) ?> bài</span></div>
-  <div class="news-list">
-    <?php foreach ($items as $it): $ts = !empty($it['date']) ? strtotime($it['date']) : time(); ?>
-      <article class="news-item">
-        <time class="news-date"><strong><?= date('d', $ts) ?></strong><span>Th <?= date('m', $ts) ?></span></time>
-        <div class="news-copy"><a href="<?= BASE_URL ?>baiviet.php?id=<?= urlencode($it['id'] ?? '') ?>"><?= e($it['title'] ?? '') ?></a><p><?= e(mb_strimwidth($it['content'] ?? '', 0, 170, '…', 'UTF-8')) ?></p></div>
-      </article>
-    <?php endforeach; ?>
-    <?php if (!$items): ?><div class="alert alert-light border text-muted mb-0">Chưa có bài viết chỉ tiêu chuyên môn.</div><?php endif; ?>
-  </div>
-</section>
-<details class="article-admin"><summary><i class="bi bi-pencil-square"></i> Quản lý bài viết</summary>
-<?php endif; ?>
+<link href="<?= BASE_URL ?>../assets/article-editor.css?v=20260804" rel="stylesheet">
+<div class="article-feed">
+<?php foreach ($items as $it): ?>
+<article class="article-feed-item"><div class="article-feed-copy"><a href="<?= BASE_URL ?>baiviet.php?id=<?= urlencode($it['id']??'') ?>"><?= e($it['title']??'') ?></a><p><?= e(mb_strimwidth(strip_tags($it['content']??''),0,180,'…','UTF-8')) ?></p></div><div class="article-feed-actions"><button class="btn btn-sm btn-outline-primary" type="button" title="Sửa" data-id="<?= e($it['id']??'') ?>" data-title="<?= e($it['title']??'') ?>" data-content="<?= e(base64_encode($it['content']??'')) ?>" data-link="<?= e($it['link']??'') ?>" data-file="<?= e($it['file_path']??'') ?>" onclick="editArticle(this)"><i class="bi bi-pencil"></i></button><form method="post" action="<?= BASE_URL ?>kehoach.php?tab=chitieu" onsubmit="return confirm('Xóa bài viết này?')"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($it['id']??'') ?>"><button class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></button></form></div></article>
+<?php endforeach;if(!$items): ?><div class="alert alert-light border text-muted">Chưa có bài viết.</div><?php endif; ?>
+</div>
+<details class="article-manage" id="cmArticleManager"><summary><i class="bi bi-pencil-square"></i> Thêm bài viết</summary><form method="post" enctype="multipart/form-data" class="article-compose" action="<?= BASE_URL ?>kehoach.php?tab=chitieu"><input type="hidden" name="action" value="save"><input type="hidden" name="id" id="article_id"><input type="hidden" name="file_path" id="article_file"><input type="hidden" name="date" value="<?= date('Y-m-d') ?>"><div class="mb-3"><label class="form-label fw-semibold">Tiêu đề bài viết</label><input class="form-control" name="title" id="article_title" required></div><div class="mb-3"><label class="form-label fw-semibold">Nội dung</label><textarea hidden name="content" id="article_content"></textarea><div class="article-editor" id="cmArticleEditor" data-article-editor data-hidden="article_content"><div class="article-toolbar"><select data-format><option value="">Đoạn văn</option><option value="h2">Tiêu đề lớn</option><option value="h3">Tiêu đề nhỏ</option><option value="p">Đoạn văn</option></select><button type="button" data-cmd="bold"><i class="bi bi-type-bold"></i></button><button type="button" data-cmd="italic"><i class="bi bi-type-italic"></i></button><button type="button" data-cmd="underline"><i class="bi bi-type-underline"></i></button><button type="button" data-cmd="insertUnorderedList"><i class="bi bi-list-ul"></i></button><button type="button" data-cmd="insertOrderedList"><i class="bi bi-list-ol"></i></button><button type="button" data-cmd="justifyLeft"><i class="bi bi-text-left"></i></button><button type="button" data-cmd="justifyCenter"><i class="bi bi-text-center"></i></button><button type="button" data-cmd="justifyRight"><i class="bi bi-text-right"></i></button><button type="button" data-cmd="createLink"><i class="bi bi-link-45deg"></i></button><button type="button" data-cmd="removeFormat"><i class="bi bi-eraser"></i></button></div><div class="article-editor-area" contenteditable="true" data-editor-area data-placeholder="Soạn nội dung bài viết tại đây..."></div></div></div><div class="mb-3"><label class="form-label fw-semibold">Link văn bản liên quan</label><input class="form-control" type="url" name="link" id="article_link" placeholder="https://..."></div><div class="mb-3"><label class="form-label fw-semibold">File đính kèm</label><input class="form-control" type="file" name="file"></div><button class="btn btn-primary" type="submit"><i class="bi bi-floppy"></i> Lưu bài viết</button> <button class="btn btn-outline-secondary" type="button" onclick="resetArticle()">Làm mới</button></form></details>
+<script src="<?= BASE_URL ?>../assets/article-editor.js?v=20260804"></script><script>
+function decodeArticle(value){try{var bytes=Uint8Array.from(atob(value||''),function(c){return c.charCodeAt(0)});return new TextDecoder().decode(bytes)}catch(e){return ''}}
+function editArticle(button){article_id.value=button.dataset.id||'';article_title.value=button.dataset.title||'';article_link.value=button.dataset.link||'';article_file.value=button.dataset.file||'';setArticleEditorContent('cmArticleEditor',decodeArticle(button.dataset.content));cmArticleManager.open=true;cmArticleManager.scrollIntoView({behavior:'smooth'})}
+function resetArticle(){article_id.value='';article_title.value='';article_link.value='';article_file.value='';setArticleEditorContent('cmArticleEditor','')}
+</script>
+<?php else: ?>
 
 <div class="row g-3">
   <div class="col-lg-4">
@@ -207,7 +203,7 @@ require_once 'includes/header.php';
     </div></div>
   </div>
 </div>
-<?php if ($tab === 'chitieu'): ?></details><?php endif; ?>
+<?php endif; ?>
 
 <div class="modal fade" id="viewModal" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
   <div class="modal-header"><h5 class="modal-title" id="viewTitle">Xem</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
