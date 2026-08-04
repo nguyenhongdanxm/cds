@@ -71,9 +71,12 @@ function cm_article_body($html) {
 require_once 'includes/header.php';
 ?>
 <style>
-body > main.container,
-body > .container,
-main.container {
+.container,
+.container-sm,
+.container-md,
+.container-lg,
+.container-xl,
+.container-xxl {
     width: 100% !important;
     max-width: none !important;
 }
