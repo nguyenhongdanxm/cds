@@ -23,7 +23,7 @@ function permission_modules_catalog() {
 function permission_features_catalog() {
     return [
         // Chuyên môn
-        'cm.tracuu'   => ['module' => 'chuyenmon', 'label' => 'Tra cứu / xem kết quả phân công', 'group' => 'PCCM'],
+        'cm.tracuu'   => ['module' => 'chuyenmon', 'label' => 'Tra cứu phân công chuyên môn', 'group' => 'PCCM'],
         'cm.pccm'     => ['module' => 'chuyenmon', 'label' => 'Phân công · danh sách · đổi chéo · rà soát', 'group' => 'PCCM'],
         'cm.nhaplieu' => ['module' => 'chuyenmon', 'label' => 'Nhập liệu (GV · môn · lớp · kiêm nhiệm)', 'group' => 'PCCM'],
         'cm.thongke'  => ['module' => 'chuyenmon', 'label' => 'Thống kê PCCM', 'group' => 'PCCM'],
@@ -55,10 +55,14 @@ function permission_features_catalog() {
         'vb.xem'      => ['module' => 'vanban', 'label' => 'Xem văn bản và biểu mẫu', 'group' => 'Văn bản'],
         'vb.quanly'   => ['module' => 'vanban', 'label' => 'Thêm · sửa · phát hành văn bản', 'group' => 'Văn bản'],
 
-        // Thi đua
-        'td.xem'      => ['module' => 'thidua', 'label' => 'Xem kết quả thi đua', 'group' => 'Thi đua'],
-        'td.capnhat'  => ['module' => 'thidua', 'label' => 'Nhập và cập nhật thi đua', 'group' => 'Thi đua'],
-        'td.duyet'    => ['module' => 'thidua', 'label' => 'Duyệt và chốt kết quả', 'group' => 'Thi đua'],
+        // Thi đua — quyền đến từng menu con
+        'td.teacher_attendance'  => ['module' => 'thidua', 'label' => 'Giáo viên · Chấm công', 'group' => 'Thi đua'],
+        'td.teacher_achievement' => ['module' => 'thidua', 'label' => 'Giáo viên · Thành tích', 'group' => 'Thi đua'],
+        'td.teacher_rating'      => ['module' => 'thidua', 'label' => 'Giáo viên · Xếp loại', 'group' => 'Thi đua'],
+        'td.student_score'       => ['module' => 'thidua', 'label' => 'Học sinh · Bảng điểm', 'group' => 'Thi đua'],
+        'td.student_profile'     => ['module' => 'thidua', 'label' => 'Học sinh · Hồ sơ thi đua', 'group' => 'Thi đua'],
+        'td.stats'               => ['module' => 'thidua', 'label' => 'Thống kê thi đua', 'group' => 'Thi đua'],
+        'td.all_data'            => ['module' => 'thidua', 'label' => 'Xem dữ liệu của tất cả giáo viên/lớp', 'group' => 'Phạm vi dữ liệu'],
 
         // Truyền thông
         'tt.xem'      => ['module' => 'truyenthong', 'label' => 'Xem nội dung truyền thông', 'group' => 'Truyền thông'],
@@ -99,12 +103,13 @@ function permission_default_groups() {
     $cmEdit = ['cm.pccm','cm.nhaplieu'];
     $ntView = ['nt.tongquan','nt.danhsach','nt.thongke'];
     $ntEdit = ['nt.diemdanh','nt.baoan','nt.ravao'];
+    $tdSections = ['td.teacher_attendance','td.teacher_achievement','td.teacher_rating','td.student_score','td.student_profile','td.stats'];
 
     return [
         'bgh' => [
             'label' => 'Ban giám hiệu',
             'access' => array_merge(
-                $view(array_merge($cmView, $ntView, ['csdl.view','csdl.export','vb.xem','td.xem','tt.xem','hl.xem','tc.xem','tc.baocao'])),
+                $view(array_merge($cmView, $ntView, array_merge(['csdl.view','csdl.export','vb.xem','tt.xem','hl.xem','tc.xem','tc.baocao','td.all_data'], $tdSections))),
                 $edit($cmEdit)
             ),
         ],
@@ -138,8 +143,8 @@ function permission_default_groups() {
         'doandoi' => [
             'label' => 'Đoàn – Đội',
             'access' => array_merge(
-                $view(['cm.dashboard','cm.tracuu','csdl.view','nt.danhsach','td.xem','tt.xem']),
-                $edit(['td.capnhat','tt.bientap'])
+                $view(array_merge(['cm.dashboard','cm.tracuu','csdl.view','nt.danhsach','tt.xem','td.all_data'], $tdSections)),
+                $edit(array_merge($tdSections, ['tt.bientap']))
             ),
         ],
         'thuvien_thietbi' => [
@@ -167,10 +172,18 @@ function permission_groups_all() {
         $saved[$key]['access'] = is_array($saved[$key]['access'] ?? null) ? $saved[$key]['access'] : [];
     }
 
-    // Tự chuyển nhóm cũ từ quyền Báo cáo gộp sang bốn quyền menu con.
+    // Tự chuyển các nhóm quyền cũ sang quyền menu con.
     foreach ($saved as &$group) {
         if (!is_array($group)) continue;
         $group['access'] = is_array($group['access'] ?? null) ? $group['access'] : [];
+        if (isset($group['access']['td.xem']) || isset($group['access']['td.capnhat']) || isset($group['access']['td.duyet'])) {
+            $legacyTdLevel = $group['access']['td.capnhat'] ?? ($group['access']['td.xem'] ?? 'view');
+            foreach (['td.teacher_attendance','td.teacher_achievement','td.teacher_rating','td.student_score','td.student_profile','td.stats'] as $childCode) {
+                if (!isset($group['access'][$childCode])) $group['access'][$childCode] = $legacyTdLevel;
+            }
+            if (isset($group['access']['td.duyet']) && !isset($group['access']['td.all_data'])) $group['access']['td.all_data'] = 'view';
+            unset($group['access']['td.xem'], $group['access']['td.capnhat'], $group['access']['td.duyet']);
+        }
         if (isset($group['access']['cm.baocao'])) {
             $legacyLevel = $group['access']['cm.baocao'];
             foreach (['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'] as $childCode) {
@@ -214,6 +227,13 @@ function permission_legacy_access_for_user(array $user) {
     $access = [];
     $legacyPerms = is_array($user['perms'] ?? null) ? $user['perms'] : [];
     foreach ($legacyPerms as $code) $access[$code] = 'view';
+    if (in_array('td.xem', $legacyPerms, true) || in_array('td.capnhat', $legacyPerms, true)) {
+        $legacyTdLevel = in_array('td.capnhat', $legacyPerms, true) ? 'edit' : 'view';
+        foreach (['td.teacher_attendance','td.teacher_achievement','td.teacher_rating','td.student_score','td.student_profile','td.stats'] as $childCode) {
+            $access[$childCode] = $legacyTdLevel;
+        }
+    }
+    if (in_array('td.duyet', $legacyPerms, true)) $access['td.all_data'] = 'view';
     if (in_array('cm.baocao', $legacyPerms, true)) {
         foreach (['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'] as $childCode) {
             $access[$childCode] = 'view';
