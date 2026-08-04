@@ -191,7 +191,7 @@ function resetArticle(){article_id.value='';article_title.value='';article_link.
             </td>
             <td>
               <?php if ($tab === 'chitieu'): ?>
-                <a class="fw-bold text-decoration-none" href="<?= BASE_URL ?>baiviet.php?id=<?= urlencode($it['id'] ?? '') ?>"><i class="bi bi-file-text me-1"></i><?= e($it['title'] ?? '') ?></a>
+                <a class="fw-bold text-decoration-none" href="<?= BASE_URL ?>kehoach.php?tab=chitieu&article=<?= urlencode($it['id'] ?? '') ?>"><i class="bi bi-file-text me-1"></i><?= e($it['title'] ?? '') ?></a>
               <?php else: ?><strong><?= e($it['title'] ?? '') ?></strong><?php endif; ?>
               <?php if (!empty($it['content'])): ?><div class="small text-muted"><?= e(mb_strimwidth($it['content'],0,80,'…','UTF-8')) ?></div><?php endif; ?>
             </td>
