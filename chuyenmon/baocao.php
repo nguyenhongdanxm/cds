@@ -2,17 +2,26 @@
 $page_title = 'Báo cáo chuyên môn';
 require_once 'includes/functions.php';
 require_once 'includes/cm_docs.php';
-require_login();
 
 $tabs = [
-    'dinhky' => ['Báo cáo định kỳ', 'bi-calendar-month'],
-    'tiendo' => ['Tiến độ chương trình', 'bi-graph-up'],
-    'dugio' => ['Dự giờ', 'bi-eye'],
-    'kythi' => ['Kết quả cuộc thi', 'bi-trophy'],
+    'dinhky' => ['Báo cáo định kỳ', 'bi-calendar-month', 'cm.baocao.dinhky'],
+    'tiendo' => ['Tiến độ chương trình', 'bi-graph-up', 'cm.baocao.tiendo'],
+    'dugio' => ['Dự giờ', 'bi-eye', 'cm.baocao.dugio'],
+    'kythi' => ['Kết quả cuộc thi', 'bi-trophy', 'cm.baocao.kythi'],
 ];
-$tab = $_GET['tab'] ?? 'dinhky';
-if (!isset($tabs[$tab])) $tab = 'dinhky';
-if ($tab === 'thang') $tab = 'dinhky';
+$requestedTab = $_GET['tab'] ?? '';
+if ($requestedTab === 'thang') $requestedTab = 'dinhky';
+$tab = isset($tabs[$requestedTab]) ? $requestedTab : '';
+if ($tab === '') {
+    foreach ($tabs as $tabKey => $tabInfo) {
+        if (cds_can_feature($tabInfo[2], 'view')) { $tab = $tabKey; break; }
+    }
+}
+if ($tab === '') $tab = 'dinhky';
+$_GET['tab'] = $tab;
+require_login();
+
+$tabs = array_filter($tabs, fn($tabInfo) => cds_can_feature($tabInfo[2], 'view'));
 $section = 'bc_' . $tab;
 $teachers = get_teachers_sorted();
 
