@@ -28,7 +28,11 @@ function permission_features_catalog() {
         'cm.nhaplieu' => ['module' => 'chuyenmon', 'label' => 'Nhập liệu (GV · môn · lớp · kiêm nhiệm)', 'group' => 'PCCM'],
         'cm.thongke'  => ['module' => 'chuyenmon', 'label' => 'Thống kê PCCM', 'group' => 'PCCM'],
         'cm.kehoach'  => ['module' => 'chuyenmon', 'label' => 'Kế hoạch (văn bản · TB · chỉ tiêu)', 'group' => 'Kế hoạch'],
-        'cm.baocao'   => ['module' => 'chuyenmon', 'label' => 'Báo cáo · dự giờ · cuộc thi', 'group' => 'Báo cáo'],
+        'cm.baocao'   => ['module' => 'chuyenmon', 'label' => 'Báo cáo chuyên môn (menu cha)', 'group' => 'Báo cáo'],
+        'cm.baocao.dinhky' => ['module' => 'chuyenmon', 'label' => 'Báo cáo định kỳ', 'group' => 'Báo cáo'],
+        'cm.baocao.tiendo' => ['module' => 'chuyenmon', 'label' => 'Tiến độ chương trình', 'group' => 'Báo cáo'],
+        'cm.baocao.dugio'  => ['module' => 'chuyenmon', 'label' => 'Dự giờ', 'group' => 'Báo cáo'],
+        'cm.baocao.kythi'  => ['module' => 'chuyenmon', 'label' => 'Kết quả cuộc thi', 'group' => 'Báo cáo'],
         'cm.dashboard'=> ['module' => 'chuyenmon', 'label' => 'Bảng điều khiển trang chủ CM', 'group' => 'Chung'],
 
         // CSDL
@@ -214,6 +218,15 @@ function permission_effective_access_for_user(array $user) {
     foreach (permission_group_access_for_user($user) as $code => $level) {
         if (level_rank($level) > level_rank($access[$code] ?? 'none')) $access[$code] = $level;
     }
+
+    // Tương thích nhóm quyền cũ: quyền menu cha Báo cáo được kế thừa cho các menu con.
+    $reportParentLevel = $access['cm.baocao'] ?? 'none';
+    foreach (['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'] as $childCode) {
+        if (level_rank($reportParentLevel) > level_rank($access[$childCode] ?? 'none')) {
+            $access[$childCode] = $reportParentLevel;
+        }
+    }
+
     foreach (($user['permission_overrides'] ?? []) as $code => $level) {
         if (!isset(permission_features_catalog()[$code])) continue;
         if ($level === 'inherit') continue;
@@ -234,7 +247,7 @@ function can_perm_level($perm, $level = 'view') {
 
 /** Role mẫu → modules + perms mặc định */
 function permission_role_presets() {
-    $allCm = ['cm.dashboard','cm.tracuu','cm.pccm','cm.nhaplieu','cm.thongke','cm.kehoach','cm.baocao'];
+    $allCm = ['cm.dashboard','cm.tracuu','cm.pccm','cm.nhaplieu','cm.thongke','cm.kehoach','cm.baocao','cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
     $allNt = ['nt.tongquan','nt.danhsach','nt.diemdanh','nt.baoan','nt.ravao','nt.yte','nt.lichtruc','nt.thucdon','nt.thongke'];
     $allCs = ['csdl.view','csdl.edit','csdl.export','csdl.year'];
 
