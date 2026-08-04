@@ -641,6 +641,15 @@ function require_login() {
         http_response_code(403);
         exit('Tài khoản chưa được cấp quyền cho chức năng Chuyên môn này.');
     }
+
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+        $action = strtolower(trim((string)($_POST['action'] ?? '')));
+        $requiredLevel = str_contains($action, 'delete') || str_contains($action, 'xoa') ? 'delete' : 'edit';
+        if (!cds_can_feature(cds_current_page_feature(), $requiredLevel)) {
+            http_response_code(403);
+            exit('Tài khoản chưa được cấp quyền ' . ($requiredLevel === 'delete' ? 'xóa' : 'cập nhật') . ' cho chức năng Chuyên môn này.');
+        }
+    }
 }
 
 if (session_status() === PHP_SESSION_NONE) session_start();
