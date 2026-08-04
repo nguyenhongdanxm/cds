@@ -13,6 +13,34 @@ $isAdmin = (($user['role'] ?? '') === 'admin');
 $school = defined('SCHOOL_NAME') ? SCHOOL_NAME : 'Trường';
 $reporters = array_values(array_filter(csdl_teachers_all(), fn($teacher) => !empty($teacher['active']) && trim($teacher['name'] ?? '') !== ''));
 
+function noitru_attendance_school_students() {
+    $classMap = [];
+    foreach (csdl_classes_all() as $classRow) {
+        $classMap[(string)($classRow['id'] ?? '')] = trim((string)($classRow['name'] ?? ''));
+    }
+    $students = [];
+    foreach (csdl_students_all() as $student) {
+        if (isset($student['active']) && empty($student['active'])) continue;
+        $student['class_name'] = trim((string)($student['class_name'] ?? ''));
+        if ($student['class_name'] === '') {
+            $student['class_name'] = $classMap[(string)($student['class_id'] ?? '')] ?? '';
+        }
+        $student['room_ktx'] = (string)($student['room_ktx'] ?? '');
+        $students[] = $student;
+    }
+    usort($students, function($a, $b) {
+        $classCompare = strnatcasecmp((string)($a['class_name'] ?? ''), (string)($b['class_name'] ?? ''));
+        return $classCompare !== 0 ? $classCompare : strnatcasecmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
+    });
+    return $students;
+}
+
+$attendanceStudents = noitru_attendance_school_students();
+$attendanceStudentMap = [];
+foreach ($attendanceStudents as $attendanceStudent) {
+    $attendanceStudentMap[(string)($attendanceStudent['id'] ?? '')] = $attendanceStudent;
+}
+
 $date  = $_GET['date']  ?? date('Y-m-d');
 $shift = trim($_GET['shift'] ?? '');
 $class = trim($_GET['class'] ?? '');
@@ -62,16 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($ids as $i => $sid) {
             $sid = trim($sid);
             if ($sid === '') continue;
-            $studentAllowed = false;
-            $studentClass = '';
-            foreach (noitru_boarders_live() as $student) {
-                if (($student['id'] ?? '') === $sid && can_class($student['class_name'] ?? '')) {
-                    $studentAllowed = true;
-                    $studentClass = $student['class_name'] ?? '';
-                    break;
-                }
-            }
-            if (!$studentAllowed) continue;
+            $student = $attendanceStudentMap[$sid] ?? null;
+            if (!$student) continue;
+            $studentClass = $student['class_name'] ?? '';
             $st = $sts[$i] ?? 'present';
             if (!in_array($st, ['present','absent','late','excused'], true)) $st = 'present';
             $ex = $excuses[$i] ?? '';
@@ -100,16 +121,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach (($_POST['sid'] ?? []) as $sid) {
             $sid = trim($sid);
             if ($sid === '') continue;
-            $studentAllowed = false;
-            $studentClass = '';
-            foreach (noitru_boarders_live() as $student) {
-                if (($student['id'] ?? '') === $sid && can_class($student['class_name'] ?? '')) {
-                    $studentAllowed = true;
-                    $studentClass = $student['class_name'] ?? '';
-                    break;
-                }
-            }
-            if (!$studentAllowed) continue;
+            $student = $attendanceStudentMap[$sid] ?? null;
+            if (!$student) continue;
+            $studentClass = $student['class_name'] ?? '';
             noitru_att_upsert([
                 'date'=>$d,'shift'=>$sh,'student_id'=>$sid,
                 'status'=>$st,'excuse'=>'','reason'=>'','class_name'=>$studentClass,'by'=>$user['name']??'',
@@ -170,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$boarders = array_values(array_filter(noitru_boarders_live(), fn($student) => can_class($student['class_name'] ?? '')));
+$boarders = $attendanceStudents;
 $attMap = noitru_att_for($date, $shift);
 
 $byClass = [];
