@@ -104,6 +104,7 @@ function permission_default_groups() {
     $ntView = ['nt.tongquan','nt.danhsach','nt.thongke'];
     $ntEdit = ['nt.diemdanh','nt.baoan','nt.ravao'];
     $tdSections = ['td.teacher_attendance','td.teacher_achievement','td.teacher_rating','td.student_score','td.student_profile','td.stats'];
+    $tdNonAttendance = ['td.teacher_achievement','td.teacher_rating','td.student_score','td.student_profile','td.stats'];
 
     return [
         'bgh' => [
@@ -115,7 +116,10 @@ function permission_default_groups() {
         ],
         'totruong' => [
             'label' => 'Tổ trưởng chuyên môn',
-            'access' => array_merge($view(array_merge(['cm.dashboard','cm.tracuu','cm.thongke','cm.kehoach','csdl.view'], $cmReports)), $edit(['cm.pccm'])),
+            'access' => array_merge(
+                $view(array_merge(['cm.dashboard','cm.tracuu','cm.thongke','cm.kehoach','csdl.view'], $cmReports)),
+                $edit(['cm.pccm','td.teacher_attendance'])
+            ),
         ],
         'gvcn' => [
             'label' => 'Giáo viên chủ nhiệm',
@@ -144,7 +148,7 @@ function permission_default_groups() {
             'label' => 'Đoàn – Đội',
             'access' => array_merge(
                 $view(array_merge(['cm.dashboard','cm.tracuu','csdl.view','nt.danhsach','tt.xem','td.all_data'], $tdSections)),
-                $edit(array_merge($tdSections, ['tt.bientap']))
+                $edit(array_merge($tdNonAttendance, ['tt.bientap']))
             ),
         ],
         'thuvien_thietbi' => [
@@ -171,6 +175,13 @@ function permission_groups_all() {
         $saved[$key]['label'] = trim((string)($saved[$key]['label'] ?? $group['label'])) ?: $group['label'];
         $saved[$key]['access'] = is_array($saved[$key]['access'] ?? null) ? $saved[$key]['access'] : [];
     }
+    // Tổ trưởng được chấm công; phạm vi đúng tổ được giới hạn tại thidua.php.
+    if (isset($saved['totruong']) && level_rank($saved['totruong']['access']['td.teacher_attendance'] ?? 'none') < level_rank('edit')) {
+        $saved['totruong']['access']['td.teacher_attendance'] = 'edit';
+    }
+    if (isset($saved['doandoi']) && level_rank($saved['doandoi']['access']['td.teacher_attendance'] ?? 'none') > level_rank('view')) {
+        $saved['doandoi']['access']['td.teacher_attendance'] = 'view';
+    }
 
     // Tự chuyển các nhóm quyền cũ sang quyền menu con.
     foreach ($saved as &$group) {
@@ -193,6 +204,11 @@ function permission_groups_all() {
         }
     }
     unset($group);
+    // Chuẩn hóa lại sau khi chuyển quyền cũ.
+    if (isset($saved['totruong'])) $saved['totruong']['access']['td.teacher_attendance'] = 'edit';
+    if (isset($saved['doandoi']) && level_rank($saved['doandoi']['access']['td.teacher_attendance'] ?? 'none') > level_rank('view')) {
+        $saved['doandoi']['access']['td.teacher_attendance'] = 'view';
+    }
     return $saved;
 }
 
