@@ -568,14 +568,21 @@ function cds_refresh_chuyenmon_session() {
         || cds_can_feature_for_user($record, 'cm.pccm', 'edit')
         || cds_can_feature_for_user($record, 'cm.nhaplieu', 'edit')
         || cds_can_feature_for_user($record, 'cm.kehoach', 'edit')
-        || cds_can_feature_for_user($record, 'cm.baocao', 'edit');
+        || cds_can_feature_for_user($record, 'cm.baocao', 'edit')
+        || cds_can_feature_for_user($record, 'cm.baocao.dinhky', 'edit')
+        || cds_can_feature_for_user($record, 'cm.baocao.tiendo', 'edit')
+        || cds_can_feature_for_user($record, 'cm.baocao.dugio', 'edit')
+        || cds_can_feature_for_user($record, 'cm.baocao.kythi', 'edit');
 }
 
 function cds_feature_access_for_user($user, $code) {
     if (($user['role'] ?? '') === 'admin') return 'delete';
     $access = 'none';
+    $reportChildren = ['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
+    $isReportChild = in_array($code, $reportChildren, true);
     if ((int)($user['permission_model_version'] ?? 1) < 2) {
-        if (in_array($code, is_array($user['perms']??null)?$user['perms']:[], true)) $access = 'view';
+        $legacyPerms = is_array($user['perms']??null)?$user['perms']:[];
+        if (in_array($code, $legacyPerms, true) || ($isReportChild && in_array('cm.baocao', $legacyPerms, true))) $access = 'view';
         $moduleLevel = $user['modules']['chuyenmon'] ?? 'none';
         if (cds_permission_rank($moduleLevel) > cds_permission_rank($access)) $access = $moduleLevel;
     }
@@ -589,7 +596,12 @@ function cds_feature_access_for_user($user, $code) {
         }
     }
     foreach ((array)($user['groups'] ?? []) as $groupKey) {
-        $level = $groups[$groupKey][$code] ?? 'none';
+        $groupAccess = $groups[$groupKey] ?? [];
+        $level = $groupAccess[$code] ?? 'none';
+        if ($isReportChild) {
+            $parentLevel = $groupAccess['cm.baocao'] ?? 'none';
+            if (cds_permission_rank($parentLevel) > cds_permission_rank($level)) $level = $parentLevel;
+        }
         if (cds_permission_rank($level) > cds_permission_rank($access)) $access = $level;
     }
 
@@ -620,8 +632,19 @@ function cds_current_page_feature() {
         'doicheo'=>'cm.pccm', 'rasoat'=>'cm.pccm', 'sua'=>'cm.pccm',
         'giaovien'=>'cm.nhaplieu', 'monhoc'=>'cm.nhaplieu', 'lop'=>'cm.nhaplieu',
         'kiemnhiem'=>'cm.nhaplieu', 'thongke'=>'cm.thongke', 'xuat_bang'=>'cm.thongke',
-        'kehoach'=>'cm.kehoach', 'baocao'=>'cm.baocao',
+        'kehoach'=>'cm.kehoach',
     ];
+    if ($page === 'baocao') {
+        $tab = $_GET['tab'] ?? 'dinhky';
+        if ($tab === 'thang') $tab = 'dinhky';
+        $reportMap = [
+            'dinhky'=>'cm.baocao.dinhky',
+            'tiendo'=>'cm.baocao.tiendo',
+            'dugio'=>'cm.baocao.dugio',
+            'kythi'=>'cm.baocao.kythi',
+        ];
+        return $reportMap[$tab] ?? 'cm.baocao.dinhky';
+    }
     return $map[$page] ?? 'cm.dashboard';
 }
 
