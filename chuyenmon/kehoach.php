@@ -54,6 +54,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $items = cm_docs_by_section($section);
+$articleView = null;
+if ($tab === 'chitieu' && !empty($_GET['article'])) {
+    foreach ($items as $candidate) if (($candidate['id'] ?? '') === (string)$_GET['article']) { $articleView = $candidate; break; }
+}
+function cm_article_body($html) {
+    $html=trim((string)$html);if($html==='')return '<span class="text-muted">Bài viết chưa có nội dung.</span>';if($html===strip_tags($html))return nl2br(e($html));
+    $html=strip_tags($html,'<p><br><div><strong><b><em><i><u><h2><h3><ul><ol><li><blockquote><a>');
+    $html=preg_replace('/\\s+on[a-z]+\\s*=\\s*(["\\']).*?\\1/isu','',$html);$html=preg_replace('/href\\s*=\\s*(["\\'])\\s*javascript:[^"\\']*\\1/iu','href="#"',$html);return $html;
+}
 require_once 'includes/header.php';
 ?>
 
@@ -71,9 +80,13 @@ require_once 'includes/header.php';
 
 <?php if ($tab === 'chitieu'): ?>
 <link href="<?= BASE_URL ?>../assets/article-editor.css?v=20260804" rel="stylesheet">
+<?php if ($articleView): ?>
+<a class="btn btn-outline-secondary mb-3" href="<?= BASE_URL ?>kehoach.php?tab=chitieu"><i class="bi bi-arrow-left"></i> Quay lại danh sách</a>
+<article class="article-compose"><h1 class="h3 text-primary mb-3"><?= e($articleView['title']??'') ?></h1><div class="article-editor-area p-0"><?= cm_article_body($articleView['content']??'') ?></div><div class="mt-4"><?php if(!empty($articleView['link'])): ?><a class="btn btn-outline-primary me-2" target="_blank" rel="noopener" href="<?= e($articleView['link']) ?>"><i class="bi bi-link-45deg"></i> Mở văn bản liên quan</a><?php endif; ?><?php if(!empty($articleView['file_path'])): ?><a class="btn btn-outline-success" target="_blank" rel="noopener" href="<?= e(cm_file_url($articleView['file_path'])) ?>"><i class="bi bi-file-earmark-arrow-down"></i> File đính kèm</a><?php endif; ?></div></article>
+<?php else: ?>
 <div class="article-feed">
 <?php foreach ($items as $it): ?>
-<article class="article-feed-item"><div class="article-feed-copy"><a href="<?= BASE_URL ?>baiviet.php?id=<?= urlencode($it['id']??'') ?>"><?= e($it['title']??'') ?></a><p><?= e(mb_strimwidth(strip_tags($it['content']??''),0,180,'…','UTF-8')) ?></p></div><div class="article-feed-actions"><button class="btn btn-sm btn-outline-primary" type="button" title="Sửa" data-id="<?= e($it['id']??'') ?>" data-title="<?= e($it['title']??'') ?>" data-content="<?= e(base64_encode($it['content']??'')) ?>" data-link="<?= e($it['link']??'') ?>" data-file="<?= e($it['file_path']??'') ?>" onclick="editArticle(this)"><i class="bi bi-pencil"></i></button><form method="post" action="<?= BASE_URL ?>kehoach.php?tab=chitieu" onsubmit="return confirm('Xóa bài viết này?')"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($it['id']??'') ?>"><button class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></button></form></div></article>
+<article class="article-feed-item"><div class="article-feed-copy"><a href="<?= BASE_URL ?>kehoach.php?tab=chitieu&article=<?= urlencode($it['id']??'') ?>"><?= e($it['title']??'') ?></a><p><?= e(mb_strimwidth(strip_tags($it['content']??''),0,180,'…','UTF-8')) ?></p></div><div class="article-feed-actions"><button class="btn btn-sm btn-outline-primary" type="button" title="Sửa" data-id="<?= e($it['id']??'') ?>" data-title="<?= e($it['title']??'') ?>" data-content="<?= e(base64_encode($it['content']??'')) ?>" data-link="<?= e($it['link']??'') ?>" data-file="<?= e($it['file_path']??'') ?>" onclick="editArticle(this)"><i class="bi bi-pencil"></i></button><form method="post" action="<?= BASE_URL ?>kehoach.php?tab=chitieu" onsubmit="return confirm('Xóa bài viết này?')"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($it['id']??'') ?>"><button class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></button></form></div></article>
 <?php endforeach;if(!$items): ?><div class="alert alert-light border text-muted">Chưa có bài viết.</div><?php endif; ?>
 </div>
 <details class="article-manage" id="cmArticleManager"><summary><i class="bi bi-pencil-square"></i> Thêm bài viết</summary><form method="post" enctype="multipart/form-data" class="article-compose" action="<?= BASE_URL ?>kehoach.php?tab=chitieu"><input type="hidden" name="action" value="save"><input type="hidden" name="id" id="article_id"><input type="hidden" name="file_path" id="article_file"><input type="hidden" name="date" value="<?= date('Y-m-d') ?>"><div class="mb-3"><label class="form-label fw-semibold">Tiêu đề bài viết</label><input class="form-control" name="title" id="article_title" required></div><div class="mb-3"><label class="form-label fw-semibold">Nội dung</label><textarea hidden name="content" id="article_content"></textarea><div class="article-editor" id="cmArticleEditor" data-article-editor data-hidden="article_content"><div class="article-toolbar"><select data-format><option value="">Đoạn văn</option><option value="h2">Tiêu đề lớn</option><option value="h3">Tiêu đề nhỏ</option><option value="p">Đoạn văn</option></select><button type="button" data-cmd="bold"><i class="bi bi-type-bold"></i></button><button type="button" data-cmd="italic"><i class="bi bi-type-italic"></i></button><button type="button" data-cmd="underline"><i class="bi bi-type-underline"></i></button><button type="button" data-cmd="insertUnorderedList"><i class="bi bi-list-ul"></i></button><button type="button" data-cmd="insertOrderedList"><i class="bi bi-list-ol"></i></button><button type="button" data-cmd="justifyLeft"><i class="bi bi-text-left"></i></button><button type="button" data-cmd="justifyCenter"><i class="bi bi-text-center"></i></button><button type="button" data-cmd="justifyRight"><i class="bi bi-text-right"></i></button><button type="button" data-cmd="createLink"><i class="bi bi-link-45deg"></i></button><button type="button" data-cmd="removeFormat"><i class="bi bi-eraser"></i></button></div><div class="article-editor-area" contenteditable="true" data-editor-area data-placeholder="Soạn nội dung bài viết tại đây..."></div></div></div><div class="mb-3"><label class="form-label fw-semibold">Link văn bản liên quan</label><input class="form-control" type="url" name="link" id="article_link" placeholder="https://..."></div><div class="mb-3"><label class="form-label fw-semibold">File đính kèm</label><input class="form-control" type="file" name="file"></div><button class="btn btn-primary" type="submit"><i class="bi bi-floppy"></i> Lưu bài viết</button> <button class="btn btn-outline-secondary" type="button" onclick="resetArticle()">Làm mới</button></form></details>
@@ -82,6 +95,7 @@ function decodeArticle(value){try{var bytes=Uint8Array.from(atob(value||''),func
 function editArticle(button){article_id.value=button.dataset.id||'';article_title.value=button.dataset.title||'';article_link.value=button.dataset.link||'';article_file.value=button.dataset.file||'';setArticleEditorContent('cmArticleEditor',decodeArticle(button.dataset.content));cmArticleManager.open=true;cmArticleManager.scrollIntoView({behavior:'smooth'})}
 function resetArticle(){article_id.value='';article_title.value='';article_link.value='';article_file.value='';setArticleEditorContent('cmArticleEditor','')}
 </script>
+<?php endif; ?>
 <?php else: ?>
 
 <div class="row g-3">
