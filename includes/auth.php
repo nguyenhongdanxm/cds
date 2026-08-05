@@ -205,3 +205,4 @@ refresh_current_user_session();
 require_once __DIR__ . '/audit.php';
 cds_audit_touch();
 require_once __DIR__ . '/noitru_meal_history.php';
+require_once __DIR__ . '/noitru_duty_filter.php';
