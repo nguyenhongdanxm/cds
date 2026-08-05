@@ -1,0 +1,68 @@
+:root{
+  --cds-font:Inter,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --cds-text:#172033;
+  --cds-muted:#64748b;
+  --cds-border:#dfe7ef;
+  --cds-surface:#ffffff;
+  --cds-bg:#f3f6f9;
+  --cds-radius:16px;
+  --cds-shadow:0 5px 20px rgba(15,23,42,.065);
+  --cds-focus:0 0 0 3px rgba(37,99,235,.22);
+}
+html{font-size:clamp(14px,13px + .18vw,16px);text-size-adjust:100%;-webkit-text-size-adjust:100%}
+body{font-family:var(--cds-font)!important;color:var(--cds-text);line-height:1.55;overflow-wrap:anywhere}
+body:not(.index-public){background-color:var(--cds-bg)}
+h1,h2,h3,h4,h5,h6{color:var(--cds-text);font-weight:750;line-height:1.25;letter-spacing:-.015em}
+p,li,td,th,label,input,select,textarea,button{font-size:inherit}
+a{transition:color .16s ease,background-color .16s ease,border-color .16s ease,transform .16s ease}
+small,.small,.text-muted{color:var(--cds-muted)!important}
+.container,.container-fluid{--bs-gutter-x:clamp(1rem,2.5vw,2rem)}
+main{min-width:0}
+.card,.card-soft,.panel,.nt-panel,.duty-panel{border:1px solid var(--cds-border)!important;border-radius:var(--cds-radius)!important;box-shadow:var(--cds-shadow);background:var(--cds-surface)}
+.card-header,.panel-head{border-color:var(--cds-border)}
+.btn{min-height:38px;border-radius:11px;font-weight:650;display:inline-flex;align-items:center;justify-content:center;gap:.38rem;white-space:normal}
+.btn-sm{min-height:34px;border-radius:9px}
+.form-control,.form-select{min-height:42px;border-color:#cfd9e3;border-radius:11px;color:var(--cds-text);background-color:#fff}
+.form-control:focus,.form-select:focus,.btn:focus-visible,a:focus-visible,button:focus-visible{border-color:#60a5fa;box-shadow:var(--cds-focus);outline:0}
+.form-label{font-weight:650;color:#334155;margin-bottom:.38rem}
+.form-check-input{width:1.1em;height:1.1em}
+.alert{border-radius:13px;border-width:1px;color:#172033}
+.alert-info{background:#eaf6ff;border-color:#b9def8;color:#0c4a6e}.alert-success{background:#ecfdf3;border-color:#a7e7be;color:#14532d}.alert-warning{background:#fff8df;border-color:#f6d477;color:#713f12}.alert-danger{background:#fff0f0;border-color:#f3b2b2;color:#7f1d1d}
+.badge{font-weight:700;letter-spacing:.01em}
+.table{--bs-table-color:var(--cds-text);margin-bottom:0}
+.table>:not(caption)>*>*{padding:.68rem .72rem;vertical-align:middle;border-color:#e5ebf1}
+.table thead th{background:#edf4fa!important;color:#24435f!important;font-weight:750;line-height:1.25}
+.table-striped>tbody>tr:nth-of-type(odd)>*{background-color:#f8fafc}
+.table-hover>tbody>tr:hover>*{background-color:#eef6fc}
+.table-responsive{border-radius:13px;-webkit-overflow-scrolling:touch}
+.dropdown-menu{border:1px solid var(--cds-border);border-radius:14px;box-shadow:0 16px 42px rgba(15,23,42,.18);padding:.45rem}
+.dropdown-item{border-radius:9px;padding:.58rem .7rem;color:#26384a}.dropdown-item:hover,.dropdown-item:focus{background:#edf6ff;color:#174d78}
+.modal-content,.offcanvas{border:1px solid var(--cds-border);border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.24)}
+.nav-tabs,.nav-pills{gap:.25rem}.nav-tabs .nav-link,.nav-pills .nav-link{border-radius:10px;font-weight:650}
+.bi{line-height:1}
+.cds-nav{box-shadow:0 4px 18px rgba(15,23,42,.14);margin-bottom:clamp(.85rem,2vw,1.5rem)!important}
+.cds-nav .navbar-brand{font-size:clamp(1rem,.9rem + .3vw,1.25rem)}
+.cds-nav .nav-link,.cds-nav .btn{color:#fff}
+.cds-nav .btn-warning{color:#422006!important}
+@media(max-width:991.98px){
+  body{line-height:1.5}
+  .container,.container-fluid{--bs-gutter-x:1rem}
+  .row{--bs-gutter-x:.8rem}
+  .card-body{padding:1rem}
+  h1{font-size:clamp(1.45rem,7vw,2rem)}h2{font-size:clamp(1.3rem,6vw,1.75rem)}h3{font-size:clamp(1.2rem,5.2vw,1.55rem)}h4{font-size:clamp(1.1rem,4.6vw,1.35rem)}
+  .table>:not(caption)>*>*{padding:.58rem .6rem}
+  .navbar-collapse{padding:.65rem 0 .35rem}
+  .cds-nav .navbar-nav{align-items:stretch!important}.cds-nav .dropdown-menu{max-height:58vh}
+  input,select,textarea{font-size:16px!important}
+}
+@media(max-width:575.98px){
+  body{font-size:14px}
+  .card,.card-soft,.panel,.nt-panel,.duty-panel{border-radius:14px!important}
+  .btn:not(.btn-sm){min-height:42px}
+  .d-flex.flex-wrap>.btn{flex:0 1 auto}
+  .table{font-size:.86rem}
+  .table thead th{white-space:nowrap}
+  .modal-dialog{margin:.5rem}.modal-content{border-radius:16px}
+  .pagination{flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
