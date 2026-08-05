@@ -249,8 +249,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'meals
 // Chèn lịch sử và mở giao diện sửa sau khóa cho tài khoản được cấp quyền.
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && empty($_GET['export'])) {
     $canLocked = nt_meal_history_can_edit_locked();
-    ob_start(function ($html) use ($canLocked) {
-        $panel = nt_meal_history_panel_html();
+    $panel = nt_meal_history_panel_html();
+    ob_start(function ($html) use ($canLocked, $panel) {
         $script = '';
         if ($canLocked) {
             $script = '<script>(function(){var f=document.getElementById("mealReportForm");if(!f)return;var locked=f.querySelectorAll("input.meal-absent:disabled");if(!locked.length)return;locked.forEach(function(x){x.disabled=false;});var body=f.querySelector(".card-body");if(body){var a=document.createElement("div");a.className="alert alert-warning py-2";a.innerHTML="<i class=\"bi bi-unlock\"></i> Bạn có quyền sửa báo ăn sau khóa. Thao tác sẽ được ghi vào lịch sử.";body.insertBefore(a,body.firstChild);}if(!f.querySelector(".meal-save-bar")){var bar=document.createElement("div");bar.className="card-body border-top meal-save-bar";bar.innerHTML="<button class=\"btn btn-warning w-100\" type=\"submit\"><i class=\"bi bi-pencil-square\"></i> Kiểm tra và lưu thay đổi sau khóa</button>";f.appendChild(bar);}})();</script>';
