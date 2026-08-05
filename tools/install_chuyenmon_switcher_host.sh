@@ -22,4 +22,8 @@ if ! /usr/bin/grep -q "cds_responsive_layout.php" "$CM_HEADER"; then
   /bin/sed -i "/<body>/a\\<?php require_once __DIR__ . '/cds_responsive_layout.php'; ?>" "$CM_HEADER"
 fi
 
-echo "Đã gắn bộ chuyển module và bố cục responsive vào Chuyên môn."
+if ! /usr/bin/grep -q "cds-global-ui.css" "$CM_HEADER"; then
+  /bin/sed -i "/<\/head>/i\\<link rel=\"stylesheet\" href=\"/assets/cds-global-ui.css?v=20260805-1\">" "$CM_HEADER"
+fi
+
+echo "Đã gắn bộ chuyển module, bố cục responsive và giao diện dùng chung vào Chuyên môn."
