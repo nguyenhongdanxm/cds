@@ -76,18 +76,34 @@ function current_user() {
 }
 
 function session_user_from_record(array $u) {
+    $role = (string)($u['role'] ?? 'gv');
+    $groups = is_array($u['groups'] ?? null) ? $u['groups'] : [];
+    $classes = is_array($u['classes'] ?? null) ? $u['classes'] : [];
+    $homeroomClasses = is_array($u['homeroom_classes'] ?? null) ? $u['homeroom_classes'] : [];
+
+    // Tài khoản GVCN cũ có thể chỉ lưu vai trò mà chưa lưu checkbox nhóm GVCN.
+    // Chuẩn hóa ngay trong session để mọi chức năng nội trú áp dụng đúng phạm vi lớp.
+    if ($role === 'gvcn' && !in_array('gvcn', $groups, true)) $groups[] = 'gvcn';
+
+    // GVCN chỉ thao tác lớp chủ nhiệm. Dữ liệu cũ chưa có homeroom_classes
+    // vẫn dùng classes làm phạm vi dự phòng để không làm mất lớp đã gán.
+    if ($role === 'gvcn' || in_array('gvcn', $groups, true)) {
+        $homeroomScope = array_values(array_unique(array_filter(array_map('strval', $homeroomClasses))));
+        if ($homeroomScope) $classes = $homeroomScope;
+    }
+
     return [
         'id' => $u['id'] ?? '',
         'username' => $u['username'] ?? '',
         'name' => $u['name'] ?? ($u['username'] ?? ''),
-        'role' => $u['role'] ?? 'gv',
+        'role' => $role,
         'modules' => is_array($u['modules'] ?? null) ? $u['modules'] : [],
         'perms' => is_array($u['perms'] ?? null) ? $u['perms'] : [],
-        'groups' => is_array($u['groups'] ?? null) ? $u['groups'] : [],
+        'groups' => $groups,
         'permission_overrides' => is_array($u['permission_overrides'] ?? null) ? $u['permission_overrides'] : [],
         'permission_model_version' => (int)($u['permission_model_version'] ?? 1),
-        'classes' => is_array($u['classes'] ?? null) ? $u['classes'] : [],
-        'homeroom_classes' => is_array($u['homeroom_classes'] ?? null) ? $u['homeroom_classes'] : [],
+        'classes' => $classes,
+        'homeroom_classes' => $homeroomClasses,
         'teacher_name' => $u['teacher_name'] ?? '',
     ];
 }
