@@ -12,9 +12,9 @@ function cds_dashboard_sync_school_year_html(string $html): string {
     if ($label === '') return $html;
 
     $escaped = htmlspecialchars($label, ENT_QUOTES, 'UTF-8');
-    return preg_replace(
+    return preg_replace_callback(
         '/(<div class="school-year">.*?<strong>).*?(<\/strong>)/s',
-        '$1' . $escaped . '$2',
+        static fn(array $matches): string => $matches[1] . $escaped . $matches[2],
         $html,
         1
     ) ?? $html;
