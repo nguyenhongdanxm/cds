@@ -6,6 +6,7 @@
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/noitru_store.php';
+require_once __DIR__ . '/includes/noitru_assignment_store.php';
 
 require_login();
 require_perm('nt.danhsach');
@@ -22,7 +23,7 @@ if (function_exists('noitru_boarders_live')) {
 } else {
     $boarders = [];
 }
-$boarders = array_values($boarders);
+$boarders = noitru_assignment_apply(array_values($boarders));
 $stats = function_exists('noitru_boarders_stats') ? noitru_boarders_stats($boarders) : [
     'total' => count($boarders), 'male' => 0, 'female' => 0, 'rooms' => 0, 'meals' => 0,
 ];
@@ -94,14 +95,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') ==
         · Mâm: <?= (int)($stats['meals'] ?? 0) ?>
       </div>
     </div>
-    <?php if (can_edit_perm('nt.danhsach') && allowed_classes() === null): ?>
-    <form method="post" class="d-inline">
-      <input type="hidden" name="action" value="sync_boarders">
-      <button type="submit" class="btn btn-sm text-white" style="background:#d63384" onclick="return confirm('Đồng bộ danh sách nội trú từ CSDL?')">
-        <i class="bi bi-arrow-repeat"></i> Đồng bộ từ CSDL
-      </button>
-    </form>
-    <?php endif; ?>
+    <div class="d-flex flex-wrap gap-2 justify-content-end">
+      <?php if (can_edit_perm('nt.danhsach')): ?>
+        <?php if ($view === 'rooms'): ?><a class="btn btn-sm btn-primary" href="<?= BASE_URL ?>noitru_assign.php?mode=rooms"><i class="bi bi-door-open"></i> Chia phòng</a><?php endif; ?>
+        <?php if ($view === 'meals'): ?><a class="btn btn-sm btn-warning" href="<?= BASE_URL ?>noitru_assign.php?mode=meals"><i class="bi bi-diagram-3"></i> Chia mâm</a><?php endif; ?>
+      <?php endif; ?>
+      <?php if (can_edit_perm('nt.danhsach') && allowed_classes() === null): ?>
+      <form method="post" class="d-inline">
+        <input type="hidden" name="action" value="sync_boarders">
+        <button type="submit" class="btn btn-sm text-white" style="background:#d63384" onclick="return confirm('Đồng bộ danh sách nội trú từ CSDL?')">
+          <i class="bi bi-arrow-repeat"></i> Đồng bộ từ CSDL
+        </button>
+      </form>
+      <?php endif; ?>
+    </div>
   </div>
 
   <?php if (function_exists('show_flash')) show_flash(); ?>
