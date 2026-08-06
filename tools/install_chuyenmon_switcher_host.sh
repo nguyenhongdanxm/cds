@@ -8,6 +8,8 @@ SWITCHER_SOURCE="includes/chuyenmon_module_switcher.php"
 LAYOUT_SOURCE="includes/chuyenmon_responsive_layout.php"
 CLEANUP_SOURCE="includes/chuyenmon_ui_cleanup.php"
 AUTH_GATE_SOURCE="includes/chuyenmon_auth_gate.php"
+FRACTIONAL_SOURCE="includes/chuyenmon_fractional_periods.php"
+FRACTIONAL_PATCHER="tools/patch_chuyenmon_fractional.php"
 GLOBAL_UI_SOURCE="assets/cds-global-ui.css"
 
 if [ ! -d "$CM_INCLUDE" ] || [ ! -f "$CM_HEADER" ]; then
@@ -19,6 +21,7 @@ fi
 /bin/cp "$LAYOUT_SOURCE" "$CM_INCLUDE/cds_responsive_layout.php"
 /bin/cp "$CLEANUP_SOURCE" "$CM_INCLUDE/cds_ui_cleanup.php"
 /bin/cp "$AUTH_GATE_SOURCE" "$CM_INCLUDE/cds_auth_gate.php"
+/bin/cp "$FRACTIONAL_SOURCE" "$CM_INCLUDE/cds_fractional_periods.php"
 
 # Dùng một lớp giao diện nền tảng chung, không ghi đè mật độ riêng của Chuyên môn.
 if [ -f "$GLOBAL_UI_SOURCE" ] && ! /usr/bin/grep -q "cds-global-ui.css" "$CM_HEADER"; then
@@ -40,6 +43,14 @@ fi
 if ! /usr/bin/grep -q "cds_ui_cleanup.php" "$CM_HEADER"; then
   /bin/sed -i "/<body>/a\\<?php require_once __DIR__ . '/cds_ui_cleanup.php'; ?>" "$CM_HEADER"
 fi
+if ! /usr/bin/grep -q "cds_fractional_periods.php" "$CM_HEADER"; then
+  /bin/sed -i "/<body>/a\\<?php require_once __DIR__ . '/cds_fractional_periods.php'; ?>" "$CM_HEADER"
+fi
+
+# Không ép các trường số tiết về số nguyên khi xử lý POST/lưu dữ liệu.
+if [ -f "$FRACTIONAL_PATCHER" ]; then
+  /usr/local/bin/php "$FRACTIONAL_PATCHER" "$CM_ROOT" 2>/dev/null || /usr/bin/php "$FRACTIONAL_PATCHER" "$CM_ROOT"
+fi
 
 # Không còn màn hình đăng nhập riêng trong Chuyên môn.
 cat > "$CM_ROOT/login.php" <<'PHP'
@@ -49,4 +60,4 @@ header('Location: /login.php?next=' . urlencode($next));
 exit;
 PHP
 
-echo "Đã gắn bố cục CDS, ẩn menu trùng và dùng đăng nhập chung cho Chuyên môn."
+echo "Đã gắn bố cục CDS, ẩn menu trùng, dùng đăng nhập chung và hỗ trợ số tiết lẻ 0,1 cho Chuyên môn."
