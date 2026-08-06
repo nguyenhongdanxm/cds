@@ -13,6 +13,7 @@ MANUAL_SOURCE="includes/chuyenmon_manual_assignment.php"
 MANUAL_PROCESSOR_SOURCE="includes/chuyenmon_manual_assignment_processor.php"
 MANUAL_TABLE_FIX_SOURCE="includes/chuyenmon_manual_table_fix.php"
 MANUAL_DELETE_FIX_SOURCE="includes/chuyenmon_manual_delete_fix.php"
+MANUAL_DELETE_ENDPOINT_SOURCE="includes/chuyenmon_manual_delete_endpoint.php"
 FRACTIONAL_PATCHER="tools/patch_chuyenmon_fractional.php"
 GLOBAL_UI_SOURCE="assets/cds-global-ui.css"
 
@@ -30,6 +31,7 @@ fi
 /bin/cp "$MANUAL_PROCESSOR_SOURCE" "$CM_INCLUDE/cds_manual_assignment_processor.php"
 /bin/cp "$MANUAL_TABLE_FIX_SOURCE" "$CM_INCLUDE/cds_manual_table_fix.php"
 /bin/cp "$MANUAL_DELETE_FIX_SOURCE" "$CM_INCLUDE/cds_manual_delete_fix.php"
+/bin/cp "$MANUAL_DELETE_ENDPOINT_SOURCE" "$CM_ROOT/cds_manual_delete.php"
 
 # Dùng một lớp giao diện nền tảng chung, không ghi đè mật độ riêng của Chuyên môn.
 if [ -f "$GLOBAL_UI_SOURCE" ] && ! /usr/bin/grep -q "cds-global-ui.css" "$CM_HEADER"; then
@@ -80,4 +82,4 @@ header('Location: /login.php?next=' . urlencode($next));
 exit;
 PHP
 
-echo "Đã sửa thao tác xóa phân công thủ công và cập nhật tổng số tiết."
+echo "Đã dùng endpoint độc lập để xóa phân công thủ công."
