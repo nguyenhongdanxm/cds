@@ -118,3 +118,4 @@ require_once __DIR__ . '/student_card_layout_fix.php';
 require_once __DIR__ . '/student_card_element_editor.php';
 require_once __DIR__ . '/student_card_print_cover_fix.php';
 require_once __DIR__ . '/student_card_render_consistency.php';
+require_once __DIR__ . '/student_card_save_layout_fix.php';
