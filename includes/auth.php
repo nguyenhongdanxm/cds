@@ -116,3 +116,4 @@ require_once __DIR__ . '/student_card_scale_loader.php';
 require_once __DIR__ . '/student_card_duplex_ui.php';
 require_once __DIR__ . '/student_card_layout_fix.php';
 require_once __DIR__ . '/student_card_element_editor.php';
+require_once __DIR__ . '/student_card_print_cover_fix.php';
