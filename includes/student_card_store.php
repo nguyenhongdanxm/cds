@@ -33,8 +33,10 @@ function student_card_token(string $studentId): string {
 
 function student_card_verify_url(array $student): string {
     $id = (string)($student['id'] ?? '');
-    $base = rtrim((defined('BASE_URL') ? BASE_URL : '/'), '/') . '/student_verify.php';
-    return $base . '?id=' . rawurlencode($id) . '&t=' . rawurlencode(student_card_token($id));
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = (string)($_SERVER['HTTP_HOST'] ?? 'cds.noitruxinman.edu.vn');
+    $path = rtrim((defined('BASE_URL') ? BASE_URL : '/'), '/') . '/student_verify.php';
+    return $scheme . '://' . $host . $path . '?id=' . rawurlencode($id) . '&t=' . rawurlencode(student_card_token($id));
 }
 
 function student_card_is_valid_token(string $studentId, string $token): bool {
