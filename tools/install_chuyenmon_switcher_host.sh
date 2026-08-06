@@ -12,6 +12,7 @@ FRACTIONAL_SOURCE="includes/chuyenmon_fractional_periods.php"
 MANUAL_SOURCE="includes/chuyenmon_manual_assignment.php"
 MANUAL_PROCESSOR_SOURCE="includes/chuyenmon_manual_assignment_processor.php"
 MANUAL_TABLE_FIX_SOURCE="includes/chuyenmon_manual_table_fix.php"
+MANUAL_DELETE_FIX_SOURCE="includes/chuyenmon_manual_delete_fix.php"
 FRACTIONAL_PATCHER="tools/patch_chuyenmon_fractional.php"
 GLOBAL_UI_SOURCE="assets/cds-global-ui.css"
 
@@ -28,6 +29,7 @@ fi
 /bin/cp "$MANUAL_SOURCE" "$CM_INCLUDE/cds_manual_assignment.php"
 /bin/cp "$MANUAL_PROCESSOR_SOURCE" "$CM_INCLUDE/cds_manual_assignment_processor.php"
 /bin/cp "$MANUAL_TABLE_FIX_SOURCE" "$CM_INCLUDE/cds_manual_table_fix.php"
+/bin/cp "$MANUAL_DELETE_FIX_SOURCE" "$CM_INCLUDE/cds_manual_delete_fix.php"
 
 # Dùng một lớp giao diện nền tảng chung, không ghi đè mật độ riêng của Chuyên môn.
 if [ -f "$GLOBAL_UI_SOURCE" ] && ! /usr/bin/grep -q "cds-global-ui.css" "$CM_HEADER"; then
@@ -61,6 +63,9 @@ fi
 if ! /usr/bin/grep -q "cds_manual_table_fix.php" "$CM_HEADER"; then
   /bin/sed -i "/<body>/a\\<?php require_once __DIR__ . '/cds_manual_table_fix.php'; ?>" "$CM_HEADER"
 fi
+if ! /usr/bin/grep -q "cds_manual_delete_fix.php" "$CM_HEADER"; then
+  /bin/sed -i "/<body>/a\\<?php require_once __DIR__ . '/cds_manual_delete_fix.php'; ?>" "$CM_HEADER"
+fi
 
 # Không ép các trường số tiết về số nguyên khi xử lý POST/lưu dữ liệu.
 if [ -f "$FRACTIONAL_PATCHER" ]; then
@@ -75,4 +80,4 @@ header('Location: /login.php?next=' . urlencode($next));
 exit;
 PHP
 
-echo "Đã hiển thị phân công thủ công đúng cột giảng dạy và cộng vào tổng số tiết."
+echo "Đã sửa thao tác xóa phân công thủ công và cập nhật tổng số tiết."
