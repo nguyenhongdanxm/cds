@@ -110,3 +110,4 @@ require_once __DIR__ . '/noitru_duty_filter.php';
 require_once __DIR__ . '/dashboard_home_controls.php';
 require_once __DIR__ . '/dashboard_school_year_sync.php';
 require_once __DIR__ . '/global_ui.php';
+require_once __DIR__ . '/student_card_link.php';
