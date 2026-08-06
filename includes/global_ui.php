@@ -25,6 +25,23 @@ function cds_global_ui_filter(string $html): string {
   }
   function markPublic(){if(location.pathname==='/'||/\/index\.php$/.test(location.pathname))document.body.classList.add('index-public')}
 
+  function setupAssignmentSync(){
+    if(!/\/noitru_assign\.php$/.test(location.pathname)||document.getElementById('cdsAssignSyncForm'))return;
+    var head=document.querySelector('.nt-page-head');
+    if(!head)return;
+    var mode=new URLSearchParams(location.search).get('mode')==='meals'?'meals':'rooms';
+    var label=mode==='rooms'?'phòng':'mâm';
+    var actions=head.querySelector('.d-flex.gap-2.flex-wrap')||head.lastElementChild;
+    if(!actions)return;
+    var form=document.createElement('form');
+    form.id='cdsAssignSyncForm';form.method='post';form.action='/noitru_assign_sync.php';form.className='d-inline';
+    form.innerHTML='<input type="hidden" name="mode" value="'+mode+'"><button type="submit" class="btn btn-sm btn-success"><i class="bi bi-database-check"></i> Cập nhật '+label+' vào CSDL</button>';
+    form.addEventListener('submit',function(e){
+      if(!confirm('Cập nhật kết quả chia '+label+' hiện tại vào hồ sơ học sinh trong Cơ sở dữ liệu? Dữ liệu '+label+' cũ của các học sinh đã chia sẽ được thay thế.'))e.preventDefault();
+    });
+    actions.insertBefore(form,actions.firstChild);
+  }
+
   function setupAssignmentFilters(){
     if(!/\/noitru_assign\.php$/.test(location.pathname))return;
     var bulkForm=document.getElementById('bulkAssignForm');
@@ -90,7 +107,7 @@ function cds_global_ui_filter(string $html): string {
     apply();
   }
 
-  function run(){markPublic();prepareTables();setupAssignmentFilters()}
+  function run(){markPublic();prepareTables();setupAssignmentSync();setupAssignmentFilters()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
   window.addEventListener('resize',function(){clearTimeout(window.__cdsResize);window.__cdsResize=setTimeout(prepareTables,180)},{passive:true});
 })();
