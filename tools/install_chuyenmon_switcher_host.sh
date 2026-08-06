@@ -10,6 +10,7 @@ CLEANUP_SOURCE="includes/chuyenmon_ui_cleanup.php"
 AUTH_GATE_SOURCE="includes/chuyenmon_auth_gate.php"
 FRACTIONAL_SOURCE="includes/chuyenmon_fractional_periods.php"
 MANUAL_SOURCE="includes/chuyenmon_manual_assignment.php"
+MANUAL_PROCESSOR_SOURCE="includes/chuyenmon_manual_assignment_processor.php"
 FRACTIONAL_PATCHER="tools/patch_chuyenmon_fractional.php"
 GLOBAL_UI_SOURCE="assets/cds-global-ui.css"
 
@@ -24,15 +25,19 @@ fi
 /bin/cp "$AUTH_GATE_SOURCE" "$CM_INCLUDE/cds_auth_gate.php"
 /bin/cp "$FRACTIONAL_SOURCE" "$CM_INCLUDE/cds_fractional_periods.php"
 /bin/cp "$MANUAL_SOURCE" "$CM_INCLUDE/cds_manual_assignment.php"
+/bin/cp "$MANUAL_PROCESSOR_SOURCE" "$CM_INCLUDE/cds_manual_assignment_processor.php"
 
 # Dùng một lớp giao diện nền tảng chung, không ghi đè mật độ riêng của Chuyên môn.
 if [ -f "$GLOBAL_UI_SOURCE" ] && ! /usr/bin/grep -q "cds-global-ui.css" "$CM_HEADER"; then
   /bin/sed -i "/<\/head>/i\\<link rel=\"stylesheet\" href=\"/assets/cds-global-ui.css?v=20260806-2\">" "$CM_HEADER"
 fi
 
-# Kiểm tra đăng nhập CDS trước khi xuất HTML.
+# Kiểm tra đăng nhập CDS và xử lý POST trước khi xuất bất kỳ HTML nào.
 if ! /usr/bin/grep -q "cds_auth_gate.php" "$CM_HEADER"; then
   /bin/sed -i "/require_once __DIR__ . '\/functions.php';/a\\require_once __DIR__ . '/cds_auth_gate.php';" "$CM_HEADER"
+fi
+if ! /usr/bin/grep -q "cds_manual_assignment_processor.php" "$CM_HEADER"; then
+  /bin/sed -i "/require_once __DIR__ . '\/cds_auth_gate.php';/a\\require_once __DIR__ . '/cds_manual_assignment_processor.php';" "$CM_HEADER"
 fi
 
 # Giao diện chung được nạp ngay sau body.
@@ -65,4 +70,4 @@ header('Location: /login.php?next=' . urlencode($next));
 exit;
 PHP
 
-echo "Đã gắn bố cục CDS, phân công thủ công, đăng nhập chung và hỗ trợ số tiết lẻ 0,1 cho Chuyên môn."
+echo "Đã sửa lưu phân công thủ công, bổ sung lớp và gắn vào danh sách từng giáo viên."
