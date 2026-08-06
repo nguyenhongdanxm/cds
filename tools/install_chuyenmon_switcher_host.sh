@@ -14,6 +14,8 @@ MANUAL_PROCESSOR_SOURCE="includes/chuyenmon_manual_assignment_processor.php"
 MANUAL_TABLE_FIX_SOURCE="includes/chuyenmon_manual_table_fix.php"
 MANUAL_DELETE_FIX_SOURCE="includes/chuyenmon_manual_delete_fix.php"
 MANUAL_DELETE_ENDPOINT_SOURCE="includes/chuyenmon_manual_delete_endpoint.php"
+MANUAL_SAVE_FIX_SOURCE="includes/chuyenmon_manual_save_fix.php"
+MANUAL_SAVE_ENDPOINT_SOURCE="includes/chuyenmon_manual_save_endpoint.php"
 FRACTIONAL_PATCHER="tools/patch_chuyenmon_fractional.php"
 GLOBAL_UI_SOURCE="assets/cds-global-ui.css"
 
@@ -32,13 +34,13 @@ fi
 /bin/cp "$MANUAL_TABLE_FIX_SOURCE" "$CM_INCLUDE/cds_manual_table_fix.php"
 /bin/cp "$MANUAL_DELETE_FIX_SOURCE" "$CM_INCLUDE/cds_manual_delete_fix.php"
 /bin/cp "$MANUAL_DELETE_ENDPOINT_SOURCE" "$CM_ROOT/cds_manual_delete.php"
+/bin/cp "$MANUAL_SAVE_FIX_SOURCE" "$CM_INCLUDE/cds_manual_save_fix.php"
+/bin/cp "$MANUAL_SAVE_ENDPOINT_SOURCE" "$CM_ROOT/cds_manual_save.php"
 
-# Dùng một lớp giao diện nền tảng chung, không ghi đè mật độ riêng của Chuyên môn.
 if [ -f "$GLOBAL_UI_SOURCE" ] && ! /usr/bin/grep -q "cds-global-ui.css" "$CM_HEADER"; then
   /bin/sed -i "/<\/head>/i\\<link rel=\"stylesheet\" href=\"/assets/cds-global-ui.css?v=20260806-2\">" "$CM_HEADER"
 fi
 
-# Kiểm tra đăng nhập CDS và xử lý POST trước khi xuất bất kỳ HTML nào.
 if ! /usr/bin/grep -q "cds_auth_gate.php" "$CM_HEADER"; then
   /bin/sed -i "/require_once __DIR__ . '\/functions.php';/a\\require_once __DIR__ . '/cds_auth_gate.php';" "$CM_HEADER"
 fi
@@ -46,7 +48,6 @@ if ! /usr/bin/grep -q "cds_manual_assignment_processor.php" "$CM_HEADER"; then
   /bin/sed -i "/require_once __DIR__ . '\/cds_auth_gate.php';/a\\require_once __DIR__ . '/cds_manual_assignment_processor.php';" "$CM_HEADER"
 fi
 
-# Giao diện chung được nạp ngay sau body.
 if ! /usr/bin/grep -q "cds_module_switcher.php" "$CM_HEADER"; then
   /bin/sed -i "/<body>/a\\<?php require_once __DIR__ . '/cds_module_switcher.php'; ?>" "$CM_HEADER"
 fi
@@ -68,13 +69,14 @@ fi
 if ! /usr/bin/grep -q "cds_manual_delete_fix.php" "$CM_HEADER"; then
   /bin/sed -i "/<body>/a\\<?php require_once __DIR__ . '/cds_manual_delete_fix.php'; ?>" "$CM_HEADER"
 fi
+if ! /usr/bin/grep -q "cds_manual_save_fix.php" "$CM_HEADER"; then
+  /bin/sed -i "/<body>/a\\<?php require_once __DIR__ . '/cds_manual_save_fix.php'; ?>" "$CM_HEADER"
+fi
 
-# Không ép các trường số tiết về số nguyên khi xử lý POST/lưu dữ liệu.
 if [ -f "$FRACTIONAL_PATCHER" ]; then
   /usr/local/bin/php "$FRACTIONAL_PATCHER" "$CM_ROOT" 2>/dev/null || /usr/bin/php "$FRACTIONAL_PATCHER" "$CM_ROOT"
 fi
 
-# Không còn màn hình đăng nhập riêng trong Chuyên môn.
 cat > "$CM_ROOT/login.php" <<'PHP'
 <?php
 $next = (string)($_GET['next'] ?? '/chuyenmon/');
@@ -82,4 +84,4 @@ header('Location: /login.php?next=' . urlencode($next));
 exit;
 PHP
 
-echo "Đã dùng endpoint độc lập để xóa phân công thủ công."
+echo "Đã dùng endpoint độc lập để thêm và xóa phân công thủ công."
