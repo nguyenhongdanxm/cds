@@ -123,7 +123,7 @@ function permission_default_groups() {
         ],
         'gvcn' => [
             'label' => 'Giáo viên chủ nhiệm',
-            'access' => array_merge($view(['cm.dashboard','cm.tracuu','csdl.view','nt.danhsach','td.student_score']), $edit($ntEdit)),
+            'access' => array_merge($view(['cm.dashboard','cm.tracuu','cm.baocao.dugio','csdl.view','nt.danhsach','td.student_score']), $edit($ntEdit)),
         ],
         'gv' => [
             'label' => 'Giáo viên',
@@ -189,6 +189,9 @@ function permission_groups_all() {
         if (isset($saved[$teacherGroup]) && level_rank($saved[$teacherGroup]['access']['nt.danhsach'] ?? 'none') < level_rank('view')) {
             $saved[$teacherGroup]['access']['nt.danhsach'] = 'view';
         }
+        if (isset($saved[$teacherGroup]) && level_rank($saved[$teacherGroup]['access']['cm.baocao.dugio'] ?? 'none') < level_rank('view')) {
+            $saved[$teacherGroup]['access']['cm.baocao.dugio'] = 'view';
+        }
     }
     if (isset($saved['doandoi']) && level_rank($saved['doandoi']['access']['td.teacher_attendance'] ?? 'none') > level_rank('view')) {
         $saved['doandoi']['access']['td.teacher_attendance'] = 'view';
@@ -220,7 +223,10 @@ function permission_groups_all() {
     if (isset($saved['gvcn']) && !isset($saved['gvcn']['access']['td.student_score'])) $saved['gvcn']['access']['td.student_score'] = 'view';
     if (isset($saved['gvcn'])) $saved['gvcn']['access']['nt.diemdanh'] = 'edit';
     foreach (['gv','gvcn'] as $teacherGroup) {
-        if (isset($saved[$teacherGroup])) $saved[$teacherGroup]['access']['nt.danhsach'] = 'view';
+        if (isset($saved[$teacherGroup])) {
+            $saved[$teacherGroup]['access']['nt.danhsach'] = 'view';
+            $saved[$teacherGroup]['access']['cm.baocao.dugio'] = 'view';
+        }
     }
     if (isset($saved['doandoi']) && level_rank($saved['doandoi']['access']['td.teacher_attendance'] ?? 'none') > level_rank('view')) {
         $saved['doandoi']['access']['td.teacher_attendance'] = 'view';
