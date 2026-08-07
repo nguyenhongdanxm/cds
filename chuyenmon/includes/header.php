@@ -8,7 +8,7 @@ $tab_q = $_GET['tab'] ?? '';
 $pccm_pages = ['tracuu','tongquan','them','danhsach','doicheo','rasoat','sua','ketqua','giaovien','monhoc','lop','kiemnhiem','xuat_bang','thongke'];
 $pccm_active = in_array($current, $pccm_pages, true);
 $kh_pages = ['kehoach'];
-$bc_pages = ['baocao'];
+$bc_pages = ['baocao','dugio'];
 $cmMenuCan = fn($permission) => cds_can_feature($permission, 'view');
 $cmDisabled = fn($permission) => $cmMenuCan($permission) ? '' : ' permission-disabled';
 $pccmCanOpen = $cmMenuCan('cm.tracuu') || $cmMenuCan('cm.pccm') || $cmMenuCan('cm.nhaplieu') || $cmMenuCan('cm.thongke');
@@ -141,7 +141,7 @@ body{background:#f0f4f8;font-family:'Segoe UI',system-ui,sans-serif;color:#21252
   <ul class="dropdown-menu">
     <li><a class="dropdown-item <?= ($current==='baocao' && ($tab_q===''||$tab_q==='dinhky'))?'active':'' ?><?= $cmDisabled('cm.baocao.dinhky') ?>" href="<?= BASE_URL ?>baocao.php?tab=dinhky" <?= !$cmMenuCan('cm.baocao.dinhky')?'aria-disabled="true" tabindex="-1"':'' ?>>Báo cáo định kỳ</a></li>
     <li><a class="dropdown-item <?= ($current==='baocao' && $tab_q==='tiendo')?'active':'' ?><?= $cmDisabled('cm.baocao.tiendo') ?>" href="<?= BASE_URL ?>baocao.php?tab=tiendo" <?= !$cmMenuCan('cm.baocao.tiendo')?'aria-disabled="true" tabindex="-1"':'' ?>>Tiến độ chương trình</a></li>
-    <li><a class="dropdown-item <?= ($current==='baocao' && $tab_q==='dugio')?'active':'' ?><?= $cmDisabled('cm.baocao.dugio') ?>" href="<?= BASE_URL ?>baocao.php?tab=dugio" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>>Dự giờ</a></li>
+    <li><a class="dropdown-item <?= $current==='dugio'?'active':'' ?><?= $cmDisabled('cm.baocao.dugio') ?>" href="<?= BASE_URL ?>dugio.php" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>>Dự giờ</a></li>
     <li><a class="dropdown-item <?= ($current==='baocao' && $tab_q==='kythi')?'active':'' ?><?= $cmDisabled('cm.baocao.kythi') ?>" href="<?= BASE_URL ?>baocao.php?tab=kythi" <?= !$cmMenuCan('cm.baocao.kythi')?'aria-disabled="true" tabindex="-1"':'' ?>>Kết quả cuộc thi</a></li>
   </ul>
 </li>
