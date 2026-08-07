@@ -48,7 +48,7 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
   <meta name="theme-color" content="#0f4c81">
   <title>Trang chủ quản trị – <?= e(SCHOOL_SHORT) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260807-2" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260807-3" rel="stylesheet">
 </head>
 <body>
 <header class="app-header">
