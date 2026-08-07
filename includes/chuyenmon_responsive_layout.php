@@ -20,54 +20,40 @@ $cmLayoutActive = static function (array $pages, ?string $tab = null) use ($curr
 };
 
 $cmPccmActive = in_array($current, ['tracuu','tongquan','them','danhsach','doicheo','rasoat','sua','ketqua','giaovien','monhoc','lop','kiemnhiem','xuat_bang','thongke'], true);
-$cmPlanActive = $current === 'kehoach';
-$cmReportActive = $current === 'baocao';
+$cmPlanActive = $current === 'kehoach' || ($current === 'baocao' && in_array($cmLayoutTab,['dinhky','tiendo'],true));
+$cmReportActive = $current === 'dugio' || ($current === 'baocao' && $cmLayoutTab === 'kythi');
 
 $cmNavGroups = [
-    [
-        'label' => 'Tổng quan',
-        'items' => [
-            ['permission'=>'cm.dashboard','pages'=>['index'],'href'=>'index.php','icon'=>'bi-house-door','label'=>'Trang chủ'],
-            ['permission'=>'cm.tracuu','pages'=>['tracuu'],'href'=>'tracuu.php','icon'=>'bi-search','label'=>'Tra cứu phân công'],
-            ['permission'=>'cm.tracuu','pages'=>['ketqua'],'href'=>'ketqua.php','icon'=>'bi-folder2-open','label'=>'Kết quả phiên bản'],
-        ],
-    ],
-    [
-        'label' => 'Phân công chuyên môn',
-        'items' => [
-            ['permission'=>'cm.pccm','pages'=>['tongquan'],'href'=>'tongquan.php','icon'=>'bi-grid','label'=>'Tổng quan PCCM'],
-            ['permission'=>'cm.pccm','pages'=>['them','doicheo','rasoat','sua'],'href'=>'them.php','icon'=>'bi-pencil-square','label'=>'Phân công'],
-            ['permission'=>'cm.pccm','pages'=>['danhsach'],'href'=>'danhsach.php','icon'=>'bi-list-ul','label'=>'Danh sách'],
-            ['permission'=>'cm.thongke','pages'=>['thongke'],'href'=>'thongke.php','icon'=>'bi-bar-chart-line','label'=>'Thống kê PCCM'],
-            ['permission'=>'cm.thongke','pages'=>['xuat_bang'],'href'=>'xuat_bang.php','icon'=>'bi-printer','label'=>'Xuất bảng'],
-        ],
-    ],
-    [
-        'label' => 'Nhập liệu',
-        'items' => [
-            ['permission'=>'cm.nhaplieu','pages'=>['giaovien'],'href'=>'giaovien.php','icon'=>'bi-person-badge','label'=>'Giáo viên'],
-            ['permission'=>'cm.nhaplieu','pages'=>['monhoc'],'href'=>'monhoc.php','icon'=>'bi-journal-text','label'=>'Môn học & số tiết'],
-            ['permission'=>'cm.nhaplieu','pages'=>['lop'],'href'=>'lop.php','icon'=>'bi-people','label'=>'Lớp'],
-            ['permission'=>'cm.nhaplieu','pages'=>['kiemnhiem'],'href'=>'kiemnhiem.php','icon'=>'bi-person-workspace','label'=>'Kiêm nhiệm & số tiết'],
-        ],
-    ],
-    [
-        'label' => 'Kế hoạch',
-        'items' => [
-            ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'vanban','href'=>'kehoach.php?tab=vanban','icon'=>'bi-file-earmark-text','label'=>'Văn bản kế hoạch'],
-            ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'thongbao','href'=>'kehoach.php?tab=thongbao','icon'=>'bi-megaphone','label'=>'Thông báo chuyên môn'],
-            ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'chitieu','href'=>'kehoach.php?tab=chitieu','icon'=>'bi-bullseye','label'=>'Chỉ tiêu'],
-        ],
-    ],
-    [
-        'label' => 'Báo cáo',
-        'items' => [
-            ['permission'=>'cm.baocao.dinhky','pages'=>['baocao'],'tab'=>'dinhky','href'=>'baocao.php?tab=dinhky','icon'=>'bi-calendar-check','label'=>'Báo cáo định kỳ'],
-            ['permission'=>'cm.baocao.tiendo','pages'=>['baocao'],'tab'=>'tiendo','href'=>'baocao.php?tab=tiendo','icon'=>'bi-graph-up-arrow','label'=>'Tiến độ chương trình'],
-            ['permission'=>'cm.baocao.dugio','pages'=>['baocao'],'tab'=>'dugio','href'=>'baocao.php?tab=dugio','icon'=>'bi-eye','label'=>'Dự giờ'],
-            ['permission'=>'cm.baocao.kythi','pages'=>['baocao'],'tab'=>'kythi','href'=>'baocao.php?tab=kythi','icon'=>'bi-trophy','label'=>'Kết quả cuộc thi'],
-        ],
-    ],
+    ['label'=>'Tổng quan','items'=>[
+        ['permission'=>'cm.dashboard','pages'=>['index'],'href'=>'index.php','icon'=>'bi-house-door','label'=>'Tổng quan & công việc'],
+        ['permission'=>'cm.tracuu','pages'=>['tracuu'],'href'=>'tracuu.php','icon'=>'bi-search','label'=>'Tra cứu phân công'],
+        ['permission'=>'cm.tracuu','pages'=>['ketqua'],'href'=>'ketqua.php','icon'=>'bi-folder2-open','label'=>'Kết quả phiên bản'],
+        ['permission'=>'cm.baocao.dugio','pages'=>[],'href'=>'../danhgia.php?view=profile','icon'=>'bi-person-vcard','label'=>'Hồ sơ chuyên môn'],
+    ]],
+    ['label'=>'Phân công – Danh mục','items'=>[
+        ['permission'=>'cm.pccm','pages'=>['tongquan'],'href'=>'tongquan.php','icon'=>'bi-grid','label'=>'Tổng quan PCCM'],
+        ['permission'=>'cm.pccm','pages'=>['them','doicheo','rasoat','sua'],'href'=>'them.php','icon'=>'bi-pencil-square','label'=>'Phân công'],
+        ['permission'=>'cm.pccm','pages'=>['danhsach'],'href'=>'danhsach.php','icon'=>'bi-list-ul','label'=>'Danh sách'],
+        ['permission'=>'cm.nhaplieu','pages'=>['giaovien'],'href'=>'giaovien.php','icon'=>'bi-person-badge','label'=>'Giáo viên'],
+        ['permission'=>'cm.nhaplieu','pages'=>['monhoc'],'href'=>'monhoc.php','icon'=>'bi-journal-text','label'=>'Môn học & số tiết'],
+        ['permission'=>'cm.nhaplieu','pages'=>['lop'],'href'=>'lop.php','icon'=>'bi-people','label'=>'Lớp'],
+        ['permission'=>'cm.nhaplieu','pages'=>['kiemnhiem'],'href'=>'kiemnhiem.php','icon'=>'bi-person-workspace','label'=>'Kiêm nhiệm & số tiết'],
+        ['permission'=>'cm.thongke','pages'=>['thongke'],'href'=>'thongke.php','icon'=>'bi-bar-chart-line','label'=>'Thống kê PCCM'],
+        ['permission'=>'cm.thongke','pages'=>['xuat_bang'],'href'=>'xuat_bang.php','icon'=>'bi-printer','label'=>'Xuất bảng'],
+    ]],
+    ['label'=>'Kế hoạch – Thực hiện','items'=>[
+        ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'vanban','href'=>'kehoach.php?tab=vanban','icon'=>'bi-file-earmark-text','label'=>'Văn bản kế hoạch'],
+        ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'thongbao','href'=>'kehoach.php?tab=thongbao','icon'=>'bi-megaphone','label'=>'Thông báo chuyên môn'],
+        ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'chitieu','href'=>'kehoach.php?tab=chitieu','icon'=>'bi-bullseye','label'=>'Chỉ tiêu'],
+        ['permission'=>'cm.baocao.tiendo','pages'=>['baocao'],'tab'=>'tiendo','href'=>'baocao.php?tab=tiendo','icon'=>'bi-graph-up-arrow','label'=>'Tiến độ chương trình'],
+        ['permission'=>'cm.baocao.dinhky','pages'=>['baocao'],'tab'=>'dinhky','href'=>'baocao.php?tab=dinhky','icon'=>'bi-calendar-check','label'=>'Báo cáo định kỳ'],
+    ]],
+    ['label'=>'Theo dõi – Đánh giá','items'=>[
+        ['permission'=>'cm.baocao.dugio','pages'=>['dugio'],'href'=>'dugio.php','icon'=>'bi-eye','label'=>'Dự giờ'],
+        ['permission'=>'cm.baocao.kythi','pages'=>['baocao'],'tab'=>'kythi','href'=>'baocao.php?tab=kythi','icon'=>'bi-trophy','label'=>'Kết quả cuộc thi'],
+        ['permission'=>'cm.baocao.dugio','pages'=>[],'href'=>'../danhgia.php?view=profile','icon'=>'bi-person-lines-fill','label'=>'Hồ sơ đánh giá'],
+        ['permission'=>'cm.baocao.dugio','pages'=>[],'href'=>'../danhgia.php?view=overview','icon'=>'bi-bar-chart-line','label'=>'Tổng hợp đánh giá'],
+    ]],
 ];
 ?>
 <style id="cdsCmResponsiveLayout">
@@ -135,9 +121,9 @@ $cmNavGroups = [
 
 <nav class="cm-mobile-bottom" aria-label="Menu Chuyên môn trên điện thoại">
   <a class="<?= $current==='index'?'active':'' ?> <?= !$cmLayoutCan('cm.dashboard')?'disabled':'' ?>" href="<?= BASE_URL ?>index.php"><i class="bi bi-house-door"></i><span>Trang chủ</span></a>
-  <a class="<?= $current==='tracuu'?'active':'' ?> <?= !$cmLayoutCan('cm.tracuu')?'disabled':'' ?>" href="<?= BASE_URL ?>tracuu.php"><i class="bi bi-search"></i><span>Tra cứu</span></a>
+  <a href="/danhgia.php?view=profile"><i class="bi bi-person-vcard"></i><span>Hồ sơ</span></a>
   <a class="<?= $cmPccmActive?'active':'' ?> <?= !$cmLayoutCan('cm.pccm')&&!$cmLayoutCan('cm.tracuu')?'disabled':'' ?>" href="<?= BASE_URL ?>tongquan.php"><i class="bi bi-clipboard-check"></i><span>PCCM</span></a>
-  <a class="<?= $cmPlanActive?'active':'' ?> <?= !$cmLayoutCan('cm.kehoach')?'disabled':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=vanban"><i class="bi bi-calendar2-week"></i><span>Kế hoạch</span></a>
+  <a class="<?= $current==='dugio'?'active':'' ?> <?= !$cmLayoutCan('cm.baocao.dugio')?'disabled':'' ?>" href="<?= BASE_URL ?>dugio.php"><i class="bi bi-eye"></i><span>Dự giờ</span></a>
   <button class="<?= $cmReportActive?'active':'' ?>" type="button" data-bs-toggle="offcanvas" data-bs-target="#cmMobileMore" aria-controls="cmMobileMore"><i class="bi bi-grid"></i><span>Thêm</span></button>
 </nav>
 
