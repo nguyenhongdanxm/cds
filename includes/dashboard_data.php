@@ -364,7 +364,7 @@ function cds_dashboard_quick_actions(array $user): array {
     $items=[];$add=function($permission,$url,$label,$icon,$color)use(&$items){if(can_perm($permission))$items[]=compact('url','label','icon','color');};
     $add('nt.diemdanh','noitru_attendance.php','Điểm danh','bi-person-check','#db2777');
     $add('nt.baoan','noitru.php?tab=meals','Báo ăn','bi-egg-fried','#ea580c');
-    $add('td.capnhat','thidua.php?section=teacher_attendance','Chấm công','bi-calendar-check','#ca8a04');
-    $add('td.xem','thidua.php?section=student_score','Bảng điểm','bi-table','#2563eb');
+    $add('td.teacher_attendance','thidua.php?section=teacher_attendance','Chấm công','bi-calendar-check','#ca8a04');
+    $add('cm.dashboard',defined('URL_CHUYEN_MON') ? URL_CHUYEN_MON : 'chuyenmon/','Chuyên môn','bi-journal-bookmark-fill','#168652');
     return $items;
 }
