@@ -136,13 +136,16 @@ body{background:#f0f4f8;font-family:'Segoe UI',system-ui,sans-serif;color:#21252
 
 <li class="nav-item dropdown">
   <a class="nav-link dropdown-toggle <?= in_array($current,$bc_pages,true)?'active':'' ?><?= !$reportCanOpen?' permission-disabled':'' ?>" href="#" data-bs-toggle="dropdown" <?= !$reportCanOpen?'aria-disabled="true" tabindex="-1"':'' ?>>
-    <i class="bi bi-file-earmark-text"></i> Báo cáo
+    <i class="bi bi-clipboard2-check"></i> Theo dõi – Đánh giá
   </a>
   <ul class="dropdown-menu">
     <li><a class="dropdown-item <?= ($current==='baocao' && ($tab_q===''||$tab_q==='dinhky'))?'active':'' ?><?= $cmDisabled('cm.baocao.dinhky') ?>" href="<?= BASE_URL ?>baocao.php?tab=dinhky" <?= !$cmMenuCan('cm.baocao.dinhky')?'aria-disabled="true" tabindex="-1"':'' ?>>Báo cáo định kỳ</a></li>
     <li><a class="dropdown-item <?= ($current==='baocao' && $tab_q==='tiendo')?'active':'' ?><?= $cmDisabled('cm.baocao.tiendo') ?>" href="<?= BASE_URL ?>baocao.php?tab=tiendo" <?= !$cmMenuCan('cm.baocao.tiendo')?'aria-disabled="true" tabindex="-1"':'' ?>>Tiến độ chương trình</a></li>
     <li><a class="dropdown-item <?= $current==='dugio'?'active':'' ?><?= $cmDisabled('cm.baocao.dugio') ?>" href="<?= BASE_URL ?>dugio.php" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>>Dự giờ</a></li>
     <li><a class="dropdown-item <?= ($current==='baocao' && $tab_q==='kythi')?'active':'' ?><?= $cmDisabled('cm.baocao.kythi') ?>" href="<?= BASE_URL ?>baocao.php?tab=kythi" <?= !$cmMenuCan('cm.baocao.kythi')?'aria-disabled="true" tabindex="-1"':'' ?>>Kết quả cuộc thi</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item <?= $cmDisabled('cm.baocao.dugio') ?>" href="/danhgia.php?view=profile" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-person-vcard me-1"></i> Hồ sơ đánh giá</a></li>
+    <li><a class="dropdown-item <?= $cmDisabled('cm.baocao.dugio') ?>" href="/danhgia.php?view=overview" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-bar-chart-line me-1"></i> Tổng hợp đánh giá</a></li>
   </ul>
 </li>
 
