@@ -34,6 +34,12 @@ function cm_observation_short_name($fullName): string {
 function cm_observation_observer_display(array $record): string {
     return implode(', ', array_map('cm_observation_short_name', cm_observation_observers($record)));
 }
+function cm_observation_teacher_id($name): string {
+    foreach(load_json(dirname(__DIR__).'/data/teachers.json',[]) as $teacher) {
+        if(cm_observation_norm($teacher['name']??'')===cm_observation_norm($name)) return (string)($teacher['id']??'');
+    }
+    return '';
+}
 function cm_observation_school_year(): array {
     $file = dirname(__DIR__) . '/data/school_years.json';
     $years = load_json($file, []);
@@ -122,11 +128,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($records as &$record) {
             if (($record['id'] ?? '') !== $id) continue;
             if (cm_observation_norm($record['teacher'] ?? '') !== cm_observation_norm($teacherName)) { http_response_code(403); exit('Không được sửa đăng ký của giáo viên khác.'); }
-            $record = array_merge($record, ['year_id'=>$year['id']??'','year_label'=>$year['label']??'','teacher'=>$teacherName,'teacher_group'=>$teacherGroup,'subject'=>$subject,'class'=>$class,'week_number'=>$weekNumber,'week_start'=>$week['start'],'week_end'=>$week['end'],'date'=>$date,'start_date'=>$date,'ppct_period'=>$ppct,'timetable_period'=>$timetable,'lesson_title'=>$lesson,'title'=>'Dự giờ: '.$lesson,'kind'=>'observation','updated_at'=>date('c')]);
+            $record = array_merge($record, ['year_id'=>$year['id']??'','year_label'=>$year['label']??'','teacher_id'=>cm_observation_teacher_id($teacherName),'teacher'=>$teacherName,'teacher_group'=>$teacherGroup,'subject'=>$subject,'class'=>$class,'week_number'=>$weekNumber,'week_start'=>$week['start'],'week_end'=>$week['end'],'date'=>$date,'start_date'=>$date,'ppct_period'=>$ppct,'timetable_period'=>$timetable,'lesson_title'=>$lesson,'title'=>'Dự giờ: '.$lesson,'kind'=>'observation','updated_at'=>date('c')]);
             $found = true; break;
         }
         unset($record);
-        if (!$found) $records[] = ['id'=>'obs_'.bin2hex(random_bytes(8)),'year_id'=>$year['id']??'','year_label'=>$year['label']??'','teacher'=>$teacherName,'teacher_group'=>$teacherGroup,'subject'=>$subject,'class'=>$class,'week_number'=>$weekNumber,'week_start'=>$week['start'],'week_end'=>$week['end'],'date'=>$date,'start_date'=>$date,'ppct_period'=>$ppct,'timetable_period'=>$timetable,'lesson_title'=>$lesson,'title'=>'Dự giờ: '.$lesson,'kind'=>'observation','observer'=>'','observers'=>[],'assignees'=>[],'score'=>'','rating'=>'','created_by'=>$user['id']??'','created_at'=>date('c'),'updated_at'=>date('c')];
+        if (!$found) $records[] = ['id'=>'obs_'.bin2hex(random_bytes(8)),'year_id'=>$year['id']??'','year_label'=>$year['label']??'','teacher_id'=>cm_observation_teacher_id($teacherName),'teacher'=>$teacherName,'teacher_group'=>$teacherGroup,'subject'=>$subject,'class'=>$class,'week_number'=>$weekNumber,'week_start'=>$week['start'],'week_end'=>$week['end'],'date'=>$date,'start_date'=>$date,'ppct_period'=>$ppct,'timetable_period'=>$timetable,'lesson_title'=>$lesson,'title'=>'Dự giờ: '.$lesson,'kind'=>'observation','observer'=>'','observers'=>[],'observer_ids'=>[],'assignees'=>[],'score'=>'','rating'=>'','created_by'=>$user['id']??'','created_at'=>date('c'),'updated_at'=>date('c')];
         save_json($dataFile, array_values($records)); flash($found?'Đã cập nhật đăng ký dự giờ.':'Đã đăng ký tiết dự giờ.'); header('Location: '.BASE_URL.'dugio.php'); exit;
     }
     if ($action === 'observation_review') {
@@ -141,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $updated = false;
         foreach ($records as &$record) {
             if (($record['id'] ?? '') !== $id || !$canSeeRecord($record)) continue;
-            $score = round((float)$scoreRaw, 2); $record['observer']=$observers[0]; $record['observers']=$observers; $record['assignees']=$observers; $record['score']=$score; $record['rating']=cm_observation_rating($score); $record['reviewed_by']=$teacherName; $record['reviewed_at']=date('c'); $record['updated_at']=date('c'); $updated=true; break;
+            $score = round((float)$scoreRaw, 2); $record['observer']=$observers[0]; $record['observers']=$observers; $record['observer_ids']=array_values(array_filter(array_map('cm_observation_teacher_id',$observers))); $record['assignees']=$observers; $record['score']=$score; $record['rating']=cm_observation_rating($score); $record['reviewed_by']=$teacherName; $record['reviewed_at']=date('c'); $record['updated_at']=date('c'); $updated=true; break;
         }
         unset($record);
         if (!$updated) { http_response_code(403); exit('Không tìm thấy tiết dự giờ trong phạm vi quản lý.'); }
