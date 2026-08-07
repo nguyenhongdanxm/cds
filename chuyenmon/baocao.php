@@ -20,6 +20,10 @@ if ($tab === '') {
 if ($tab === '') $tab = 'dinhky';
 $_GET['tab'] = $tab;
 require_login();
+if ($tab === 'dugio') {
+    header('Location: ' . BASE_URL . 'dugio.php');
+    exit;
+}
 
 $tabs = array_filter($tabs, fn($tabInfo) => cds_can_feature($tabInfo[2], 'view'));
 $section = 'bc_' . $tab;

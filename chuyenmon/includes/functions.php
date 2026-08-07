@@ -527,7 +527,7 @@ function cds_default_chuyenmon_groups() {
     return [
         'bgh' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.thongke'=>'view','cm.kehoach'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view','cm.pccm'=>'edit','cm.nhaplieu'=>'edit'],
         'totruong' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.thongke'=>'view','cm.kehoach'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view','cm.pccm'=>'edit'],
-        'gvcn' => ['cm.dashboard'=>'view','cm.tracuu'=>'view'],
+        'gvcn' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.baocao.dugio'=>'view'],
         'gv' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view'],
     ];
 }
@@ -613,6 +613,12 @@ function cds_feature_access_for_user($user, $code) {
         if (cds_permission_rank($level) > cds_permission_rank($access)) $access = $level;
     }
 
+    // Mọi tài khoản giáo viên đều được tự đăng ký tiết dự giờ.
+    if ($code === 'cm.baocao.dugio') {
+        $teacherRoles = array_merge([(string)($user['role'] ?? '')], (array)($user['groups'] ?? []));
+        if (array_intersect($teacherRoles, ['gv','gvcn']) && cds_permission_rank($access) < cds_permission_rank('view')) $access = 'view';
+    }
+
     $override = $user['permission_overrides'][$code] ?? 'inherit';
     if (in_array($override, ['none','view','edit','delete'], true)) $access = $override;
     return $access;
@@ -640,7 +646,7 @@ function cds_current_page_feature() {
         'doicheo'=>'cm.pccm', 'rasoat'=>'cm.pccm', 'sua'=>'cm.pccm',
         'giaovien'=>'cm.nhaplieu', 'monhoc'=>'cm.nhaplieu', 'lop'=>'cm.nhaplieu',
         'kiemnhiem'=>'cm.nhaplieu', 'thongke'=>'cm.thongke', 'xuat_bang'=>'cm.thongke',
-        'kehoach'=>'cm.kehoach',
+        'kehoach'=>'cm.kehoach', 'dugio'=>'cm.baocao.dugio',
     ];
     if ($page === 'baocao') {
         $tab = $_GET['tab'] ?? 'dinhky';
@@ -675,7 +681,11 @@ function require_login() {
 
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $action = strtolower(trim((string)($_POST['action'] ?? '')));
-        $requiredLevel = str_contains($action, 'delete') || str_contains($action, 'xoa') ? 'delete' : 'edit';
+        $observationSelfService = cds_current_page_feature() === 'cm.baocao.dugio'
+            && in_array($action, ['observation_save','observation_review'], true);
+        $requiredLevel = $observationSelfService
+            ? 'view'
+            : (str_contains($action, 'delete') || str_contains($action, 'xoa') ? 'delete' : 'edit');
         if (!cds_can_feature(cds_current_page_feature(), $requiredLevel)) {
             http_response_code(403);
             exit('Tài khoản chưa được cấp quyền ' . ($requiredLevel === 'delete' ? 'xóa' : 'cập nhật') . ' cho chức năng Chuyên môn này.');
