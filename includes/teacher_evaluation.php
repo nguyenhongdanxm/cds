@@ -142,7 +142,8 @@ function te_calculate(array $teacher, array $period, array $config, array $obser
     $ratedObs=array_values(array_filter($obs,fn($row)=>($row['score']??'')!==''&&is_numeric($row['score'])));
     $obsAverage=$ratedObs?array_sum(array_map(fn($row)=>(float)$row['score'],$ratedObs))/count($ratedObs):0;
     $checks=array_values(array_filter($fileChecks,fn($row)=>($row['date']??'')>=$from&&($row['date']??'')<=$to&&te_matches_teacher($row,$teacher)));
-    $checkValues=array_map(fn($row)=>(float)($config['file_check_rating_scores'][$row['rating']??'']??0),$checks);$checkAverage=$checkValues?array_sum($checkValues)/count($checkValues):0;
+    $fileOnlyChecks=array_values(array_filter($checks,fn($row)=>($row['content_type']??'file')==='file'));
+    $checkValues=array_map(fn($row)=>(float)($config['file_check_rating_scores'][$row['rating']??'']??0),$fileOnlyChecks);$checkAverage=$checkValues?array_sum($checkValues)/count($checkValues):0;
 
     $attendance=array_values(array_filter($tdRecords,fn($row)=>($row['type']??'')==='teacher_attendance'&&te_matches_teacher($row,$teacher)&&te_overlap_days($row,$from,$to)>0));
     $attendanceDeduction=0.0; $permitted=0; $unpermitted=0; $late=0;
@@ -158,11 +159,12 @@ function te_calculate(array $teacher, array $period, array $config, array $obser
     $units=['attendance:base'=>1,'attendance:unpermitted_day'=>$unpermitted,'attendance:permitted_day'=>$permitted,'attendance:late'=>$late];
     foreach(['Tốt','Khá','Đạt','Chưa đạt'] as $rating){
         $units['observation:'.$rating]=count(array_filter($obs,fn($row)=>te_norm($row['rating']??'')===te_norm($rating)));
-        $units['file_check:'.$rating]=count(array_filter($checks,fn($row)=>te_norm($row['rating']??'')===te_norm($rating)));
+        $units['file_check:'.$rating]=count(array_filter($fileOnlyChecks,fn($row)=>te_norm($row['rating']??'')===te_norm($rating)));
     }
     foreach(['Trường','Huyện','Tỉnh','Quốc gia'] as $level)$units['achievement:'.$level]=count(array_filter($achievements,fn($row)=>te_norm($row['level']??'')===te_norm($level)));
     $groupScores=[];$details=[];$groupMax=[];foreach($config['groups'] as $group){$id=(string)($group['id']??'');$groupScores[$id]=0.0;$groupMax[$id]=(float)($group['max']??0);}
-    foreach($config['criteria'] as $criterion){$groupId=(string)($criterion['group_id']??'');$source=(string)($criterion['source']??'');if(!isset($groupScores[$groupId])||!array_key_exists($source,$units))continue;$count=(float)$units[$source];$points=max(0,(float)($criterion['points']??0));$signed=$count*$points*(($criterion['operation']??'add')==='subtract'?-1:1);$groupScores[$groupId]+=$signed;$details[]=$criterion+['units'=>$count,'amount'=>round($signed,2)];}
+    $criteriaById=[];foreach($config['criteria'] as $criterion){$criteriaById[(string)($criterion['id']??'')]=$criterion;$groupId=(string)($criterion['group_id']??'');$source=(string)($criterion['source']??'');if(!isset($groupScores[$groupId])||!array_key_exists($source,$units))continue;$count=(float)$units[$source];$points=max(0,(float)($criterion['points']??0));$signed=$count*$points*(($criterion['operation']??'add')==='subtract'?-1:1);$groupScores[$groupId]+=$signed;$details[]=$criterion+['units'=>$count,'amount'=>round($signed,2)];}
+    foreach($checks as $check){if(($check['content_type']??'file')!=='other')continue;$criterion=$criteriaById[(string)($check['criterion_id']??'')]??null;if(!$criterion)continue;$groupId=(string)($criterion['group_id']??'');if(!isset($groupScores[$groupId]))continue;$points=max(0,(float)($criterion['points']??0));$signed=$points*(($criterion['operation']??'add')==='subtract'?-1:1);$groupScores[$groupId]+=$signed;$details[]=$criterion+['name'=>($criterion['name']??'').' · Kiểm tra ngày '.date('d/m/Y',strtotime($check['date'])),'units'=>1,'amount'=>round($signed,2)];}
     foreach($groupScores as $id=>$score)$groupScores[$id]=round(min($groupMax[$id],max(0,$score)),2);
     $professional=(float)($groupScores['professional']??0);$attendanceScore=(float)($groupScores['attendance']??0);$achievementScore=(float)($groupScores['achievement']??0);$contributionScore=(float)($groupScores['contribution']??0);
     $attendanceDeduction=round(array_sum(array_map(fn($row)=>(($row['operation']??'')==='subtract'&&str_starts_with($row['source']??'','attendance:'))?abs((float)$row['amount']):0,$details)),2);
@@ -170,7 +172,7 @@ function te_calculate(array $teacher, array $period, array $config, array $obser
     return [
         'teacher_id'=>(string)($teacher['id']??''),'teacher_name'=>(string)($teacher['name']??''),'team'=>te_teacher_team($teacher),
         'professional'=>$professional,'attendance'=>$attendanceScore,'achievement'=>$achievementScore,'contribution'=>$contributionScore,'group_scores'=>$groupScores,'criterion_details'=>$details,'total'=>$total,'rating'=>te_rating($total,$config),
-        'observation_count'=>count($obs),'rated_observation_count'=>count($ratedObs),'observation_average'=>round($obsAverage,2),'file_check_count'=>count($checks),'file_check_average'=>round($checkAverage,2),
+        'observation_count'=>count($obs),'rated_observation_count'=>count($ratedObs),'observation_average'=>round($obsAverage,2),'file_check_count'=>count($fileOnlyChecks),'file_check_average'=>round($checkAverage,2),
         'permitted_days'=>$permitted,'unpermitted_days'=>$unpermitted,'late_count'=>$late,'attendance_deduction'=>round($attendanceDeduction,2),
         'achievement_count'=>count($achievements),'achievement_raw'=>round($achievementRaw,2),
         'sources'=>['observations'=>$obs,'file_checks'=>$checks,'attendance'=>$attendance,'achievements'=>$achievements],
