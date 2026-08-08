@@ -8,6 +8,11 @@ if (is_file($manualFile)) {
     $decoded = json_decode((string)file_get_contents($manualFile), true);
     if (is_array($decoded)) $manualRows = array_values(array_filter($decoded, 'is_array'));
 }
+$manualActiveVersion = function_exists('get_active_version_id') ? (string)get_active_version_id() : '';
+$manualRows = array_values(array_filter($manualRows, static function($row) use ($manualActiveVersion) {
+    $version = trim((string)($row['version_id'] ?? ''));
+    return $version === '' || $version === $manualActiveVersion;
+}));
 $manualCanEdit = function_exists('cds_can_feature')
     ? cds_can_feature('cm.pccm', 'edit')
     : !empty($_SESSION['pccm_admin']);
