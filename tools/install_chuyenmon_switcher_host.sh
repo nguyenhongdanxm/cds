@@ -7,6 +7,7 @@ CM_HEADER="$CM_INCLUDE/header.php"
 SWITCHER_SOURCE="includes/chuyenmon_module_switcher.php"
 LAYOUT_SOURCE="includes/chuyenmon_responsive_layout.php"
 CLEANUP_SOURCE="includes/chuyenmon_ui_cleanup.php"
+TEACHER_COMPACT_SOURCE="includes/chuyenmon_teacher_compact.php"
 AUTH_GATE_SOURCE="includes/chuyenmon_auth_gate.php"
 FRACTIONAL_SOURCE="includes/chuyenmon_fractional_periods.php"
 MANUAL_SOURCE="includes/chuyenmon_manual_assignment.php"
@@ -27,6 +28,7 @@ fi
 /bin/cp "$SWITCHER_SOURCE" "$CM_INCLUDE/cds_module_switcher.php"
 /bin/cp "$LAYOUT_SOURCE" "$CM_INCLUDE/cds_responsive_layout.php"
 /bin/cp "$CLEANUP_SOURCE" "$CM_INCLUDE/cds_ui_cleanup.php"
+/bin/cp "$TEACHER_COMPACT_SOURCE" "$CM_INCLUDE/cds_teacher_compact.php"
 /bin/cp "$AUTH_GATE_SOURCE" "$CM_INCLUDE/cds_auth_gate.php"
 /bin/cp "$FRACTIONAL_SOURCE" "$CM_INCLUDE/cds_fractional_periods.php"
 /bin/cp "$MANUAL_SOURCE" "$CM_INCLUDE/cds_manual_assignment.php"
@@ -56,6 +58,9 @@ if ! /usr/bin/grep -q "cds_responsive_layout.php" "$CM_HEADER"; then
 fi
 if ! /usr/bin/grep -q "cds_ui_cleanup.php" "$CM_HEADER"; then
   /bin/sed -i "/<body>/a\\<?php require_once __DIR__ . '/cds_ui_cleanup.php'; ?>" "$CM_HEADER"
+fi
+if ! /usr/bin/grep -q "cds_teacher_compact.php" "$CM_HEADER"; then
+  /bin/sed -i "/<body>/a\\<?php require_once __DIR__ . '/cds_teacher_compact.php'; ?>" "$CM_HEADER"
 fi
 if ! /usr/bin/grep -q "cds_fractional_periods.php" "$CM_HEADER"; then
   /bin/sed -i "/<body>/a\\<?php require_once __DIR__ . '/cds_fractional_periods.php'; ?>" "$CM_HEADER"
