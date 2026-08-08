@@ -26,9 +26,9 @@ function te_default_config(): array {
             ['id'=>'contribution','name'=>'Nhiệm vụ','max'=>10],
         ],
         'criteria'=>[
-            ['id'=>'obs_good','name'=>'Dự giờ xếp loại Tốt','group_id'=>'professional','source'=>'observation:Tốt','operation'=>'add','points'=>5],
+            ['id'=>'obs_good','name'=>'Dự giờ xếp loại Giỏi','group_id'=>'professional','source'=>'observation:Giỏi','operation'=>'add','points'=>5],
             ['id'=>'obs_fair','name'=>'Dự giờ xếp loại Khá','group_id'=>'professional','source'=>'observation:Khá','operation'=>'add','points'=>3],
-            ['id'=>'obs_pass','name'=>'Dự giờ xếp loại Đạt','group_id'=>'professional','source'=>'observation:Đạt','operation'=>'add','points'=>1],
+            ['id'=>'obs_pass','name'=>'Dự giờ xếp loại Trung bình','group_id'=>'professional','source'=>'observation:Trung bình','operation'=>'add','points'=>1],
             ['id'=>'file_good','name'=>'Hồ sơ xếp loại Tốt','group_id'=>'professional','source'=>'file_check:Tốt','operation'=>'add','points'=>5],
             ['id'=>'file_fair','name'=>'Hồ sơ xếp loại Khá','group_id'=>'professional','source'=>'file_check:Khá','operation'=>'add','points'=>3],
             ['id'=>'file_pass','name'=>'Hồ sơ xếp loại Đạt','group_id'=>'professional','source'=>'file_check:Đạt','operation'=>'add','points'=>1],
@@ -55,6 +55,15 @@ function te_config(): array {
     $config = array_replace_recursive(te_default_config(), is_array($saved) ? $saved : []);
     if(!empty($saved['groups'])&&is_array($saved['groups']))$config['groups']=array_values($saved['groups']);
     if(!empty($saved['criteria'])&&is_array($saved['criteria']))$config['criteria']=array_values($saved['criteria']);
+    $observationSourceMigration = ['observation:Tốt'=>'observation:Giỏi','observation:Đạt'=>'observation:Trung bình','observation:Chưa đạt'=>'observation:Không đạt'];
+    $observationNameMigration = ['Dự giờ xếp loại Tốt'=>'Dự giờ xếp loại Giỏi','Dự giờ xếp loại Đạt'=>'Dự giờ xếp loại Trung bình','Dự giờ xếp loại Chưa đạt'=>'Dự giờ xếp loại Không đạt'];
+    foreach($config['criteria'] as &$criterion){
+        $source=(string)($criterion['source']??'');
+        if(isset($observationSourceMigration[$source]))$criterion['source']=$observationSourceMigration[$source];
+        $name=(string)($criterion['name']??'');
+        if(isset($observationNameMigration[$name]))$criterion['name']=$observationNameMigration[$name];
+    }
+    unset($criterion);
     foreach($config['groups'] as &$group)$group['max']=max(0,(float)($group['max']??0));unset($group);
     usort($config['ratings'], fn($a,$b)=>(float)($b['min']??0)<=>(float)($a['min']??0));
     return $config;
@@ -62,7 +71,7 @@ function te_config(): array {
 
 function te_source_catalog(): array {
     return [
-        'observation:Tốt'=>'Dự giờ: Tốt (mỗi tiết)','observation:Khá'=>'Dự giờ: Khá (mỗi tiết)','observation:Đạt'=>'Dự giờ: Đạt (mỗi tiết)','observation:Chưa đạt'=>'Dự giờ: Chưa đạt (mỗi tiết)',
+        'observation:Giỏi'=>'Dự giờ: Giỏi (mỗi tiết)','observation:Khá'=>'Dự giờ: Khá (mỗi tiết)','observation:Trung bình'=>'Dự giờ: Trung bình (mỗi tiết)','observation:Không đạt'=>'Dự giờ: Không đạt (mỗi tiết)',
         'file_check:Tốt'=>'Kiểm tra hồ sơ: Tốt (mỗi lần)','file_check:Khá'=>'Kiểm tra hồ sơ: Khá (mỗi lần)','file_check:Đạt'=>'Kiểm tra hồ sơ: Đạt (mỗi lần)','file_check:Chưa đạt'=>'Kiểm tra hồ sơ: Chưa đạt (mỗi lần)',
         'attendance:base'=>'Điểm nền ngày công (một lần/kỳ)','attendance:unpermitted_day'=>'Nghỉ không phép (mỗi ngày)','attendance:permitted_day'=>'Nghỉ có phép (mỗi ngày)','attendance:late'=>'Đi muộn (mỗi lần)',
         'achievement:Trường'=>'Thành tích cấp Trường (mỗi thành tích)','achievement:Huyện'=>'Thành tích cấp Huyện (mỗi thành tích)','achievement:Tỉnh'=>'Thành tích cấp Tỉnh (mỗi thành tích)','achievement:Quốc gia'=>'Thành tích cấp Quốc gia (mỗi thành tích)',
@@ -81,7 +90,12 @@ function te_observations(): array {
     $rows=[];$seen=[];
     foreach(array_unique($files) as $file)foreach(load_json($file,[]) as $row){
         $key=(string)($row['id']??sha1(json_encode($row,JSON_UNESCAPED_UNICODE)));
-        if(isset($seen[$key]))continue;$seen[$key]=true;$rows[]=$row;
+        if(isset($seen[$key]))continue;
+        if(($row['score']??'')!==''&&is_numeric($row['score'])){
+            $score=(float)$row['score'];
+            $row['rating']=$score>=18?'Giỏi':($score>=13.5?'Khá':($score>=10?'Trung bình':'Không đạt'));
+        }
+        $seen[$key]=true;$rows[]=$row;
     }
     return $rows;
 }
@@ -157,8 +171,10 @@ function te_calculate(array $teacher, array $period, array $config, array $obser
     $achievements=array_values(array_filter($tdRecords,fn($row)=>($row['type']??'')==='teacher_achievement'&&($row['date']??'')>=$from&&($row['date']??'')<=$to&&te_matches_teacher($row,$teacher)));
     $achievementRaw=array_sum(array_map(fn($row)=>(float)($row['score']??0),$achievements));
     $units=['attendance:base'=>1,'attendance:unpermitted_day'=>$unpermitted,'attendance:permitted_day'=>$permitted,'attendance:late'=>$late];
-    foreach(['Tốt','Khá','Đạt','Chưa đạt'] as $rating){
+    foreach(['Giỏi','Khá','Trung bình','Không đạt'] as $rating){
         $units['observation:'.$rating]=count(array_filter($obs,fn($row)=>te_norm($row['rating']??'')===te_norm($rating)));
+    }
+    foreach(['Tốt','Khá','Đạt','Chưa đạt'] as $rating){
         $units['file_check:'.$rating]=count(array_filter($fileOnlyChecks,fn($row)=>te_norm($row['rating']??'')===te_norm($rating)));
     }
     foreach(['Trường','Huyện','Tỉnh','Quốc gia'] as $level)$units['achievement:'.$level]=count(array_filter($achievements,fn($row)=>te_norm($row['level']??'')===te_norm($level)));
