@@ -13,7 +13,7 @@ $user=cds_user()??[];$isAdmin=($user['role']??'')==='admin';$isBgh=($user['role'
 $actorName=trim((string)($user['teacher_name']??$user['name']??''));$actorGroup=$actorName!==''?trim((string)get_teacher_group($actorName)):'';
 $allTeachers=get_teachers_sorted();$managedTeachers=[];
 foreach($allTeachers as $name)if($isAdmin||$isBgh||($isLeader&&$actorGroup!==''&&fc_norm(get_teacher_group($name))===fc_norm($actorGroup)))$managedTeachers[]=$name;
-$criteria=fc_criteria();$criteriaById=[];foreach($criteria as $criterion)$criteriaById[(string)$criterion['id']]=$criterion;
+$criteria=array_values(array_filter(fc_criteria(),fn($criterion)=>($criterion['inspection_visible']??true)));$criteriaById=[];foreach($criteria as $criterion)$criteriaById[(string)$criterion['id']]=$criterion;
 $dataFile=DATA_PATH.'/professional_file_checks.json';$records=load_json($dataFile,[]);if(!is_array($records))$records=[];
 if(empty($_SESSION['fc_csrf']))$_SESSION['fc_csrf']=bin2hex(random_bytes(20));$csrf=$_SESSION['fc_csrf'];
 $canSee=function(array $row)use($isAdmin,$isBgh,$isLeader,$actorGroup,$actorName){if($isAdmin||$isBgh)return true;if($isLeader&&$actorGroup!==''&&fc_norm($row['teacher_group']??'')===fc_norm($actorGroup))return true;return fc_norm($row['teacher_name']??'')===fc_norm($actorName);};
