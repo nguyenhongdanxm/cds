@@ -44,6 +44,21 @@ function create_version($name, $date, $note = '', $copy_from = null) {
         foreach ($srcR as &$a) { $a['id'] = $id . '_' . ($a['id'] ?? uniqid()); } unset($a);
         save_json(assignments_file($id), $srcA);
         save_json(role_assignments_file($id), $srcR);
+        $manualFile = DATA_PATH . '/manual_assignments.json';
+        $manualRows = load_json($manualFile, []);
+        $manualCopies = [];
+        foreach ($manualRows as $manualRow) {
+            if (!is_array($manualRow)) continue;
+            $manualVersion = trim((string)($manualRow['version_id'] ?? ''));
+            if ($manualVersion !== '' && $manualVersion !== $copy_from) continue;
+            if ($manualVersion === '' && $copy_from !== get_active_version_id()) continue;
+            $copy = $manualRow;
+            $copy['id'] = 'ma_' . bin2hex(random_bytes(5));
+            $copy['version_id'] = $id;
+            $copy['created_at'] = date('c');
+            $manualCopies[] = $copy;
+        }
+        if ($manualCopies) save_json($manualFile, array_merge($manualRows, $manualCopies));
     } else {
         save_json(assignments_file($id), []);
         save_json(role_assignments_file($id), []);
@@ -224,7 +239,36 @@ function get_quota($name) {
 
 function get_assignments($vid = null) {
     $vid = $vid ?: get_active_version_id();
-    return $vid ? load_json(assignments_file($vid), []) : [];
+    if (!$vid) return [];
+    $rows = load_json(assignments_file($vid), []);
+    // Trang thêm/danh sách đã có bộ hiển thị tương tác riêng cho phân công thủ công.
+    // Các trang còn lại nhận dữ liệu đã chuẩn hóa tại đây để tra cứu, thống kê và xuất bảng thống nhất.
+    $page = basename((string)($_SERVER['PHP_SELF'] ?? ''), '.php');
+    if (!in_array($page, ['them', 'danhsach'], true)) $rows = array_merge($rows, get_manual_assignments($vid));
+    return $rows;
+}
+function get_manual_assignments($vid = null) {
+    $vid = $vid ?: get_active_version_id();
+    if (!$vid) return [];
+    $active = get_active_version_id();
+    $manual = load_json(DATA_PATH . '/manual_assignments.json', []);
+    $rows = [];
+    foreach ($manual as $row) {
+        if (!is_array($row)) continue;
+        $rowVersion = trim((string)($row['version_id'] ?? ''));
+        // Dữ liệu cũ chưa có version_id thuộc phiên bản đang hoạt động tại thời điểm nâng cấp.
+        if (($rowVersion !== '' && $rowVersion !== $vid) || ($rowVersion === '' && $vid !== $active)) continue;
+        $rows[] = [
+            'id' => (string)($row['id'] ?? ''),
+            'teacher' => trim((string)($row['teacher'] ?? '')),
+            'subject' => trim((string)($row['subject'] ?? '')),
+            'class' => trim((string)($row['class_name'] ?? $row['class'] ?? '')),
+            'periods' => (float)($row['periods'] ?? 0),
+            'note' => trim((string)($row['note'] ?? '')),
+            'is_manual' => true,
+        ];
+    }
+    return $rows;
 }
 function save_assignments($data, $vid = null) {
     save_json(assignments_file($vid ?: get_active_version_id()), $data);

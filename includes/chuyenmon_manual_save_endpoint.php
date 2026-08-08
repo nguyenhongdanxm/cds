@@ -61,6 +61,7 @@ try {
 
 $rows[] = [
     'id' => $id,
+    'version_id' => (string)(function_exists('get_active_version_id') ? get_active_version_id() : ''),
     'teacher' => $teacher,
     'subject' => $subject,
     'class_name' => $className,

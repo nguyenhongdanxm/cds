@@ -48,6 +48,7 @@ if ($action === 'save') {
     } else {
         $rows[] = [
             'id' => 'ma_' . bin2hex(random_bytes(5)),
+            'version_id' => (string)(function_exists('get_active_version_id') ? get_active_version_id() : ''),
             'teacher' => $teacher,
             'subject' => $subject,
             'class_name' => $className,
