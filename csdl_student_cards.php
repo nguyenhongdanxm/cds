@@ -2,7 +2,7 @@
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/student_card_store.php';
 require_login();
-require_module('csdl', 'view');
+require_perm('csdl.students');
 $classes=array_values(array_filter(csdl_classes_all(),fn($c)=>!empty($c['active'])&&(!function_exists('can_class')||can_class((string)($c['name']??'')))));
 usort($classes,fn($a,$b)=>(int)($a['grade']??0)<=>(int)($b['grade']??0)?:strnatcasecmp((string)($a['name']??''),(string)($b['name']??'')));
 $grades=array_values(array_unique(array_filter(array_map(fn($c)=>(string)($c['grade']??''),$classes))));

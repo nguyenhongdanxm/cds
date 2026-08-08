@@ -4,6 +4,9 @@
  * Cần: $bulk_entity = teachers|classes|students
  */
 if (empty($bulk_entity)) return;
+$canBulkExport = !empty($canCsdlExport);
+$canBulkDelete = !empty($canDeleteCurrent);
+if (!$canBulkExport && !$canBulkDelete) return;
 $labels = ['teachers' => 'giáo viên', 'classes' => 'lớp', 'students' => 'học sinh'];
 $lab = $labels[$bulk_entity] ?? 'mục';
 ?>
@@ -13,10 +16,10 @@ $lab = $labels[$bulk_entity] ?? 'mục';
     <label class="form-check-label small" for="chkAll-<?= e($bulk_entity) ?>">Chọn tất cả</label>
   </div>
   <span class="text-muted small" id="bulkCount-<?= e($bulk_entity) ?>">0 đã chọn</span>
-  <button type="button" class="btn btn-sm btn-outline-primary" onclick="csdlExportSelected('<?= e($bulk_entity) ?>')">
+  <?php if ($canBulkExport): ?><button type="button" class="btn btn-sm btn-outline-primary" onclick="csdlExportSelected('<?= e($bulk_entity) ?>')">
     <i class="bi bi-download"></i> Xuất đã chọn
-  </button>
-  <?php if (!empty($canDeleteCurrent)): ?><button type="button" class="btn btn-sm btn-outline-danger" onclick="csdlDeleteSelected('<?= e($bulk_entity) ?>')">
+  </button><?php endif; ?>
+  <?php if ($canBulkDelete): ?><button type="button" class="btn btn-sm btn-outline-danger" onclick="csdlDeleteSelected('<?= e($bulk_entity) ?>')">
     <i class="bi bi-trash"></i> Xóa đã chọn
   </button><?php endif; ?>
 </div>

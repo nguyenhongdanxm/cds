@@ -10,56 +10,56 @@ define('DEFAULT_USER_PASSWORD', 'Ntxm@2026');
 
 function user_group_presets() {
     $allCm = ['cm.dashboard','cm.tracuu','cm.pccm','cm.nhaplieu','cm.thongke','cm.kehoach','cm.baocao'];
-    $allNt = ['nt.tongquan','nt.danhsach','nt.diemdanh','nt.baoan','nt.ravao','nt.yte','nt.lichtruc','nt.thucdon','nt.thongke'];
+    $allNt = ['nt.tongquan','nt.danhsach','nt.diemdanh','nt.baoan','nt.buaan.tonghop','nt.gao','nt.ravao','nt.yte','nt.lichtruc','nt.thucdon','nt.thongke'];
 
     return [
         'bgh' => [
             'label' => 'Ban giám hiệu',
             'role' => 'bgh',
             'modules' => ['chuyenmon'=>'edit','csdl'=>'view','noitru'=>'view','vanban'=>'view','thidua'=>'view'],
-            'perms' => array_merge($allCm, ['csdl.view','csdl.export'], ['nt.tongquan','nt.danhsach','nt.thongke']),
+            'perms' => array_merge($allCm, ['csdl.overview','csdl.teachers','csdl.classes','csdl.students','csdl.export'], ['nt.tongquan','nt.danhsach','nt.thongke']),
         ],
         'qlnt' => [
             'label' => 'Quản lý nội trú',
             'role' => 'ktx',
             'modules' => ['chuyenmon'=>'none','csdl'=>'view','noitru'=>'edit','vanban'=>'none','thidua'=>'none'],
-            'perms' => array_merge(['csdl.view'], $allNt),
+            'perms' => array_merge(['csdl.overview','csdl.students'], $allNt),
         ],
         'vanthu' => [
             'label' => 'Văn thư',
             'role' => 'custom',
             'modules' => ['chuyenmon'=>'view','csdl'=>'view','noitru'=>'none','vanban'=>'edit','thidua'=>'view'],
-            'perms' => ['cm.tracuu','cm.dashboard','csdl.view','csdl.export'],
+            'perms' => ['cm.tracuu','cm.dashboard','csdl.overview','csdl.teachers','csdl.classes','csdl.students','csdl.export'],
         ],
         'ketoan' => [
             'label' => 'Kế toán',
             'role' => 'custom',
             'modules' => ['chuyenmon'=>'none','csdl'=>'view','noitru'=>'none','vanban'=>'view','thidua'=>'none'],
-            'perms' => ['csdl.view','csdl.export'],
+            'perms' => ['csdl.overview','csdl.students','csdl.export'],
         ],
         'doandoi' => [
             'label' => 'Đoàn – Đội',
             'role' => 'custom',
             'modules' => ['chuyenmon'=>'view','csdl'=>'view','noitru'=>'view','vanban'=>'none','thidua'=>'edit'],
-            'perms' => ['cm.tracuu','cm.dashboard','cm.baocao','csdl.view','nt.danhsach','nt.diemdanh'],
+            'perms' => ['cm.tracuu','cm.dashboard','cm.baocao','csdl.overview','csdl.students','nt.danhsach','nt.diemdanh'],
         ],
         'thuvien_thietbi' => [
             'label' => 'Thư viện – Thiết bị',
             'role' => 'custom',
             'modules' => ['chuyenmon'=>'view','csdl'=>'view','noitru'=>'none','vanban'=>'none','thidua'=>'none'],
-            'perms' => ['cm.tracuu','cm.dashboard','csdl.view'],
+            'perms' => ['cm.tracuu','cm.dashboard','csdl.overview'],
         ],
         'totruong' => [
             'label' => 'Quản lý tổ chuyên môn',
             'role' => 'totruong',
             'modules' => ['chuyenmon'=>'edit','csdl'=>'view','noitru'=>'none','vanban'=>'none','thidua'=>'none'],
-            'perms' => ['cm.dashboard','cm.tracuu','cm.pccm','cm.thongke','cm.kehoach','cm.baocao','csdl.view'],
+            'perms' => ['cm.dashboard','cm.tracuu','cm.pccm','cm.thongke','cm.kehoach','cm.baocao','csdl.overview','csdl.teachers','csdl.classes','csdl.students'],
         ],
         'gvcn' => [
             'label' => 'GVCN',
             'role' => 'gvcn',
             'modules' => ['chuyenmon'=>'view','csdl'=>'view','noitru'=>'edit','vanban'=>'none','thidua'=>'none'],
-            'perms' => ['cm.tracuu','cm.dashboard','csdl.view','nt.diemdanh','nt.baoan','nt.ravao','nt.danhsach'],
+            'perms' => ['cm.tracuu','cm.dashboard','csdl.overview','csdl.students','nt.diemdanh','nt.baoan','nt.ravao','nt.danhsach'],
         ],
         'gv' => [
             'label' => 'Giáo viên',
@@ -245,7 +245,22 @@ function sync_users_from_system() {
             $hr[$nk] ?? []
         )));
 
-        $groups = detect_groups_for_teacher($t, $pccmRoles, $classes);
+        $detectedGroups = detect_groups_for_teacher($t, $pccmRoles, $classes);
+
+        // Với tài khoản đã chuyển sang mô hình phân quyền mới, danh sách
+        // nhóm do quản trị chọn là nguồn chính xác. Đồng bộ chỉ cập nhật
+        // nhóm gợi ý để tham khảo, tuyệt đối không tự gán lại nhóm đã gỡ.
+        $idx = $byUser[strtolower($phone)] ?? ($byTeacher[$nk] ?? null);
+        $hasManagedGroups = $idx !== null
+            && ((int)($users[$idx]['permission_model_version'] ?? 0) >= 2
+                || array_key_exists('groups', $users[$idx]));
+        if ($hasManagedGroups) {
+            $groups = is_array($users[$idx]['groups'] ?? null)
+                ? array_values(array_unique(array_filter(array_map('strval', $users[$idx]['groups']))))
+                : [];
+        } else {
+            $groups = $detectedGroups;
+        }
 
         // merge quyền từ các nhóm
         $modules = ['chuyenmon'=>'none','csdl'=>'none','noitru'=>'none','vanban'=>'none','thidua'=>'none'];
@@ -268,15 +283,23 @@ function sync_users_from_system() {
             $scopeClasses = $classes;
         }
 
+        // Phạm vi lớp khác là phần quản trị gán thủ công. Khi đồng bộ lại
+        // giáo viên/PCCM chỉ cập nhật lớp chủ nhiệm phát hiện được, không xóa
+        // phạm vi bổ sung mà quản trị đã cấp cho tài khoản hiện hữu.
+        $manualClasses = $idx !== null && is_array($users[$idx]['classes'] ?? null)
+            ? array_values(array_unique(array_filter(array_map('strval', $users[$idx]['classes']))))
+            : $scopeClasses;
+
         $payload = [
             'username' => $phone,
             'name' => $name,
             'teacher_name' => $name,
             'role' => $primaryRole,
             'groups' => $groups,
+            'detected_groups' => $detectedGroups,
             'modules' => $modules,
             'perms' => $perms,
-            'classes' => $scopeClasses,
+            'classes' => $manualClasses,
             'homeroom_classes' => $classes,
             'active' => true,
             'phone' => $phone,
@@ -284,8 +307,6 @@ function sync_users_from_system() {
             'permission_model_version' => 2,
             'updated_at' => date('c'),
         ];
-
-        $idx = $byUser[strtolower($phone)] ?? ($byTeacher[$nk] ?? null);
 
         if ($idx !== null) {
             // không đụng admin hệ thống
@@ -312,6 +333,6 @@ function sync_users_from_system() {
         }
     }
 
-    save_users($users);
-    return compact('created', 'updated', 'skipped', 'noPhone', 'details');
+    $saved = save_users($users);
+    return compact('created', 'updated', 'skipped', 'noPhone', 'details', 'saved');
 }

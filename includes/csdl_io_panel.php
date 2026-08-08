@@ -4,6 +4,9 @@
  * Biến cần có: $io_entity = teachers|classes|students
  */
 if (empty($io_entity) || !in_array($io_entity, ['teachers', 'classes', 'students'], true)) return;
+$canIoImport = !empty($canCsdlEdit);
+$canIoExport = !empty($canCsdlExport);
+if (!$canIoImport && !$canIoExport) return;
 require_once __DIR__ . '/csdl_schema.php';
 $schema = csdl_schema_entity($io_entity);
 $titles = [
@@ -27,15 +30,15 @@ foreach ($schema as $key => $meta) {
       Xuất chọn cột để các module khác dùng cùng định dạng.
     </p>
     <div class="row g-3">
-      <div class="col-md-4">
+      <?php if ($canIoExport): ?><div class="col-md-4">
         <div class="border rounded-3 p-3 h-100 bg-light">
           <div class="fw-bold mb-2"><i class="bi bi-download"></i> Mẫu nhập</div>
           <a class="btn btn-outline-secondary w-100" href="<?= BASE_URL ?>csdl_export.php?entity=<?= urlencode($io_entity) ?>&mode=template">
             Tải mẫu CSV
           </a>
         </div>
-      </div>
-      <div class="col-md-4">
+      </div><?php endif; ?>
+      <?php if ($canIoImport): ?><div class="col-md-4">
         <div class="border rounded-3 p-3 h-100 bg-light">
           <div class="fw-bold mb-2"><i class="bi bi-upload text-success"></i> Nhập CSV</div>
           <form method="post" enctype="multipart/form-data">
@@ -45,8 +48,8 @@ foreach ($schema as $key => $meta) {
             <button class="btn btn-success w-100 btn-sm" type="submit">Nhập & gộp</button>
           </form>
         </div>
-      </div>
-      <div class="col-md-4">
+      </div><?php endif; ?>
+      <?php if ($canIoExport): ?><div class="col-md-4">
         <div class="border rounded-3 p-3 h-100 bg-light">
           <div class="fw-bold mb-2"><i class="bi bi-file-earmark-spreadsheet text-primary"></i> Xuất (chọn cột)</div>
           <form method="get" action="<?= BASE_URL ?>csdl_export.php" id="exp-<?= e($io_entity) ?>">
@@ -69,7 +72,7 @@ foreach ($schema as $key => $meta) {
           ·
           <button type="button" class="btn btn-link btn-sm p-0 mt-1" onclick="document.querySelectorAll('#exp-<?= e($io_entity) ?> input[type=checkbox]').forEach(c=>c.checked=false)">Bỏ chọn</button>
         </div>
-      </div>
+      </div><?php endif; ?>
     </div>
   </div>
 </div>

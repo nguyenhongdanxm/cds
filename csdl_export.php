@@ -17,6 +17,8 @@ if (!in_array($entity, ['teachers', 'classes', 'students'], true)) {
     echo 'entity không hợp lệ';
     exit;
 }
+$entityPermission = ['teachers'=>'csdl.teachers','classes'=>'csdl.classes','students'=>'csdl.students'][$entity];
+require_perm($entityPermission);
 
 $mode = $_GET['mode'] ?? $_POST['mode'] ?? 'export';
 if ($mode === 'template') {

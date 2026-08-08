@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_login();
-require_module('thidua', 'view');
+require_perm('td.student_profile');
 register_shutdown_function(function(){require __DIR__.'/includes/module_switcher.php';});
 
 $id = trim((string)($_GET['id'] ?? ''));

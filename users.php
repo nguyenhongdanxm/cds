@@ -44,16 +44,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $group['access'] = [];
         foreach ($featCatalog as $code => $meta) {
             $level = $_POST['access'][$code] ?? 'none';
-            if (in_array($level, ['view','edit','delete'], true)) $group['access'][$code] = $level;
+            $group['access'][$code] = in_array($level, ['none','view','edit','delete'], true) ? $level : 'none';
         }
         $permissionGroups[$groupKey] = $group;
-        permission_groups_save($permissionGroups);
-        flash('Đã lưu quyền cho nhóm ' . $group['label'] . '.');
+        if (!permission_groups_save($permissionGroups)) {
+            flash('Không thể ghi tệp nhóm quyền. Hãy kiểm tra quyền ghi thư mục data trên host.', 'danger');
+            header('Location: users.php?view=groups&group=' . urlencode($groupKey)); exit;
+        }
+        $savedGroup = permission_groups_all()[$groupKey] ?? null;
+        if (!is_array($savedGroup) || ($savedGroup['access'] ?? []) !== ($group['access'] ?? [])) {
+            flash('Tệp đã ghi nhưng kết quả đối chiếu không khớp. Hệ thống chưa áp dụng thay đổi.', 'danger');
+            header('Location: users.php?view=groups&group=' . urlencode($groupKey)); exit;
+        }
+        flash('Đã lưu và đối chiếu quyền cho nhóm ' . $group['label'] . '.');
+        header('Location: users.php?view=groups&group=' . urlencode($groupKey)); exit;
+    }
+
+    if ($action === 'create_group') {
+        $groupKey = strtolower(trim($_POST['new_group_key'] ?? ''));
+        $groupKey = preg_replace('/[^a-z0-9_]+/', '_', $groupKey);
+        $groupKey = trim($groupKey, '_');
+        $groupLabel = trim($_POST['new_group_label'] ?? '');
+        if ($groupKey === '' || $groupLabel === '') {
+            flash('Hãy nhập mã nhóm không dấu và tên nhóm.', 'danger');
+            header('Location: users.php?view=groups'); exit;
+        }
+        if (isset($permissionGroups[$groupKey])) {
+            flash('Mã nhóm đã tồn tại.', 'warning');
+            header('Location: users.php?view=groups&group=' . urlencode($groupKey)); exit;
+        }
+        $permissionGroups[$groupKey] = ['label' => $groupLabel, 'access' => []];
+        if (!permission_groups_save($permissionGroups)) {
+            flash('Không thể tạo nhóm quyền do tệp dữ liệu không ghi được.', 'danger');
+            header('Location: users.php?view=groups'); exit;
+        }
+        flash('Đã tạo nhóm quyền ' . $groupLabel . '.');
         header('Location: users.php?view=groups&group=' . urlencode($groupKey)); exit;
     }
 
     if ($action === 'load_system') {
         $syncReport = sync_users_from_system();
+        if (empty($syncReport['saved'])) {
+            flash('Không thể lưu tài khoản sau khi nạp hệ thống. Dữ liệu quyền chưa bị thay đổi; hãy kiểm tra quyền ghi tệp users.json.', 'danger');
+            header('Location: users.php');
+            exit;
+        }
         flash(
             'Load xong: tạo mới ' . $syncReport['created']
             . ', cập nhật ' . $syncReport['updated']
@@ -92,7 +127,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $changed++;
         }
         unset($u);
-        save_users($users);
+        if (!save_users($users)) {
+            flash('Không thể lưu quyền module. Hãy kiểm tra quyền ghi tệp users.json.', 'danger');
+            header('Location: users.php'); exit;
+        }
         flash('Đã cập nhật quyền ' . ($modCatalog[$moduleKey]['label'] ?? $moduleKey) . ' cho ' . $changed . ' người.');
         header('Location: users.php'); exit;
     }
@@ -127,7 +165,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($level === 'none') unset($permissionGroups[$target]['access'][$code]);
                 else $permissionGroups[$target]['access'][$code] = $level;
             }
-            permission_groups_save($permissionGroups);
+            if (!permission_groups_save($permissionGroups)) {
+                flash('Không thể lưu quyền nhóm. Hãy kiểm tra quyền ghi thư mục data.', 'danger');
+                header('Location: users.php'); exit;
+            }
             flash('Đã cập nhật ' . count($newAccess) . ' chức năng cho nhóm ' . ($permissionGroups[$target]['label'] ?? $target) . '.');
             header('Location: users.php'); exit;
         }
@@ -148,7 +189,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $changed++;
         }
         unset($u);
-        save_users($users);
+        if (!save_users($users)) {
+            flash('Không thể lưu thay đổi nhóm người dùng.', 'danger');
+            header('Location: users.php'); exit;
+        }
         flash('Đã cập nhật ' . count($newAccess) . ' chức năng cho ' . $changed . ' giáo viên.');
         header('Location: users.php'); exit;
     }
@@ -173,7 +217,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $changed++;
         }
         unset($u);
-        save_users($users);
+        if (!save_users($users)) {
+            flash('Không thể lưu tài khoản. Hãy kiểm tra quyền ghi tệp users.json.', 'danger');
+            header('Location: users.php'); exit;
+        }
         flash('Đã ' . ($mode === 'add' ? 'gán' : 'gỡ') . ' nhóm cho ' . $changed . ' người.');
         header('Location: users.php'); exit;
     }
@@ -281,7 +328,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
         }
 
-        save_users($users);
+        if (!save_users($users)) {
+            flash('Không thể lưu tài khoản. Hãy kiểm tra quyền ghi tệp users.json.', 'danger');
+            header('Location: users.php'); exit;
+        }
         flash('Đã lưu tài khoản.');
         header('Location: users.php'); exit;
     }
@@ -294,7 +344,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: users.php'); exit;
         }
         $users = array_values(array_filter($users, fn($u) => ($u['id'] ?? '') !== $id));
-        save_users($users);
+        if (!save_users($users)) {
+            flash('Không thể xóa tài khoản do tệp users.json không ghi được.', 'danger');
+            header('Location: users.php'); exit;
+        }
         flash('Đã xóa tài khoản.', 'warning');
         header('Location: users.php'); exit;
     }
@@ -412,6 +465,15 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
         </a>
         <?php endforeach; ?>
       </div>
+      <form method="post" class="card mt-3">
+        <input type="hidden" name="action" value="create_group">
+        <div class="card-body p-3">
+          <div class="fw-semibold mb-2"><i class="bi bi-plus-circle"></i> Tạo nhóm quyền</div>
+          <input class="form-control form-control-sm mb-2" name="new_group_label" placeholder="Tên nhóm, ví dụ: Phụ trách bếp" required>
+          <input class="form-control form-control-sm mb-2" name="new_group_key" placeholder="Mã không dấu: phutrach_bep" pattern="[A-Za-z0-9_]+" required>
+          <button class="btn btn-sm btn-outline-primary w-100" type="submit">Tạo nhóm</button>
+        </div>
+      </form>
     </div>
     <div class="col-lg-9">
       <form method="post" class="card">
@@ -435,7 +497,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                   $groupLevel = $selectedGroup['access'][$code] ?? 'none';
                 ?>
                 <tr>
-                  <td><?= e($meta['label']) ?><div class="text-muted small"><?= e($code) ?></div></td>
+                  <td><span class="badge text-bg-light border me-1"><?= e($meta['group'] ?? 'Chung') ?></span><?= e($meta['label']) ?><div class="text-muted small"><?= e($code) ?></div></td>
                   <td>
                     <select class="form-select form-select-sm" name="access[<?= e($code) ?>]">
                       <?php foreach ($accessLevels as $level => $label): ?>
@@ -464,7 +526,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
         <ul class="small mb-0 mt-1 ps-3">
           <li>Lấy GV đang công tác trong <strong>CSDL</strong> có <strong>SĐT</strong> → tài khoản đăng nhập = SĐT</li>
           <li>Tài khoản <em>mới</em>: mật khẩu mặc định <code><?= e(DEFAULT_USER_PASSWORD) ?></code> (không ghi đè mật khẩu đã đổi)</li>
-          <li>Tự gán nhóm: BGH · QLNT · Văn phòng · Đoàn–Đội · Tổ CM · GVCN · GV</li>
+          <li>Tài khoản mới được gợi ý nhóm theo chức vụ; tài khoản hiện có giữ nguyên chính xác các nhóm quản trị đã gán hoặc gỡ</li>
           <li>GVCN: lấy lớp từ PCCM (kiêm nhiệm) + cột GVCN trong CSDL lớp</li>
         </ul>
       </div>
@@ -612,7 +674,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                 </td>
                 <td class="small">
                   <?php if ($gr): foreach ($gr as $g): ?>
-                    <span class="badge bg-light text-dark border badge-mod"><?= e($groupPresets[$g]['label'] ?? $g) ?></span>
+                    <span class="badge bg-light text-dark border badge-mod"><?= e($permissionGroups[$g]['label'] ?? $g) ?></span>
                   <?php endforeach; else: ?><span class="text-muted">Chưa gán nhóm</span><?php endif; ?>
                   <div class="mt-1"><?= $cls ? e(implode(', ', $cls)) : '<span class="text-muted">Mọi lớp</span>' ?></div>
                 </td>
@@ -858,7 +920,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                   <?= e($presets[$u['role'] ?? '']['label'] ?? ($u['role'] ?? '')) ?>
                   <?php if ($gr): ?>
                     <div class="mt-1"><?php foreach ($gr as $g): ?>
-                      <span class="badge bg-light text-dark border badge-mod"><?= e($groupPresets[$g]['label'] ?? $g) ?></span>
+                      <span class="badge bg-light text-dark border badge-mod"><?= e($permissionGroups[$g]['label'] ?? $g) ?></span>
                     <?php endforeach; ?></div>
                   <?php endif; ?>
                 </td>
