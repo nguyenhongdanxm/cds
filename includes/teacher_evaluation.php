@@ -18,6 +18,7 @@ function te_default_config(): array {
         'permitted_day_deduction'=>0.25,
         'late_deduction'=>0.5,
         'achievement_level_points'=>['Trường'=>2,'Huyện'=>4,'Tỉnh'=>7,'Quốc gia'=>10],
+        'file_check_rating_scores'=>['Tốt'=>20,'Khá'=>16,'Đạt'=>12,'Chưa đạt'=>8],
         'ratings'=>[
             ['min'=>90,'label'=>'Hoàn thành xuất sắc'],
             ['min'=>75,'label'=>'Hoàn thành tốt'],
@@ -49,6 +50,12 @@ function te_observations(): array {
         if(isset($seen[$key]))continue;$seen[$key]=true;$rows[]=$row;
     }
     return $rows;
+}
+
+function te_file_checks(): array {
+    $files=[DATA_PATH.'/professional_file_checks.json'];
+    if(defined('PCCM_DATA_PATH')&&PCCM_DATA_PATH!=='')$files[]=rtrim(PCCM_DATA_PATH,'/').'/professional_file_checks.json';
+    $rows=[];$seen=[];foreach(array_unique($files) as $file)foreach(load_json($file,[]) as $row){$key=(string)($row['id']??sha1(json_encode($row,JSON_UNESCAPED_UNICODE)));if(isset($seen[$key]))continue;$seen[$key]=true;$rows[]=$row;}return $rows;
 }
 
 function te_teacher_team(array $teacher): string {
@@ -95,12 +102,16 @@ function te_rating(float $score, array $config): string {
     return '';
 }
 
-function te_calculate(array $teacher, array $period, array $config, array $observations, array $tdRecords): array {
+function te_calculate(array $teacher, array $period, array $config, array $observations, array $fileChecks, array $tdRecords): array {
     $from=$period['from']; $to=$period['to'];
     $obs=array_values(array_filter($observations,function($row)use($teacher,$from,$to){$date=$row['date']??$row['start_date']??'';return $date>=$from&&$date<=$to&&te_matches_teacher($row,$teacher);}));
     $ratedObs=array_values(array_filter($obs,fn($row)=>($row['score']??'')!==''&&is_numeric($row['score'])));
     $obsAverage=$ratedObs?array_sum(array_map(fn($row)=>(float)$row['score'],$ratedObs))/count($ratedObs):0;
-    $professional=round(min((float)$config['professional_max'],$obsAverage/20*(float)$config['professional_max']),2);
+    $professionalParts=[];if($ratedObs)$professionalParts[]=$obsAverage/20*(float)$config['professional_max'];
+    $checks=array_values(array_filter($fileChecks,fn($row)=>($row['date']??'')>=$from&&($row['date']??'')<=$to&&te_matches_teacher($row,$teacher)));
+    $checkValues=array_map(fn($row)=>(float)($config['file_check_rating_scores'][$row['rating']??'']??0),$checks);$checkAverage=$checkValues?array_sum($checkValues)/count($checkValues):0;
+    if($checks)$professionalParts[]=$checkAverage/20*(float)$config['professional_max'];
+    $professional=round($professionalParts?min((float)$config['professional_max'],array_sum($professionalParts)/count($professionalParts)):0,2);
 
     $attendance=array_values(array_filter($tdRecords,fn($row)=>($row['type']??'')==='teacher_attendance'&&te_matches_teacher($row,$teacher)&&te_overlap_days($row,$from,$to)>0));
     $attendanceDeduction=0.0; $permitted=0; $unpermitted=0; $late=0;
@@ -121,10 +132,10 @@ function te_calculate(array $teacher, array $period, array $config, array $obser
     return [
         'teacher_id'=>(string)($teacher['id']??''),'teacher_name'=>(string)($teacher['name']??''),'team'=>te_teacher_team($teacher),
         'professional'=>$professional,'attendance'=>$attendanceScore,'achievement'=>$achievementScore,'contribution'=>$contributionScore,'total'=>$total,'rating'=>te_rating($total,$config),
-        'observation_count'=>count($obs),'rated_observation_count'=>count($ratedObs),'observation_average'=>round($obsAverage,2),
+        'observation_count'=>count($obs),'rated_observation_count'=>count($ratedObs),'observation_average'=>round($obsAverage,2),'file_check_count'=>count($checks),'file_check_average'=>round($checkAverage,2),
         'permitted_days'=>$permitted,'unpermitted_days'=>$unpermitted,'late_count'=>$late,'attendance_deduction'=>round($attendanceDeduction,2),
         'achievement_count'=>count($achievements),'achievement_raw'=>round($achievementRaw,2),
-        'sources'=>['observations'=>$obs,'attendance'=>$attendance,'achievements'=>$achievements],
+        'sources'=>['observations'=>$obs,'file_checks'=>$checks,'attendance'=>$attendance,'achievements'=>$achievements],
     ];
 }
 
