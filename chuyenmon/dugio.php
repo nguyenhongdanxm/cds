@@ -10,10 +10,10 @@ function cm_observation_norm($value): string {
 function cm_observation_rating($score): string {
     if ($score === '' || $score === null || !is_numeric($score)) return '';
     $score = (float)$score;
-    if ($score >= 17) return 'Tốt';
-    if ($score >= 13) return 'Khá';
-    if ($score >= 10) return 'Đạt';
-    return 'Chưa đạt';
+    if ($score >= 18) return 'Giỏi';
+    if ($score >= 13.5) return 'Khá';
+    if ($score >= 10) return 'Trung bình';
+    return 'Không đạt';
 }
 function cm_observation_observers(array $record): array {
     $observers = $record['observers'] ?? ($record['assignees'] ?? []);
@@ -99,6 +99,13 @@ foreach ($allTeachers as $name) {
 $dataFile = DATA_PATH . '/observations.json';
 $records = load_json($dataFile, []);
 if (!is_array($records)) $records = [];
+// Luôn tính lại xếp loại từ điểm để dữ liệu cũ tuân theo thang dự giờ hiện hành.
+foreach ($records as &$record) {
+    if (($record['score'] ?? '') !== '' && is_numeric($record['score'])) {
+        $record['rating'] = cm_observation_rating($record['score']);
+    }
+}
+unset($record);
 if (empty($_SESSION['cm_observation_csrf'])) $_SESSION['cm_observation_csrf'] = bin2hex(random_bytes(20));
 $csrf = $_SESSION['cm_observation_csrf'];
 
@@ -183,7 +190,7 @@ $filterSubjects = array_values(array_unique(array_filter(array_column($visibleRe
 $summary = [];
 foreach ($statsRecords as $record) {
     $group = trim((string)($record['teacher_group']??'')) ?: 'Chưa xếp tổ'; $subject = trim((string)($record['subject']??'')) ?: 'Chưa có môn'; $key=$group.'|'.$subject;
-    if (!isset($summary[$key])) $summary[$key]=['group'=>$group,'subject'=>$subject,'total'=>0,'rated'=>0,'Tốt'=>0,'Khá'=>0,'Đạt'=>0,'Chưa đạt'=>0];
+    if (!isset($summary[$key])) $summary[$key]=['group'=>$group,'subject'=>$subject,'total'=>0,'rated'=>0,'Giỏi'=>0,'Khá'=>0,'Trung bình'=>0,'Không đạt'=>0];
     $summary[$key]['total']++; $rating=$record['rating']??''; if ($rating!=='' && isset($summary[$key][$rating])) { $summary[$key]['rated']++; $summary[$key][$rating]++; }
 }
 usort($summary,fn($a,$b)=>strnatcasecmp($a['group'].'|'.$a['subject'],$b['group'].'|'.$b['subject']));
@@ -213,7 +220,7 @@ require_once 'includes/header.php';
 </div></div>
 
 <div class="card"><div class="card-header d-flex justify-content-between"><span>Danh sách dự giờ</span><span><?=count($visibleRecords)?> tiết</span></div><div class="table-responsive"><table class="table table-bordered table-hover mb-0 obs-table obs-register-table"><colgroup><col style="width:52px"><col style="width:185px"><col style="width:115px"><col style="width:72px"><col style="width:82px"><col style="width:105px"><col style="width:76px"><col style="width:72px"><col style="width:245px"><col style="width:245px"><col style="width:72px"><col style="width:95px"><col style="width:82px"></colgroup><thead><tr><th>STT</th><th>Họ tên giáo viên</th><th>Môn</th><th>Lớp</th><th>Tuần</th><th>Ngày</th><th>Tiết PPCT</th><th>Tiết TKB</th><th>Tên bài dạy</th><th>Người dự</th><th>Điểm</th><th>Xếp loại</th><th>Thao tác</th></tr></thead><tbody>
-<?php if(!$visibleRecords):?><tr><td colspan="13" class="text-center text-muted py-4">Chưa có đăng ký dự giờ.</td></tr><?php else:foreach($visibleRecords as $index=>$record):$rating=$record['rating']??'';$ratingClass=$rating==='Tốt'?'good':($rating==='Khá'?'fair':($rating==='Đạt'?'pass':'fail'));?><tr>
+<?php if(!$visibleRecords):?><tr><td colspan="13" class="text-center text-muted py-4">Chưa có đăng ký dự giờ.</td></tr><?php else:foreach($visibleRecords as $index=>$record):$rating=$record['rating']??'';$ratingClass=$rating==='Giỏi'?'good':($rating==='Khá'?'fair':($rating==='Trung bình'?'pass':'fail'));?><tr>
 <td><?=$index+1?></td><td><strong><?=e($record['teacher']??'')?></strong><small class="d-block text-muted"><?=e($record['teacher_group']??'')?></small></td><td><?=e($record['subject']??'')?></td><td><?=e($record['class']??'')?></td><td>Tuần <?=(int)($record['week_number']??0)?></td><td><?=!empty($record['date'])?date('d/m/Y',strtotime($record['date'])):'—'?></td><td class="text-center"><?=(int)($record['ppct_period']??0)?></td><td class="text-center"><?=(int)($record['timetable_period']??0)?></td><td><?=e($record['lesson_title']??'')?></td>
 <?php if(($isAdmin||$isLeader)&&$canSeeRecord($record)): $selectedObservers=cm_observation_observers($record);?><td colspan="3"><form method="post" class="obs-review"><input type="hidden" name="action" value="observation_review"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="id" value="<?=e($record['id']??'')?>"><details class="obs-observer-picker"><summary><span class="obs-observer-summary"><?=$selectedObservers?e(count($selectedObservers).' người đã chọn'):'Chọn người dự'?></span></summary><div class="obs-observer-options"><?php foreach($teamTeachers as $name):?><label class="obs-observer-option"><input type="checkbox" name="observers[]" value="<?=e($name)?>" <?=in_array($name,$selectedObservers,true)?'checked':''?>><span class="obs-observer-name"><?=e($name)?></span></label><?php endforeach;?></div></details><input class="form-control form-control-sm obs-score" type="number" name="score" min="0" max="20" step=".01" value="<?=e((string)($record['score']??''))?>" placeholder="Điểm" required><button class="btn btn-sm btn-success" title="Lưu đánh giá"><i class="bi bi-check-lg"></i></button><small class="text-muted obs-live-rating" style="grid-column:1/-1"><?=$rating?e($rating):'Xếp loại tự động theo điểm'?></small></form></td>
 <?php else: $observerNames=cm_observation_observers($record); $observerDisplay=cm_observation_observer_display($record);?><td class="obs-observer-display" title="<?=e(implode(', ',$observerNames))?>"><?=e($observerDisplay?:'—')?></td><td><?=($record['score']??'')!==''?e((string)$record['score']):'—'?></td><td><?=$rating?'<span class="obs-rating '.$ratingClass.'">'.e($rating).'</span>':'—'?></td><?php endif;?>
@@ -229,8 +236,8 @@ require_once 'includes/header.php';
 <div class="col-md-3"><label class="form-label fw-semibold">Đến ngày</label><input class="form-control" type="date" name="to_date" value="<?=e($filterToDate)?>"></div>
 <div class="col-md-6"><div class="obs-filter-actions"><button class="btn btn-primary"><i class="bi bi-funnel"></i> Áp dụng bộ lọc</button><a class="btn btn-outline-secondary" href="<?=BASE_URL?>dugio.php?view=stats"><i class="bi bi-arrow-counterclockwise"></i> Xóa bộ lọc</a></div><div class="obs-filter-note mt-2">Có thể lọc theo khoảng tuần, khoảng ngày hoặc kết hợp cả hai.</div></div>
 </div></div></form>
-<?php $ratedCount=count(array_filter($statsRecords,fn($r)=>($r['rating']??'')!==''));?><div class="obs-kpis"><div><strong><?=count($statsRecords)?></strong><span>Tổng tiết đăng ký</span></div><div><strong><?=$ratedCount?></strong><span>Đã đánh giá</span></div><?php foreach(['Tốt','Khá','Đạt','Chưa đạt'] as $label):?><div><strong><?=count(array_filter($statsRecords,fn($r)=>($r['rating']??'')===$label))?></strong><span><?=e($label)?></span></div><?php endforeach;?></div>
-<div class="card mb-3"><div class="card-header">Tổng hợp số tiết theo tổ và môn</div><div class="table-responsive"><table class="table table-bordered mb-0 obs-summary"><colgroup><col style="width:55px"><col style="width:220px"><col style="width:170px"><col style="width:100px"><col style="width:110px"><col style="width:75px"><col style="width:75px"><col style="width:75px"><col style="width:95px"></colgroup><thead><tr><th>STT</th><th>Tổ chuyên môn</th><th>Môn</th><th>Tổng số tiết</th><th>Đã đánh giá</th><th>Tốt</th><th>Khá</th><th>Đạt</th><th>Chưa đạt</th></tr></thead><tbody><?php if(!$summary):?><tr><td colspan="9" class="text-center text-muted py-4">Chưa có dữ liệu tổng hợp.</td></tr><?php else:foreach($summary as $i=>$row):?><tr><td><?=$i+1?></td><td><strong><?=e($row['group'])?></strong></td><td><?=e($row['subject'])?></td><td><?=$row['total']?></td><td><?=$row['rated']?></td><td><?=$row['Tốt']?></td><td><?=$row['Khá']?></td><td><?=$row['Đạt']?></td><td><?=$row['Chưa đạt']?></td></tr><?php endforeach;endif;?></tbody></table></div></div>
+<?php $ratedCount=count(array_filter($statsRecords,fn($r)=>($r['rating']??'')!==''));?><div class="obs-kpis"><div><strong><?=count($statsRecords)?></strong><span>Tổng tiết đăng ký</span></div><div><strong><?=$ratedCount?></strong><span>Đã đánh giá</span></div><?php foreach(['Giỏi','Khá','Trung bình','Không đạt'] as $label):?><div><strong><?=count(array_filter($statsRecords,fn($r)=>($r['rating']??'')===$label))?></strong><span><?=e($label)?></span></div><?php endforeach;?></div>
+<div class="card mb-3"><div class="card-header">Tổng hợp số tiết theo tổ và môn</div><div class="table-responsive"><table class="table table-bordered mb-0 obs-summary"><colgroup><col style="width:55px"><col style="width:220px"><col style="width:170px"><col style="width:100px"><col style="width:110px"><col style="width:75px"><col style="width:75px"><col style="width:105px"><col style="width:100px"></colgroup><thead><tr><th>STT</th><th>Tổ chuyên môn</th><th>Môn</th><th>Tổng số tiết</th><th>Đã đánh giá</th><th>Giỏi</th><th>Khá</th><th>Trung bình</th><th>Không đạt</th></tr></thead><tbody><?php if(!$summary):?><tr><td colspan="9" class="text-center text-muted py-4">Chưa có dữ liệu tổng hợp.</td></tr><?php else:foreach($summary as $i=>$row):?><tr><td><?=$i+1?></td><td><strong><?=e($row['group'])?></strong></td><td><?=e($row['subject'])?></td><td><?=$row['total']?></td><td><?=$row['rated']?></td><td><?=$row['Giỏi']?></td><td><?=$row['Khá']?></td><td><?=$row['Trung bình']?></td><td><?=$row['Không đạt']?></td></tr><?php endforeach;endif;?></tbody></table></div></div>
 <div class="card"><div class="card-header">Bảng kê chi tiết</div><div class="table-responsive"><table class="table table-bordered table-sm mb-0 obs-table obs-detail-table"><colgroup><col style="width:52px"><col style="width:185px"><col style="width:150px"><col style="width:115px"><col style="width:72px"><col style="width:82px"><col style="width:105px"><col style="width:76px"><col style="width:72px"><col style="width:245px"><col style="width:210px"><col style="width:72px"><col style="width:95px"></colgroup><thead><tr><th>STT</th><th>Họ tên giáo viên</th><th>Tổ</th><th>Môn</th><th>Lớp</th><th>Tuần</th><th>Ngày</th><th>Tiết PPCT</th><th>Tiết TKB</th><th>Tên bài dạy</th><th>Người dự</th><th>Điểm</th><th>Xếp loại</th></tr></thead><tbody><?php if(!$statsRecords):?><tr><td colspan="13" class="text-center text-muted py-4">Chưa có dữ liệu.</td></tr><?php else:foreach($statsRecords as $i=>$record): $observerNames=cm_observation_observers($record); $observerDisplay=cm_observation_observer_display($record);?><tr><td><?=$i+1?></td><td><?=e($record['teacher']??'')?></td><td><?=e($record['teacher_group']??'')?></td><td><?=e($record['subject']??'')?></td><td><?=e($record['class']??'')?></td><td>Tuần <?=(int)($record['week_number']??0)?></td><td><?=!empty($record['date'])?date('d/m/Y',strtotime($record['date'])):'—'?></td><td><?=(int)($record['ppct_period']??0)?></td><td><?=(int)($record['timetable_period']??0)?></td><td><?=e($record['lesson_title']??'')?></td><td class="obs-observer-display" title="<?=e(implode(', ',$observerNames))?>"><?=e($observerDisplay?:'—')?></td><td><?=e((string)($record['score']??''))?></td><td><?=e($record['rating']??'')?></td></tr><?php endforeach;endif;?></tbody></table></div></div>
 <?php endif;?>
 
@@ -240,7 +247,7 @@ require_once 'includes/header.php';
   function filterClasses(){if(!subject||!classSelect)return;Array.from(classSelect.options).forEach(function(option,index){if(!index)return;option.hidden=option.dataset.subject!==subject.value});if(classSelect.selectedOptions[0]?.hidden)classSelect.value=''}
   function syncWeekDate(){if(!week||!date)return;const option=week.selectedOptions[0];date.min=option?.dataset.start||'';date.max=option?.dataset.end||'';if(!date.value||date.value<date.min||date.value>date.max)date.value=date.min}
   subject?.addEventListener('change',filterClasses);week?.addEventListener('change',syncWeekDate);filterClasses();syncWeekDate();
-  document.querySelectorAll('.obs-score').forEach(function(input){input.addEventListener('input',function(){const score=parseFloat(input.value),label=input.closest('form').querySelector('.obs-live-rating');label.textContent=Number.isNaN(score)?'Xếp loại tự động theo điểm':score>=17?'Tốt':score>=13?'Khá':score>=10?'Đạt':'Chưa đạt'})});
+  document.querySelectorAll('.obs-score').forEach(function(input){input.addEventListener('input',function(){const score=parseFloat(input.value),label=input.closest('form').querySelector('.obs-live-rating');label.textContent=Number.isNaN(score)?'Xếp loại tự động theo điểm':score>=18?'Giỏi':score>=13.5?'Khá':score>=10?'Trung bình':'Không đạt'})});
   document.querySelectorAll('.obs-review').forEach(function(form){
     const picker=form.querySelector('.obs-observer-picker'),summary=form.querySelector('.obs-observer-summary');
     function updateObserverSummary(){const count=form.querySelectorAll('input[name="observers[]"]:checked').length;summary.textContent=count?count+' người đã chọn':'Chọn người dự'}
