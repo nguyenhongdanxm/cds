@@ -21,7 +21,7 @@ $cmLayoutActive = static function (array $pages, ?string $tab = null) use ($curr
 
 $cmPccmActive = in_array($current, ['tracuu','tongquan','them','danhsach','doicheo','rasoat','sua','ketqua','giaovien','monhoc','lop','kiemnhiem','xuat_bang','thongke'], true);
 $cmPlanActive = $current === 'kehoach' || ($current === 'baocao' && in_array($cmLayoutTab,['dinhky','tiendo'],true));
-$cmReportActive = $current === 'dugio' || ($current === 'baocao' && $cmLayoutTab === 'kythi');
+$cmReportActive = in_array($current,['dugio','kiemtrahoso'],true);
 
 $cmNavGroups = [
     ['label'=>'Tổng quan','items'=>[
@@ -50,7 +50,7 @@ $cmNavGroups = [
     ]],
     ['label'=>'Theo dõi – Đánh giá','items'=>[
         ['permission'=>'cm.baocao.dugio','pages'=>['dugio'],'href'=>'dugio.php','icon'=>'bi-eye','label'=>'Dự giờ'],
-        ['permission'=>'cm.baocao.kythi','pages'=>['baocao'],'tab'=>'kythi','href'=>'baocao.php?tab=kythi','icon'=>'bi-trophy','label'=>'Kết quả cuộc thi'],
+        ['permission'=>'cm.baocao.kythi','pages'=>['kiemtrahoso'],'href'=>'kiemtrahoso.php','icon'=>'bi-folder-check','label'=>'Kiểm tra hồ sơ CM'],
         ['permission'=>'cm.baocao.dugio','pages'=>[],'href'=>'../danhgia.php?view=profile','icon'=>'bi-person-lines-fill','label'=>'Hồ sơ đánh giá'],
         ['permission'=>'cm.baocao.dugio','pages'=>[],'href'=>'../danhgia.php?view=overview','icon'=>'bi-bar-chart-line','label'=>'Tổng hợp đánh giá'],
     ]],

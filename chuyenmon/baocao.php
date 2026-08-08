@@ -7,7 +7,7 @@ $tabs = [
     'dinhky' => ['Báo cáo định kỳ', 'bi-calendar-month', 'cm.baocao.dinhky'],
     'tiendo' => ['Tiến độ chương trình', 'bi-graph-up', 'cm.baocao.tiendo'],
     'dugio' => ['Dự giờ', 'bi-eye', 'cm.baocao.dugio'],
-    'kythi' => ['Kết quả cuộc thi', 'bi-trophy', 'cm.baocao.kythi'],
+    'kythi' => ['Dữ liệu cuộc thi cũ', 'bi-archive', 'cm.baocao.kythi'],
 ];
 $requestedTab = $_GET['tab'] ?? '';
 if ($requestedTab === 'thang') $requestedTab = 'dinhky';
@@ -248,6 +248,7 @@ if ($tab === 'kythi') {
 }
 
 require_once 'includes/header.php';
+$navTabs=$tabs;unset($navTabs['kythi']);
 
 function cm_view_btns($it) {
     $html = '<button type="button" class="btn btn-sm btn-outline-success" title="Xem" onclick=\'viewDoc(' . json_encode($it, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS) . ')\'><i class="bi bi-eye"></i></button> ';
@@ -258,7 +259,7 @@ function cm_view_btns($it) {
 <h3 class="mb-3"><i class="bi bi-file-earmark-text"></i> Báo cáo chuyên môn</h3>
 
 <ul class="nav nav-pills gap-1 mb-4 flex-wrap">
-  <?php foreach ($tabs as $k => $info): ?>
+  <?php foreach ($navTabs as $k => $info): ?>
   <li class="nav-item">
     <a class="nav-link <?= $tab===$k?'active':'' ?>" href="<?= BASE_URL ?>baocao.php?tab=<?= urlencode($k) ?>">
       <i class="bi <?= e($info[1]) ?>"></i> <?= e($info[0]) ?>
