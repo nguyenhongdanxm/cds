@@ -5,15 +5,21 @@ require_login();
 require_module('noitru', 'view');
 $user = current_user();
 
-$tab = $_GET['tab'] ?? 'overview';
+$requestedTab = $_GET['tab'] ?? '';
+$tab = $requestedTab !== '' ? $requestedTab : 'overview';
 $allowed = ['overview','boarders','exits','meals','meal_summary','rice','attendance','duty','health','menu','stats'];
 if (!in_array($tab, $allowed, true)) $tab = 'overview';
 $tabPerms = [
     'overview'=>'nt.tongquan', 'boarders'=>'nt.danhsach', 'exits'=>'nt.ravao',
     'meals'=>'nt.baoan', 'attendance'=>'nt.diemdanh', 'duty'=>'nt.lichtruc',
-    'meal_summary'=>'nt.thongke', 'rice'=>'nt.baoan',
+    'meal_summary'=>'nt.buaan.tonghop', 'rice'=>'nt.gao',
     'health'=>'nt.yte', 'menu'=>'nt.thucdon', 'stats'=>'nt.thongke',
 ];
+if ($requestedTab === '' && !can_perm($tabPerms[$tab])) {
+    foreach ($tabPerms as $candidateTab => $candidatePermission) {
+        if (can_perm($candidatePermission)) { $tab = $candidateTab; break; }
+    }
+}
 require_perm($tabPerms[$tab] ?? 'nt.tongquan');
 
 function noitru_attendance_students_all() {
@@ -76,8 +82,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $actionPerms = [
         'sync_from_csdl'=>'nt.danhsach',
         'exit_save'=>'nt.ravao', 'exit_status'=>'nt.ravao', 'exit_delete'=>'nt.ravao',
-        'meals_generate'=>'nt.baoan', 'meals_save'=>'nt.baoan', 'meals_lock'=>'nt.baoan', 'meals_unlock'=>'nt.baoan',
-        'meal_state'=>'nt.thongke', 'meal_settings'=>'nt.thongke', 'meal_fill_missing'=>'nt.thongke',
+        'meals_generate'=>'nt.baoan', 'meals_save'=>'nt.baoan',
+        'meals_lock'=>'nt.buaan.tonghop', 'meals_unlock'=>'nt.buaan.tonghop',
+        'meal_state'=>'nt.buaan.tonghop', 'meal_settings'=>'nt.buaan.tonghop', 'meal_fill_missing'=>'nt.buaan.tonghop',
         'att_save'=>'nt.diemdanh',
         'duty_save'=>'nt.lichtruc', 'duty_delete'=>'nt.lichtruc',
         'duty_toggle'=>'nt.lichtruc', 'duty_auto'=>'nt.lichtruc', 'duty_copy'=>'nt.lichtruc',
@@ -89,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'medicine_save'=>'nt.yte', 'medicine_restock'=>'nt.yte', 'medicine_delete'=>'nt.yte',
         'menu_save'=>'nt.thucdon', 'menu_dish_add'=>'nt.thucdon', 'menu_dish_delete'=>'nt.thucdon',
         'menu_template_save'=>'nt.thucdon', 'menu_apply_template'=>'nt.thucdon', 'menu_copy_week'=>'nt.thucdon',
-        'rice_settings'=>'nt.baoan', 'rice_in'=>'nt.baoan', 'rice_issue'=>'nt.baoan', 'rice_delete'=>'nt.baoan',
+        'rice_settings'=>'nt.gao', 'rice_in'=>'nt.gao', 'rice_issue'=>'nt.gao', 'rice_delete'=>'nt.gao',
     ];
     if (isset($actionPerms[$action])) {
         $requiredLevel = substr($action, -7) === '_delete' || $action === 'duty_month_clear' ? 'delete' : 'edit';

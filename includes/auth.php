@@ -20,7 +20,28 @@ function load_json($file, $default = []) {
 }
 
 function save_json($file, $data) {
-    file_put_contents($file, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    if ($json === false) return false;
+
+    $dir = dirname($file);
+    if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) return false;
+
+    // Ghi vào tệp tạm cùng thư mục rồi đổi tên để tránh tệp JSON bị dở dang
+    // khi hai người cùng lưu hoặc tiến trình bị ngắt giữa chừng.
+    $tmp = tempnam($dir, basename($file) . '.tmp.');
+    if ($tmp === false) return false;
+    $written = file_put_contents($tmp, $json, LOCK_EX);
+    if ($written === false || $written !== strlen($json)) {
+        @unlink($tmp);
+        return false;
+    }
+    @chmod($tmp, 0640);
+    if (!@rename($tmp, $file)) {
+        @unlink($tmp);
+        return false;
+    }
+    clearstatcache(true, $file);
+    return true;
 }
 
 function init_users() {
@@ -45,7 +66,7 @@ function init_users() {
 }
 
 function get_users() { init_users(); return load_json(USERS_FILE, []); }
-function save_users(array $users) { save_json(USERS_FILE, array_values($users)); }
+function save_users(array $users) { return save_json(USERS_FILE, array_values($users)); }
 function find_user($username) { foreach (get_users() as $u) if (strcasecmp($u['username'] ?? '', $username) === 0) return $u; return null; }
 function find_user_by_id($id) { foreach (get_users() as $u) if (($u['id'] ?? '') === $id) return $u; return null; }
 function is_logged_in() { return !empty($_SESSION['cds_user']); }
@@ -56,11 +77,10 @@ function session_user_from_record(array $u) {
     $groups = is_array($u['groups'] ?? null) ? $u['groups'] : [];
     $classes = is_array($u['classes'] ?? null) ? $u['classes'] : [];
     $homeroomClasses = is_array($u['homeroom_classes'] ?? null) ? $u['homeroom_classes'] : [];
-    if ($role === 'gvcn' && !in_array('gvcn', $groups, true)) $groups[] = 'gvcn';
-    if ($role === 'gvcn' || in_array('gvcn', $groups, true)) {
-        $homeroomScope = array_values(array_unique(array_filter(array_map('strval', $homeroomClasses))));
-        if ($homeroomScope) $classes = $homeroomScope;
-    }
+    if ((int)($u['permission_model_version'] ?? 1) < 2 && !$groups && $role === 'gvcn') $groups[] = 'gvcn';
+    // Giữ riêng lớp chủ nhiệm và lớp được giao thêm. allowed_classes() sẽ hợp
+    // nhất hai phạm vi, nhờ đó một người có thể vừa là GVCN vừa nhận nhiệm vụ
+    // ở các lớp khác mà quản trị đã chỉ định rõ.
     return [
         'id'=>$u['id']??'', 'username'=>$u['username']??'', 'name'=>$u['name']??($u['username']??''), 'role'=>$role,
         'modules'=>is_array($u['modules']??null)?$u['modules']:[], 'perms'=>is_array($u['perms']??null)?$u['perms']:[],

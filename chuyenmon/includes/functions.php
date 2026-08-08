@@ -622,6 +622,8 @@ function cds_refresh_chuyenmon_session() {
 function cds_feature_access_for_user($user, $code) {
     if (($user['role'] ?? '') === 'admin') return 'delete';
     $access = 'none';
+    $usesGroupModel = (int)($user['permission_model_version'] ?? 1) >= 2
+        || !empty($user['groups']);
     $reportChildren = ['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
     $isReportChild = in_array($code, $reportChildren, true);
     if ($code === 'cm.baocao') {
@@ -632,7 +634,7 @@ function cds_feature_access_for_user($user, $code) {
         }
         return $best;
     }
-    if ((int)($user['permission_model_version'] ?? 1) < 2) {
+    if (!$usesGroupModel) {
         $legacyPerms = is_array($user['perms']??null)?$user['perms']:[];
         if (in_array($code, $legacyPerms, true) || ($isReportChild && in_array('cm.baocao', $legacyPerms, true))) $access = 'view';
         $moduleLevel = $user['modules']['chuyenmon'] ?? 'none';
@@ -657,8 +659,9 @@ function cds_feature_access_for_user($user, $code) {
         if (cds_permission_rank($level) > cds_permission_rank($access)) $access = $level;
     }
 
-    // Mọi tài khoản giáo viên đều được tự đăng ký tiết dự giờ.
-    if ($code === 'cm.baocao.dugio') {
+    // Tương thích tài khoản mô hình cũ. Tài khoản phân quyền v2 trở lên phải
+    // tuân thủ chính xác nhóm và quyền cá nhân do quản trị cấu hình.
+    if ($code === 'cm.baocao.dugio' && !$usesGroupModel) {
         $teacherRoles = array_merge([(string)($user['role'] ?? '')], (array)($user['groups'] ?? []));
         if (array_intersect($teacherRoles, ['gv','gvcn']) && cds_permission_rank($access) < cds_permission_rank('view')) $access = 'view';
     }

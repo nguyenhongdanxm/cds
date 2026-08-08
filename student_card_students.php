@@ -2,7 +2,7 @@
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/student_card_store.php';
 require_login();
-require_module('csdl', 'view');
+require_perm('csdl.students');
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');

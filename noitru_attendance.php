@@ -10,6 +10,8 @@ require_login();
 require_perm('nt.diemdanh');
 $user = current_user();
 $isAdmin = (($user['role'] ?? '') === 'admin');
+$canManageAttendance = $isAdmin || can_perm_level('nt.diemdanh.quantri', 'edit');
+$canDeleteAttendance = $isAdmin || can_perm_level('nt.diemdanh.quantri', 'delete');
 $school = defined('SCHOOL_NAME') ? SCHOOL_NAME : 'Trường';
 $reporters = array_values(array_filter(csdl_teachers_all(), fn($teacher) => !empty($teacher['active']) && trim($teacher['name'] ?? '') !== ''));
 
@@ -46,8 +48,8 @@ $shift = trim($_GET['shift'] ?? '');
 $class = trim($_GET['class'] ?? '');
 $q     = trim($_GET['q'] ?? '');
 $view  = $_GET['view'] ?? 'diemdanh';
-if ($view === 'settings' && !$isAdmin) {
-    flash('Chỉ quản trị được mở cài đặt buổi điểm danh.', 'danger');
+if ($view === 'settings' && !$canManageAttendance) {
+    flash('Bạn không có quyền quản trị cài đặt buổi điểm danh.', 'danger');
     header('Location: ' . BASE_URL . 'noitru_attendance.php');
     exit;
 }
@@ -67,8 +69,12 @@ if (!isset($shifts[$shift])) $shift = 'dot_xuat';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     require_perm_level('nt.diemdanh', 'edit');
-    if (in_array($action, ['shifts_save','att_delete_report','att_delete_dates'], true) && !$isAdmin) {
-        flash('Chỉ quản trị được thực hiện thao tác này.', 'danger');
+    if ($action === 'shifts_save' && !$canManageAttendance) {
+        flash('Bạn không có quyền sửa cài đặt buổi điểm danh.', 'danger');
+        header('Location: ' . BASE_URL . 'noitru_attendance.php'); exit;
+    }
+    if (in_array($action, ['att_delete_report','att_delete_dates'], true) && !$canDeleteAttendance) {
+        flash('Bạn không có quyền xóa dữ liệu điểm danh.', 'danger');
         header('Location: ' . BASE_URL . 'noitru_attendance.php'); exit;
     }
     $redir = BASE_URL . 'noitru_attendance.php?' . http_build_query(array_filter([
@@ -85,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sts = $_POST['status'] ?? [];
         $reasons = $_POST['reason'] ?? [];
         $excuses = $_POST['excuse'] ?? [];
-        $reporterName = $isAdmin ? trim($_POST['reporter'] ?? ($user['name'] ?? '')) : ($user['name'] ?? '');
+        $reporterName = $canManageAttendance ? trim($_POST['reporter'] ?? ($user['name'] ?? '')) : ($user['name'] ?? '');
         $generalNote = trim($_POST['general_note'] ?? '');
         foreach ($ids as $i => $sid) {
             $sid = trim($sid);

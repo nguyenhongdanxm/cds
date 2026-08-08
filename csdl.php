@@ -5,19 +5,37 @@ require_once 'includes/csdl_sync.php'; // API cho module khác kéo 1 chiều t�
 require_once 'includes/csdl_import_teachers.php';
 require_once 'includes/csdl_io.php';
 require_login();
-require_module('csdl', 'view');
 $user = current_user();
-$tab = $_GET['tab'] ?? 'overview';
+$requestedTab = $_GET['tab'] ?? '';
+$tab = $requestedTab !== '' ? $requestedTab : 'overview';
 $allowed = ['overview', 'teachers', 'classes', 'students', 'years'];
 if (!in_array($tab, $allowed, true)) $tab = 'overview';
+$tabPermissions = [
+    'overview' => 'csdl.overview', 'teachers' => 'csdl.teachers',
+    'classes' => 'csdl.classes', 'students' => 'csdl.students', 'years' => 'csdl.year',
+];
+if ($requestedTab === '' && !can_perm($tabPermissions[$tab])) {
+    foreach ($tabPermissions as $candidateTab => $candidatePermission) {
+        if (can_perm($candidatePermission)) { $tab = $candidateTab; break; }
+    }
+}
+require_perm($tabPermissions[$tab]);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    $editActions = ['io_import','teacher_save','class_save','student_save'];
-    $deleteActions = ['bulk_delete','teacher_delete','class_delete','student_delete'];
+    $editActions = ['teacher_save'=>'csdl.teachers','class_save'=>'csdl.classes','student_save'=>'csdl.students'];
+    $deleteActions = ['teacher_delete'=>'csdl.teachers','class_delete'=>'csdl.classes','student_delete'=>'csdl.students'];
     $yearActions = ['year_set_current','year_save','year_week_save'];
-    if (in_array($action, $editActions, true)) require_perm_level('csdl.edit', 'edit');
-    if (in_array($action, $deleteActions, true)) require_perm_level('csdl.edit', 'delete');
+    if (isset($editActions[$action])) require_perm_level($editActions[$action], 'edit');
+    if (isset($deleteActions[$action])) require_perm_level($deleteActions[$action], 'delete');
+    if ($action === 'io_import') {
+        $entityPermission = ['teachers'=>'csdl.teachers','classes'=>'csdl.classes','students'=>'csdl.students'][$_POST['entity'] ?? ''] ?? '';
+        require_perm_level($entityPermission, 'edit');
+    }
+    if ($action === 'bulk_delete') {
+        $entityPermission = ['teachers'=>'csdl.teachers','classes'=>'csdl.classes','students'=>'csdl.students'][$_POST['entity'] ?? ''] ?? '';
+        require_perm_level($entityPermission, 'delete');
+    }
     if (in_array($action, $yearActions, true)) require_perm_level('csdl.year', 'edit');
     if ($action === 'year_delete') require_perm_level('csdl.year', 'delete');
     if ($action === 'student_save') {
@@ -216,10 +234,11 @@ if ($allowedClassNames !== null) {
 }
 $years = csdl_years_all();
 $edit_id = $_GET['edit'] ?? '';
-$canCsdlEdit = can_edit_perm('csdl.edit');
+$canCsdlEdit = can_edit_perm($tabPermissions[$tab]);
+$canCsdlExport = can_perm('csdl.export');
 $canYearEdit = can_edit_perm('csdl.year');
 $canEditCurrent = $tab === 'years' ? $canYearEdit : $canCsdlEdit;
-$canCsdlDelete = can_delete_perm('csdl.edit');
+$canCsdlDelete = can_delete_perm($tabPermissions[$tab]);
 $canYearDelete = can_delete_perm('csdl.year');
 $canDeleteCurrent = $tab === 'years' ? $canYearDelete : $canCsdlDelete;
 
@@ -303,11 +322,11 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
   </div>
 
   <ul class="nav nav-pills gap-1 mb-4 flex-wrap">
-    <li class="nav-item"><a class="nav-link <?= $tab==='overview'?'active':'' ?>" href="?tab=overview"><i class="bi bi-grid"></i> Tổng quan</a></li>
-    <li class="nav-item"><a class="nav-link <?= $tab==='teachers'?'active':'' ?>" href="?tab=teachers"><i class="bi bi-people"></i> Giáo viên</a></li>
-    <li class="nav-item"><a class="nav-link <?= $tab==='classes'?'active':'' ?>" href="?tab=classes"><i class="bi bi-building"></i> Lớp / khối</a></li>
-    <li class="nav-item"><a class="nav-link <?= $tab==='students'?'active':'' ?>" href="?tab=students"><i class="bi bi-mortarboard"></i> Học sinh</a></li>
-    <li class="nav-item"><a class="nav-link <?= $tab==='years'?'active':'' ?>" href="?tab=years"><i class="bi bi-calendar3"></i> Năm học</a></li>
+    <?php if (can_perm('csdl.overview')): ?><li class="nav-item"><a class="nav-link <?= $tab==='overview'?'active':'' ?>" href="?tab=overview"><i class="bi bi-grid"></i> Tổng quan</a></li><?php endif; ?>
+    <?php if (can_perm('csdl.teachers')): ?><li class="nav-item"><a class="nav-link <?= $tab==='teachers'?'active':'' ?>" href="?tab=teachers"><i class="bi bi-people"></i> Giáo viên</a></li><?php endif; ?>
+    <?php if (can_perm('csdl.classes')): ?><li class="nav-item"><a class="nav-link <?= $tab==='classes'?'active':'' ?>" href="?tab=classes"><i class="bi bi-building"></i> Lớp / khối</a></li><?php endif; ?>
+    <?php if (can_perm('csdl.students')): ?><li class="nav-item"><a class="nav-link <?= $tab==='students'?'active':'' ?>" href="?tab=students"><i class="bi bi-mortarboard"></i> Học sinh</a></li><?php endif; ?>
+    <?php if (can_perm('csdl.year')): ?><li class="nav-item"><a class="nav-link <?= $tab==='years'?'active':'' ?>" href="?tab=years"><i class="bi bi-calendar3"></i> Năm học</a></li><?php endif; ?>
   </ul>
 
 <?php if ($tab === 'overview'): ?>
@@ -327,9 +346,9 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
   ?>
   <div class="d-flex justify-content-between align-items-center mb-2">
     <h5 class="mb-0">Bảng giáo viên (<?= count($teachers) ?>)</h5>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTeacher" onclick="resetTeacherForm()">
+    <?php if ($canCsdlEdit): ?><button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTeacher" onclick="resetTeacherForm()">
       <i class="bi bi-plus-lg"></i> Thêm giáo viên
-    </button>
+    </button><?php endif; ?>
   </div>
   <div class="card card-soft"><div class="card-body p-0">
     <div class="table-responsive">
@@ -349,7 +368,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
           $to = $t['to_chuyen_mon'] ?? $t['pccm_group'] ?? '';
         ?>
           <tr class="<?= empty($t['active'])?'table-secondary':'' ?>">
-            <td><input type="checkbox" class="form-check-input row-chk row-chk-teachers" value="<?= e($t['id']) ?>"></td>
+            <td><?php if ($canCsdlExport || $canCsdlDelete): ?><input type="checkbox" class="form-check-input row-chk row-chk-teachers" value="<?= e($t['id']) ?>"><?php endif; ?></td>
             <td><?= $i+1 ?></td>
             <td class="small"><?= e($t['code'] ?? '') ?></td>
             <td><strong><?= e($t['name'] ?? '') ?></strong></td>
@@ -362,7 +381,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
             <td class="small"><?php if ($kn): foreach (explode('; ', $kn) as $p): if($p==='')continue; ?><span class="badge badge-kn"><?= e($p) ?></span><?php endforeach; else: ?>—<?php endif; ?></td>
             <td><?= !empty($t['active']) ? '<span class="badge bg-success">Có</span>' : '<span class="badge bg-secondary">Nghỉ</span>' ?></td>
             <td class="text-nowrap">
-              <a class="btn btn-sm btn-outline-primary" href="?tab=teachers&edit=<?= urlencode($t['id']) ?>" title="Sửa"><i class="bi bi-pencil"></i></a>
+              <?php if ($canCsdlEdit): ?><a class="btn btn-sm btn-outline-primary" href="?tab=teachers&edit=<?= urlencode($t['id']) ?>" title="Sửa"><i class="bi bi-pencil"></i></a><?php endif; ?>
               <?php if ($canCsdlDelete): ?><form method="post" class="d-inline" onsubmit="return confirm('Xóa giáo viên này?')">
                 <input type="hidden" name="action" value="teacher_delete">
                 <input type="hidden" name="id" value="<?= e($t['id']) ?>">
@@ -375,7 +394,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
       </table>
     </div>
   </div></div>
-  <?php include __DIR__ . '/includes/csdl_modal_teacher.php'; ?>
+  <?php if ($canCsdlEdit) include __DIR__ . '/includes/csdl_modal_teacher.php'; ?>
 
 <?php elseif ($tab === 'classes'): ?>
   <?php
@@ -389,9 +408,9 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
   ?>
   <div class="d-flex justify-content-between align-items-center mb-2">
     <h5 class="mb-0">Bảng lớp (<?= count($classes) ?>)</h5>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalClass" onclick="document.getElementById('c_id').value='';document.getElementById('modalClassTitle').textContent='Thêm lớp'">
+    <?php if ($canCsdlEdit): ?><button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalClass" onclick="document.getElementById('c_id').value='';document.getElementById('modalClassTitle').textContent='Thêm lớp'">
       <i class="bi bi-plus-lg"></i> Thêm lớp
-    </button>
+    </button><?php endif; ?>
   </div>
   <div class="card card-soft"><div class="card-body p-0">
     <div class="table-responsive">
@@ -400,7 +419,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
         <tbody>
         <?php foreach ($classes as $i => $c): ?>
           <tr class="<?= empty($c['active'])?'table-secondary':'' ?>">
-            <td><input type="checkbox" class="form-check-input row-chk row-chk-classes" value="<?= e($c['id']) ?>"></td>
+            <td><?php if ($canCsdlExport || $canCsdlDelete): ?><input type="checkbox" class="form-check-input row-chk row-chk-classes" value="<?= e($c['id']) ?>"><?php endif; ?></td>
             <td><?= $i+1 ?></td>
             <td><strong><?= e($c['name'] ?? '') ?></strong></td>
             <td><?= e((string)($c['grade'] ?? '')) ?></td>
@@ -410,7 +429,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
             <td><?= e((string)($c['capacity'] ?? '')) ?></td>
             <td><?= !empty($c['active']) ? '<span class="badge bg-success">Có</span>' : '<span class="badge bg-secondary">Ẩn</span>' ?></td>
             <td class="text-nowrap">
-              <a class="btn btn-sm btn-outline-primary" href="?tab=classes&edit=<?= urlencode($c['id']) ?>"><i class="bi bi-pencil"></i></a>
+              <?php if ($canCsdlEdit): ?><a class="btn btn-sm btn-outline-primary" href="?tab=classes&edit=<?= urlencode($c['id']) ?>"><i class="bi bi-pencil"></i></a><?php endif; ?>
               <?php if ($canCsdlDelete): ?><form method="post" class="d-inline" onsubmit="return confirm('Xóa lớp?')">
                 <input type="hidden" name="action" value="class_delete">
                 <input type="hidden" name="id" value="<?= e($c['id']) ?>">
@@ -423,7 +442,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
       </table>
     </div>
   </div></div>
-  <?php include __DIR__ . '/includes/csdl_modal_class.php'; ?>
+  <?php if ($canCsdlEdit) include __DIR__ . '/includes/csdl_modal_class.php'; ?>
 
 <?php elseif ($tab === 'students'): ?>
   <?php
@@ -436,9 +455,9 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
   ?>
   <div class="d-flex justify-content-between align-items-center mb-2">
     <h5 class="mb-0">Bảng học sinh (<?= count($students) ?>)</h5>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalStudent" onclick="resetStudentForm()">
+    <?php if ($canCsdlEdit): ?><button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalStudent" onclick="resetStudentForm()">
       <i class="bi bi-plus-lg"></i> Thêm học sinh
-    </button>
+    </button><?php endif; ?>
   </div>
   <div class="card card-soft"><div class="card-body p-0">
     <div class="table-responsive">
@@ -454,7 +473,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
           <tr><td colspan="14" class="text-muted text-center py-4">Chưa có — tải mẫu CSV hoặc thêm mới.</td></tr>
         <?php else: foreach ($students as $i => $s): ?>
           <tr class="<?= empty($s['active'])?'table-secondary':'' ?>">
-            <td><input type="checkbox" class="form-check-input row-chk row-chk-students" value="<?= e($s['id']) ?>"></td>
+            <td><?php if ($canCsdlExport || $canCsdlDelete): ?><input type="checkbox" class="form-check-input row-chk row-chk-students" value="<?= e($s['id']) ?>"><?php endif; ?></td>
             <td><?= $i+1 ?></td>
             <td class="small"><?= e($s['code'] ?? '') ?></td>
             <td><strong><?= e($s['name'] ?? '') ?></strong></td>
@@ -468,7 +487,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
             <td class="small"><?= e($s['room_ktx'] ?? '') ?></td>
             <td><?= !empty($s['active']) ? '<span class="badge bg-success">Học</span>' : '<span class="badge bg-secondary">Nghỉ</span>' ?></td>
             <td class="text-nowrap">
-              <a class="btn btn-sm btn-outline-primary" href="?tab=students&edit=<?= urlencode($s['id']) ?>"><i class="bi bi-pencil"></i></a>
+              <?php if ($canCsdlEdit): ?><a class="btn btn-sm btn-outline-primary" href="?tab=students&edit=<?= urlencode($s['id']) ?>"><i class="bi bi-pencil"></i></a><?php endif; ?>
               <?php if ($canCsdlDelete): ?><form method="post" class="d-inline" onsubmit="return confirm('Xóa?')">
                 <input type="hidden" name="action" value="student_delete">
                 <input type="hidden" name="id" value="<?= e($s['id']) ?>">
@@ -481,7 +500,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
       </table>
     </div>
   </div></div>
-  <?php include __DIR__ . '/includes/csdl_modal_student.php'; ?>
+  <?php if ($canCsdlEdit) include __DIR__ . '/includes/csdl_modal_student.php'; ?>
 
 <?php elseif ($tab === 'years'): ?>
   <?php include __DIR__ . '/includes/csdl_tab_years.php'; ?>

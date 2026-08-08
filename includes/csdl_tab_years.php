@@ -12,7 +12,7 @@ if ($week_year_id !== '') $week_year = csdl_year_find($week_year_id);
 $week_rows = $week_year ? csdl_year_weeks($week_year) : [];
 ?>
 <div class="row g-4">
-  <div class="col-lg-4">
+  <?php if (!empty($canYearEdit)): ?><div class="col-lg-4">
     <div class="card card-soft"><div class="card-body">
       <h5 class="mb-3"><?= $editing_year ? 'Sửa năm học' : 'Thêm năm học' ?></h5>
       <form method="post">
@@ -36,8 +36,8 @@ $week_rows = $week_year ? csdl_year_weeks($week_year) : [];
         <?php endif; ?>
       </form>
     </div></div>
-  </div>
-  <div class="col-lg-8">
+  </div><?php endif; ?>
+  <div class="<?= !empty($canYearEdit) ? 'col-lg-8' : 'col-12' ?>">
     <div class="card card-soft"><div class="card-body">
       <h5 class="mb-2">Danh sách năm học</h5>
       <table class="table align-middle mb-0">
@@ -45,10 +45,11 @@ $week_rows = $week_year ? csdl_year_weeks($week_year) : [];
         <tbody>
         <?php foreach ($years as $y): ?>
           <tr>
-            <td><a class="fw-bold text-decoration-none" href="?tab=years&weeks=<?= urlencode($y['id']) ?>" title="Cài đặt tuần học"><?= e($y['label'] ?? '') ?></a></td>
+            <td><strong><?= e($y['label'] ?? '') ?></strong></td>
             <td class="small"><?= e(($y['start'] ?? '') . ' → ' . ($y['end'] ?? '')) ?></td>
             <td><?= !empty($y['is_current']) ? '<span class="badge bg-success">Hiện hành</span>' : '—' ?></td>
             <td class="text-end text-nowrap">
+              <?php if (!empty($canYearEdit)): ?>
               <a class="btn btn-sm btn-outline-secondary" href="?tab=years&weeks=<?= urlencode($y['id']) ?>" title="Cài đặt tuần học"><i class="bi bi-calendar-week"></i></a>
               <a class="btn btn-sm btn-outline-primary" href="?tab=years&edit=<?= urlencode($y['id']) ?>" title="Sửa"><i class="bi bi-pencil"></i></a>
               <?php if (empty($y['is_current'])): ?>
@@ -57,6 +58,7 @@ $week_rows = $week_year ? csdl_year_weeks($week_year) : [];
                 <input type="hidden" name="id" value="<?= e($y['id']) ?>">
                 <button class="btn btn-sm btn-outline-success" type="submit" title="Đặt hiện hành">Hiện hành</button>
               </form>
+              <?php endif; ?>
               <?php endif; ?>
               <?php if (!empty($canYearDelete)): ?><form method="post" class="d-inline" onsubmit="return confirm('Xóa năm học này?')">
                 <input type="hidden" name="action" value="year_delete">
@@ -68,12 +70,12 @@ $week_rows = $week_year ? csdl_year_weeks($week_year) : [];
         <?php endforeach; ?>
         </tbody>
       </table>
-      <div class="form-text mt-3"><i class="bi bi-info-circle"></i> Bấm tên năm học hoặc biểu tượng lịch để cài đặt tuần dùng chung cho toàn hệ thống.</div>
+      <?php if (!empty($canYearEdit)): ?><div class="form-text mt-3"><i class="bi bi-info-circle"></i> Bấm biểu tượng lịch để cài đặt tuần dùng chung cho toàn hệ thống.</div><?php endif; ?>
     </div></div>
   </div>
 </div>
 
-<?php if ($week_year): ?>
+<?php if ($week_year && !empty($canYearEdit)): ?>
 <div class="modal fade" id="weekSettingsModal" tabindex="-1" aria-labelledby="weekSettingsTitle" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 shadow">

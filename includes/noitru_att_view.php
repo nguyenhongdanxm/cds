@@ -132,7 +132,7 @@
             <?php if ($historyDate!==''): ?><a class="btn btn-outline-secondary" href="<?= e(att_url(['view'=>'history','history_date'=>null,'date'=>null,'shift'=>null,'class'=>null,'q'=>null])) ?>">7 ngày gần nhất</a><?php endif; ?>
           </form>
         </div>
-        <?php if ($isAdmin && $historyDays): ?>
+        <?php if ($canDeleteAttendance && $historyDays): ?>
           <form method="post" id="historyBulkDeleteForm" onsubmit="return confirmHistoryBulkDelete()">
             <input type="hidden" name="action" value="att_delete_dates">
           </form>
@@ -143,17 +143,20 @@
         <?php endif; ?>
         <?php foreach ($historyDays as $day=>$dayShifts): ?>
           <section class="att-history-day">
-            <header><div class="att-history-day-title"><?php if ($isAdmin): ?><input class="form-check-input att-history-check" type="checkbox" name="delete_dates[]" value="<?= e($day) ?>" form="historyBulkDeleteForm" aria-label="Chọn ngày <?= e(date('d/m/Y',strtotime($day))) ?>"><?php endif; ?><div><strong><?= e($weekdayNames[(int)date('w',strtotime($day))]) ?></strong><div class="small text-muted"><?= e(date('d/m/Y',strtotime($day))) ?></div></div></div><span class="badge text-bg-light"><?= count($dayShifts) ?> buổi</span></header>
+            <header><div class="att-history-day-title"><?php if ($canDeleteAttendance): ?><input class="form-check-input att-history-check" type="checkbox" name="delete_dates[]" value="<?= e($day) ?>" form="historyBulkDeleteForm" aria-label="Chọn ngày <?= e(date('d/m/Y',strtotime($day))) ?>"><?php endif; ?><div><strong><?= e($weekdayNames[(int)date('w',strtotime($day))]) ?></strong><div class="small text-muted"><?= e(date('d/m/Y',strtotime($day))) ?></div></div></div><span class="badge text-bg-light"><?= count($dayShifts) ?> buổi</span></header>
             <div class="att-history-shifts">
             <?php foreach ($dayShifts as $shiftKey=>$summary): ?>
               <div class="att-history-shift">
                 <div class="att-history-shift-head"><strong><i class="bi bi-clock-history text-primary"></i> <?= e($shifts[$shiftKey]??($shiftKey==='dot_xuat'?'Điểm danh đột xuất':$shiftKey)) ?></strong>
-                  <?php if ($isAdmin): ?><div class="att-history-actions">
+                  <?php if ($canManageAttendance || $canDeleteAttendance): ?><div class="att-history-actions">
+                    <?php if ($canManageAttendance): ?>
                     <a class="btn btn-sm btn-outline-primary" href="<?= e(att_url(['view'=>'diemdanh','date'=>$day,'shift'=>$shiftKey,'history_date'=>null,'class'=>null,'q'=>null])) ?>"><i class="bi bi-pencil-square"></i> Sửa báo cáo</a>
+                    <?php endif; if ($canDeleteAttendance): ?>
                     <form method="post" onsubmit="return confirm('Xoá báo cáo <?= e(date('d/m/Y',strtotime($day))) ?> – <?= e($shifts[$shiftKey]??$shiftKey) ?>? Dữ liệu đã lưu và lịch sử của buổi này sẽ bị xoá hoàn toàn.')">
                       <input type="hidden" name="action" value="att_delete_report"><input type="hidden" name="delete_date" value="<?= e($day) ?>"><input type="hidden" name="delete_shift" value="<?= e($shiftKey) ?>">
                       <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3"></i> Xoá</button>
                     </form>
+                    <?php endif; ?>
                   </div><?php endif; ?>
                 </div>
                 <div class="att-history-counts"><span>Tổng: <strong><?= $summary['total'] ?></strong></span><span class="text-success">Có mặt: <strong><?= $summary['present'] ?></strong></span><span class="text-danger">Vắng: <strong><?= $summary['absent'] ?></strong></span></div>
@@ -182,7 +185,7 @@
           </div></div>
         </div>
       </form>
-      <?php if ($isAdmin): ?><div class="att-tools">
+      <?php if ($canManageAttendance): ?><div class="att-tools">
         <?php if (can_edit_perm('nt.diemdanh')): ?>
         <label class="att-tool px-2"><i class="bi bi-person-check"></i><span class="flex-grow-1"><small class="d-block text-muted">Báo cáo thay</small><select class="form-select form-select-sm border-0 p-0" name="reporter" form="attendanceForm"><option value="<?= e($reporter) ?>"><?= e($reporter) ?> (Tôi)</option><?php foreach ($reporters as $teacher): if (($teacher['name']??'')===$reporter) continue; ?><option value="<?= e($teacher['name']) ?>"><?= e($teacher['name']) ?></option><?php endforeach; ?></select></span></label>
         <?php endif; ?>
