@@ -646,7 +646,7 @@ function cds_current_page_feature() {
         'doicheo'=>'cm.pccm', 'rasoat'=>'cm.pccm', 'sua'=>'cm.pccm',
         'giaovien'=>'cm.nhaplieu', 'monhoc'=>'cm.nhaplieu', 'lop'=>'cm.nhaplieu',
         'kiemnhiem'=>'cm.nhaplieu', 'thongke'=>'cm.thongke', 'xuat_bang'=>'cm.thongke',
-        'kehoach'=>'cm.kehoach', 'dugio'=>'cm.baocao.dugio',
+        'kehoach'=>'cm.kehoach', 'dugio'=>'cm.baocao.dugio', 'kiemtrahoso'=>'cm.baocao.kythi',
     ];
     if ($page === 'baocao') {
         $tab = $_GET['tab'] ?? 'dinhky';
@@ -683,7 +683,9 @@ function require_login() {
         $action = strtolower(trim((string)($_POST['action'] ?? '')));
         $observationSelfService = cds_current_page_feature() === 'cm.baocao.dugio'
             && in_array($action, ['observation_save','observation_review'], true);
-        $requiredLevel = $observationSelfService
+        $fileCheckSelfService = cds_current_page_feature() === 'cm.baocao.kythi'
+            && $action === 'file_check_save';
+        $requiredLevel = ($observationSelfService || $fileCheckSelfService)
             ? 'view'
             : (str_contains($action, 'delete') || str_contains($action, 'xoa') ? 'delete' : 'edit');
         if (!cds_can_feature(cds_current_page_feature(), $requiredLevel)) {
