@@ -39,6 +39,7 @@ function permission_features_catalog() {
 
         // CSDL
         'csdl.overview' => ['module' => 'csdl', 'label' => 'Tổng quan cơ sở dữ liệu', 'group' => 'CSDL'],
+        'csdl.statistics' => ['module' => 'csdl', 'label' => 'Thống kê giáo viên và học sinh', 'group' => 'CSDL'],
         'csdl.teachers' => ['module' => 'csdl', 'label' => 'Giáo viên / CBGVNV', 'group' => 'CSDL'],
         'csdl.classes'  => ['module' => 'csdl', 'label' => 'Lớp / khối', 'group' => 'CSDL'],
         'csdl.students' => ['module' => 'csdl', 'label' => 'Học sinh', 'group' => 'CSDL'],
@@ -118,14 +119,14 @@ function permission_default_groups() {
         'bgh' => [
             'label' => 'Ban giám hiệu',
             'access' => array_merge(
-                $view(array_merge($cmView, $ntView, array_merge(['csdl.overview','csdl.teachers','csdl.classes','csdl.students','csdl.export','vb.xem','tt.xem','hl.xem','tc.xem','tc.baocao','td.all_data'], $tdSections))),
+                $view(array_merge($cmView, $ntView, array_merge(['csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','csdl.export','vb.xem','tt.xem','hl.xem','tc.xem','tc.baocao','td.all_data'], $tdSections))),
                 $edit($cmEdit)
             ),
         ],
         'totruong' => [
             'label' => 'Tổ trưởng chuyên môn',
             'access' => array_merge(
-                $view(array_merge(['cm.dashboard','cm.tracuu','cm.thongke','cm.kehoach','csdl.overview','csdl.teachers','csdl.classes','csdl.students'], $cmReports)),
+                $view(array_merge(['cm.dashboard','cm.tracuu','cm.thongke','cm.kehoach','csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students'], $cmReports)),
                 $edit(['cm.pccm','td.teacher_attendance'])
             ),
         ],
@@ -226,6 +227,11 @@ function permission_groups_all() {
             }
             unset($group['access']['csdl.view'], $group['access']['csdl.edit']);
         }
+        if ($version < 5 && !isset($group['access']['csdl.statistics'])) {
+            // Quyền mới kế thừa đúng một lần từ Tổng quan. Sau khi nhóm được
+            // lưu ở phiên bản 5, quản trị có thể gỡ độc lập mà không bị cấp lại.
+            $group['access']['csdl.statistics'] = $group['access']['csdl.overview'] ?? 'none';
+        }
     }
     unset($group);
     return $saved;
@@ -242,7 +248,7 @@ function permission_groups_save(array $groups) {
             $level = $group['access'][$code] ?? 'none';
             $access[$code] = in_array($level, ['none','view','edit','delete'], true) ? $level : 'none';
         }
-        $clean[$key] = ['version' => 4, 'label' => $label !== '' ? $label : $key, 'access' => $access];
+        $clean[$key] = ['version' => 5, 'label' => $label !== '' ? $label : $key, 'access' => $access];
     }
     if (!$clean || !save_json(permission_groups_file(), $clean)) return false;
     $check = load_json(permission_groups_file(), []);
@@ -282,7 +288,7 @@ function permission_legacy_access_for_user(array $user) {
         }
     }
     if (in_array('csdl.view', $legacyPerms, true)) {
-        foreach (['csdl.overview','csdl.teachers','csdl.classes','csdl.students'] as $childCode) $access[$childCode] = 'view';
+        foreach (['csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students'] as $childCode) $access[$childCode] = 'view';
     }
     if (in_array('csdl.edit', $legacyPerms, true)) {
         foreach (['csdl.teachers','csdl.classes','csdl.students'] as $childCode) $access[$childCode] = 'edit';
@@ -344,7 +350,7 @@ function can_perm_level($perm, $level = 'view') {
 function permission_role_presets() {
     $allCm = ['cm.dashboard','cm.tracuu','cm.pccm','cm.nhaplieu','cm.thongke','cm.kehoach','cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
     $allNt = ['nt.tongquan','nt.danhsach','nt.diemdanh','nt.diemdanh.quantri','nt.baoan','nt.buaan.tonghop','nt.gao','nt.ravao','nt.yte','nt.lichtruc','nt.thucdon','nt.thongke'];
-    $allCs = ['csdl.overview','csdl.teachers','csdl.classes','csdl.students','csdl.export','csdl.year'];
+    $allCs = ['csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','csdl.export','csdl.year'];
 
     return [
         'admin' => [
@@ -356,13 +362,13 @@ function permission_role_presets() {
         'bgh' => [
             'label' => 'Ban giám hiệu',
             'modules' => ['chuyenmon'=>'edit','csdl'=>'view','noitru'=>'view','vanban'=>'view','thidua'=>'view'],
-            'perms' => array_merge($allCm, ['csdl.overview','csdl.teachers','csdl.classes','csdl.students','csdl.export'], ['nt.tongquan','nt.danhsach','nt.thongke']),
+            'perms' => array_merge($allCm, ['csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','csdl.export'], ['nt.tongquan','nt.danhsach','nt.thongke']),
             'classes' => [],
         ],
         'totruong' => [
             'label' => 'Tổ trưởng chuyên môn',
             'modules' => ['chuyenmon'=>'edit','csdl'=>'view','noitru'=>'none'],
-            'perms' => ['cm.dashboard','cm.tracuu','cm.pccm','cm.thongke','cm.kehoach','cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi','csdl.overview','csdl.teachers','csdl.classes','csdl.students'],
+            'perms' => ['cm.dashboard','cm.tracuu','cm.pccm','cm.thongke','cm.kehoach','cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi','csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students'],
             'classes' => [],
         ],
         'gvcn' => [
