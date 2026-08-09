@@ -8,10 +8,10 @@ require_login();
 $user = current_user();
 $requestedTab = $_GET['tab'] ?? '';
 $tab = $requestedTab !== '' ? $requestedTab : 'overview';
-$allowed = ['overview', 'teachers', 'classes', 'students', 'years'];
+$allowed = ['overview', 'statistics', 'teachers', 'classes', 'students', 'years'];
 if (!in_array($tab, $allowed, true)) $tab = 'overview';
 $tabPermissions = [
-    'overview' => 'csdl.overview', 'teachers' => 'csdl.teachers',
+    'overview' => 'csdl.overview', 'statistics' => 'csdl.statistics', 'teachers' => 'csdl.teachers',
     'classes' => 'csdl.classes', 'students' => 'csdl.students', 'years' => 'csdl.year',
 ];
 if ($requestedTab === '' && !can_perm($tabPermissions[$tab])) {
@@ -292,6 +292,27 @@ body{background:#f0f4f8}
 .table-full td{font-size:.85rem;vertical-align:middle}
 .modal-xl .modal-body{max-height:70vh;overflow-y:auto}
 .form-label.small{font-weight:600;color:#445}
+.stat-filter{display:flex;flex-wrap:wrap;gap:.65rem;align-items:end}
+.stat-filter>div{min-width:190px;flex:1}
+.stat-kpi{height:100%;padding:1rem;border:1px solid #e3eaf2;border-radius:16px;background:linear-gradient(145deg,#fff,#f7fafc)}
+.stat-kpi .stat-kpi-icon{width:2.4rem;height:2.4rem;border-radius:12px;display:grid;place-items:center;background:#e8f1fb;color:var(--primary);font-size:1.15rem}
+.stat-kpi strong{display:block;font-size:1.65rem;line-height:1.15;margin-top:.65rem;color:#172033}
+.stat-kpi small{color:#66758a}
+.stat-section-title{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.75rem}
+.stat-section-title h5{margin:0;font-size:1rem}
+.stat-bar{height:.45rem;min-width:90px;background:#e7edf4;border-radius:999px;overflow:hidden}
+.stat-bar>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2584d8,#19a974)}
+.stat-table td,.stat-table th{vertical-align:middle}
+.stat-table .stat-label{min-width:130px;font-weight:650}
+.stat-note{font-size:.78rem;color:#68778c}
+@media(max-width:575.98px){
+  .container-fluid{padding-left:.65rem!important;padding-right:.65rem!important}
+  .nav-pills{flex-wrap:nowrap!important;overflow-x:auto;padding-bottom:.25rem}
+  .nav-pills .nav-link{white-space:nowrap;font-size:.86rem;padding:.52rem .75rem}
+  .stat-kpi{padding:.8rem;border-radius:13px}.stat-kpi strong{font-size:1.35rem}
+  .stat-filter>div{min-width:100%}.card-soft .card-body{padding:.9rem}
+  .stat-table{font-size:.82rem}.stat-table .stat-label{min-width:105px}
+}
 <?php if (!$canEditCurrent): ?>
 form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{display:none!important}
 <?php endif; ?>
@@ -323,6 +344,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
 
   <ul class="nav nav-pills gap-1 mb-4 flex-wrap">
     <?php if (can_perm('csdl.overview')): ?><li class="nav-item"><a class="nav-link <?= $tab==='overview'?'active':'' ?>" href="?tab=overview"><i class="bi bi-grid"></i> Tổng quan</a></li><?php endif; ?>
+    <?php if (can_perm('csdl.statistics')): ?><li class="nav-item"><a class="nav-link <?= $tab==='statistics'?'active':'' ?>" href="?tab=statistics"><i class="bi bi-bar-chart-line"></i> Thống kê GV & HS</a></li><?php endif; ?>
     <?php if (can_perm('csdl.teachers')): ?><li class="nav-item"><a class="nav-link <?= $tab==='teachers'?'active':'' ?>" href="?tab=teachers"><i class="bi bi-people"></i> Giáo viên</a></li><?php endif; ?>
     <?php if (can_perm('csdl.classes')): ?><li class="nav-item"><a class="nav-link <?= $tab==='classes'?'active':'' ?>" href="?tab=classes"><i class="bi bi-building"></i> Lớp / khối</a></li><?php endif; ?>
     <?php if (can_perm('csdl.students')): ?><li class="nav-item"><a class="nav-link <?= $tab==='students'?'active':'' ?>" href="?tab=students"><i class="bi bi-mortarboard"></i> Học sinh</a></li><?php endif; ?>
@@ -331,6 +353,9 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
 
 <?php if ($tab === 'overview'): ?>
   <?php include __DIR__ . '/includes/csdl_tab_overview.php'; ?>
+
+<?php elseif ($tab === 'statistics'): ?>
+  <?php include __DIR__ . '/includes/csdl_tab_statistics.php'; ?>
 
 <?php elseif ($tab === 'teachers'): ?>
   <?php
