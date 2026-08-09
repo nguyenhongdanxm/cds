@@ -45,18 +45,59 @@ function noitru_class_name($classId) {
     return $map[$classId] ?? '';
 }
 
+/** Lấy giá trị đầu tiên có tồn tại để tương thích dữ liệu CSDL cũ/mới. */
+function noitru_student_value(array $student, array $keys, $default = '') {
+    foreach ($keys as $key) {
+        if (array_key_exists($key, $student)) return $student[$key];
+    }
+    return $default;
+}
+
+function noitru_student_bool($value, bool $default = false): bool {
+    if ($value === null || $value === '') return $default;
+    if (is_bool($value)) return $value;
+    if (is_int($value) || is_float($value)) return (int)$value !== 0;
+    $text = trim((string)$value);
+    if (function_exists('mb_strtolower')) $text = mb_strtolower($text, 'UTF-8');
+    else $text = strtolower($text);
+    return in_array($text, ['1', 'true', 'yes', 'y', 'on', 'x', 'có', 'co', 'nội trú', 'noi tru'], true);
+}
+
+function noitru_student_is_active(array $student): bool {
+    // Bản ghi CSDL cũ không có trường active được hiểu là vẫn đang học.
+    $value = noitru_student_value($student, ['active', 'is_active', 'dang_hoc'], null);
+    return noitru_student_bool($value, $value === null);
+}
+
+function noitru_student_is_boarder(array $student): bool {
+    return noitru_student_bool(noitru_student_value(
+        $student,
+        ['boarder', 'is_boarder', 'noi_tru', 'nội_trú'],
+        false
+    ));
+}
+
+function noitru_student_class_name(array $student): string {
+    $classId = trim((string)noitru_student_value($student, ['class_id', 'lop_id'], ''));
+    $name = $classId !== '' ? noitru_class_name($classId) : '';
+    if ($name === '') {
+        $name = (string)noitru_student_value($student, ['class_name', 'class', 'lop', 'ten_lop'], '');
+    }
+    return trim($name);
+}
+
 function noitru_boarders_live() {
     $out = [];
     foreach (csdl_students_all() as $s) {
-        if (empty($s['active']) || empty($s['boarder'])) continue;
+        if (!noitru_student_is_active($s) || !noitru_student_is_boarder($s)) continue;
         $out[] = [
             'id' => $s['id'] ?? '',
             'code' => $s['code'] ?? '',
             'name' => $s['name'] ?? '',
             'cccd' => $s['cccd'] ?? '',
-            'class_id' => $s['class_id'] ?? '',
-            'class_name' => noitru_class_name($s['class_id'] ?? ''),
-            'gender' => $s['gender'] ?? '',
+            'class_id' => noitru_student_value($s, ['class_id', 'lop_id'], ''),
+            'class_name' => noitru_student_class_name($s),
+            'gender' => noitru_student_value($s, ['gender', 'gioi_tinh', 'sex', 'gt'], ''),
             'dob' => $s['dob'] ?? '',
             'ethnicity' => $s['ethnicity'] ?? '',
             'hometown' => $s['hometown'] ?? '',
@@ -64,8 +105,8 @@ function noitru_boarders_live() {
             'phone' => $s['phone'] ?? '',
             'parent_name' => $s['parent_name'] ?? '',
             'parent_phone' => $s['parent_phone'] ?? '',
-            'room_ktx' => $s['room_ktx'] ?? '',
-            'meal_group' => $s['meal_group'] ?? '',
+            'room_ktx' => noitru_student_value($s, ['room_ktx', 'dorm_room', 'phong_o', 'phong'], ''),
+            'meal_group' => noitru_student_value($s, ['meal_group', 'mam_an', 'nhom_an'], ''),
             'note' => $s['note'] ?? '',
         ];
     }
@@ -81,7 +122,51 @@ function noitru_sync_from_csdl() {
     $meta['last_sync_at'] = noitru_now();
     $meta['last_sync_count'] = count($list);
     noitru_meta_save($meta);
-    return ['ok' => true, 'count' => count($list), 'message' => 'Đã đồng bộ ' . count($list) . ' HS nội trú từ CSDL.'];
+    $sourceTotal = $activeTotal = $notBoarder = 0;
+    foreach (csdl_students_all() as $student) {
+        $sourceTotal++;
+        if (!noitru_student_is_active($student)) continue;
+        $activeTotal++;
+        if (!noitru_student_is_boarder($student)) $notBoarder++;
+    }
+    $message = 'Đã đồng bộ ' . count($list) . ' HS nội trú từ CSDL.';
+    if ($notBoarder > 0) {
+        $message .= ' Có ' . $notBoarder . ' HS đang học chưa được đưa vào vì chưa đánh dấu “Nội trú” trong CSDL.';
+    }
+    return [
+        'ok' => true,
+        'count' => count($list),
+        'source_total' => $sourceTotal,
+        'active_total' => $activeTotal,
+        'skipped_not_boarder' => $notBoarder,
+        'message' => $message,
+    ];
+}
+
+/** Thống kê trực tiếp trên danh sách đã áp dụng chia phòng/chia mâm. */
+function noitru_boarders_stats(array $boarders): array {
+    $male = $female = 0;
+    $rooms = $meals = [];
+    foreach ($boarders as $student) {
+        $gender = trim((string)noitru_student_value($student, ['gender', 'gioi_tinh', 'sex', 'gt'], ''));
+        $genderLower = function_exists('mb_strtolower')
+            ? mb_strtolower($gender, 'UTF-8')
+            : strtolower($gender);
+        if (in_array($genderLower, ['nam', 'male', 'm', '1'], true)) $male++;
+        elseif (in_array($genderLower, ['nữ', 'nu', 'female', 'f', '0'], true)) $female++;
+
+        $room = trim((string)noitru_student_value($student, ['room_ktx', 'dorm_room', 'phong_o', 'phong'], ''));
+        $meal = trim((string)noitru_student_value($student, ['meal_group', 'mam_an', 'nhom_an'], ''));
+        if ($room !== '') $rooms[$room] = true;
+        if ($meal !== '') $meals[$meal] = true;
+    }
+    return [
+        'total' => count($boarders),
+        'male' => $male,
+        'female' => $female,
+        'rooms' => count($rooms),
+        'meals' => count($meals),
+    ];
 }
 
 function noitru_stats() {
