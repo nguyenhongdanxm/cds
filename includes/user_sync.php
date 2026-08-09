@@ -17,7 +17,7 @@ function user_group_presets() {
             'label' => 'Ban giám hiệu',
             'role' => 'bgh',
             'modules' => ['chuyenmon'=>'edit','csdl'=>'view','noitru'=>'view','vanban'=>'view','thidua'=>'view'],
-            'perms' => array_merge($allCm, ['csdl.overview','csdl.teachers','csdl.classes','csdl.students','csdl.export'], ['nt.tongquan','nt.danhsach','nt.thongke']),
+            'perms' => array_merge($allCm, ['csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','csdl.export'], ['nt.tongquan','nt.danhsach','nt.thongke']),
         ],
         'qlnt' => [
             'label' => 'Quản lý nội trú',
@@ -29,7 +29,7 @@ function user_group_presets() {
             'label' => 'Văn thư',
             'role' => 'custom',
             'modules' => ['chuyenmon'=>'view','csdl'=>'view','noitru'=>'none','vanban'=>'edit','thidua'=>'view'],
-            'perms' => ['cm.tracuu','cm.dashboard','csdl.overview','csdl.teachers','csdl.classes','csdl.students','csdl.export'],
+            'perms' => ['cm.tracuu','cm.dashboard','csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','csdl.export'],
         ],
         'ketoan' => [
             'label' => 'Kế toán',
@@ -53,7 +53,7 @@ function user_group_presets() {
             'label' => 'Quản lý tổ chuyên môn',
             'role' => 'totruong',
             'modules' => ['chuyenmon'=>'edit','csdl'=>'view','noitru'=>'none','vanban'=>'none','thidua'=>'none'],
-            'perms' => ['cm.dashboard','cm.tracuu','cm.pccm','cm.thongke','cm.kehoach','cm.baocao','csdl.overview','csdl.teachers','csdl.classes','csdl.students'],
+            'perms' => ['cm.dashboard','cm.tracuu','cm.pccm','cm.thongke','cm.kehoach','cm.baocao','csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students'],
         ],
         'gvcn' => [
             'label' => 'GVCN',
