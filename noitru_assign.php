@@ -14,6 +14,8 @@ $capacityKey=$mode==='rooms'?'room_capacities':'meal_capacities';
 $data=noitru_assignments_data();
 $boarders=noitru_assignment_apply(noitru_boarders_live());
 $boarders=array_values(array_filter($boarders,static fn($s)=>function_exists('can_class')?can_class($s['class_name']??''):true));
+$knownGroups=array_fill_keys($data[$namesKey]??[],true);
+foreach($boarders as $student){$effectiveGroup=trim((string)($student[$field]??''));if($effectiveGroup!=='')$knownGroups[$effectiveGroup]=true;}
 $user=current_user();$by=(string)($user['name']??$user['username']??'');
 
 if(($_SERVER['REQUEST_METHOD']??'')==='POST'){
@@ -30,19 +32,25 @@ if(($_SERVER['REQUEST_METHOD']??'')==='POST'){
     }elseif($action==='update_group'){
         $old=trim((string)($_POST['old_name']??''));$new=trim((string)($_POST['new_name']??''));$cap=max(1,(int)($_POST['group_capacity']??1));
         if($old===''||$new==='')flash('Tên '.$label.' không hợp lệ.','danger');
+        elseif($old!==$new&&isset($knownGroups[$new]))flash('Tên '.$new.' đã tồn tại.','danger');
         else{
             $data[$namesKey]=array_values(array_map(static fn($n)=>$n===$old?$new:$n,$data[$namesKey]??[]));
-            foreach($data[$mode]??[] as $sid=>$target)if($target===$old)$data[$mode][$sid]=$new;
+            if(!in_array($new,$data[$namesKey],true))$data[$namesKey][]=$new;
+            // Ghi đè cả phân công lấy trực tiếp từ hồ sơ CSDL, không chỉ assignments.json.
+            foreach($boarders as $student)if(trim((string)($student[$field]??''))===$old)$data[$mode][(string)$student['id']]=$new;
             unset($data[$capacityKey][$old]);$data[$capacityKey][$new]=$cap;
             noitru_assignments_save($data,$by);flash('Đã cập nhật '.$label.'.','success');
         }
     }elseif($action==='delete_group'){
         $name=trim((string)($_POST['group_name']??''));
         $data[$namesKey]=array_values(array_filter($data[$namesKey]??[],static fn($n)=>$n!==$name));unset($data[$capacityKey][$name]);
-        foreach($data[$mode]??[] as $sid=>$target)if($target===$name)unset($data[$mode][$sid]);
+        // Dùng chuỗi rỗng làm giá trị ghi đè. Nếu unset, phòng/mâm cũ trong CSDL sẽ hiện lại.
+        foreach($boarders as $student)if(trim((string)($student[$field]??''))===$name)$data[$mode][(string)$student['id']]='';
         noitru_assignments_save($data,$by);flash('Đã xóa '.$name.' và bỏ phân công học sinh trong '.$label.' này.','warning');
     }elseif($action==='reset_groups'){
-        $data[$namesKey]=[];$data[$capacityKey]=[];$data[$mode]=[];noitru_assignments_save($data,$by);flash('Đã xóa toàn bộ danh sách và kết quả chia '.$label.'.','warning');
+        $data[$namesKey]=[];$data[$capacityKey]=[];
+        foreach($boarders as $student)$data[$mode][(string)$student['id']]='';
+        noitru_assignments_save($data,$by);flash('Đã xóa toàn bộ danh sách và kết quả chia '.$label.'.','warning');
     }elseif($action==='auto_assign'){
         $names=$data[$namesKey]??[];$fallback=max(1,(int)($_POST['capacity']??($mode==='rooms'?8:10)));
         if(!$names)flash('Hãy tạo danh sách '.$label.' trước.','danger');
@@ -62,10 +70,12 @@ if(($_SERVER['REQUEST_METHOD']??'')==='POST'){
             noitru_assignments_save($data,$by);flash('Đã gán '.count($ids).' học sinh vào '.$target.'.','success');
         }
     }elseif($action==='remove_students'){
-        $ids=array_values(array_filter(array_map('strval',$_POST['student_ids']??[])));foreach($ids as $id)unset($data[$mode][$id]);
-        noitru_assignments_save($data,$by);flash('Đã bỏ chia '.$label.' cho '.count($ids).' học sinh đã chọn.','warning');
+        $ids=array_values(array_filter(array_map('strval',$_POST['student_ids']??[])));
+        if(!$ids)flash('Hãy chọn ít nhất một học sinh cần xóa phân công.','danger');
+        else{foreach($ids as $id)$data[$mode][$id]='';noitru_assignments_save($data,$by);flash('Đã bỏ chia '.$label.' cho '.count($ids).' học sinh đã chọn.','warning');}
     }elseif($action==='clear_all'){
-        $data[$mode]=[];noitru_assignments_save($data,$by);flash('Đã xóa toàn bộ kết quả chia '.$label.'.','warning');
+        foreach($boarders as $student)$data[$mode][(string)$student['id']]='';
+        noitru_assignments_save($data,$by);flash('Đã xóa toàn bộ kết quả chia '.$label.'.','warning');
     }
     header('Location: '.BASE_URL.'noitru_assign.php?mode='.$mode);exit;
 }
@@ -74,6 +84,8 @@ $data=noitru_assignments_data();$boarders=noitru_assignment_apply(noitru_boarder
 $boarders=array_values(array_filter($boarders,static fn($s)=>function_exists('can_class')?can_class($s['class_name']??''):true));
 $names=$data[$namesKey]??[];$capacities=$data[$capacityKey]??[];$grouped=[];$unassigned=[];$classes=[];
 foreach($boarders as $student){$classes[(string)($student['class_name']??'')]=true;$name=trim((string)($student[$field]??''));if($name==='')$unassigned[]=$student;else$grouped[$name][]=$student;}
+// Phòng/mâm đã có sẵn trong hồ sơ CSDL cũng phải xuất hiện ở khu vực sửa/xóa.
+$names=array_values(array_unique(array_merge($names,array_keys($grouped))));sort($names,SORT_NATURAL);
 foreach($names as $name)if(!isset($grouped[$name]))$grouped[$name]=[];ksort($grouped,SORT_NATURAL);$classes=array_values(array_filter(array_keys($classes)));sort($classes,SORT_NATURAL);
 $page_title=$mode==='rooms'?'Chia phòng nội trú':'Chia mâm ăn';$tab='boarders';$nt_sec='boarders';
 ?>
