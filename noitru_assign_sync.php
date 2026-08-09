@@ -38,7 +38,7 @@ $failed = 0;
 foreach ($map as $studentId => $target) {
     $studentId = (string)$studentId;
     $target = trim((string)$target);
-    if ($studentId === '' || $target === '' || !isset($allowedIds[$studentId])) {
+    if ($studentId === '' || !isset($allowedIds[$studentId])) {
         $skipped++;
         continue;
     }
