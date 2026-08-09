@@ -9,7 +9,14 @@ function noitru_assignments_data(): array {
     $data = load_json(NOITRU_ASSIGNMENTS, []);
     return array_merge([
         'rooms'=>[], 'meals'=>[], 'room_names'=>[], 'meal_names'=>[],
-        'room_capacities'=>[], 'meal_capacities'=>[], 'history'=>[],
+        'room_capacities'=>[], 'meal_capacities'=>[], 'room_genders'=>[],
+        'settings'=>[
+            'room_enforce_gender'=>true,
+            'room_max_grade_gap'=>1,
+            'meal_max_grade_gap'=>0,
+            'meal_balance_gender'=>true,
+        ],
+        'history'=>[],
         'updated_at'=>null, 'updated_by'=>'',
     ], is_array($data) ? $data : []);
 }
@@ -28,6 +35,19 @@ function noitru_assignments_save(array $data, string $by = ''): void {
         }
         $data[$key]=$clean;
     }
+    $genders=[];
+    foreach((array)($data['room_genders']??[]) as $name=>$gender){
+        $name=trim((string)$name);$gender=(string)$gender;
+        if($name!==''&&in_array($gender,['Nam','Nữ','Linh hoạt'],true))$genders[$name]=$gender;
+    }
+    $data['room_genders']=$genders;
+    $settings=is_array($data['settings']??null)?$data['settings']:[];
+    $data['settings']=[
+        'room_enforce_gender'=>(bool)($settings['room_enforce_gender']??true),
+        'room_max_grade_gap'=>max(0,min(3,(int)($settings['room_max_grade_gap']??1))),
+        'meal_max_grade_gap'=>max(0,min(3,(int)($settings['meal_max_grade_gap']??0))),
+        'meal_balance_gender'=>(bool)($settings['meal_balance_gender']??true),
+    ];
     $data['updated_at']=date('c'); $data['updated_by']=$by;
     save_json(NOITRU_ASSIGNMENTS,$data);
 }
@@ -70,30 +90,135 @@ function noitru_assignment_names(string $mode,int $count,string $prefix=''): arr
 function noitru_assignment_capacity_for($capacity,string $name): int {
     return is_array($capacity)?max(1,(int)($capacity[$name]??1)):max(1,(int)$capacity);
 }
-function noitru_assignment_auto_rooms(array $students,array $names,$capacity): array {
-    usort($students,static fn($a,$b)=>[noitru_assignment_gender($a),(string)($a['class_name']??''),noitru_assignment_grade($a),(string)($a['name']??'')]<=>[noitru_assignment_gender($b),(string)($b['class_name']??''),noitru_assignment_grade($b),(string)($b['name']??'')]);
-    $result=[];$used=array_fill_keys($names,0);$index=0;
-    foreach($students as $student){
-        while(isset($names[$index])&&$used[$names[$index]]>=noitru_assignment_capacity_for($capacity,$names[$index])&&$index<count($names)-1)$index++;
-        if(!isset($names[$index]))$index=count($names)-1; $target=(string)$names[$index];
-        $result[(string)$student['id']]=$target;$used[$target]++;
+function noitru_assignment_numeric_grade(array $student): int {
+    $grade=noitru_assignment_grade($student);
+    return ctype_digit($grade)?(int)$grade:99;
+}
+function noitru_assignment_grade_compatible(array $members,array $students,int $maxGap): bool {
+    $grades=[];
+    foreach(array_merge($members,$students) as $student){$grade=noitru_assignment_numeric_grade($student);if($grade<99)$grades[]=$grade;}
+    return !$grades||(max($grades)-min($grades)<=$maxGap);
+}
+function noitru_assignment_grade_distance(array $members,array $students): int {
+    $memberGrades=[];$studentGrades=[];
+    foreach($members as $student){$grade=noitru_assignment_numeric_grade($student);if($grade<99)$memberGrades[]=$grade;}
+    foreach($students as $student){$grade=noitru_assignment_numeric_grade($student);if($grade<99)$studentGrades[]=$grade;}
+    if(!$memberGrades||!$studentGrades)return 0;
+    return max(array_merge($memberGrades,$studentGrades))-min(array_merge($memberGrades,$studentGrades));
+}
+function noitru_assignment_sort_targets(array $names,array $slots,array $students,$capacity): array {
+    usort($names,static function($left,$right)use($slots,$students,$capacity){
+        $leftDistance=noitru_assignment_grade_distance($slots[$left]??[],$students);
+        $rightDistance=noitru_assignment_grade_distance($slots[$right]??[],$students);
+        if($leftDistance!==$rightDistance)return $leftDistance<=>$rightDistance;
+        $leftRatio=count($slots[$left]??[])/noitru_assignment_capacity_for($capacity,$left);
+        $rightRatio=count($slots[$right]??[])/noitru_assignment_capacity_for($capacity,$right);
+        if($leftRatio!==$rightRatio)return $rightRatio<=>$leftRatio;
+        return strnatcasecmp((string)$left,(string)$right);
+    });
+    return $names;
+}
+function noitru_assignment_interleave_gender(array $students): array {
+    $buckets=['Nam'=>[],'Nữ'=>[],'Khác'=>[]];
+    foreach($students as $student)$buckets[noitru_assignment_gender($student)][]=$student;
+    foreach($buckets as &$bucket)usort($bucket,static fn($a,$b)=>(string)($a['name']??'')<=>(string)($b['name']??''));unset($bucket);
+    $result=[];$counts=array_map('count',$buckets);$total=array_sum($counts);$placed=['Nam'=>0,'Nữ'=>0,'Khác'=>0];
+    while(count($result)<$total){
+        $best=null;$score=-INF;
+        foreach($buckets as $gender=>$bucket){
+            if(!$bucket)continue;
+            $expected=$counts[$gender]*((count($result)+1)/max(1,$total));
+            $candidate=$expected-$placed[$gender];
+            if($candidate>$score){$score=$candidate;$best=$gender;}
+        }
+        $result[]=array_shift($buckets[$best]);$placed[$best]++;
     }
     return $result;
 }
-function noitru_assignment_auto_meals(array $students,array $names,$capacity): array {
-    usort($students,static fn($a,$b)=>[(string)($a['class_name']??''),noitru_assignment_grade($a),noitru_assignment_gender($a),(string)($a['name']??'')]<=>[(string)($b['class_name']??''),noitru_assignment_grade($b),noitru_assignment_gender($b),(string)($b['name']??'')]);
-    $slots=array_fill_keys($names,[]);$result=[];
+function noitru_assignment_group_students(array $students,bool $separateGender=false): array {
+    $groups=[];
     foreach($students as $student){
-        $gender=noitru_assignment_gender($student);$class=(string)($student['class_name']??'');$best=null;$bestScore=PHP_INT_MAX;
+        $class=trim((string)($student['class_name']??''))?:'Chưa lớp';
+        $key=($separateGender?noitru_assignment_gender($student).'|':'').sprintf('%02d',noitru_assignment_numeric_grade($student)).'|'.$class;
+        $groups[$key][]=$student;
+    }
+    ksort($groups,SORT_NATURAL);return $groups;
+}
+function noitru_assignment_auto_rooms(array $students,array $names,$capacity,array $roomGenders=[],array $options=[]): array {
+    $enforce=(bool)($options['enforce_gender']??true);$maxGap=max(0,min(3,(int)($options['max_grade_gap']??1)));
+    $slots=array_fill_keys($names,[]);$runtimeGender=[];$result=[];
+    foreach(noitru_assignment_group_students($students,true) as $group){
+        usort($group,static fn($a,$b)=>(string)($a['name']??'')<=>(string)($b['name']??''));
+        $gender=noitru_assignment_gender($group[0]);$empty=[];$partial=[];
         foreach($names as $name){
-            $members=$slots[$name]; if(count($members)>=noitru_assignment_capacity_for($capacity,$name))continue;
-            $sameClass=count(array_filter($members,static fn($s)=>(string)($s['class_name']??'')===$class));
-            $sameGender=count(array_filter($members,static fn($s)=>noitru_assignment_gender($s)===$gender));
-            $score=count($members)*100-$sameClass*20+$sameGender*5;
-            if($score<$bestScore){$bestScore=$score;$best=$name;}
+            $free=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($free<=0)continue;
+            $fixed=(string)($roomGenders[$name]??'Linh hoạt');
+            if($enforce&&$gender!=='Khác'&&$fixed!=='Linh hoạt'&&$fixed!==$gender)continue;
+            if($enforce&&isset($runtimeGender[$name])&&$runtimeGender[$name]!==$gender)continue;
+            if(!noitru_assignment_grade_compatible($slots[$name],$group,$maxGap))continue;
+            if($slots[$name])$partial[]=$name;else$empty[]=$name;
         }
-        if($best===null)$best=$names[array_key_last($names)];
-        $slots[$best][]=$student;$result[(string)$student['id']]=(string)$best;
+        $partial=noitru_assignment_sort_targets($partial,$slots,$group,$capacity);
+        $needed=count($group);$emptyCapacity=array_sum(array_map(static fn($name)=>noitru_assignment_capacity_for($capacity,$name),$empty));
+        $pool=$emptyCapacity>=$needed?$empty:array_merge($partial,$empty);$selected=[];$freeTotal=0;
+        foreach($pool as $name){$selected[]=$name;$freeTotal+=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($freeTotal>=$needed)break;}
+        // Nếu hết phòng phù hợp khối, vẫn giữ đúng giới tính và dùng phòng còn chỗ gần nhất.
+        if($freeTotal<$needed){
+            $fallback=[];
+            foreach($names as $name){
+                if(in_array($name,$selected,true))continue;
+                $free=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($free<=0)continue;
+                $fixed=(string)($roomGenders[$name]??'Linh hoạt');
+                if($enforce&&$gender!=='Khác'&&$fixed!=='Linh hoạt'&&$fixed!==$gender)continue;
+                if($enforce&&isset($runtimeGender[$name])&&$runtimeGender[$name]!==$gender)continue;
+                $fallback[]=$name;
+            }
+            foreach(noitru_assignment_sort_targets($fallback,$slots,$group,$capacity) as $name){$selected[]=$name;$freeTotal+=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($freeTotal>=$needed)break;}
+        }
+        foreach($group as $student){
+            $best=null;$bestScore=INF;
+            foreach($selected as $name){
+                $cap=noitru_assignment_capacity_for($capacity,$name);if(count($slots[$name])>=$cap)continue;
+                $sameClass=count(array_filter($slots[$name],static fn($s)=>(string)($s['class_name']??'')===(string)($student['class_name']??'')));
+                $score=$sameClass*1000+count($slots[$name])/$cap;
+                if($score<$bestScore){$bestScore=$score;$best=$name;}
+            }
+            if($best===null)continue;
+            $slots[$best][]=$student;$runtimeGender[$best]=$gender;$result[(string)$student['id']]=(string)$best;
+        }
+    }
+    return $result;
+}
+function noitru_assignment_auto_meals(array $students,array $names,$capacity,array $options=[]): array {
+    $maxGap=max(0,min(3,(int)($options['max_grade_gap']??0)));$balance=(bool)($options['balance_gender']??true);
+    $slots=array_fill_keys($names,[]);$result=[];
+    foreach(noitru_assignment_group_students($students,false) as $group){
+        $group=$balance?noitru_assignment_interleave_gender($group):array_values($group);
+        $empty=[];$partial=[];
+        foreach($names as $name){
+            $free=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($free<=0)continue;
+            if(!noitru_assignment_grade_compatible($slots[$name],$group,$maxGap))continue;
+            if($slots[$name])$partial[]=$name;else$empty[]=$name;
+        }
+        $partial=noitru_assignment_sort_targets($partial,$slots,$group,$capacity);
+        $needed=count($group);$emptyCapacity=array_sum(array_map(static fn($name)=>noitru_assignment_capacity_for($capacity,$name),$empty));
+        $pool=$emptyCapacity>=$needed?$empty:array_merge($partial,$empty);$selected=[];$freeTotal=0;
+        foreach($pool as $name){$selected[]=$name;$freeTotal+=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($freeTotal>=$needed)break;}
+        if($freeTotal<$needed){
+            $fallback=array_values(array_filter($names,static fn($name)=>!in_array($name,$selected,true)&&count($slots[$name])<noitru_assignment_capacity_for($capacity,$name)));
+            foreach(noitru_assignment_sort_targets($fallback,$slots,$group,$capacity) as $name){$selected[]=$name;$freeTotal+=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($freeTotal>=$needed)break;}
+        }
+        foreach($group as $student){
+            $best=null;$bestScore=INF;
+            foreach($selected as $name){
+                $cap=noitru_assignment_capacity_for($capacity,$name);if(count($slots[$name])>=$cap)continue;
+                $sameClass=count(array_filter($slots[$name],static fn($s)=>(string)($s['class_name']??'')===(string)($student['class_name']??'')));
+                $sameGender=count(array_filter($slots[$name],static fn($s)=>noitru_assignment_gender($s)===noitru_assignment_gender($student)));
+                $score=$sameClass*1000+count($slots[$name])/$cap+($balance?$sameGender*.01:0);
+                if($score<$bestScore){$bestScore=$score;$best=$name;}
+            }
+            if($best===null)continue;$slots[$best][]=$student;$result[(string)$student['id']]=(string)$best;
+        }
     }
     return $result;
 }
