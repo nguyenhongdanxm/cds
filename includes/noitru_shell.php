@@ -45,6 +45,13 @@ $ntInGroup = function ($group) use ($ntGroups, $nt_sec) {
     return in_array($nt_sec, $ntGroups[$group]['items'] ?? [], true);
 };
 ?>
+<style id="ntMenuHierarchyFix">
+.nt-side-parent{margin-top:.42rem!important;border:1px solid rgba(255,255,255,.16)!important;background:rgba(255,255,255,.09)!important;text-transform:uppercase!important;letter-spacing:.055em!important}
+.nt-side-parent span{font-size:.78rem!important;font-weight:850!important}
+.nt-side-children{margin:.18rem 0 .35rem .72rem!important;padding:.28rem .3rem .28rem .42rem!important;border-left:2px solid rgba(255,255,255,.35)!important;border-radius:0 10px 10px 0!important;background:rgba(255,255,255,.07)!important}
+.nt-side-nav a.nt-child{min-height:36px!important;margin:.06rem 0!important;padding:.4rem .55rem!important;border-radius:8px!important;font-size:.79rem!important;font-weight:600!important}
+.nt-side-nav a.nt-child.active{background:rgba(255,255,255,.96)!important;color:var(--nt-primary-dark)!important}
+</style>
 <aside class="nt-sidebar" aria-label="Điều hướng Nội trú">
   <a class="nt-brand" href="<?= e(BASE_URL . 'noitru.php') ?>">
     <span class="nt-brand-icon"><i class="bi bi-building-fill"></i></span>
