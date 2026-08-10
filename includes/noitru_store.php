@@ -14,6 +14,7 @@ define('NOITRU_DUTY_SETTINGS', NOITRU_DIR . '/duty_settings.json');
 define('NOITRU_DUTY_MANAGERS', NOITRU_DIR . '/duty_managers.json');
 define('NOITRU_DUTY_GROUPS', NOITRU_DIR . '/duty_groups.json');
 define('NOITRU_DUTY_ROSTER', NOITRU_DIR . '/duty_roster.json');
+define('NOITRU_DUTY_REPORTS', NOITRU_DIR . '/duty_reports.json');
 define('NOITRU_HEALTH', NOITRU_DIR . '/health.json');
 define('NOITRU_MEDICINES', NOITRU_DIR . '/medicines.json');
 define('NOITRU_MEDICINE_TX', NOITRU_DIR . '/medicine_transactions.json');
@@ -580,6 +581,44 @@ function noitru_duty_save(array $data) {
 }
 function noitru_duty_delete($id) {
     save_json(NOITRU_DUTY, array_values(array_filter(noitru_duty_all(), fn($r) => ($r['id'] ?? '') !== $id)));
+}
+
+/* —— Biên bản trực nội trú hằng ngày —— */
+function noitru_duty_reports_all() {
+    noitru_ensure_dir();
+    return load_json(NOITRU_DUTY_REPORTS, []);
+}
+function noitru_duty_report_for_date($date) {
+    foreach (noitru_duty_reports_all() as $row) {
+        if (($row['date'] ?? '') === $date) return $row;
+    }
+    return null;
+}
+function noitru_duty_report_save(array $data) {
+    $rows = noitru_duty_reports_all();
+    $date = trim((string)($data['date'] ?? ''));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) return false;
+    $clean = ['date'=>$date];
+    foreach (['location','shift_label','discipline','hygiene','safety','health','incidents','assessment','handover'] as $key) {
+        $clean[$key] = trim((string)($data[$key] ?? ''));
+    }
+    $clean['updated_by'] = trim((string)($data['updated_by'] ?? ''));
+    $clean['updated_at'] = noitru_now();
+    $found = false;
+    foreach ($rows as $index=>$row) {
+        if (($row['date'] ?? '') !== $date) continue;
+        $clean['created_at'] = $row['created_at'] ?? noitru_now();
+        $rows[$index] = array_merge($row, $clean);
+        $found = true;
+        break;
+    }
+    if (!$found) {
+        $clean['id'] = noitru_uid('bbtruc');
+        $clean['created_at'] = noitru_now();
+        $rows[] = $clean;
+    }
+    usort($rows, fn($a,$b) => strcmp((string)($b['date']??''), (string)($a['date']??'')));
+    return save_json(NOITRU_DUTY_REPORTS, $rows);
 }
 function noitru_duty_for_month($month) {
     return array_values(array_filter(noitru_duty_all(), fn($row) =>
