@@ -9,7 +9,7 @@ function noitru_assignments_data(): array {
     $data = load_json(NOITRU_ASSIGNMENTS, []);
     return array_merge([
         'rooms'=>[], 'meals'=>[], 'room_names'=>[], 'meal_names'=>[],
-        'room_capacities'=>[], 'meal_capacities'=>[], 'room_genders'=>[],
+        'room_capacities'=>[], 'meal_capacities'=>[], 'room_genders'=>[], 'room_notes'=>[],
         'settings'=>[
             'room_enforce_gender'=>true,
             'room_max_grade_gap'=>1,
@@ -22,7 +22,7 @@ function noitru_assignments_data(): array {
 }
 function noitru_assignments_save(array $data, string $by = ''): void {
     noitru_ensure_dir();
-    foreach (['rooms','meals'] as $key) $data[$key] = is_array($data[$key] ?? null) ? $data[$key] : [];
+    foreach (['rooms','meals','room_notes'] as $key) $data[$key] = is_array($data[$key] ?? null) ? $data[$key] : [];
     foreach (['room_names','meal_names'] as $key) {
         $data[$key] = array_values(array_unique(array_filter(array_map('strval', $data[$key] ?? []))));
         sort($data[$key], SORT_NATURAL);
