@@ -434,7 +434,8 @@ function cds_core_delete_missing_rows(PDO $pdo, $table, $sourceIds)
         return $id !== '';
     }));
     if (!$sourceIds) {
-        $pdo->exec('DELETE FROM ' . $table);
+        $existing=(int)$pdo->query('SELECT COUNT(*) FROM '.$table)->fetchColumn();
+        if($existing>0)throw new RuntimeException('Từ chối xóa toàn bộ '.$table.' vì nguồn đồng bộ đang rỗng. Hãy kiểm tra tệp JSON nguồn.');
         return;
     }
 
