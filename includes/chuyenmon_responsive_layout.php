@@ -55,20 +55,58 @@ $cmNavGroups = [
         ['permission'=>'cm.baocao.dugio','pages'=>[],'href'=>'../danhgia.php?view=overview','icon'=>'bi-bar-chart-line','label'=>'Tổng hợp đánh giá'],
     ]],
 ];
+
+/*
+ * Một chức năng chỉ xuất hiện một lần trong sidebar. Dữ liệu cũ có thể khai
+ * báo cùng đường dẫn ở nhiều nhóm (ví dụ hồ sơ đánh giá); giữ vị trí đầu tiên.
+ */
+$cmVisibleNavGroups = [];
+$cmSeenTargets = [];
+$cmSeenLabels = [];
+$cmGroupIcons = ['bi-speedometer2','bi-diagram-3','bi-calendar2-week','bi-clipboard2-check'];
+foreach ($cmNavGroups as $groupIndex=>$group) {
+    $visibleItems = [];
+    foreach ($group['items'] as $item) {
+        $target = strtolower(trim((string)($item['href'] ?? '')));
+        $target = preg_replace('~/+~', '/', $target);
+        $labelKey = function_exists('mb_strtolower')
+            ? mb_strtolower(trim((string)($item['label'] ?? '')), 'UTF-8')
+            : strtolower(trim((string)($item['label'] ?? '')));
+        $labelKey = preg_replace('/[^\pL\pN]+/u', '', $labelKey);
+        if (($target !== '' && isset($cmSeenTargets[$target])) || ($labelKey !== '' && isset($cmSeenLabels[$labelKey]))) continue;
+        if ($target !== '') $cmSeenTargets[$target] = true;
+        if ($labelKey !== '') $cmSeenLabels[$labelKey] = true;
+        $visibleItems[] = $item;
+    }
+    if (!$visibleItems) continue;
+    $group['items'] = $visibleItems;
+    $group['id'] = 'cmGroup' . $groupIndex;
+    $group['icon'] = $cmGroupIcons[$groupIndex] ?? 'bi-folder2';
+    $group['open'] = false;
+    foreach ($visibleItems as $item) {
+        if ($cmLayoutActive($item['pages'], $item['tab'] ?? null)) { $group['open'] = true; break; }
+    }
+    $cmVisibleNavGroups[] = $group;
+}
 ?>
 <style id="cdsCmResponsiveLayout">
-:root{--cm-sidebar-width:268px;--cm-nav-blue:#173f65;--cm-nav-blue-2:#245f91;--cm-mobile-nav-height:68px}
+:root{--cm-sidebar-width:244px;--cm-nav-blue:#173f65;--cm-nav-blue-2:#245f91;--cm-mobile-nav-height:68px}
 .cm-desktop-sidebar{position:fixed;inset:0 auto 0 0;width:var(--cm-sidebar-width);z-index:1040;display:flex;flex-direction:column;background:linear-gradient(180deg,var(--cm-nav-blue),#102f4d);color:#fff;box-shadow:8px 0 28px rgba(15,23,42,.13)}
-.cm-sidebar-brand{display:flex;align-items:center;gap:.8rem;padding:1rem 1rem .9rem;color:#fff;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.12)}
-.cm-sidebar-brand .cm-logo{display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:rgba(255,255,255,.13);font-size:1.2rem}
-.cm-sidebar-brand strong{display:block;font-size:1rem}.cm-sidebar-brand small{display:block;color:#bfdbfe;font-size:.72rem;margin-top:.12rem}
-.cm-sidebar-scroll{flex:1;overflow-y:auto;padding:.75rem .65rem 1rem;scrollbar-width:thin}
-.cm-sidebar-group{margin:.55rem 0 1rem}.cm-sidebar-label{padding:0 .65rem .35rem;color:#93c5fd;font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
-.cm-sidebar-link{display:flex;align-items:center;gap:.7rem;min-height:42px;margin:.16rem 0;padding:.56rem .72rem;border-radius:11px;color:#e8f3fb;text-decoration:none;font-size:.84rem;font-weight:650;transition:.16s ease}
+.cm-sidebar-brand{display:flex;align-items:center;gap:.7rem;padding:.85rem .85rem .78rem;color:#fff;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.12)}
+.cm-sidebar-brand .cm-logo{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.13);font-size:1.1rem}
+.cm-sidebar-brand strong{display:block;font-size:.94rem}.cm-sidebar-brand small{display:block;color:#bfdbfe;font-size:.68rem;margin-top:.08rem}
+.cm-sidebar-scroll{flex:1;overflow-y:auto;padding:.55rem .55rem .8rem;scrollbar-width:thin}
+.cm-sidebar-group{margin:.28rem 0;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(255,255,255,.025);overflow:hidden}
+.cm-sidebar-group.open{background:rgba(255,255,255,.055);border-color:rgba(147,197,253,.25)}
+.cm-sidebar-group-toggle{display:flex;align-items:center;width:100%;min-height:42px;padding:.52rem .65rem;border:0;background:transparent;color:#dbeafe;text-align:left;font-size:.76rem;font-weight:800;letter-spacing:.025em;text-transform:uppercase;cursor:pointer}
+.cm-sidebar-group-toggle>i:first-child{display:grid;place-items:center;width:28px;height:28px;margin-right:.55rem;border-radius:9px;background:rgba(255,255,255,.09);font-size:.9rem}
+.cm-sidebar-group-toggle span{flex:1}.cm-sidebar-chevron{font-size:.72rem;transition:transform .18s ease}.cm-sidebar-group.open .cm-sidebar-chevron{transform:rotate(180deg)}
+.cm-sidebar-items{display:grid;grid-template-rows:0fr;transition:grid-template-rows .2s ease}.cm-sidebar-items>div{min-height:0;overflow:hidden;padding:0 .35rem}.cm-sidebar-group.open .cm-sidebar-items{grid-template-rows:1fr}.cm-sidebar-group.open .cm-sidebar-items>div{padding-bottom:.38rem}
+.cm-sidebar-link{display:flex;align-items:center;gap:.62rem;min-height:37px;margin:.1rem 0;padding:.43rem .58rem;border-radius:9px;color:#e8f3fb;text-decoration:none;font-size:.78rem;font-weight:650;transition:.16s ease}
 .cm-sidebar-link i{width:19px;text-align:center;font-size:1rem}.cm-sidebar-link:hover{background:rgba(255,255,255,.1);color:#fff;transform:translateX(2px)}
 .cm-sidebar-link.active{background:#fff;color:var(--cm-nav-blue);box-shadow:0 5px 16px rgba(0,0,0,.16)}
 .cm-sidebar-link.disabled{opacity:.35;pointer-events:none}
-.cm-sidebar-footer{padding:.75rem;border-top:1px solid rgba(255,255,255,.12)}.cm-sidebar-footer .btn{border-radius:11px}
+.cm-sidebar-footer{padding:.58rem;border-top:1px solid rgba(255,255,255,.12)}.cm-sidebar-footer .btn{border-radius:10px;font-size:.76rem}
 .cm-mobile-bottom,.cm-mobile-more{display:none}
 @media(min-width:992px){
  body{padding-left:var(--cm-sidebar-width)}
@@ -97,17 +135,19 @@ $cmNavGroups = [
     <span><strong>Chuyên môn</strong><small>Cổng dữ liệu số CDS</small></span>
   </a>
   <div class="cm-sidebar-scroll">
-    <?php foreach ($cmNavGroups as $group): ?>
-      <section class="cm-sidebar-group">
-        <div class="cm-sidebar-label"><?= e($group['label']) ?></div>
-        <?php foreach ($group['items'] as $item):
-          $allowed = $cmLayoutCan($item['permission']);
-          $active = $cmLayoutActive($item['pages'], $item['tab'] ?? null);
-        ?>
-          <a class="cm-sidebar-link <?= $active?'active':'' ?> <?= !$allowed?'disabled':'' ?>" href="<?= BASE_URL . e($item['href']) ?>" <?= !$allowed?'aria-disabled="true" tabindex="-1"':'' ?>>
-            <i class="bi <?= e($item['icon']) ?>"></i><span><?= e($item['label']) ?></span>
-          </a>
-        <?php endforeach; ?>
+    <?php foreach ($cmVisibleNavGroups as $group): ?>
+      <section class="cm-sidebar-group <?= $group['open']?'open':'' ?>" data-cm-nav-group>
+        <button type="button" class="cm-sidebar-group-toggle" aria-expanded="<?= $group['open']?'true':'false' ?>" aria-controls="<?= e($group['id']) ?>">
+          <i class="bi <?= e($group['icon']) ?>"></i><span><?= e($group['label']) ?></span><i class="bi bi-chevron-down cm-sidebar-chevron"></i>
+        </button>
+        <div class="cm-sidebar-items" id="<?= e($group['id']) ?>"><div>
+          <?php foreach ($group['items'] as $item):
+            $allowed = $cmLayoutCan($item['permission']);
+            $active = $cmLayoutActive($item['pages'], $item['tab'] ?? null);
+          ?>
+            <a class="cm-sidebar-link <?= $active?'active':'' ?> <?= !$allowed?'disabled':'' ?>" href="<?= BASE_URL . e($item['href']) ?>" <?= !$allowed?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi <?= e($item['icon']) ?>"></i><span><?= e($item['label']) ?></span></a>
+          <?php endforeach; ?>
+        </div></div>
       </section>
     <?php endforeach; ?>
   </div>
@@ -130,7 +170,7 @@ $cmNavGroups = [
 <div class="offcanvas offcanvas-bottom cm-mobile-more" tabindex="-1" id="cmMobileMore" aria-labelledby="cmMobileMoreLabel" style="height:min(82vh,720px);border-radius:22px 22px 0 0">
   <div class="offcanvas-header"><div><h5 class="offcanvas-title" id="cmMobileMoreLabel"><i class="bi bi-journal-bookmark-fill me-2"></i>Chuyên môn</h5><div class="small text-white-50">Chọn chức năng cần sử dụng</div></div><button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button></div>
   <div class="offcanvas-body">
-    <?php foreach ($cmNavGroups as $group): ?>
+    <?php foreach ($cmVisibleNavGroups as $group): ?>
       <section class="cm-mobile-group">
         <h6 class="cm-mobile-group-title"><?= e($group['label']) ?></h6>
         <div class="cm-mobile-grid">
@@ -149,3 +189,16 @@ $cmNavGroups = [
     </div>
   </div>
 </div>
+<script id="cdsCmSidebarGroups">
+(function(){
+  document.querySelectorAll('[data-cm-nav-group]>.cm-sidebar-group-toggle').forEach(function(button){
+    button.addEventListener('click',function(){
+      var group=button.closest('[data-cm-nav-group]'),open=!group.classList.contains('open');
+      document.querySelectorAll('[data-cm-nav-group]').forEach(function(other){
+        var keep=other===group&&open;other.classList.toggle('open',keep);
+        var toggle=other.querySelector(':scope>.cm-sidebar-group-toggle');if(toggle)toggle.setAttribute('aria-expanded',keep?'true':'false');
+      });
+    });
+  });
+})();
+</script>
