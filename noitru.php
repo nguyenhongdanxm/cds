@@ -7,11 +7,11 @@ $user = current_user();
 
 $requestedTab = $_GET['tab'] ?? '';
 $tab = $requestedTab !== '' ? $requestedTab : 'overview';
-$allowed = ['overview','boarders','exits','meals','meal_summary','rice','attendance','duty','health','menu','stats'];
+$allowed = ['overview','boarders','exits','meals','meal_summary','rice','attendance','duty','duty_report','health','menu','stats'];
 if (!in_array($tab, $allowed, true)) $tab = 'overview';
 $tabPerms = [
     'overview'=>'nt.tongquan', 'boarders'=>'nt.danhsach', 'exits'=>'nt.ravao',
-    'meals'=>'nt.baoan', 'attendance'=>'nt.diemdanh', 'duty'=>'nt.lichtruc',
+    'meals'=>'nt.baoan', 'attendance'=>'nt.diemdanh', 'duty'=>'nt.lichtruc', 'duty_report'=>'nt.lichtruc',
     'meal_summary'=>'nt.buaan.tonghop', 'rice'=>'nt.gao',
     'health'=>'nt.yte', 'menu'=>'nt.thucdon', 'stats'=>'nt.thongke',
 ];
@@ -89,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'duty_settings_save'=>'nt.lichtruc', 'duty_group_save'=>'nt.lichtruc', 'duty_group_delete'=>'nt.lichtruc',
         'duty_swap'=>'nt.lichtruc', 'duty_assign_weekday'=>'nt.lichtruc', 'duty_manager_weekday'=>'nt.lichtruc',
         'duty_roster_save'=>'nt.lichtruc', 'duty_roster_delete'=>'nt.lichtruc',
+        'duty_report_save'=>'nt.lichtruc',
         'health_save'=>'nt.yte', 'health_delete'=>'nt.yte',
         'medicine_save'=>'nt.yte', 'medicine_restock'=>'nt.yte', 'medicine_delete'=>'nt.yte',
         'menu_save'=>'nt.thucdon', 'menu_dish_add'=>'nt.thucdon', 'menu_dish_delete'=>'nt.thucdon',
@@ -410,6 +411,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         noitru_duty_delete(trim($_POST['id'] ?? ''));
         flash('Đã xóa ca trực.', 'warning');
         header('Location: ' . BASE_URL . 'noitru.php?tab=duty');
+        exit;
+    }
+    if ($action === 'duty_report_save') {
+        $reportDate = trim($_POST['date'] ?? date('Y-m-d'));
+        $saved = noitru_duty_report_save([
+            'date'=>$reportDate,
+            'location'=>$_POST['location'] ?? 'Pà Vầy Sủ',
+            'shift_label'=>$_POST['shift_label'] ?? '',
+            'discipline'=>$_POST['discipline'] ?? '',
+            'hygiene'=>$_POST['hygiene'] ?? '',
+            'safety'=>$_POST['safety'] ?? '',
+            'health'=>$_POST['health'] ?? '',
+            'incidents'=>$_POST['incidents'] ?? '',
+            'assessment'=>$_POST['assessment'] ?? '',
+            'handover'=>$_POST['handover'] ?? '',
+            'updated_by'=>$user['name'] ?? '',
+        ]);
+        flash($saved ? 'Đã lưu nội dung biên bản trực.' : 'Không lưu được biên bản trực.', $saved ? 'success' : 'danger');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=duty_report&date=' . urlencode($reportDate));
         exit;
     }
     if (str_starts_with($action, 'duty_')) {
@@ -810,6 +830,7 @@ $tabs = [
     'rice' => ['Gạo', 'bi-box-seam', BASE_URL . 'noitru.php?tab=rice'],
     'attendance' => ['Điểm danh', 'bi-clipboard-check', BASE_URL . 'noitru.php?tab=attendance'],
     'duty' => ['Lịch trực', 'bi-calendar2-week', BASE_URL . 'noitru.php?tab=duty'],
+    'duty_report' => ['Biên bản trực', 'bi-file-earmark-text', BASE_URL . 'noitru.php?tab=duty_report'],
     'health' => ['Y tế', 'bi-heart-pulse', BASE_URL . 'noitru.php?tab=health'],
     'menu' => ['Thực đơn', 'bi-journal-text', BASE_URL . 'noitru.php?tab=menu'],
     'stats' => ['Thống kê', 'bi-bar-chart', BASE_URL . 'noitru.php?tab=stats'],
@@ -1678,6 +1699,9 @@ form[method="post"]{display:none!important}
 
 <?php elseif ($tab === 'duty'): ?>
   <?php require __DIR__ . '/includes/noitru_duty_view.php'; ?>
+
+<?php elseif ($tab === 'duty_report'): ?>
+  <?php require __DIR__ . '/includes/noitru_duty_report_view.php'; ?>
 
 <?php elseif ($tab === 'health'): ?>
   <?php require __DIR__ . '/includes/noitru_health_view.php'; ?>

@@ -14,6 +14,7 @@ if (!isset($nt_sec)) {
     elseif ($ntTab === 'meal_summary') $nt_sec = 'meal_summary';
     elseif ($ntTab === 'rice') $nt_sec = 'rice';
     elseif ($ntTab === 'duty') $nt_sec = 'duty';
+    elseif ($ntTab === 'duty_report') $nt_sec = 'duty_report';
     elseif ($ntTab === 'health') $nt_sec = 'health';
     elseif ($ntTab === 'menu') $nt_sec = 'menu';
     elseif ($ntTab === 'stats') $nt_sec = 'stats';
@@ -29,6 +30,7 @@ $ntItems = [
     'rice'       => [BASE_URL . 'noitru.php?tab=rice',           'bi-box-seam-fill',    'Gạo',          'nt.gao'],
     'attendance' => [BASE_URL . 'noitru_attendance.php',         'bi-clipboard2-check-fill','Điểm danh','nt.diemdanh'],
     'duty'       => [BASE_URL . 'noitru.php?tab=duty',           'bi-calendar2-week-fill','Lịch trực',  'nt.lichtruc'],
+    'duty_report'=> [BASE_URL . 'noitru.php?tab=duty_report',    'bi-file-earmark-text-fill','Biên bản trực','nt.lichtruc'],
     'health'     => [BASE_URL . 'noitru.php?tab=health',         'bi-heart-pulse-fill', 'Y tế',         'nt.yte'],
     'menu'       => [BASE_URL . 'noitru.php?tab=menu',           'bi-journal-text',     'Thực đơn',    'nt.thucdon'],
     'stats'      => [BASE_URL . 'noitru.php?tab=stats',          'bi-bar-chart-fill',   'Thống kê',    'nt.thongke'],
@@ -36,7 +38,7 @@ $ntItems = [
 $ntItems = array_filter($ntItems, fn($item) => can_perm($item[3] ?? ''));
 require_once __DIR__.'/module_switcher.php';
 $ntGroups = [
-    'boarding' => ['label'=>'Nội trú','icon'=>'bi-building-fill','items'=>['duty','attendance','exits']],
+    'boarding' => ['label'=>'Nội trú','icon'=>'bi-building-fill','items'=>['duty','duty_report','attendance','exits']],
     'meals' => ['label'=>'Bữa ăn','icon'=>'bi-basket2-fill','items'=>['meals','menu','meal_summary','rice']],
 ];
 $ntInGroup = function ($group) use ($ntGroups, $nt_sec) {
