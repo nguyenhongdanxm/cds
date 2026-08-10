@@ -385,8 +385,53 @@ function csdl_teacher_delete($id) {
 }
 
 /* —— Học sinh —— */
+function csdl_students_recovery_normalize(array $rows) {
+    $classesByName=[];foreach(csdl_classes_all() as $class)$classesByName[csdl_text_sort_key($class['name']??'')]=(string)($class['id']??'');
+    $result=[];
+    foreach($rows as $row){
+        if(!is_array($row))continue;$name=trim((string)($row['name']??$row['ho_ten']??$row['hoten']??''));if($name==='')continue;
+        $className=trim((string)($row['class_name']??$row['lop']??$row['class']??''));$id=trim((string)($row['id']??$row['student_id']??$row['ma_hs']??''));
+        if($id==='')$id='hs_recovered_'.substr(hash('sha256',$name.'|'.$className.'|'.($row['dob']??'')),0,12);
+        $row['id']=$id;$row['name']=$name;$row['class_name']=$className;$row['class_id']=$row['class_id']??($classesByName[csdl_text_sort_key($className)]??'');
+        $row['gender']=$row['gender']??$row['gioi_tinh']??$row['gt']??'';$row['dob']=$row['dob']??$row['ngay_sinh']??'';$row['boarder']=array_key_exists('boarder',$row)?(bool)$row['boarder']:true;
+        $row['room_ktx']=$row['room_ktx']??$row['dorm_room']??$row['phong']??$row['phong_o']??'';$row['meal_group']=$row['meal_group']??$row['mam']??$row['mam_an']??$row['nhom_an']??'';$row['active']=array_key_exists('active',$row)?(bool)$row['active']:true;
+        $result[$id]=$row;
+    }
+    return array_values($result);
+}
+
+function csdl_students_recover_rows() {
+    // Ưu tiên bản sao MySQL vì raw_json giữ nguyên hồ sơ CSDL đầy đủ.
+    try{
+        $rows=[];$stmt=cds_db()->query('SELECT * FROM cds_students ORDER BY name,id');
+        while($dbRow=$stmt->fetch(PDO::FETCH_ASSOC)){
+            $raw=json_decode((string)($dbRow['raw_json']??''),true);
+            if(is_array($raw)&&trim((string)($raw['name']??''))!==''){$rows[]=$raw;continue;}
+            $rows[]=['id'=>$dbRow['id']??'','class_id'=>$dbRow['class_id']??'','code'=>$dbRow['code']??'','name'=>$dbRow['name']??'','cccd'=>$dbRow['cccd']??'','dob'=>$dbRow['dob']??'','gender'=>$dbRow['gender']??'','ethnicity'=>$dbRow['ethnicity']??'','hometown'=>$dbRow['hometown']??'','address'=>$dbRow['address']??'','phone'=>$dbRow['phone']??'','parent_name'=>$dbRow['parent_name']??'','parent_phone'=>$dbRow['parent_phone']??'','boarder'=>!empty($dbRow['is_boarder']),'room_ktx'=>$dbRow['dorm_room']??'','meal_group'=>$dbRow['meal_group']??'','active'=>!isset($dbRow['active'])||!empty($dbRow['active']),'note'=>$dbRow['note']??''];
+        }
+        $rows=csdl_students_recovery_normalize($rows);if($rows)return ['rows'=>$rows,'source'=>'bản sao MySQL'];
+    }catch(Throwable $e){error_log('[CDS student recovery mysql] '.$e->getMessage());}
+
+    // Nếu MySQL đã bị đồng bộ rỗng, khôi phục tối thiểu từ cache Nội trú còn trên host.
+    foreach([DATA_PATH.'/noitru/boarders_cache.json',DATA_PATH.'/noitru_boarders_live.json'] as $path){
+        if(!is_file($path)||!is_readable($path))continue;$decoded=json_decode((string)file_get_contents($path),true);if(!is_array($decoded))continue;$rows=csdl_students_recovery_normalize($decoded);if($rows)return ['rows'=>$rows,'source'=>basename($path)];
+    }
+    return ['rows'=>[],'source'=>''];
+}
+
 function csdl_students_all() {
     $rows = load_json(CSDL_STUDENTS, []);
+    if(!$rows){
+        $recovered=csdl_students_recover_rows();
+        if(!empty($recovered['rows'])){
+            if(is_file(CSDL_STUDENTS))@copy(CSDL_STUDENTS,CSDL_STUDENTS.'.before-recovery-'.date('Ymd-His').'.bak');
+            if(save_json(CSDL_STUDENTS,$recovered['rows'])){
+                $rows=$recovered['rows'];
+                error_log('[CDS student recovery] Restored '.count($rows).' rows from '.$recovered['source']);
+                if(function_exists('flash'))flash('Đã tự động khôi phục '.count($rows).' học sinh từ '.$recovered['source'].'.','warning');
+            }
+        }
+    }
     cds_read_verify_rows('students', $rows);
     $classMap = [];
     foreach (csdl_classes_all() as $class) {
