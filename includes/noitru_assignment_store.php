@@ -147,6 +147,19 @@ function noitru_assignment_group_students(array $students,bool $separateGender=f
 function noitru_assignment_auto_rooms(array $students,array $names,$capacity,array $roomGenders=[],array $options=[]): array {
     $enforce=(bool)($options['enforce_gender']??true);$maxGap=max(0,min(3,(int)($options['max_grade_gap']??1)));
     $slots=array_fill_keys($names,[]);$runtimeGender=[];$result=[];
+    // Khi chia theo từng đợt, các phòng đã chia trước được dùng làm dữ liệu nền:
+    // thuật toán chỉ xếp thêm vào chỗ trống phù hợp, không ghi đè kết quả cũ.
+    foreach(($options['seed_slots']??[]) as $name=>$members){
+        if(!isset($slots[$name])||!is_array($members))continue;
+        foreach($members as $member){
+            if(!is_array($member)||count($slots[$name])>=noitru_assignment_capacity_for($capacity,$name))continue;
+            $slots[$name][]=$member;
+            $gender=noitru_assignment_gender($member);
+            if($gender==='Khác')continue;
+            if(!isset($runtimeGender[$name]))$runtimeGender[$name]=$gender;
+            elseif($runtimeGender[$name]!==$gender)$runtimeGender[$name]='Khác';
+        }
+    }
     foreach(noitru_assignment_group_students($students,true) as $group){
         usort($group,static fn($a,$b)=>(string)($a['name']??'')<=>(string)($b['name']??''));
         $gender=noitru_assignment_gender($group[0]);$empty=[];$partial=[];
