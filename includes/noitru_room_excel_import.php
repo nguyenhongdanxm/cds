@@ -1,5 +1,5 @@
 <?php
-/** Mẫu và bộ nhập XLSX chia phòng. Mỗi worksheet là một phòng. */
+/** Mẫu và bộ nhập XLSX chia phòng. Hỗ trợ mẫu 7 cột và mẫu cũ theo worksheet. */
 
 function nt_room_excel_xml($value) {
     return htmlspecialchars((string)$value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
@@ -31,14 +31,13 @@ function nt_room_excel_safe_sheet($name,array &$used) {
 }
 
 function nt_room_excel_template(array $roomNames) {
-    if(!$roomNames)$roomNames=['Phòng 01'];$used=[];$sheetNames=[];$sheetFiles=[];
-    foreach(array_values($roomNames) as $index=>$roomName){
-        $sheetName=nt_room_excel_safe_sheet($roomName,$used);$sheetNames[]=$sheetName;
-        $headers=['STT','Họ và tên','Lớp','Ngày sinh','Giới tính'];$cells='';
+    $sheetNames=['Chia phòng'];$sheetFiles=[];
+    foreach($sheetNames as $index=>$sheetName){
+        $headers=['STT','Họ và tên','Lớp','Ngày sinh','Giới tính','Phòng KTX','Ghi chú'];$cells='';
         foreach($headers as $col=>$header){$ref=nt_room_excel_col($col+1).'1';$cells.='<c r="'.$ref.'" t="inlineStr" s="1"><is><t>'.nt_room_excel_xml($header).'</t></is></c>';}
         $rows=['<row r="1" ht="28">'.$cells.'</row>'];
-        for($r=2;$r<=31;$r++)$rows[]='<row r="'.$r.'"><c r="A'.$r.'" s="2"><v>'.($r-1).'</v></c><c r="B'.$r.'" s="3"/><c r="C'.$r.'" s="3"/><c r="D'.$r.'" s="4"/><c r="E'.$r.'" s="3"/></row>';
-        $sheetFiles['xl/worksheets/sheet'.($index+1).'.xml']='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="8" customWidth="1"/><col min="2" max="2" width="30" customWidth="1"/><col min="3" max="3" width="14" customWidth="1"/><col min="4" max="4" width="16" customWidth="1"/><col min="5" max="5" width="14" customWidth="1"/></cols><sheetData>'.implode('',$rows).'</sheetData><autoFilter ref="A1:E31"/><pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/></worksheet>';
+        for($r=2;$r<=101;$r++)$rows[]='<row r="'.$r.'"><c r="A'.$r.'" s="2"><v>'.($r-1).'</v></c><c r="B'.$r.'" s="3"/><c r="C'.$r.'" s="3"/><c r="D'.$r.'" s="4"/><c r="E'.$r.'" s="3"/><c r="F'.$r.'" s="3"/><c r="G'.$r.'" s="3"/></row>';
+        $sheetFiles['xl/worksheets/sheet'.($index+1).'.xml']='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="8" customWidth="1"/><col min="2" max="2" width="30" customWidth="1"/><col min="3" max="3" width="14" customWidth="1"/><col min="4" max="4" width="16" customWidth="1"/><col min="5" max="5" width="14" customWidth="1"/><col min="6" max="6" width="18" customWidth="1"/><col min="7" max="7" width="32" customWidth="1"/></cols><sheetData>'.implode('',$rows).'</sheetData><autoFilter ref="A1:G101"/><pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/></worksheet>';
     }
     $contentTypes='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>';
     foreach($sheetNames as $i=>$unused)$contentTypes.='<Override PartName="/xl/worksheets/sheet'.($i+1).'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';$contentTypes.='</Types>';
@@ -86,19 +85,24 @@ function nt_room_excel_parse($path) {
     foreach($workbookXpath->query('//main:sheets/main:sheet') as $sheet){
         $rid=$sheet->getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');$target=$relMap[$rid]??'';$sheetName=trim($sheet->getAttribute('name'));
         if($target===''||$sheetName==='')continue;$target=ltrim(str_replace('\\','/',$target),'/');$sheetPath=str_starts_with($target,'xl/')?$target:'xl/'.$target;$sheetRaw=$zip->getFromName($sheetPath);if($sheetRaw===false)continue;
-        $sheetDom=nt_room_excel_dom($sheetRaw);if(!$sheetDom)continue;$sheetXpath=new DOMXPath($sheetDom);$sheetXpath->registerNamespace('main','http://schemas.openxmlformats.org/spreadsheetml/2006/main');$rows=[];
-        foreach($sheetXpath->query('//main:sheetData/main:row') as $row){$rowNumber=(int)$row->getAttribute('r');$values=[];foreach($sheetXpath->query('./main:c',$row) as $cell){$ref=$cell->getAttribute('r');if(!preg_match('/^([A-Z]+)/',$ref,$m))continue;$col=0;foreach(str_split($m[1]) as $char)$col=$col*26+(ord($char)-64);$values[$col]=nt_room_excel_cell_value($cell,$sheetXpath,$shared);}if($rowNumber===1)continue;
-            $name=trim((string)($values[2]??''));$class=trim((string)($values[3]??''));$dob=nt_room_excel_date($values[4]??'');$gender=trim((string)($values[5]??''));if($name===''&&$class===''&&$dob===''&&$gender==='')continue;
-            if($name===''||$class===''){$errors[]=$sheetName.' · dòng '.$rowNumber.': thiếu Họ và tên hoặc Lớp.';continue;}$rows[]=['sheet'=>$sheetName,'row'=>$rowNumber,'name'=>$name,'class'=>$class,'dob'=>$dob,'gender'=>$gender];
+        $sheetDom=nt_room_excel_dom($sheetRaw);if(!$sheetDom)continue;$sheetXpath=new DOMXPath($sheetDom);$sheetXpath->registerNamespace('main','http://schemas.openxmlformats.org/spreadsheetml/2006/main');$sheetRows=[];
+        foreach($sheetXpath->query('//main:sheetData/main:row') as $row){$rowNumber=(int)$row->getAttribute('r');$values=[];foreach($sheetXpath->query('./main:c',$row) as $cell){$ref=$cell->getAttribute('r');if(!preg_match('/^([A-Z]+)/',$ref,$m))continue;$col=0;foreach(str_split($m[1]) as $char)$col=$col*26+(ord($char)-64);$values[$col]=nt_room_excel_cell_value($cell,$sheetXpath,$shared);}$sheetRows[$rowNumber]=$values;}
+        $headers=$sheetRows[1]??[];$headerMap=[];foreach($headers as $column=>$header)$headerMap[nt_room_excel_norm($header)]=$column;
+        $roomColumn=$headerMap['phong ktx']??$headerMap['phòng ktx']??$headerMap['phong']??$headerMap['phòng']??null;$noteColumn=$headerMap['ghi chu']??$headerMap['ghi chú']??null;
+        foreach($sheetRows as $rowNumber=>$values){if($rowNumber===1)continue;
+            $name=trim((string)($values[2]??''));$class=trim((string)($values[3]??''));$dob=nt_room_excel_date($values[4]??'');$gender=trim((string)($values[5]??''));$room=trim((string)($roomColumn?($values[$roomColumn]??''):$sheetName));$note=trim((string)($noteColumn?($values[$noteColumn]??''):''));
+            if($name===''&&$class===''&&$dob===''&&$gender===''&&($roomColumn===null||$room==='')&&$note==='')continue;
+            if($name===''||$class===''){$errors[]=$sheetName.' · dòng '.$rowNumber.': thiếu Họ và tên hoặc Lớp.';continue;}
+            if($room===''){$errors[]=$sheetName.' · dòng '.$rowNumber.': thiếu Phòng KTX.';continue;}
+            $result[$room][]=['sheet'=>$sheetName,'row'=>$rowNumber,'name'=>$name,'class'=>$class,'dob'=>$dob,'gender'=>$gender,'note'=>$note];
         }
-        if($rows)$result[$sheetName]=$rows;
     }
-    $zip->close();if(!$result&&!$errors)$errors[]='File chưa có dữ liệu học sinh. Mỗi sheet phải mang tên phòng.';return ['ok'=>!$errors,'rooms'=>$result,'errors'=>$errors];
+    $zip->close();if(!$result&&!$errors)$errors[]='File chưa có dữ liệu học sinh. Hãy điền đủ Họ và tên, Lớp và Phòng KTX.';return ['ok'=>!$errors,'rooms'=>$result,'errors'=>$errors];
 }
 
 function nt_room_excel_match_and_apply(array $parsed,array $students,array &$data,$replaceAll=false) {
     $index=[];foreach($students as $student){$key=nt_room_excel_norm($student['name']??'').'|'.nt_room_excel_norm($student['class_name']??'');$index[$key][]=$student;}
-    $assignments=[];$errors=[];$seen=[];
+    $assignments=[];$notes=[];$errors=[];$seen=[];
     foreach($parsed['rooms']??[] as $room=>$rows)foreach($rows as $row){
         $key=nt_room_excel_norm($row['name']).'|'.nt_room_excel_norm($row['class']);$matches=$index[$key]??[];
         if(count($matches)>1&&$row['dob']!=='')$matches=array_values(array_filter($matches,static fn($student)=>nt_room_excel_date($student['dob']??'')===$row['dob']));
@@ -106,12 +110,13 @@ function nt_room_excel_match_and_apply(array $parsed,array $students,array &$dat
         $student=$matches[0];$id=(string)($student['id']??'');if(isset($seen[$id])){$errors[]=$room.' · dòng '.$row['row'].': học sinh '.$row['name'].' đã xuất hiện ở phòng '.$seen[$id].'.';continue;}
         if($row['dob']!==''&&nt_room_excel_date($student['dob']??'')!==$row['dob'])$errors[]=$room.' · dòng '.$row['row'].': ngày sinh không khớp CSDL của '.$row['name'].'.';
         if($row['gender']!==''&&nt_room_excel_norm($row['gender'])!==nt_room_excel_norm(noitru_assignment_gender($student)))$errors[]=$room.' · dòng '.$row['row'].': giới tính không khớp CSDL của '.$row['name'].'.';
-        $seen[$id]=$room;$assignments[$id]=$room;
+        $seen[$id]=$room;$assignments[$id]=$room;$notes[$id]=trim((string)($row['note']??''));
     }
     if($errors)return ['ok'=>false,'errors'=>$errors,'count'=>0];
     $finalCounts=[];if(!$replaceAll)foreach($students as $student){$id=(string)($student['id']??'');if(isset($assignments[$id]))continue;$room=trim((string)($student['room_ktx']??''));if($room!=='')$finalCounts[$room]=($finalCounts[$room]??0)+1;}
-    if($replaceAll)foreach($students as $student)$data['rooms'][(string)$student['id']]='';
-    $roomCounts=[];foreach($assignments as $id=>$room){$roomCounts[$room]=($roomCounts[$room]??0)+1;$finalCounts[$room]=($finalCounts[$room]??0)+1;$data['rooms'][$id]=$room;}
+    if(!isset($data['room_notes'])||!is_array($data['room_notes']))$data['room_notes']=[];
+    if($replaceAll)foreach($students as $student){$id=(string)$student['id'];$data['rooms'][$id]='';unset($data['room_notes'][$id]);}
+    $roomCounts=[];foreach($assignments as $id=>$room){$roomCounts[$room]=($roomCounts[$room]??0)+1;$finalCounts[$room]=($finalCounts[$room]??0)+1;$data['rooms'][$id]=$room;if($notes[$id]!=='')$data['room_notes'][$id]=$notes[$id];else unset($data['room_notes'][$id]);}
     foreach($roomCounts as $room=>$count){if(!in_array($room,$data['room_names']??[],true))$data['room_names'][]=$room;$data['room_capacities'][$room]=max((int)($data['room_capacities'][$room]??8),(int)($finalCounts[$room]??$count));if(!isset($data['room_genders'][$room]))$data['room_genders'][$room]='Linh hoạt';}
     return ['ok'=>true,'errors'=>[],'count'=>count($assignments),'rooms'=>count($roomCounts)];
 }
