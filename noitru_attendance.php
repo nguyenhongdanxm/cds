@@ -30,10 +30,7 @@ function noitru_attendance_school_students() {
         $student['room_ktx'] = (string)($student['room_ktx'] ?? '');
         $students[] = $student;
     }
-    usort($students, function($a, $b) {
-        $classCompare = strnatcasecmp((string)($a['class_name'] ?? ''), (string)($b['class_name'] ?? ''));
-        return $classCompare !== 0 ? $classCompare : strnatcasecmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
-    });
+    csdl_sort_students($students);
     return $students;
 }
 
@@ -198,7 +195,7 @@ foreach ($boarders as $s) {
     $cn = $s['class_name'] !== '' ? $s['class_name'] : '(Chưa lớp)';
     $byClass[$cn][] = $s;
 }
-ksort($byClass, SORT_NATURAL);
+uksort($byClass, 'csdl_compare_class_names');
 
 $list = $boarders;
 if ($class !== '') {

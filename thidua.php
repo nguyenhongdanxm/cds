@@ -45,7 +45,7 @@ function td_teacher_team(array $teacher) {
 $teachers = array_values(array_filter(csdl_teachers_all(), fn($row)=>!empty($row['active'])));
 $students = array_values(array_filter(csdl_students_all(), fn($row)=>!empty($row['active'])));
 $classMap=[]; foreach(csdl_classes_all() as $classRow) $classMap[$classRow['id']??'']=$classRow['name']??'';
-$classes=array_values(array_filter(csdl_classes_all(),fn($row)=>!isset($row['active'])||!empty($row['active'])));usort($classes,fn($a,$b)=>strnatcasecmp($a['name']??'',$b['name']??''));
+$classes=array_values(array_filter(csdl_classes_all(),fn($row)=>!isset($row['active'])||!empty($row['active'])));csdl_sort_classes($classes);
 
 $linkedTeacherName = trim((string)($user['teacher_name'] ?? $user['name'] ?? ''));
 $linkedTeacherId = '';

@@ -124,7 +124,7 @@ sort($progressFilterTeachers, SORT_NATURAL | SORT_FLAG_CASE);
 $progressAssignments = array_values(array_filter($progressAssignmentMap, function($assignment) use ($progressTeacher) {
     return $progressTeacher !== '' && mb_strtolower(trim($assignment['teacher'] ?? ''), 'UTF-8') === mb_strtolower($progressTeacher, 'UTF-8');
 }));
-usort($progressAssignments, fn($a, $b) => strnatcasecmp(($a['class'] ?? '') . ($a['subject'] ?? ''), ($b['class'] ?? '') . ($b['subject'] ?? '')));
+usort($progressAssignments, fn($a, $b) => csdl_compare_class_names($a['class'] ?? '', $b['class'] ?? '') ?: strnatcasecmp($a['subject'] ?? '', $b['subject'] ?? ''));
 $progressByAssignment = [];
 $progressPreviousByAssignment = [];
 foreach ($progressRecords as $record) {

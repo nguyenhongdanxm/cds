@@ -45,5 +45,5 @@ foreach (csdl_students_all() as $student) {
     if (count($rows) >= $limit) break;
 }
 
-usort($rows, static fn($a, $b) => strnatcasecmp($a['class_name'], $b['class_name']) ?: strcasecmp($a['name'], $b['name']));
+csdl_sort_students($rows);
 echo json_encode(['ok' => true, 'count' => count($rows), 'students' => $rows], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

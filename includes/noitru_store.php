@@ -110,7 +110,7 @@ function noitru_boarders_live() {
             'note' => $s['note'] ?? '',
         ];
     }
-    usort($out, fn($a, $b) => strcmp($a['class_name'], $b['class_name']) ?: strcmp($a['name'], $b['name']));
+    csdl_sort_students($out);
     return $out;
 }
 
@@ -180,7 +180,7 @@ function noitru_stats() {
         $mg = trim($s['meal_group'] ?? '') !== '' ? $s['meal_group'] : '(Chưa nhóm ăn)';
         $byMeal[$mg] = ($byMeal[$mg] ?? 0) + 1;
     }
-    ksort($byClass, SORT_NATURAL);
+    uksort($byClass, 'csdl_compare_class_names');
     ksort($byRoom, SORT_NATURAL);
     ksort($byMeal, SORT_NATURAL);
     $meta = noitru_meta();
@@ -421,7 +421,7 @@ function noitru_meals_summary($from, $to) {
             $out['groups'][$group][$meal] = ($out['groups'][$group][$meal] ?? 0) + 1;
         }
     }
-    ksort($out['days']); ksort($out['classes'], SORT_NATURAL); ksort($out['groups'], SORT_NATURAL);
+    ksort($out['days']); uksort($out['classes'], 'csdl_compare_class_names'); ksort($out['groups'], SORT_NATURAL);
     return $out;
 }
 
@@ -942,7 +942,7 @@ function noitru_stats_full($from, $to) {
     foreach ($riceUsage['days'] ?? [] as $date=>$row) if(isset($daily[$date])) $daily[$date]['rice_kg']=(float)($row['kg']??0);
     $classes = [];
     foreach (noitru_boarders_live() as $student) { $class=trim($student['class_name']??'') ?: '(Chưa lớp)'; $classes[$class]=($classes[$class]??0)+1; }
-    ksort($classes, SORT_NATURAL);
+    uksort($classes, 'csdl_compare_class_names');
     return [
         'from' => $from, 'to' => $to,
         'boarders' => count(noitru_boarders_live()),

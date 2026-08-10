@@ -101,7 +101,7 @@ function nt_rice_build_detail($from, $to, array $riceData) {
 
     $classTotals = [];
     foreach ($classes as $className => &$classStudents) {
-        uasort($classStudents, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
+        uasort($classStudents, fn($a, $b) => csdl_compare_person_names($a['name'] ?? '', $b['name'] ?? ''));
         $total = ['sang'=>0,'trua'=>0,'toi'=>0,'sang_kg'=>0.0,'trua_kg'=>0.0,'toi_kg'=>0.0,'total'=>0,'total_kg'=>0.0];
         foreach ($classStudents as $student) {
             foreach (['sang','trua','toi','total'] as $key) $total[$key] += (int)$student[$key];
@@ -110,8 +110,8 @@ function nt_rice_build_detail($from, $to, array $riceData) {
         $classTotals[$className] = $total;
     }
     unset($classStudents);
-    ksort($classes, SORT_NATURAL);
-    ksort($classTotals, SORT_NATURAL);
+    uksort($classes, 'csdl_compare_class_names');
+    uksort($classTotals, 'csdl_compare_class_names');
     return ['classes'=>$classes, 'class_totals'=>$classTotals, 'settings'=>$settings];
 }
 

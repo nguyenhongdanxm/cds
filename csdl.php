@@ -425,7 +425,18 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
   <?php
     $editing = null;
     if ($edit_id) { foreach ($classes as $c) if (($c['id'] ?? '') === $edit_id) { $editing = $c; break; } }
-    usort($classes, fn($a,$b) => ($a['grade'] ?? 0) <=> ($b['grade'] ?? 0) ?: strcmp($a['name'] ?? '', $b['name'] ?? ''));
+    $classQuery = trim((string)($_GET['q'] ?? ''));
+    $classGrade = trim((string)($_GET['grade'] ?? ''));
+    if ($classQuery !== '') {
+        $classNeedle = csdl_text_sort_key($classQuery);
+        $classes = array_values(array_filter($classes, fn($row) => strpos(csdl_text_sort_key(implode(' ', [
+            $row['name'] ?? '', $row['grade'] ?? '', $row['level'] ?? '', $row['room'] ?? '',
+        ])), $classNeedle) !== false));
+    }
+    if ($classGrade !== '') {
+        $classes = array_values(array_filter($classes, fn($row) => (string)($row['grade'] ?? '') === $classGrade));
+    }
+    csdl_sort_classes($classes);
     $io_entity = 'classes';
     include __DIR__ . '/includes/csdl_io_panel.php';
     $bulk_entity = 'classes';
@@ -437,6 +448,12 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
       <i class="bi bi-plus-lg"></i> Thêm lớp
     </button><?php endif; ?>
   </div>
+  <form method="get" class="card card-soft mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
+    <input type="hidden" name="tab" value="classes">
+    <div class="col-md-6"><label class="form-label small mb-0">Tìm lớp</label><input type="search" name="q" class="form-control form-control-sm" value="<?= e($classQuery) ?>" placeholder="Tên lớp, cấp, phòng…"></div>
+    <div class="col-md-3"><label class="form-label small mb-0">Khối</label><select name="grade" class="form-select form-select-sm"><option value="">Tất cả khối</option><?php foreach (range(6,12) as $grade): ?><option value="<?= $grade ?>" <?= $classGrade===(string)$grade?'selected':'' ?>>Khối <?= $grade ?></option><?php endforeach; ?></select></div>
+    <div class="col-md-3 d-flex gap-2"><button class="btn btn-sm btn-primary flex-fill"><i class="bi bi-filter"></i> Lọc</button><a class="btn btn-sm btn-outline-secondary" href="?tab=classes">Đặt lại</a></div>
+  </div></div></form>
   <div class="card card-soft"><div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-hover table-full table-sm align-middle mb-0">
@@ -473,6 +490,24 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
   <?php
     $editing = null;
     if ($edit_id) { foreach ($students as $s) if (($s['id'] ?? '') === $edit_id) { $editing = $s; break; } }
+    $studentQuery = trim((string)($_GET['q'] ?? ''));
+    $studentClass = trim((string)($_GET['class'] ?? ''));
+    $studentStatus = trim((string)($_GET['status'] ?? ''));
+    $studentClassMap = [];
+    foreach ($classes as $classRow) $studentClassMap[(string)($classRow['id'] ?? '')] = (string)($classRow['name'] ?? '');
+    if ($studentQuery !== '') {
+        $studentNeedle = csdl_text_sort_key($studentQuery);
+        $students = array_values(array_filter($students, function($row) use ($studentNeedle, $studentClassMap) {
+            $text = implode(' ', [$row['name'] ?? '', $row['code'] ?? '', $row['cccd'] ?? '', $row['phone'] ?? '',
+                $row['parent_name'] ?? '', $studentClassMap[(string)($row['class_id'] ?? '')] ?? '']);
+            return strpos(csdl_text_sort_key($text), $studentNeedle) !== false;
+        }));
+    }
+    if ($studentClass !== '') $students = array_values(array_filter($students, fn($row) => (string)($row['class_id'] ?? '') === $studentClass));
+    if ($studentStatus === 'active') $students = array_values(array_filter($students, fn($row) => !empty($row['active'])));
+    elseif ($studentStatus === 'inactive') $students = array_values(array_filter($students, fn($row) => empty($row['active'])));
+    elseif ($studentStatus === 'boarder') $students = array_values(array_filter($students, fn($row) => !empty($row['boarder'])));
+    csdl_sort_students($students, $studentClassMap);
     $io_entity = 'students';
     include __DIR__ . '/includes/csdl_io_panel.php';
     $bulk_entity = 'students';
@@ -484,6 +519,13 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
       <i class="bi bi-plus-lg"></i> Thêm học sinh
     </button><?php endif; ?>
   </div>
+  <form method="get" class="card card-soft mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
+    <input type="hidden" name="tab" value="students">
+    <div class="col-lg-4"><label class="form-label small mb-0">Tìm học sinh</label><input type="search" name="q" class="form-control form-control-sm" value="<?= e($studentQuery) ?>" placeholder="Tên, mã, CCCD, phụ huynh…"></div>
+    <div class="col-lg-3"><label class="form-label small mb-0">Lớp</label><select name="class" class="form-select form-select-sm"><option value="">Tất cả lớp</option><?php foreach ($classes as $classRow): ?><option value="<?= e($classRow['id']??'') ?>" <?= $studentClass===(string)($classRow['id']??'')?'selected':'' ?>><?= e($classRow['name']??'') ?></option><?php endforeach; ?></select></div>
+    <div class="col-lg-2"><label class="form-label small mb-0">Trạng thái</label><select name="status" class="form-select form-select-sm"><option value="">Tất cả</option><option value="active" <?= $studentStatus==='active'?'selected':'' ?>>Đang học</option><option value="inactive" <?= $studentStatus==='inactive'?'selected':'' ?>>Đã nghỉ</option><option value="boarder" <?= $studentStatus==='boarder'?'selected':'' ?>>Nội trú</option></select></div>
+    <div class="col-lg-3 d-flex gap-2"><button class="btn btn-sm btn-primary flex-fill"><i class="bi bi-filter"></i> Lọc</button><a class="btn btn-sm btn-outline-secondary" href="?tab=students">Đặt lại</a></div>
+  </div></div></form>
   <div class="card card-soft"><div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-hover table-full table-sm align-middle mb-0">
