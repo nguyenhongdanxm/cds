@@ -112,7 +112,8 @@ $names=$data[$namesKey]??[];$capacities=$data[$capacityKey]??[];$grouped=[];$una
 foreach($boarders as $student){$classes[(string)($student['class_name']??'')]=true;$name=trim((string)($student[$field]??''));if($name==='')$unassigned[]=$student;else$grouped[$name][]=$student;}
 // Phòng/mâm đã có sẵn trong hồ sơ CSDL cũng phải xuất hiện ở khu vực sửa/xóa.
 $names=array_values(array_unique(array_merge($names,array_keys($grouped))));sort($names,SORT_NATURAL);
-foreach($names as $name)if(!isset($grouped[$name]))$grouped[$name]=[];ksort($grouped,SORT_NATURAL);$classes=array_values(array_filter(array_keys($classes)));sort($classes,SORT_NATURAL);
+foreach($names as $name)if(!isset($grouped[$name]))$grouped[$name]=[];ksort($grouped,SORT_NATURAL);$classes=array_values(array_filter(array_keys($classes)));usort($classes,'csdl_compare_class_names');
+foreach($grouped as &$groupStudents)csdl_sort_students($groupStudents);unset($groupStudents);csdl_sort_students($unassigned);
 $roomGenders=is_array($data['room_genders']??null)?$data['room_genders']:[];$settings=is_array($data['settings']??null)?$data['settings']:[];
 $page_title=$mode==='rooms'?'Chia phòng nội trú':'Chia mâm ăn';$tab='boarders';$nt_sec='boarders';
 ?>

@@ -80,7 +80,7 @@ function noitru_assignment_summary(array $students): array {
         $grade=noitru_assignment_grade($student); $class=trim((string)($student['class_name']??''))?:'Chưa lớp';
         $s['grades'][$grade]=($s['grades'][$grade]??0)+1; $s['classes'][$class]=($s['classes'][$class]??0)+1;
     }
-    ksort($s['grades'],SORT_NATURAL); ksort($s['classes'],SORT_NATURAL); return $s;
+    ksort($s['grades'],SORT_NATURAL); uksort($s['classes'],'csdl_compare_class_names'); return $s;
 }
 function noitru_assignment_names(string $mode,int $count,string $prefix=''): array {
     $count=max(1,min(200,$count)); $prefix=trim($prefix);

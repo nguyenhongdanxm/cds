@@ -30,7 +30,7 @@ foreach ($boarders as $s) {
     $mg = trim($s['meal_group'] ?? '') !== '' ? $s['meal_group'] : '(Chưa mâm/nhóm ăn)';
     $byMeal[$mg][] = $s;
 }
-ksort($byClass, SORT_NATURAL);
+uksort($byClass, 'csdl_compare_class_names');
 ksort($byRoom, SORT_NATURAL);
 ksort($byMeal, SORT_NATURAL);
 
@@ -39,6 +39,7 @@ function nt_boarders_table(array $list) {
         echo '<div class="text-muted text-center py-4">Không có học sinh.</div>';
         return;
     }
+    csdl_sort_students($list);
     echo '<div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle">';
     echo '<thead><tr><th>STT</th><th>Họ tên</th><th>Lớp</th><th>Phòng</th><th>Mâm/nhóm ăn</th><th>PH / SĐT</th><th>Ghi chú</th></tr></thead><tbody>';
     foreach ($list as $i => $s) {

@@ -37,10 +37,7 @@ function noitru_attendance_students_all() {
         $student['room_ktx'] = (string)($student['room_ktx'] ?? '');
         $students[] = $student;
     }
-    usort($students, function($a, $b) {
-        $classCompare = strnatcasecmp((string)($a['class_name'] ?? ''), (string)($b['class_name'] ?? ''));
-        return $classCompare !== 0 ? $classCompare : strnatcasecmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
-    });
+    csdl_sort_students($students);
     return $students;
 }
 
@@ -862,7 +859,7 @@ function nt_meal_day_overview($date, array $students) {
         $class = trim($student['class_name'] ?? '') ?: '(Chưa lớp)';
         $classes[$class][] = $student;
     }
-    ksort($classes, SORT_NATURAL);
+    uksort($classes, 'csdl_compare_class_names');
     $result = ['classes'=>$classes, 'meals'=>[]];
     foreach (['sang','trua','toi'] as $meal) {
         $state = noitru_meal_state($date, $meal);
@@ -1396,7 +1393,7 @@ form[method="post"]{display:none!important}
       $classKey = trim($student['class_name'] ?? '') ?: '(Chưa lớp)';
       $mealClasses[$classKey][] = $student;
     }
-    ksort($mealClasses, SORT_NATURAL);
+    uksort($mealClasses, 'csdl_compare_class_names');
     $className = trim($_GET['class'] ?? '');
     if ($className === '' || !isset($mealClasses[$className])) $className = array_key_first($mealClasses) ?? '';
     $classStudents = $className !== '' ? ($mealClasses[$className] ?? []) : [];

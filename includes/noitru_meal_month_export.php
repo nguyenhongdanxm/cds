@@ -219,7 +219,7 @@ function nt_export_meal_month_xlsx(array $students, $month, $type, $exportedBy =
         $class = trim($student['class_name'] ?? '');
         if ($class !== '') $classes[$class][] = $student;
     }
-    ksort($classes, SORT_NATURAL);
+    uksort($classes, 'csdl_compare_class_names');
     if (!$classes) throw new RuntimeException('Không có lớp học sinh phù hợp để xuất báo cáo.');
     $teachersById = [];
     foreach (csdl_teachers_all() as $teacher) {

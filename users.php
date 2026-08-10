@@ -25,7 +25,7 @@ if (!$allClasses) {
     $allClasses = ['6A','6B','7A','7B','7C','8A','8B','8C','9A','9B','10A','10B','11A','11B','12A','12B'];
 }
 $allClasses = array_values(array_unique($allClasses));
-sort($allClasses, SORT_NATURAL);
+usort($allClasses, 'csdl_compare_class_names');
 
 $syncReport = null;
 

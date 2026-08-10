@@ -72,7 +72,7 @@ function csdl_search($q = '', $scope = 'all') {
             ]);
             if (($q === '') || csdl_search_match($blob, $q)) $outC[] = $c;
         }
-        usort($outC, fn($a, $b) => ($a['grade'] ?? 0) <=> ($b['grade'] ?? 0) ?: strcmp($a['name'] ?? '', $b['name'] ?? ''));
+        csdl_sort_classes($outC);
     }
 
     if ($scope === 'all' || $scope === 'students') {

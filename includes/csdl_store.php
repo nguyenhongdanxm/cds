@@ -20,6 +20,75 @@ function csdl_now() {
     return date('c');
 }
 
+/**
+ * Khóa sắp xếp lớp dùng chung: khối 6 → 12, sau đó A → B → ...
+ * Chấp nhận cả cách ghi "6A", "6A1", "Lớp 6A" và đẩy lớp không nhận diện
+ * được xuống cuối danh sách.
+ */
+function csdl_class_sort_key($className) {
+    $name = trim((string)$className);
+    $compact = preg_replace('/\s+/u', '', $name);
+    if (preg_match('/(?:^|[^0-9])(6|7|8|9|10|11|12)([^0-9]*)?(\d*)$/iu', $compact, $m)) {
+        $grade = (int)$m[1];
+        $suffix = function_exists('mb_strtoupper')
+            ? mb_strtoupper((string)($m[2] ?? ''), 'UTF-8')
+            : strtoupper((string)($m[2] ?? ''));
+        return sprintf('%02d|%s|%06d|%s', $grade, $suffix, (int)($m[3] ?? 0), $name);
+    }
+    return '99|' . csdl_text_sort_key($name);
+}
+
+function csdl_compare_class_names($left, $right) {
+    return strnatcasecmp(csdl_class_sort_key($left), csdl_class_sort_key($right));
+}
+
+/** Chuẩn hóa chữ Việt để so sánh ổn định kể cả khi máy chủ không có intl. */
+function csdl_text_sort_key($text) {
+    $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
+    $map = [
+        'Đ'=>'D','đ'=>'d','Ă'=>'A','ă'=>'a','Â'=>'A','â'=>'a','Ê'=>'E','ê'=>'e',
+        'Ô'=>'O','ô'=>'o','Ơ'=>'O','ơ'=>'o','Ư'=>'U','ư'=>'u',
+    ];
+    $text = strtr($text, $map);
+    if (function_exists('iconv')) {
+        $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+        if (is_string($ascii) && $ascii !== '') $text = $ascii;
+    }
+    return strtolower($text);
+}
+
+/**
+ * Khóa tên học sinh theo tên gọi cuối cùng, rồi tên đệm và họ.
+ * Ví dụ "Hoàng Văn Anh" được xếp ở vần Anh, không phải vần Hoàng.
+ */
+function csdl_person_name_sort_key($fullName) {
+    $name = trim(preg_replace('/\s+/u', ' ', (string)$fullName));
+    if ($name === '') return '';
+    $parts = preg_split('/\s+/u', $name, -1, PREG_SPLIT_NO_EMPTY);
+    $givenName = array_pop($parts);
+    return csdl_text_sort_key($givenName) . '|' . csdl_text_sort_key(implode(' ', $parts)) . '|' . csdl_text_sort_key($name);
+}
+
+function csdl_compare_person_names($left, $right) {
+    return strnatcasecmp(csdl_person_name_sort_key($left), csdl_person_name_sort_key($right));
+}
+
+function csdl_sort_classes(array &$rows) {
+    usort($rows, static function ($left, $right) {
+        return csdl_compare_class_names($left['name'] ?? '', $right['name'] ?? '');
+    });
+}
+
+function csdl_sort_students(array &$rows, array $classMap = []) {
+    usort($rows, static function ($left, $right) use ($classMap) {
+        $leftClass = $left['class_name'] ?? ($classMap[(string)($left['class_id'] ?? '')] ?? '');
+        $rightClass = $right['class_name'] ?? ($classMap[(string)($right['class_id'] ?? '')] ?? '');
+        $classCompare = csdl_compare_class_names($leftClass, $rightClass);
+        if ($classCompare !== 0) return $classCompare;
+        return csdl_compare_person_names($left['name'] ?? '', $right['name'] ?? '');
+    });
+}
+
 /* —— Năm học —— */
 function csdl_years_all() {
     $years = load_json(CSDL_YEARS, []);
@@ -224,9 +293,11 @@ function csdl_classes_all() {
         }
         save_json(CSDL_CLASSES, $seed);
         cds_read_verify_rows('classes', $seed);
+        csdl_sort_classes($seed);
         return $seed;
     }
     cds_read_verify_rows('classes', $rows);
+    csdl_sort_classes($rows);
     return $rows;
 }
 
@@ -317,6 +388,11 @@ function csdl_teacher_delete($id) {
 function csdl_students_all() {
     $rows = load_json(CSDL_STUDENTS, []);
     cds_read_verify_rows('students', $rows);
+    $classMap = [];
+    foreach (csdl_classes_all() as $class) {
+        $classMap[(string)($class['id'] ?? '')] = (string)($class['name'] ?? '');
+    }
+    csdl_sort_students($rows, $classMap);
     return $rows;
 }
 
