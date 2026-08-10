@@ -27,15 +27,17 @@ body.nt-body{margin:0;background:var(--nt-bg);color:var(--nt-text);overflow-x:hi
   display:flex;align-items:center;gap:.72rem;min-height:42px;padding:.58rem .72rem;border-radius:10px;
   color:rgba(255,255,255,.82);text-decoration:none;font-size:.88rem;font-weight:600
 }
-.nt-side-parent{width:100%;border:0;background:transparent;text-align:left;margin-top:.3rem}
+.nt-side-parent{width:100%;margin-top:.42rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07);text-align:left;text-transform:uppercase;letter-spacing:.055em}
 .nt-side-nav .nt-side-main{min-height:45px;font-size:.9rem;font-weight:750}
 .nt-side-nav .nt-side-main>i:first-child{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:rgba(255,255,255,.1)}
-.nt-side-parent span{flex:1}.nt-side-parent .nt-chevron{transition:transform .2s}.nt-side-parent.open .nt-chevron{transform:rotate(180deg)}
+.nt-side-parent span{flex:1;font-size:.78rem;font-weight:850}.nt-side-parent .nt-chevron{transition:transform .2s}.nt-side-parent.open .nt-chevron{transform:rotate(180deg)}
 .nt-side-nav a i,.nt-side-footer a i,.nt-side-parent>i:first-child{width:1.15rem;text-align:center;font-size:1rem}
-.nt-side-children{display:none}.nt-side-children.open{display:block}
-.nt-side-nav a.nt-child{min-height:37px;margin-left:.35rem;padding-block:.42rem;font-size:.8rem}
+.nt-side-children{display:none;margin:.18rem 0 .35rem .72rem;padding:.28rem .3rem .28rem .42rem;border-left:2px solid rgba(255,255,255,.3);border-radius:0 10px 10px 0;background:rgba(255,255,255,.055)}.nt-side-children.open{display:block}
+.nt-side-nav a.nt-child{min-height:36px;margin:.06rem 0;padding:.4rem .55rem;border-radius:8px;font-size:.79rem;font-weight:600}
+.nt-side-nav a.nt-child i{opacity:.86;font-size:.92rem}
 .nt-side-nav a:hover,.nt-side-nav a.active,.nt-side-parent:hover,.nt-side-parent.open{background:rgba(255,255,255,.12);color:#fff}
 .nt-side-nav a.active{background:#fff;color:var(--nt-primary-dark)}
+.nt-side-nav a.nt-child.active{background:rgba(255,255,255,.94);color:var(--nt-primary-dark)}
 .nt-side-nav a.active{box-shadow:0 5px 14px rgba(48,5,27,.16)}
 .nt-side-footer{margin-top:auto;padding-top:.65rem;border-top:1px solid rgba(255,255,255,.14)}
 .nt-side-footer a{min-height:36px;font-size:.78rem;padding:.38rem .72rem}
