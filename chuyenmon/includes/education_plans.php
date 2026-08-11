@@ -347,41 +347,34 @@ document.getElementById('educationSubject').addEventListener('change',educationF
 function resetEducationForm(){document.getElementById('educationPlanForm').reset();document.getElementById('educationId').value='';document.getElementById('educationAppendix').value='<?= e($educationAppendix) ?>';document.getElementById('educationFile').required=true;document.getElementById('educationFileNote').textContent='Chỉ tải tệp PDF đã ký số, tối đa 25 MB.';document.getElementById('educationUploadProgress').hidden=true;educationFilterGrades()}
 function editEducationPlan(button){try{var row=JSON.parse(decodeURIComponent(escape(atob(button.dataset.plan||''))));document.getElementById('educationId').value=row.id||'';document.getElementById('educationAppendix').value=row.appendix||'I';document.getElementById('educationSubject').value=row.subject||'';educationFilterGrades();document.getElementById('educationGrade').value=row.grade||'';document.getElementById('educationFile').required=false;document.getElementById('educationFileNote').textContent='Để trống nếu giữ nguyên PDF hiện tại; chọn tệp mới để thay thế.';document.getElementById('educationUploadProgress').hidden=true;bootstrap.Modal.getOrCreateInstance(document.getElementById('educationPlanModal')).show()}catch(error){alert('Không đọc được dữ liệu kế hoạch.')}}
 (function(){
-  var form=document.getElementById('educationPlanForm'),box=document.getElementById('educationUploadProgress'),bar=document.getElementById('educationUploadBar'),percent=document.getElementById('educationUploadPercent'),status=document.getElementById('educationUploadStatus'),detail=document.getElementById('educationUploadDetail'),submit=document.getElementById('educationSubmitButton'),cancel=document.getElementById('educationCancelButton'),endpoint='<?= BASE_URL ?>education_upload.php';
+  var form=document.getElementById('educationPlanForm'),box=document.getElementById('educationUploadProgress'),bar=document.getElementById('educationUploadBar'),percent=document.getElementById('educationUploadPercent'),status=document.getElementById('educationUploadStatus'),detail=document.getElementById('educationUploadDetail'),submit=document.getElementById('educationSubmitButton'),cancel=document.getElementById('educationCancelButton');
   function setProgress(value){value=Math.max(0,Math.min(100,Math.round(value)));bar.style.width=value+'%';bar.setAttribute('aria-valuenow',String(value));percent.textContent=value+'%'}
   function setBusy(busy){submit.disabled=busy;cancel.disabled=busy;form.querySelectorAll('.btn-close').forEach(function(button){button.disabled=busy})}
   function fail(message){setBusy(false);bar.className='progress-bar bg-danger';status.innerHTML='<i class="bi bi-x-circle-fill text-danger me-2"></i>Tải lên chưa thành công';detail.textContent=message||'Không kết nối được máy chủ. Vui lòng thử lại.'}
-  function parse(xhr){try{return JSON.parse(xhr.responseText||'{}')}catch(error){return {ok:false,message:'Máy chủ trả về dữ liệu không hợp lệ.'}}}
-  function post(data,done){var xhr=new XMLHttpRequest();xhr.open('POST',endpoint,true);xhr.timeout=60000;xhr.onload=function(){done(parse(xhr))};xhr.onerror=function(){done({ok:false,message:'Không kết nối được máy chủ.'})};xhr.ontimeout=function(){done({ok:false,message:'Máy chủ phản hồi quá chậm.'})};xhr.send(data)}
-  function fallbackUpload(message){
-    bar.className='progress-bar progress-bar-striped progress-bar-animated bg-warning';status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đang chuyển sang đường tải dự phòng…';detail.textContent=message||'Tệp sẽ được tải qua cPanel để bảo đảm hoàn tất.';
-    setTimeout(function(){form.submit()},300);
-  }
-  function finishUpload(uploadToken,driveId){
-    setProgress(100);status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đã tải 100% — đang xác nhận dữ liệu…';detail.textContent='Chỉ còn bước cập nhật danh sách kế hoạch.';
-    var finish=new FormData(form);finish.delete('file');finish.set('action','finalize');finish.set('upload_token',uploadToken);finish.set('drive_file_id',driveId);
-    post(finish,function(saved){if(!saved.ok){fail(saved.message||'Không lưu được dữ liệu kế hoạch.');return}bar.className='progress-bar bg-success';status.innerHTML='<i class="bi bi-check-circle-fill text-success me-2"></i>Tải lên thành công';detail.textContent=saved.message||'Đã lưu PDF vào Google Drive.';setTimeout(function(){window.location.href=saved.redirect||window.location.href},700)});
-  }
-  function recoverUpload(uploadToken){
-    status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đã gửi 100% — đang kiểm tra lại với Google Drive…';detail.textContent='Safari có thể chặn phản hồi tải lên; hệ thống đang tự xác nhận tệp.';
-    var check=new FormData(form);check.delete('file');check.set('action','recover');check.set('upload_token',uploadToken);
-    post(check,function(recovered){if(recovered.ok&&recovered.drive_file_id){finishUpload(uploadToken,recovered.drive_file_id);return}fallbackUpload('Không nhận được phản hồi trực tiếp từ Drive; đang tự động dùng đường truyền cPanel.')});
-  }
+  function parse(xhr){try{return JSON.parse(xhr.responseText||'{}')}catch(error){return {ok:false,message:xhr.status===413?'Tệp vượt quá giới hạn tải lên của máy chủ cPanel.':'Máy chủ trả về dữ liệu không hợp lệ (HTTP '+xhr.status+').'}}}
   form.addEventListener('submit',function(event){
     event.preventDefault();if(!form.reportValidity())return;
-    var file=document.getElementById('educationFile').files[0];box.hidden=false;bar.className='progress-bar progress-bar-striped progress-bar-animated';setProgress(0);setBusy(true);
-    if(!file){status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đang cập nhật thông tin…';detail.textContent='Không thay đổi tệp PDF hiện tại.';form.submit();return}
-    status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đang tạo kết nối trực tiếp tới Google Drive…';detail.textContent='PDF sẽ được gửi thẳng tới Drive, không đi qua cPanel.';
-    var init=new FormData(form);init.delete('file');init.set('action','init');init.set('file_name',file.name);init.set('file_size',String(file.size));
-    post(init,function(result){if(!result.ok||!result.upload_url){fail(result.message||'Không tạo được phiên tải lên.');return}
-      status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đang tải trực tiếp lên Google Drive…';
-      var recovered=false,upload=new XMLHttpRequest();
-      function recoverOnce(){if(recovered)return;recovered=true;recoverUpload(result.upload_token)}
-      upload.open('PUT',result.upload_url,true);upload.timeout=300000;upload.setRequestHeader('Content-Type','application/pdf');
-      upload.upload.onprogress=function(p){if(p.lengthComputable){setProgress(p.loaded/p.total*100);detail.textContent='Đã gửi '+Math.round(p.loaded/1024)+' KB / '+Math.round(p.total/1024)+' KB trực tiếp tới Drive'}};
-      upload.onload=function(){if(upload.status<200||upload.status>=300){recoverOnce();return}var drive=parse(upload);if(!drive.id){recoverOnce();return}recovered=true;finishUpload(result.upload_token,drive.id)};
-      upload.onerror=recoverOnce;upload.ontimeout=recoverOnce;upload.send(file);
-    });
+    box.hidden=false;bar.className='progress-bar progress-bar-striped progress-bar-animated';setProgress(0);setBusy(true);
+    status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đang tải tệp lên máy chủ…';detail.textContent='Vui lòng giữ nguyên trang trong khi tải.';
+    var xhr=new XMLHttpRequest(),data=new FormData(form);
+    xhr.open('POST',form.action||window.location.href,true);
+    xhr.timeout=600000;
+    xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');
+    xhr.upload.onprogress=function(progress){
+      if(!progress.lengthComputable)return;
+      var value=progress.loaded/progress.total*100;setProgress(value);
+      detail.textContent='Đã gửi '+Math.round(progress.loaded/1024)+' KB / '+Math.round(progress.total/1024)+' KB.';
+      if(value>=99.5){status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đã tải 100% — đang lưu vào Google Drive…';detail.textContent='Máy chủ đang xử lý PDF; bước này có thể mất thêm vài giây.'}
+    };
+    xhr.onload=function(){
+      var result=parse(xhr);
+      if(xhr.status<200||xhr.status>=300||!result.ok){fail(result.message||'Máy chủ không lưu được tệp.');return}
+      setProgress(100);bar.className='progress-bar bg-success';status.innerHTML='<i class="bi bi-check-circle-fill text-success me-2"></i>Tải lên thành công';detail.textContent=result.message||'Đã lưu PDF vào Google Drive.';
+      setTimeout(function(){window.location.href=result.redirect||window.location.href},600);
+    };
+    xhr.onerror=function(){fail('Mất kết nối tới máy chủ cPanel trong khi tải tệp.')};
+    xhr.ontimeout=function(){fail('Máy chủ xử lý quá lâu. Vui lòng kiểm tra lại kết nối Google Drive.')};
+    xhr.send(data);
   });
 })();
 </script>
