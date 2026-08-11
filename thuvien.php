@@ -88,17 +88,38 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     }
     if ($action==='delete_equipment') {
         $index=lib_index($data['equipment'],trim((string)($_POST['id']??'')));if($index>=0)array_splice($data['equipment'],$index,1);
-        save_json($dataFile,$data);flash('Đã xóa thiết bị.','warning');lib_redirect('equipment');
+        save_json($dataFile,$data);flash('Đã xóa thiết bị.','warning');lib_redirect('equipment_catalog');
+    }
+    if($action==='save_equipment_loan'){
+        $ids=array_values((array)($_POST['equipment_id']??[]));$quantities=array_values((array)($_POST['equipment_quantity']??[]));$borrower=trim((string)($_POST['equipment_borrower']??$userName));$batch='eqbatch_'.bin2hex(random_bytes(6));$added=0;
+        foreach($ids as $line=>$equipmentId){$equipmentId=trim((string)$equipmentId);if($equipmentId==='')continue;$index=lib_index($data['equipment'],$equipmentId);if($index<0)continue;$qty=max(1,(int)($quantities[$line]??1));$active=0;foreach($data['equipment_loans'] as $loan)if(($loan['equipment_id']??'')===$equipmentId&&empty($loan['returned_at']))$active+=(int)($loan['quantity']??0);$available=max(0,(int)($data['equipment'][$index]['good_quantity']??0)-$active);if($qty>$available){flash('Thiết bị “'.$data['equipment'][$index]['name'].'” chỉ còn '.$available.' sản phẩm có thể mượn.','danger');lib_redirect('equipment_loans');}
+        $data['equipment_loans'][]=['id'=>'eql_'.bin2hex(random_bytes(7)),'batch_id'=>$batch,'equipment_id'=>$equipmentId,'equipment_name'=>(string)$data['equipment'][$index]['name'],'equipment_code'=>(string)($data['equipment'][$index]['code']??''),'borrower'=>$borrower,'quantity'=>$qty,'borrowed_at'=>trim((string)($_POST['equipment_borrowed_at']??date('Y-m-d'))),'due_at'=>trim((string)($_POST['equipment_due_at']??'')),'purpose'=>trim((string)($_POST['purpose']??'')),'note'=>trim((string)($_POST['equipment_note']??'')),'returned_at'=>'','return_condition'=>'','created_by'=>$userName,'created_at'=>date('c')];$added++;}
+        if(!$added){flash('Vui lòng thêm ít nhất một thiết bị.','danger');lib_redirect('equipment_loans');}save_json($dataFile,$data);flash('Đã lập phiếu mượn '.$added.' loại thiết bị.','success');lib_redirect('equipment_loans');
+    }
+    if($action==='return_equipment_loan'){
+        $index=lib_index($data['equipment_loans'],trim((string)($_POST['id']??'')));if($index>=0){$data['equipment_loans'][$index]['returned_at']=trim((string)($_POST['returned_at']??date('Y-m-d')));$data['equipment_loans'][$index]['return_condition']=trim((string)($_POST['return_condition']??''));$data['equipment_loans'][$index]['updated_at']=date('c');save_json($dataFile,$data);flash('Đã xác nhận trả thiết bị.','success');}lib_redirect('equipment_loans');
+    }
+    if($action==='delete_equipment_loan'){
+        if(!$canEquipmentDelete){http_response_code(403);exit('Không có quyền xóa phiếu thiết bị.');}$index=lib_index($data['equipment_loans'],trim((string)($_POST['id']??'')));if($index>=0)array_splice($data['equipment_loans'],$index,1);save_json($dataFile,$data);flash('Đã xóa phiếu thiết bị.','warning');lib_redirect('equipment_loans');
+    }
+    if($action==='save_maintenance'){
+        $equipmentId=trim((string)($_POST['equipment_id']??''));$index=lib_index($data['equipment'],$equipmentId);if($index<0){flash('Thiết bị không hợp lệ.','danger');lib_redirect('maintenance');}
+        $data['maintenance'][]=['id'=>'mt_'.bin2hex(random_bytes(7)),'equipment_id'=>$equipmentId,'equipment_name'=>(string)$data['equipment'][$index]['name'],'type'=>trim((string)($_POST['maintenance_type']??'Bảo dưỡng')),'scheduled_at'=>trim((string)($_POST['scheduled_at']??date('Y-m-d'))),'completed_at'=>trim((string)($_POST['completed_at']??'')),'status'=>trim((string)($_POST['maintenance_status']??'Đã lên lịch')),'cost'=>max(0,(float)($_POST['cost']??0)),'provider'=>trim((string)($_POST['provider']??'')),'note'=>trim((string)($_POST['maintenance_note']??'')),'created_at'=>date('c')];save_json($dataFile,$data);flash('Đã lưu lịch bảo dưỡng/sửa chữa.','success');lib_redirect('maintenance');
+    }
+    if($action==='delete_maintenance'){
+        if(!$canEquipmentDelete){http_response_code(403);exit('Không có quyền xóa lịch bảo dưỡng.');}$index=lib_index($data['maintenance'],trim((string)($_POST['id']??'')));if($index>=0)array_splice($data['maintenance'],$index,1);save_json($dataFile,$data);flash('Đã xóa lịch bảo dưỡng.','warning');lib_redirect('maintenance');
     }
 }
 
-$tab=in_array($_GET['tab']??'', ['dashboard','books','loans','statistics','equipment'],true)?(string)$_GET['tab']:'dashboard';
+$tabAliases=['books'=>'library_books','loans'=>'library_loans','statistics'=>'library_statistics','equipment'=>'equipment_catalog'];$tab=(string)($_GET['tab']??'dashboard');$tab=$tabAliases[$tab]??$tab;$allowedTabs=['dashboard','library_books','library_loans','library_statistics','equipment_catalog','equipment_identity','equipment_loans','maintenance','inventory'];if(!in_array($tab,$allowedTabs,true))$tab='dashboard';
 $totalTitles=count($data['books']);$totalBooks=array_sum(array_map(fn($r)=>(int)($r['quantity']??0),$data['books']));
 $activeLoans=array_values(array_filter($data['loans'],fn($r)=>empty($r['returned_at'])));
 $borrowedBooks=array_sum(array_map(fn($r)=>(int)($r['quantity']??0),$activeLoans));
 $overdueCount=count(array_filter($activeLoans,fn($r)=>!empty($r['due_at'])&&$r['due_at']<date('Y-m-d')));
 $totalEquipment=array_sum(array_map(fn($r)=>(int)($r['quantity']??0),$data['equipment']));
 $goodEquipment=array_sum(array_map(fn($r)=>(int)($r['good_quantity']??0),$data['equipment']));
+$activeEquipmentLoans=array_values(array_filter($data['equipment_loans'],fn($r)=>empty($r['returned_at'])));
+$maintenanceWarnings=array_values(array_filter($data['maintenance'],fn($r)=>($r['status']??'')!=='Hoàn thành'&&!empty($r['scheduled_at'])&&$r['scheduled_at']<=date('Y-m-d',strtotime('+30 days'))));
 
 $q=trim((string)($_GET['q']??''));$categoryFilter=trim((string)($_GET['category']??''));$borrowerFilter=trim((string)($_GET['borrower_type']??''));$classFilter=trim((string)($_GET['class_name']??''));
 $bookList=array_values(array_filter($data['books'],function($row)use($q,$categoryFilter){if($categoryFilter!==''&&($row['category']??'')!==$categoryFilter)return false;if($q!==''&&!str_contains(lib_norm(implode(' ',[$row['title']??'',$row['code']??'',$row['barcode']??'',$row['subject']??'',$row['source']??'',$row['shelf']??''])),lib_norm($q)))return false;return true;}));
