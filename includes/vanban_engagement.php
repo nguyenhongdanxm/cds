@@ -1,0 +1,128 @@
+<?php
+
+if (!defined('VANBAN_POLLS_FILE')) define('VANBAN_POLLS_FILE', DATA_PATH . '/vanban_polls.json');
+if (!defined('VANBAN_SURVEYS_FILE')) define('VANBAN_SURVEYS_FILE', DATA_PATH . '/vanban_surveys.json');
+if (!defined('VANBAN_FEEDBACK_FILE')) define('VANBAN_FEEDBACK_FILE', DATA_PATH . '/vanban_feedback.json');
+
+function vb_engagement_file(string $kind): string {
+    return $kind === 'survey' ? VANBAN_SURVEYS_FILE : VANBAN_POLLS_FILE;
+}
+
+function vb_user_key(array $user): string {
+    return (string)($user['id'] ?? $user['username'] ?? '');
+}
+
+function vb_engagement_actions(): array {
+    return ['engagement_create','engagement_submit','engagement_status','engagement_delete','feedback_create','feedback_reply'];
+}
+
+function vb_engagement_process(string $action, array $user, bool $canManage): void {
+    $userKey = vb_user_key($user);
+    if ($userKey === '') throw new RuntimeException('Không xác định được tài khoản tham gia.');
+
+    if ($action === 'engagement_create') {
+        if (!$canManage) throw new RuntimeException('Bạn không có quyền tạo bình chọn hoặc khảo sát.');
+        $kind = (string)($_POST['kind'] ?? 'poll');
+        if (!in_array($kind, ['poll','survey'], true)) $kind = 'poll';
+        $title = vb_clean((string)($_POST['title'] ?? ''), 300);
+        if ($title === '') throw new RuntimeException('Hãy nhập tiêu đề.');
+        $rows = vb_rows(vb_engagement_file($kind));
+        $record = [
+            'id'=>vb_id($kind), 'kind'=>$kind, 'title'=>$title,
+            'description'=>vb_clean((string)($_POST['description'] ?? ''), 2000),
+            'ends_at'=>vb_date((string)($_POST['ends_at'] ?? '')), 'status'=>'active',
+            'responses'=>[], 'created_by'=>$user['name'] ?? '', 'created_by_id'=>$userKey, 'created_at'=>date('c')
+        ];
+        if ($kind === 'poll') {
+            $options = array_values(array_unique(array_filter(array_map(fn($v)=>vb_clean($v,180), preg_split('/\R/u',(string)($_POST['options']??''))))));
+            if (count($options) < 2) throw new RuntimeException('Bình chọn cần ít nhất 2 phương án.');
+            $record['options']=$options;
+        } else {
+            $questions=[];
+            foreach (preg_split('/\R/u',(string)($_POST['questions']??'')) as $line) {
+                $parts=array_values(array_filter(array_map(fn($v)=>vb_clean($v,250),explode('|',$line)),fn($v)=>$v!==''));
+                if (count($parts)>=3) $questions[]=['question'=>array_shift($parts),'options'=>$parts];
+            }
+            if (!$questions) throw new RuntimeException('Mỗi câu khảo sát nhập theo mẫu: Câu hỏi | Lựa chọn 1 | Lựa chọn 2.');
+            $record['questions']=$questions;
+        }
+        $rows[]=$record;
+        if (!vb_save_rows(vb_engagement_file($kind),$rows)) throw new RuntimeException('Không lưu được nội dung.');
+        flash('Đã tạo '.($kind==='poll'?'bình chọn':'khảo sát').'.');
+        return;
+    }
+
+    if ($action === 'engagement_submit') {
+        $kind=(string)($_POST['kind']??'poll'); $id=vb_clean((string)($_POST['id']??''),80);
+        if (!in_array($kind,['poll','survey'],true)) throw new RuntimeException('Loại nội dung không hợp lệ.');
+        $rows=vb_rows(vb_engagement_file($kind)); $found=false;
+        foreach($rows as &$row) if(($row['id']??'')===$id){
+            $found=true;
+            if(($row['status']??'active')!=='active') throw new RuntimeException('Nội dung này đã đóng.');
+            if(!empty($row['ends_at'])&&$row['ends_at']<date('Y-m-d')) throw new RuntimeException('Nội dung này đã hết hạn.');
+            $responses=is_array($row['responses']??null)?$row['responses']:[];
+            if(isset($responses[$userKey])) throw new RuntimeException('Tài khoản của bạn đã tham gia nội dung này.');
+            if($kind==='poll'){
+                $answer=(int)($_POST['answer']??-1);
+                if(!isset($row['options'][$answer])) throw new RuntimeException('Hãy chọn một phương án.');
+                $responses[$userKey]=['answer'=>$answer,'name'=>$user['name']??'','at'=>date('c')];
+            }else{
+                $answers=[];foreach((array)($_POST['answer']??[]) as $question=>$answer){$q=(int)$question;$a=(int)$answer;if(isset($row['questions'][$q]['options'][$a]))$answers[$q]=$a;}
+                if(count($answers)!==count($row['questions']??[])) throw new RuntimeException('Hãy trả lời đầy đủ các câu hỏi.');
+                $responses[$userKey]=['answers'=>$answers,'name'=>$user['name']??'','at'=>date('c')];
+            }
+            $row['responses']=$responses;$row['updated_at']=date('c');
+        }
+        unset($row);
+        if(!$found||!vb_save_rows(vb_engagement_file($kind),$rows)) throw new RuntimeException('Không lưu được câu trả lời.');
+        flash('Đã ghi nhận câu trả lời của bạn.'); return;
+    }
+
+    if ($action === 'engagement_status' || $action === 'engagement_delete') {
+        if(!$canManage) throw new RuntimeException('Bạn không có quyền quản lý nội dung này.');
+        $kind=(string)($_POST['kind']??'poll');$id=vb_clean((string)($_POST['id']??''),80);
+        $rows=vb_rows(vb_engagement_file($kind));$found=false;$next=[];
+        foreach($rows as $row){if(($row['id']??'')===$id){$found=true;if($action==='engagement_status'){$row['status']=($row['status']??'active')==='active'?'closed':'active';$next[]=$row;}}else $next[]=$row;}
+        if(!$found||!vb_save_rows(vb_engagement_file($kind),$next)) throw new RuntimeException('Không cập nhật được nội dung.');
+        flash($action==='engagement_delete'?'Đã xóa nội dung.':'Đã đổi trạng thái nội dung.','warning'); return;
+    }
+
+    if ($action === 'feedback_create') {
+        $subject=vb_clean((string)($_POST['subject']??''),300);$content=vb_clean((string)($_POST['content']??''),4000);
+        if($subject===''||$content==='') throw new RuntimeException('Hãy nhập tiêu đề và nội dung góp ý.');
+        $rows=vb_rows(VANBAN_FEEDBACK_FILE);$id=vb_id('ticket');
+        $rows[]=['id'=>$id,'code'=>'GY-'.date('ymd').'-'.strtoupper(substr(bin2hex(random_bytes(3)),0,5)),'subject'=>$subject,
+            'category'=>vb_clean((string)($_POST['category']??'Góp ý chung'),100),'priority'=>vb_clean((string)($_POST['priority']??'Bình thường'),50),
+            'content'=>$content,'status'=>'new','owner_id'=>$userKey,'owner_name'=>$user['name']??'',
+            'messages'=>[],'created_at'=>date('c'),'updated_at'=>date('c')];
+        if(!vb_save_rows(VANBAN_FEEDBACK_FILE,$rows)) throw new RuntimeException('Không gửi được góp ý.');
+        flash('Đã gửi góp ý. Mã theo dõi: '.$rows[array_key_last($rows)]['code']); return;
+    }
+
+    if ($action === 'feedback_reply') {
+        $id=vb_clean((string)($_POST['id']??''),80);$message=vb_clean((string)($_POST['message']??''),4000);
+        $status=(string)($_POST['status']??'');$rows=vb_rows(VANBAN_FEEDBACK_FILE);$found=false;
+        foreach($rows as &$row)if(($row['id']??'')===$id){$found=true;$isOwner=($row['owner_id']??'')===$userKey;if(!$canManage&&!$isOwner)throw new RuntimeException('Bạn không có quyền phản hồi góp ý này.');
+            if($message!==''){$row['messages'][]=['by_id'=>$userKey,'by_name'=>$user['name']??'','role'=>$canManage?'handler':'sender','content'=>$message,'at'=>date('c')];}
+            if($canManage&&in_array($status,['new','processing','completed'],true))$row['status']=$status;
+            elseif(!$canManage&&($row['status']??'')==='completed'&&$message!=='')$row['status']='processing';
+            $row['updated_at']=date('c');
+        }unset($row);
+        if(!$found||($message===''&&!$canManage)||!vb_save_rows(VANBAN_FEEDBACK_FILE,$rows))throw new RuntimeException('Không cập nhật được góp ý.');
+        flash('Đã cập nhật góp ý.');
+    }
+}
+
+function vb_response_count(array $row): int { return count(is_array($row['responses']??null)?$row['responses']:[]); }
+
+function vb_poll_counts(array $row): array {
+    $counts=array_fill(0,count($row['options']??[]),0);
+    foreach((array)($row['responses']??[]) as $response){$answer=(int)($response['answer']??-1);if(isset($counts[$answer]))$counts[$answer]++;}
+    return $counts;
+}
+
+function vb_survey_counts(array $row,int $question): array {
+    $counts=array_fill(0,count($row['questions'][$question]['options']??[]),0);
+    foreach((array)($row['responses']??[]) as $response){$answer=(int)($response['answers'][$question]??-1);if(isset($counts[$answer]))$counts[$answer]++;}
+    return $counts;
+}
