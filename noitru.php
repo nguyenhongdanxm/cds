@@ -1835,6 +1835,20 @@ form[method="post"]{display:none!important}
 </div></main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+document.getElementById('saveDutyDrive')?.addEventListener('click',async function(){
+  const button=this,old=button.innerHTML,paper=document.querySelector('.duty-report-paper');
+  if(!paper)return;
+  const doc=document.implementation.createHTMLDocument('Biên bản trực nội trú');
+  const meta=doc.createElement('meta');meta.setAttribute('charset','utf-8');doc.head.append(meta);
+  document.querySelectorAll('style').forEach(function(source){const style=doc.createElement('style');style.textContent=source.textContent;doc.head.append(style)});
+  doc.body.append(paper.cloneNode(true));
+  const html='<!doctype html>'+doc.documentElement.outerHTML,data=new FormData();
+  data.append('drive_api','save');data.append('csrf',button.dataset.csrf||'');data.append('type','duty_reports');data.append('name',button.dataset.filename||'bien-ban-truc.html');data.append('file',new Blob([html],{type:'text/html'}),'document.html');
+  button.disabled=true;button.innerHTML='Đang lưu…';
+  try{const response=await fetch('<?=e(BASE_URL)?>admin.php',{method:'POST',body:data});const result=await response.json();alert(result.ok?'Đã lưu biên bản lên Google Drive.':(result.message||'Không lưu được lên Drive.'));}
+  catch(error){alert('Không kết nối được máy chủ để lưu Drive.');}
+  finally{button.disabled=false;button.innerHTML=old;}
+});
 function setMealAbsent(absent){
   document.querySelectorAll('.meal-absent:not(:disabled)').forEach(function(box){
     box.checked=absent;
