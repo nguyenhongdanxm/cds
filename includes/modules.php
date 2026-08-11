@@ -42,7 +42,7 @@ function get_ecosystem_modules() {
             'title' => 'Học liệu & thi',
             'subtitle' => 'Học liệu số · ngân hàng đề · thi trực tuyến',
             'icon' => 'bi-laptop', 'color' => '#0dcaf0',
-            'status' => 'soon', 'url' => '', 'external' => false,
+            'status' => 'live', 'url' => BASE_URL . 'hoclieu.php', 'external' => false,
         ],
         [
             'id' => 'noitru', 'num' => 7,
