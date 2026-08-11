@@ -4,12 +4,13 @@ require_once 'includes/functions.php';
 require_login();
 
 $tabs = [
-    'thongbao' => ['Thông báo chuyên môn', 'bi-megaphone'],
+    'thongbao' => ['Thông báo', 'bi-megaphone'],
     'vanban' => ['Kế hoạch giáo dục', 'bi-file-earmark-pdf'],
     'chitieu' => ['Chỉ tiêu', 'bi-bullseye'],
 ];
 $tab = $_GET['tab'] ?? 'vanban';
 if (!isset($tabs[$tab])) $tab = 'vanban';
+$page_title = $tabs[$tab][0];
 
 // Kế hoạch giáo dục là quy trình nộp/duyệt riêng theo Phụ lục I, II, III.
 if ($tab === 'vanban') {
@@ -43,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'day_to' => $hasDeadline ? trim($_POST['day_to'] ?? '') : '',
             'has_assignees' => $hasAssignees,
             'assignees' => $assignees,
+            'completed' => !empty($_POST['completed']),
             'content' => trim($_POST['content'] ?? ''),
             'link' => trim($_POST['link'] ?? ''),
             'file_path' => $file !== '' ? $file : $oldFile,
@@ -50,6 +52,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
         flash('Đã lưu.');
         header('Location: ' . BASE_URL . 'kehoach.php?tab=' . urlencode($tab));
+        exit;
+    }
+    if ($action === 'toggle_complete' && $tab === 'thongbao') {
+        $id = trim($_POST['id'] ?? '');
+        foreach (cm_docs_by_section($section) as $row) {
+            if (($row['id'] ?? '') !== $id) continue;
+            $row['completed'] = empty($row['completed']);
+            $row['updated_at'] = date('c');
+            cm_doc_save($row);
+            flash(!empty($row['completed']) ? 'Đã đánh dấu thông báo hoàn thành.' : 'Đã mở lại thông báo.');
+            break;
+        }
+        header('Location: ' . BASE_URL . 'kehoach.php?tab=thongbao');
         exit;
     }
     if ($action === 'delete') {
@@ -89,7 +104,7 @@ require_once 'includes/header.php';
 }
 </style>
 
-<h3 class="mb-3"><i class="bi bi-calendar2-week"></i> Kế hoạch chuyên môn</h3>
+<h3 class="mb-3"><i class="bi <?= e($tabs[$tab][1]) ?>"></i> <?= e($tabs[$tab][0]) ?></h3>
 
 <ul class="nav nav-pills gap-1 mb-4 flex-wrap">
   <?php foreach ($tabs as $k => $info): ?>
@@ -173,6 +188,11 @@ function resetArticle(){article_id.value='';article_title.value='';article_link.
           <div class="form-text">Danh sách lấy từ PCCM → Giáo viên.</div>
         </div>
 
+        <?php if ($tab === 'thongbao'): ?><div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" name="completed" value="1" id="doc_completed">
+          <label class="form-check-label small fw-semibold" for="doc_completed">Đã hoàn thành (không hiện trên tổng quan)</label>
+        </div><?php endif; ?>
+
         <div class="mb-2">
           <label class="form-label small fw-semibold">Nội dung / ghi chú</label>
           <textarea name="content" id="doc_content" class="form-control form-control-sm" rows="3"></textarea>
@@ -194,10 +214,10 @@ function resetArticle(){article_id.value='';article_title.value='';article_link.
     <div class="card"><div class="card-header"><?= e($tabs[$tab][0]) ?> (<?= count($items) ?>)</div>
     <div class="table-responsive">
       <table class="table table-sm table-hover mb-0 align-middle">
-        <thead><tr><th>Ngày</th><th>Hạn</th><th>Tiêu đề</th><th>Người TH</th><th>Tài liệu</th><th></th></tr></thead>
+        <thead><tr><th>Ngày</th><th>Hạn</th><th>Tiêu đề</th><th>Người TH</th><th>Trạng thái</th><th>Tài liệu</th><th></th></tr></thead>
         <tbody>
         <?php if (!$items): ?>
-          <tr><td colspan="6" class="text-muted text-center py-4">Chưa có mục nào.</td></tr>
+          <tr><td colspan="7" class="text-muted text-center py-4">Chưa có thông báo nào.</td></tr>
         <?php else: foreach ($items as $it):
           $dl = !empty($it['has_deadline']) || !empty($it['due_date']) || !empty($it['day_from'])
             ? cm_resolve_deadline($it) : null;
@@ -219,12 +239,17 @@ function resetArticle(){article_id.value='';article_title.value='';article_link.
               <?php if (!empty($it['content'])): ?><div class="small text-muted"><?= e(mb_strimwidth($it['content'],0,80,'…','UTF-8')) ?></div><?php endif; ?>
             </td>
             <td class="small"><?= $asg ? e(implode(', ', $asg)) : '—' ?></td>
+            <td class="small"><?= !empty($it['completed']) ? '<span class="badge bg-success">Hoàn thành</span>' : '<span class="badge bg-warning text-dark">Đang theo dõi</span>' ?></td>
             <td class="small">
               <?php if (!empty($it['link'])): ?><a href="<?= e($it['link']) ?>" target="_blank">Link</a><?php endif; ?>
               <?php if (!empty($it['file_path'])): ?><?= !empty($it['link'])?' · ':'' ?><a href="<?= e(cds_storage_file_url($it['file_path'])) ?>" target="_blank">File</a><?php endif; ?>
               <?php if (empty($it['link']) && empty($it['file_path'])): ?>—<?php endif; ?>
             </td>
             <td class="text-nowrap">
+              <?php if ($tab === 'thongbao'): ?><form method="post" class="d-inline" action="<?= BASE_URL ?>kehoach.php?tab=thongbao">
+                <input type="hidden" name="action" value="toggle_complete"><input type="hidden" name="id" value="<?= e($it['id']) ?>">
+                <button class="btn btn-sm <?= !empty($it['completed'])?'btn-success':'btn-outline-success' ?>" type="submit" title="<?= !empty($it['completed'])?'Mở lại thông báo':'Đánh dấu hoàn thành' ?>"><i class="bi <?= !empty($it['completed'])?'bi-check-square-fill':'bi-square' ?>"></i></button>
+              </form><?php endif; ?>
               <button type="button" class="btn btn-sm btn-outline-success" onclick='viewDoc(<?= json_encode($it, JSON_UNESCAPED_UNICODE) ?>)'><i class="bi bi-eye"></i></button>
               <button type="button" class="btn btn-sm btn-outline-primary" onclick='editDoc(<?= json_encode($it, JSON_UNESCAPED_UNICODE) ?>)'><i class="bi bi-pencil"></i></button>
               <form method="post" class="d-inline" action="<?= BASE_URL ?>kehoach.php?tab=<?= urlencode($tab) ?>" onsubmit="return confirm('Xóa?')">
@@ -265,6 +290,7 @@ function resetForm(){
   document.getElementById('doc_date').value='<?= date('Y-m-d') ?>';
   document.getElementById('chkDeadline').checked=false;
   document.getElementById('chkAssign').checked=false;
+  var completed=document.getElementById('doc_completed');if(completed)completed.checked=false;
   toggleDeadline(); toggleAssign();
   var sel=document.getElementById('doc_assignees');
   if(sel) Array.from(sel.options).forEach(function(o){o.selected=false;});
@@ -276,6 +302,7 @@ function editDoc(it){
   document.getElementById('doc_date').value=it.date||'';
   document.getElementById('doc_content').value=it.content||'';
   document.getElementById('doc_link').value=it.link||'';
+  var completed=document.getElementById('doc_completed');if(completed)completed.checked=!!it.completed;
   var hasDl = !!(it.has_deadline || it.due_date || it.day_from);
   document.getElementById('chkDeadline').checked=hasDl;
   document.getElementById('doc_due').value=it.due_date||'';

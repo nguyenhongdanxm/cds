@@ -59,7 +59,7 @@ $preferences = cds_dashboard_preferences($user);
 $birthday = cds_dashboard_birthday($teachers, $preferences['muted_birthdays'] ?? []);
 $dashboard = cds_dashboard_scope_data($user);
 $quickActions = cds_dashboard_quick_actions($user);
-$feedItems = cds_dashboard_notice_tasks($user, 10);
+$feedItems = cds_dashboard_notice_tasks($user);
 $observations = can_module('chuyenmon','view') ? cds_dashboard_observations() : [];
 $lunar = cds_dashboard_solar_to_lunar((int)date('d'), (int)date('m'), (int)date('Y'));
 $weekdays = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
@@ -133,7 +133,7 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
 
   <div class="content-grid">
     <section class="panel feed-panel">
-      <div class="panel-head"><div><span class="section-kicker">Chuyên môn</span><h2>Công việc đang và sắp diễn ra</h2></div><span class="count-pill"><?= count($feedItems) ?>/10</span></div>
+      <div class="panel-head"><div><span class="section-kicker">Thông báo</span><h2>Thông báo đang và sắp diễn ra</h2></div><span class="count-pill"><?= count($feedItems) ?></span></div>
       <div class="feed-list" id="professionalFeed">
         <?php foreach ($feedItems as $feedIndex => $item):
           $title = cds_dashboard_feed_title($item) ?: 'Nội dung Chuyên môn';
@@ -157,7 +157,7 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
         <?php endforeach; ?>
         <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có nội dung sắp tới</strong><span>Thông báo chuyên môn chung, công việc được giao và mốc nhân sự cá nhân sẽ xuất hiện tại đây.</span></div><?php endif; ?>
       </div>
-      <?php if (count($feedItems) > 5): ?><nav class="feed-pagination" aria-label="Trang công việc Chuyên môn"><button type="button" class="active" data-feed-page-button="1" aria-current="page">1</button><button type="button" data-feed-page-button="2">2</button></nav><?php endif; ?>
+      <?php if (count($feedItems) > 5): ?><nav class="feed-pagination" aria-label="Trang thông báo"><?php for($feedPage=1,$feedPages=(int)ceil(count($feedItems)/5);$feedPage<=$feedPages;$feedPage++): ?><button type="button" class="<?= $feedPage===1?'active':'' ?>" data-feed-page-button="<?= $feedPage ?>" <?= $feedPage===1?'aria-current="page"':'' ?>><?= $feedPage ?></button><?php endfor; ?></nav><?php endif; ?>
     </section>
 
     <div class="side-stack">

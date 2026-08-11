@@ -143,7 +143,7 @@ function cds_dashboard_feed_title(array $row): string {
 }
 
 function cds_dashboard_feed_row_kind(array $row, string $hint = ''): string {
-    foreach (['kind','type','category','module','record_type','loai','loai_noi_dung'] as $key) {
+    foreach (['kind','type','category','module','section','record_type','loai','loai_noi_dung'] as $key) {
         $kind = cds_dashboard_feed_kind($row[$key] ?? '');
         if ($kind !== '') return $kind;
     }
@@ -274,6 +274,20 @@ function cds_dashboard_feed_schedule(array $row): array {
     foreach (['due_date','deadline','due_at','han_hoan_thanh','han_xu_ly','ngay_het_han','end_date','to_date','ngay_ket_thuc','expires_at','expiry_date','visible_to'] as $key) {
         if (!empty($row[$key])) { $end = cds_dashboard_parse_date($row[$key]); if ($end !== '') break; }
     }
+    $recurringDay = (int)(!empty($row['day_to']) ? $row['day_to'] : ($row['day_from'] ?? 0));
+    if ($end === '' && $recurringDay > 0) {
+        $todayDate = new DateTimeImmutable(date('Y-m-d'));
+        $day = min(31, max(1, $recurringDay));
+        $monthStart = $todayDate->modify('first day of this month');
+        $day = min($day, (int)$monthStart->format('t'));
+        $recurringDue = $monthStart->setDate((int)$monthStart->format('Y'), (int)$monthStart->format('m'), $day);
+        if ($recurringDue < $todayDate) {
+            $monthStart = $monthStart->modify('first day of next month');
+            $day = min($recurringDay, (int)$monthStart->format('t'));
+            $recurringDue = $monthStart->setDate((int)$monthStart->format('Y'), (int)$monthStart->format('m'), max(1, $day));
+        }
+        $end = $recurringDue->format('Y-m-d');
+    }
     if ($start === '' && $end === '') return [];
     $today = date('Y-m-d');
     if ($end !== '' && $end < $today) return [];
@@ -288,8 +302,9 @@ function cds_dashboard_feed_schedule(array $row): array {
 
 function cds_dashboard_feed_visible(array $row): bool {
     if (array_key_exists('active', $row) && !$row['active']) return false;
+    if (!empty($row['completed']) || !empty($row['is_completed']) || !empty($row['done'])) return false;
     $status = cds_dashboard_lower($row['status'] ?? $row['trang_thai'] ?? '');
-    if (in_array($status, ['draft','inactive','deleted','cancelled','canceled','archived','nháp','da_xoa','đã xóa','hủy'], true)) return false;
+    if (in_array($status, ['draft','inactive','deleted','cancelled','canceled','archived','nháp','da_xoa','đã xóa','hủy','done','completed','complete','finished','hoàn thành','đã hoàn thành','da_hoan_thanh'], true)) return false;
     $today = date('Y-m-d');
     foreach (['visible_to','expires_at','expiry_date','end_date','to_date','ngay_ket_thuc'] as $key) {
         if (empty($row[$key]) || is_array($row[$key])) continue;
@@ -361,7 +376,7 @@ function cds_dashboard_staff_milestones(array $user): array {
     return $rows;
 }
 
-function cds_dashboard_notice_tasks(array $user, int $limit = 10): array {
+function cds_dashboard_notice_tasks(array $user, int $limit = 0): array {
     $feed = cds_dashboard_feed_data();
     $rows = cds_dashboard_staff_milestones($user);
     $identityLower = cds_dashboard_user_identities($user);
@@ -379,7 +394,7 @@ function cds_dashboard_notice_tasks(array $user, int $limit = 10): array {
         $row['_dashboard_start'] = $schedule['start'];
         $row['_dashboard_end'] = $schedule['end'];
         $row['_dashboard_state'] = $schedule['state'];
-        $row['_dashboard_nearest'] = $schedule['nearest'];
+        $row['_dashboard_nearest'] = $schedule['end'] ?: ($schedule['state'] === 'Sắp diễn ra' ? $schedule['start'] : '9999-12-31');
         $rows[] = $row;
     }
     foreach ($feed['tasks'] as $row) {
@@ -405,7 +420,7 @@ function cds_dashboard_notice_tasks(array $user, int $limit = 10): array {
         if ($dateOrder !== 0) return $dateOrder;
         return strnatcasecmp(cds_dashboard_feed_title($a), cds_dashboard_feed_title($b));
     });
-    return array_slice($rows, 0, $limit);
+    return $limit > 0 ? array_slice($rows, 0, $limit) : $rows;
 }
 function cds_dashboard_observations(): array {
     $today=date('Y-m-d');$rows=[];

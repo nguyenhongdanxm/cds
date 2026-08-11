@@ -129,7 +129,7 @@ body{background:#f0f4f8;font-family:'Segoe UI',system-ui,sans-serif;color:#21252
   </a>
   <ul class="dropdown-menu">
     <li><a class="dropdown-item <?= ($current==='kehoach' && ($tab_q===''||$tab_q==='vanban'))?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=vanban">Kế hoạch giáo dục</a></li>
-    <li><a class="dropdown-item <?= ($current==='kehoach' && $tab_q==='thongbao')?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=thongbao">Thông báo chuyên môn</a></li>
+    <li><a class="dropdown-item <?= ($current==='kehoach' && $tab_q==='thongbao')?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=thongbao">Thông báo</a></li>
     <li><a class="dropdown-item <?= ($current==='kehoach' && $tab_q==='chitieu')?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=chitieu">Chỉ tiêu</a></li>
   </ul>
 </li>
