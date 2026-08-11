@@ -2,7 +2,6 @@
 $page_title = 'Báo cáo chuyên môn';
 require_once 'includes/functions.php';
 require_once 'includes/cm_docs.php';
-require_once __DIR__ . '/../includes/google_drive_storage.php';
 
 $tabs = [
     'dinhky' => ['Báo cáo định kỳ', 'bi-calendar-month', 'cm.baocao.dinhky'],

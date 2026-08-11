@@ -1,6 +1,5 @@
 <?php
 /** Xử lý ảnh thẻ học sinh: xoay EXIF, cắt giữa 3:4, thu về 600x800 JPEG. */
-require_once __DIR__ . '/google_drive_storage.php';
 if (!defined('CSDL_STUDENT_PHOTO_DIR')) define('CSDL_STUDENT_PHOTO_DIR', DATA_PATH . '/student_photos');
 if (!defined('CSDL_STUDENT_PHOTO_DRIVE_MAP')) define('CSDL_STUDENT_PHOTO_DRIVE_MAP', DATA_PATH . '/student_photo_drive.json');
 

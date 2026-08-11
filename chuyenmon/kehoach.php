@@ -2,7 +2,6 @@
 $page_title = 'Kế hoạch chuyên môn';
 require_once 'includes/functions.php';
 require_once 'includes/cm_docs.php';
-require_once __DIR__ . '/../includes/google_drive_storage.php';
 require_login();
 
 $tabs = [
