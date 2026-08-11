@@ -2,7 +2,6 @@
 $page_title = 'Bài viết chỉ tiêu chuyên môn';
 require_once 'includes/functions.php';
 require_once 'includes/cm_docs.php';
-require_once __DIR__ . '/../includes/google_drive_storage.php';
 require_login();
 
 $id = trim((string)($_GET['id'] ?? ''));

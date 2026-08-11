@@ -1,5 +1,6 @@
 <?php
 /** Lưu trữ Google Drive bằng Service Account, không cần Composer. */
+if (function_exists('cds_drive_settings')) return;
 if (!defined('CDS_DRIVE_SETTINGS')) define('CDS_DRIVE_SETTINGS', DATA_PATH . '/google_drive_settings.json');
 
 function cds_drive_settings(): array {
