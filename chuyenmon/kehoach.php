@@ -1,16 +1,23 @@
 <?php
 $page_title = 'Kế hoạch chuyên môn';
 require_once 'includes/functions.php';
-require_once 'includes/cm_docs.php';
 require_login();
 
 $tabs = [
     'thongbao' => ['Thông báo chuyên môn', 'bi-megaphone'],
-    'vanban' => ['Văn bản kế hoạch', 'bi-file-earmark-pdf'],
+    'vanban' => ['Kế hoạch giáo dục', 'bi-file-earmark-pdf'],
     'chitieu' => ['Chỉ tiêu', 'bi-bullseye'],
 ];
 $tab = $_GET['tab'] ?? 'vanban';
 if (!isset($tabs[$tab])) $tab = 'vanban';
+
+// Kế hoạch giáo dục là quy trình nộp/duyệt riêng theo Phụ lục I, II, III.
+if ($tab === 'vanban') {
+    require __DIR__ . '/includes/education_plans.php';
+    exit;
+}
+
+require_once 'includes/cm_docs.php';
 $section = 'kh_' . $tab;
 $teachers = get_teachers_sorted();
 
