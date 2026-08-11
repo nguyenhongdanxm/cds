@@ -31,8 +31,16 @@ if($action==='init'){
     curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$metadata,CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$token['token'],'Content-Type: application/json; charset=UTF-8','X-Upload-Content-Type: application/pdf','X-Upload-Content-Length: '.$size],CURLOPT_HEADERFUNCTION=>function($ch,$line)use(&$location){if(stripos($line,'Location:')===0)$location=trim(substr($line,9));return strlen($line);},CURLOPT_TIMEOUT=>30,CURLOPT_CONNECTTIMEOUT=>10]);
     $body=curl_exec($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);$error=curl_error($ch);curl_close($ch);
     if($status<200||$status>=300||$location==='')edu_json(false,'Không tạo được phiên upload Google Drive'.($error!==''?': '.$error:''));
-    $nonce=bin2hex(random_bytes(20));$_SESSION['cm_education_pending'][$nonce]=['expires'=>time()+900,'teacher'=>$teacher,'group'=>$group,'subject'=>$subject,'grade'=>$grade,'appendix'=>$appendix,'category'=>$category,'folder'=>$folder,'name'=>$name,'size'=>$size,'record_id'=>trim((string)($_POST['id']??''))];
+    $nonce=bin2hex(random_bytes(20));$_SESSION['cm_education_pending'][$nonce]=['expires'=>time()+900,'teacher'=>$teacher,'group'=>$group,'subject'=>$subject,'grade'=>$grade,'appendix'=>$appendix,'category'=>$category,'folder'=>$folder,'name'=>$name,'size'=>$size,'record_id'=>trim((string)($_POST['id']??'')),'upload_url'=>$location];
     edu_json(true,'Đã sẵn sàng tải trực tiếp lên Drive.',['upload_url'=>$location,'upload_token'=>$nonce]);
+}
+if($action==='recover'){
+    $nonce=(string)($_POST['upload_token']??'');$pending=$_SESSION['cm_education_pending'][$nonce]??null;
+    if(!is_array($pending)||(int)($pending['expires']??0)<time()||empty($pending['upload_url']))edu_json(false,'Phiên upload đã hết hạn.');
+    $ch=curl_init((string)$pending['upload_url']);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CUSTOMREQUEST=>'PUT',CURLOPT_POSTFIELDS=>'',CURLOPT_HTTPHEADER=>['Content-Length: 0','Content-Range: bytes */'.(int)$pending['size']],CURLOPT_TIMEOUT=>30,CURLOPT_CONNECTTIMEOUT=>10]);
+    $body=curl_exec($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);$info=json_decode((string)$body,true);
+    if(in_array($status,[200,201],true)&&!empty($info['id']))edu_json(true,'Google Drive đã nhận đủ tệp.',['drive_file_id'=>$info['id']]);
+    edu_json(false,'Trình duyệt không hoàn tất được upload trực tiếp.',['fallback'=>true,'drive_status'=>$status]);
 }
 if($action==='finalize'){
     $nonce=(string)($_POST['upload_token']??'');$pending=$_SESSION['cm_education_pending'][$nonce]??null;unset($_SESSION['cm_education_pending'][$nonce]);
