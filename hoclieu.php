@@ -1,4 +1,5 @@
 <?php
+/* HOC_LIEU_BUILD: 2026-08-11.1 — marker để xác nhận cPanel đã nhận file mới. */
 require_once __DIR__ . '/includes/auth.php';
 require_login();
 
