@@ -34,6 +34,10 @@ $teachers = function_exists('csdl_teachers_all') ? csdl_teachers_all() : [];
 $students = function_exists('csdl_students_all') ? csdl_students_all() : [];
 $classes = function_exists('csdl_classes_all') ? csdl_classes_all() : [];
 $classMap=[];foreach($classes as $class)$classMap[(string)($class['id']??'')]=(string)($class['name']??'');
+$teacherMap=[];foreach($teachers as $teacher)$teacherMap[(string)($teacher['id']??'')]=(string)($teacher['name']??'');
+$currentSchoolYear=SCHOOL_YEAR;$years=function_exists('csdl_years_all')?csdl_years_all():[];foreach($years as $year)if(!empty($year['is_current'])){$currentSchoolYear=(string)($year['label']??SCHOOL_YEAR);break;}
+$currentTeacher=[];foreach($teachers as $teacher)if(lib_norm((string)($teacher['name']??''))===lib_norm($userName)){$currentTeacher=$teacher;break;}
+$currentSubject=trim((string)($currentTeacher['specialty']??''));$currentGroup=trim((string)($currentTeacher['to_chuyen_mon']??$currentTeacher['pccm_group']??''));
 
 if ($_SERVER['REQUEST_METHOD']==='POST') {
     if (!hash_equals($csrf,(string)($_POST['csrf']??''))) { http_response_code(403);exit('Phiên làm việc không hợp lệ.'); }
