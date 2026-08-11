@@ -326,7 +326,7 @@ require __DIR__ . '/header.php';
 </tr>
 <?php endforeach; endif; ?></tbody></table></div></div>
 
-<div class="modal fade" id="educationPlanModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><form method="post" enctype="multipart/form-data" id="educationPlanForm">
+<div class="modal fade" id="educationPlanModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><form method="post" action="<?= e(BASE_URL . 'kehoach.php?tab=vanban&appendix=' . urlencode($educationAppendix)) ?>" enctype="multipart/form-data" id="educationPlanForm">
 <div class="modal-header"><h5 class="modal-title"><i class="bi bi-cloud-arrow-up"></i> Nhập kế hoạch giáo dục</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
 <div class="modal-body"><input type="hidden" name="csrf" value="<?= e($educationCsrf) ?>"><input type="hidden" name="action" value="save_plan"><input type="hidden" name="id" id="educationId">
 <div class="education-form-grid"><div><label class="form-label fw-semibold">Tên giáo viên</label><input class="form-control" value="<?= e($educationTeacher) ?>" readonly></div><div><label class="form-label fw-semibold">Tổ</label><input class="form-control" value="<?= e($educationGroup) ?>" readonly></div><div><label class="form-label fw-semibold">Phụ lục</label><select class="form-select" name="appendix" id="educationAppendix" required><?php foreach (['I','II','III'] as $value): ?><option value="<?= $value ?>" <?= $value === $educationAppendix ? 'selected' : '' ?>>Phụ lục <?= $value ?></option><?php endforeach; ?></select></div>
@@ -357,7 +357,7 @@ function editEducationPlan(button){try{var row=JSON.parse(decodeURIComponent(esc
     box.hidden=false;bar.className='progress-bar progress-bar-striped progress-bar-animated';setProgress(0);setBusy(true);
     status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đang tải tệp lên máy chủ…';detail.textContent='Vui lòng giữ nguyên trang trong khi tải.';
     var xhr=new XMLHttpRequest(),data=new FormData(form);
-    xhr.open('POST',form.action||window.location.href,true);
+    xhr.open('POST',form.getAttribute('action')||window.location.href,true);
     xhr.timeout=600000;
     xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');
     xhr.upload.onprogress=function(progress){
