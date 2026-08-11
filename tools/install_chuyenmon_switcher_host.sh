@@ -17,6 +17,7 @@ MANUAL_DELETE_FIX_SOURCE="includes/chuyenmon_manual_delete_fix.php"
 MANUAL_DELETE_ENDPOINT_SOURCE="includes/chuyenmon_manual_delete_endpoint.php"
 MANUAL_SAVE_FIX_SOURCE="includes/chuyenmon_manual_save_fix.php"
 MANUAL_SAVE_ENDPOINT_SOURCE="includes/chuyenmon_manual_save_endpoint.php"
+ORPHAN_CLEANUP_SOURCE="includes/chuyenmon_orphan_data_cleanup.php"
 FRACTIONAL_PATCHER="tools/patch_chuyenmon_fractional.php"
 GLOBAL_UI_SOURCE="assets/cds-global-ui.css"
 
@@ -38,6 +39,7 @@ fi
 /bin/cp "$MANUAL_DELETE_ENDPOINT_SOURCE" "$CM_ROOT/cds_manual_delete.php"
 /bin/cp "$MANUAL_SAVE_FIX_SOURCE" "$CM_INCLUDE/cds_manual_save_fix.php"
 /bin/cp "$MANUAL_SAVE_ENDPOINT_SOURCE" "$CM_ROOT/cds_manual_save.php"
+/bin/cp "$ORPHAN_CLEANUP_SOURCE" "$CM_INCLUDE/cds_orphan_data_cleanup.php"
 
 if [ -f "$GLOBAL_UI_SOURCE" ] && ! /usr/bin/grep -q "cds-global-ui.css" "$CM_HEADER"; then
   /bin/sed -i "/<\/head>/i\\<link rel=\"stylesheet\" href=\"/assets/cds-global-ui.css?v=20260806-2\">" "$CM_HEADER"
@@ -76,6 +78,13 @@ if ! /usr/bin/grep -q "cds_manual_delete_fix.php" "$CM_HEADER"; then
 fi
 if ! /usr/bin/grep -q "cds_manual_save_fix.php" "$CM_HEADER"; then
   /bin/sed -i "/<body>/a\\<?php require_once __DIR__ . '/cds_manual_save_fix.php'; ?>" "$CM_HEADER"
+fi
+
+# Trang tổng quan Chuyên môn trên host là phần lõi có sẵn. Nạp bộ dọn dữ liệu
+# ngay sau functions.php để bản ghi mồ côi bị xóa trước khi tổng hợp danh sách.
+CM_INDEX="$CM_ROOT/index.php"
+if [ -f "$CM_INDEX" ] && ! /usr/bin/grep -q "cds_orphan_data_cleanup.php" "$CM_INDEX"; then
+  /bin/sed -i "/require_once ['\"]includes\/functions.php['\"];/a\\require_once 'includes/cds_orphan_data_cleanup.php';" "$CM_INDEX"
 fi
 
 if [ -f "$FRACTIONAL_PATCHER" ]; then

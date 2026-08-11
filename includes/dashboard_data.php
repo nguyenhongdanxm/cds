@@ -387,10 +387,9 @@ function cds_dashboard_notice_tasks(array $user, int $limit = 0): array {
         if (!$schedule) continue;
         $assigneeLower = array_map('cds_dashboard_lower', $assignees);
         $isGeneral = !$assignees || array_intersect($assigneeLower, ['all','everyone','tất cả','tat ca','toàn trường','toan truong']);
-        if (!$isGeneral && !array_intersect($assigneeLower, $identityLower)) continue;
         $row['kind'] = 'notice';
-        $row['_dashboard_assignees'] = $isGeneral ? [] : $assignees;
-        $row['_dashboard_detail'] = $isGeneral ? 'Thông báo chuyên môn chung' : 'Thông báo dành cho bạn';
+        $row['_dashboard_assignees'] = $assignees;
+        $row['_dashboard_detail'] = $isGeneral ? 'Thông báo chung' : 'Chỉ định: ' . implode(', ', array_slice($assignees, 0, 3));
         $row['_dashboard_start'] = $schedule['start'];
         $row['_dashboard_end'] = $schedule['end'];
         $row['_dashboard_state'] = $schedule['state'];
