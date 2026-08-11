@@ -1,4 +1,5 @@
 <?php
+/* HOC_LIEU_FILE_BUILD: 2026-08-11.1 */
 require_once __DIR__ . '/includes/auth.php';
 require_login();
 
