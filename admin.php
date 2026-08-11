@@ -6,7 +6,7 @@ require_login();
 
 $user = current_user();
 $isAdmin = ($user['role'] ?? '') === 'admin';
-if(isset($_GET['drive_file'])){$file=cds_drive_download((string)$_GET['drive_file']);if(empty($file['ok'])){http_response_code((int)($file['status']??404));exit;}header('Content-Type: '.$file['mime']);header('Content-Length: '.strlen($file['body']));header("Content-Disposition: inline; filename*=UTF-8''".rawurlencode($file['name']));echo $file['body'];exit;}
+if(isset($_GET['drive_file'])){$driveId=(string)$_GET['drive_file'];$etag='"'.sha1($driveId).'"';header('Cache-Control: private, max-age=300');header('ETag: '.$etag);if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag){http_response_code(304);exit;}$file=cds_drive_download($driveId);if(empty($file['ok'])){http_response_code((int)($file['status']??404));exit;}header('Content-Type: '.$file['mime']);header('Content-Length: '.strlen($file['body']));header("Content-Disposition: inline; filename*=UTF-8''".rawurlencode($file['name']));echo $file['body'];exit;}
 if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['drive_api'])){
     header('Content-Type: application/json; charset=utf-8');
     if(!hash_equals(cds_drive_csrf_token(),(string)($_POST['csrf']??''))){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Phiên làm việc không hợp lệ.'],JSON_UNESCAPED_UNICODE);exit;}
