@@ -77,7 +77,20 @@ function cm_education_upload_pdf(string $field): string {
     if ($bytes === false) throw new RuntimeException('Không đọc được tệp PDF.');
     $result = cds_drive_upload_bytes($bytes, $name, 'application/pdf', $category);
     if (empty($result['ok'])) throw new RuntimeException($result['message'] ?? 'Không lưu được tệp vào thư mục Kế hoạch giáo dục.');
-    return (string)$result['path'];
+
+    // Giữ nguyên PDF ký số trong cache cPanel để xem trước nhanh, không nén hay sửa nội dung.
+    $storedPath = (string)$result['path'];
+    if (str_starts_with($storedPath, 'gdrive:')) {
+        $driveId = substr($storedPath, 7);
+        $cacheDir = DATA_PATH . '/cache/education_pdf';
+        if ((is_dir($cacheDir) || @mkdir($cacheDir, 0755, true)) && $driveId !== '') {
+            if (!is_file($cacheDir . '/.htaccess')) {
+                @file_put_contents($cacheDir . '/.htaccess', "Require all denied\nDeny from all\n");
+            }
+            @copy($tmp, $cacheDir . '/' . hash('sha256', $driveId) . '.pdf');
+        }
+    }
+    return $storedPath;
 }
 
 function cm_education_is_visible(array $row, bool $isAdmin, bool $isLeader, string $teacher, string $group): bool {
