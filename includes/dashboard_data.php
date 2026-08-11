@@ -104,7 +104,12 @@ function cds_dashboard_birthdays(array $teachers, array $students): array {
             $identity = $personType . '|' . ($id !== '' ? $id : $name . '|' . $dob);
             if (isset($seen[$identity])) continue;
             $seen[$identity] = true;
-            $groups[$group][] = ['name'=>$name, 'type'=>$personType];
+            $groups[$group][] = [
+                'name'=>$name,
+                'type'=>$personType,
+                'class_id'=>trim((string)($row['class_id'] ?? '')),
+                'class_name'=>trim((string)($row['class_name'] ?? $row['class'] ?? '')),
+            ];
         }
     };
 
