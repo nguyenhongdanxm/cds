@@ -87,7 +87,7 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
   <meta name="theme-color" content="#0f4c81">
   <title>Trang chủ quản trị – <?= e(SCHOOL_SHORT) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260812-1" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260812-2" rel="stylesheet">
 </head>
 <body>
 <header class="app-header">
@@ -122,10 +122,9 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
       <h1><?= e($user['name'] ?? 'Thầy/Cô') ?></h1>
       <?php if ($hasBirthdays): ?>
         <div class="birthday-line"><span class="birthday-icon">🎂</span><div>
-          <?php foreach (['teacher'=>['Giáo viên','đồng chí'], 'student'=>['Học sinh','em']] as $role=>$roleLabel): $todayNames=array_column($birthdayByRole[$role]['today'],'name'); $tomorrowNames=array_column($birthdayByRole[$role]['tomorrow'],'name'); if (!$todayNames && !$tomorrowNames) continue; ?>
-            <div class="birthday-role-row"><span class="birthday-role-label"><?= e($roleLabel[0]) ?></span><strong><?php if ($todayNames): ?>Chúc mừng sinh nhật <?= e($roleLabel[1]) ?> <?= e(implode(', ', $todayNames)) ?><?php endif; ?><?php if ($todayNames && $tomorrowNames): ?> · <?php endif; ?><?php if ($tomorrowNames): ?>Sinh nhật ngày mai: <?= e($roleLabel[1]) ?> <?= e(implode(', ', $tomorrowNames)) ?><?php endif; ?></strong></div>
+          <?php foreach (['teacher'=>'đồng chí', 'student'=>'em'] as $role=>$salutation): $todayNames=array_column($birthdayByRole[$role]['today'],'name'); $tomorrowNames=array_column($birthdayByRole[$role]['tomorrow'],'name'); if (!$todayNames && !$tomorrowNames) continue; ?>
+            <div class="birthday-role-row <?= e($role) ?>"><strong><?php if ($todayNames): ?>Chúc mừng sinh nhật <?= e($salutation) ?> <?= e(implode(', ', $todayNames)) ?><?php endif; ?><?php if ($todayNames && $tomorrowNames): ?> · <?php endif; ?><?php if ($tomorrowNames): ?>Sinh nhật ngày mai: <?= e($salutation) ?> <?= e(implode(', ', $tomorrowNames)) ?><?php endif; ?></strong></div>
           <?php endforeach; ?>
-          <small>Chúc tuổi mới nhiều sức khỏe, niềm vui và thành công!</small>
         </div></div>
       <?php else: ?><p class="daily-quote">“<?= e(cds_dashboard_quote()) ?>”</p><?php endif; ?>
     </div>
