@@ -65,6 +65,7 @@ function permission_features_catalog() {
         'vb.quanly'   => ['module' => 'vanban', 'label' => 'Thêm · sửa · phát hành văn bản', 'group' => 'Văn bản'],
         'vb.layso'    => ['module' => 'vanban', 'label' => 'Lấy số · phát hành văn bản', 'group' => 'Văn bản'],
         'vb.hosoluutru'=> ['module' => 'vanban', 'label' => 'Quản lý hồ sơ lưu trữ', 'group' => 'Văn bản'],
+        'vb.tuongtac' => ['module' => 'vanban', 'label' => 'Tạo bình chọn · khảo sát · xử lý góp ý', 'group' => 'Văn bản'],
 
         // Thi đua — quyền đến từng menu con
         'td.teacher_attendance'  => ['module' => 'thidua', 'label' => 'Giáo viên · Chấm công', 'group' => 'Thi đua'],
@@ -149,7 +150,7 @@ function permission_default_groups() {
         ],
         'vanthu' => [
             'label' => 'Văn thư',
-            'access' => array_merge($view(['csdl.overview','csdl.teachers','csdl.classes','csdl.students']), $edit(['vb.xem','vb.quanly','vb.layso','vb.hosoluutru'])),
+            'access' => array_merge($view(['csdl.overview','csdl.teachers','csdl.classes','csdl.students']), $edit(['vb.xem','vb.quanly','vb.layso','vb.hosoluutru','vb.tuongtac'])),
         ],
         'ketoan' => [
             'label' => 'Kế toán',
@@ -239,6 +240,9 @@ function permission_groups_all() {
             if (!isset($group['access']['vb.layso'])) $group['access']['vb.layso'] = $manageLevel;
             if (!isset($group['access']['vb.hosoluutru'])) $group['access']['vb.hosoluutru'] = $manageLevel;
         }
+        if ($version < 7 && !isset($group['access']['vb.tuongtac'])) {
+            $group['access']['vb.tuongtac'] = $group['access']['vb.quanly'] ?? 'none';
+        }
     }
     unset($group);
     return $saved;
@@ -255,7 +259,7 @@ function permission_groups_save(array $groups) {
             $level = $group['access'][$code] ?? 'none';
             $access[$code] = in_array($level, ['none','view','edit','delete'], true) ? $level : 'none';
         }
-        $clean[$key] = ['version' => 6, 'label' => $label !== '' ? $label : $key, 'access' => $access];
+        $clean[$key] = ['version' => 7, 'label' => $label !== '' ? $label : $key, 'access' => $access];
     }
     if (!$clean || !save_json(permission_groups_file(), $clean)) return false;
     $check = load_json(permission_groups_file(), []);
