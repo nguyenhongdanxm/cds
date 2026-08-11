@@ -43,7 +43,7 @@ $cmNavGroups = [
     ]],
     ['label'=>'Kế hoạch – Thực hiện','items'=>[
         ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'vanban','href'=>'kehoach.php?tab=vanban','icon'=>'bi-file-earmark-check','label'=>'Kế hoạch giáo dục'],
-        ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'thongbao','href'=>'kehoach.php?tab=thongbao','icon'=>'bi-megaphone','label'=>'Thông báo chuyên môn'],
+        ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'thongbao','href'=>'kehoach.php?tab=thongbao','icon'=>'bi-megaphone','label'=>'Thông báo'],
         ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'chitieu','href'=>'kehoach.php?tab=chitieu','icon'=>'bi-bullseye','label'=>'Chỉ tiêu'],
         ['permission'=>'cm.baocao.tiendo','pages'=>['baocao'],'tab'=>'tiendo','href'=>'baocao.php?tab=tiendo','icon'=>'bi-graph-up-arrow','label'=>'Tiến độ chương trình'],
         ['permission'=>'cm.baocao.dinhky','pages'=>['baocao'],'tab'=>'dinhky','href'=>'baocao.php?tab=dinhky','icon'=>'bi-calendar-check','label'=>'Báo cáo định kỳ'],
