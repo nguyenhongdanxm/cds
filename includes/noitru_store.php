@@ -9,6 +9,7 @@ define('NOITRU_EXITS', NOITRU_DIR . '/exits.json');
 define('NOITRU_MEALS', NOITRU_DIR . '/meals_daily.json');
 define('NOITRU_MEAL_REPORTS', NOITRU_DIR . '/meal_reports.json');
 define('NOITRU_ATT', NOITRU_DIR . '/attendance.json');
+define('NOITRU_ATT_REPORTS', NOITRU_DIR . '/attendance_reports.json');
 define('NOITRU_DUTY', NOITRU_DIR . '/duty.json');
 define('NOITRU_DUTY_SETTINGS', NOITRU_DIR . '/duty_settings.json');
 define('NOITRU_DUTY_MANAGERS', NOITRU_DIR . '/duty_managers.json');
@@ -529,6 +530,54 @@ function noitru_att_upsert(array $row) {
     }
     save_json(NOITRU_ATT, $rows);
 }
+function noitru_att_reports_all() {
+    noitru_ensure_dir();
+    return load_json(NOITRU_ATT_REPORTS, []);
+}
+function noitru_att_report_for($date, $shift) {
+    foreach (noitru_att_reports_all() as $report) {
+        if (($report['date'] ?? '') === $date && ($report['shift'] ?? '') === $shift) return $report;
+    }
+    return null;
+}
+function noitru_att_ensure_legacy_reports($schoolTotal) {
+    $schoolTotal=max(0,(int)$schoolTotal);if($schoolTotal===0)return 0;
+    $reports=noitru_att_reports_all();$known=[];foreach($reports as $report)$known[($report['date']??'').'|'.($report['shift']??'')]=true;
+    $groups=[];foreach(noitru_att_all() as $row){$date=(string)($row['date']??'');$shift=(string)($row['shift']??'');if($date===''||$shift==='')continue;$key=$date.'|'.$shift;if(isset($known[$key]))continue;if(!isset($groups[$key]))$groups[$key]=['date'=>$date,'shift'=>$shift,'present'=>0,'absent'=>0,'late'=>0,'excused'=>0,'by'=>$row['by']??'','saved_by'=>$row['saved_by']??'','created_at'=>$row['created_at']??noitru_now()];$status=$row['status']??'present';if(isset($groups[$key][$status]))$groups[$key][$status]++;}
+    $added=0;foreach($groups as $group){$nonPresent=(int)$group['absent']+(int)$group['late']+(int)$group['excused'];$group['present']=max((int)$group['present'],$schoolTotal-$nonPresent);$group['total']=$group['present']+$nonPresent;$group['id']=noitru_uid('atr');$group['updated_at']=noitru_now();$reports[]=$group;$added++;}
+    if($added)save_json(NOITRU_ATT_REPORTS,$reports);return $added;
+}
+function noitru_att_save_report($date, $shift, array $records, array $meta = []) {
+    $date = trim((string)$date); $shift = trim((string)$shift);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || $shift === '') return false;
+    noitru_ensure_dir();$lock=fopen(NOITRU_DIR.'/.attendance.lock','c');if($lock===false||!flock($lock,LOCK_EX)){if(is_resource($lock))fclose($lock);return false;}
+    $now = noitru_now(); $counts = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
+    $exceptions = [];
+    foreach ($records as $record) {
+        $sid = trim((string)($record['student_id'] ?? ''));
+        $status = (string)($record['status'] ?? 'present');
+        if ($sid === '' || !isset($counts[$status])) continue;
+        $counts[$status]++;
+        if ($status === 'present') continue;
+        $record['date']=$date; $record['shift']=$shift; $record['student_id']=$sid;
+        $record['id']=$record['id']??noitru_uid('at'); $record['updated_at']=$now;
+        $record['created_at']=$record['created_at']??$now; $exceptions[]=$record;
+    }
+    $rows = array_values(array_filter(noitru_att_all(), fn($row) => ($row['date']??'') !== $date || ($row['shift']??'') !== $shift));
+    $savedAttendance=save_json(NOITRU_ATT, array_merge($rows, $exceptions));
+    $reports = noitru_att_reports_all(); $found = false;
+    foreach ($reports as &$report) {
+        if (($report['date']??'') !== $date || ($report['shift']??'') !== $shift) continue;
+        $createdAt=$report['created_at']??$now;
+        $report=array_merge($report,$meta,$counts,['date'=>$date,'shift'=>$shift,'total'=>array_sum($counts),'created_at'=>$createdAt,'updated_at'=>$now]);
+        $found=true; break;
+    }
+    unset($report);
+    if (!$found) $reports[]=array_merge($meta,$counts,['id'=>noitru_uid('atr'),'date'=>$date,'shift'=>$shift,'total'=>array_sum($counts),'created_at'=>$now,'updated_at'=>$now]);
+    $savedReport=save_json(NOITRU_ATT_REPORTS, $reports);
+    flock($lock,LOCK_UN);fclose($lock);
+    return $savedAttendance&&$savedReport;
+}
 function noitru_att_delete(array $dates, $shift = null) {
     $dates = array_values(array_unique(array_filter(array_map('trim', $dates), function ($date) {
         return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date);
@@ -550,7 +599,10 @@ function noitru_att_delete(array $dates, $shift = null) {
         $kept[] = $row;
     }
     if ($deleted > 0) save_json(NOITRU_ATT, $kept);
-    return $deleted;
+    $reports=noitru_att_reports_all();$keptReports=[];$deletedReports=0;
+    foreach($reports as $report){$matchesDate=isset($dateMap[$report['date']??'']);$matchesShift=$shift===null||$shift===''||($report['shift']??'')===$shift;if($matchesDate&&$matchesShift){$deletedReports++;continue;}$keptReports[]=$report;}
+    if($deletedReports>0)save_json(NOITRU_ATT_REPORTS,$keptReports);
+    return max($deleted,$deletedReports);
 }
 
 /* —— Duty —— */
@@ -934,12 +986,14 @@ function noitru_stats_full($from, $to) {
     }
     ksort($mealSum['days']);
     $attSum = ['present' => 0, 'absent' => 0, 'late' => 0, 'excused' => 0];
-    foreach (noitru_att_all() as $a) {
+    $attendanceReports=noitru_att_reports_all();$attendanceReportKeys=[];
+    foreach ($attendanceReports as $a) {
         $d = $a['date'] ?? '';
         if ($d < $from || $d > $to) continue;
-        $st = $a['status'] ?? 'present';
-        if (isset($attSum[$st])) $attSum[$st]++;
+        $attendanceReportKeys[$d.'|'.($a['shift']??'')]=true;
+        foreach($attSum as $st=>$_)$attSum[$st]+=(int)($a[$st]??0);
     }
+    foreach(noitru_att_all() as $a){$d=$a['date']??'';if($d<$from||$d>$to||isset($attendanceReportKeys[$d.'|'.($a['shift']??'')]))continue;$st=$a['status']??'present';if(isset($attSum[$st]))$attSum[$st]++;}
     $exitSum = ['pending' => 0, 'approved' => 0, 'rejected' => 0];
     foreach (noitru_exits_all() as $e) {
         $d = substr($e['from_date'] ?? '', 0, 10);
@@ -974,7 +1028,8 @@ function noitru_stats_full($from, $to) {
         $daily[$cursor] = ['meals'=>['sang'=>0,'trua'=>0,'toi'=>0], 'attendance'=>['present'=>0,'absent'=>0,'late'=>0,'excused'=>0], 'exits'=>0, 'health'=>0, 'duty'=>0, 'rice_kg'=>0.0];
     }
     foreach ($mealSum['days'] as $date=>$counts) if (isset($daily[$date])) $daily[$date]['meals'] = array_merge($daily[$date]['meals'], $counts);
-    foreach (noitru_att_all() as $row) { $date=$row['date']??''; $status=$row['status']??'present'; if(isset($daily[$date]['attendance'][$status])) $daily[$date]['attendance'][$status]++; }
+    foreach ($attendanceReports as $row) { $date=$row['date']??'';if(!isset($daily[$date]))continue;foreach($daily[$date]['attendance'] as $status=>$_)$daily[$date]['attendance'][$status]+=(int)($row[$status]??0); }
+    foreach(noitru_att_all() as $row){$date=$row['date']??'';if(isset($attendanceReportKeys[$date.'|'.($row['shift']??'')]))continue;$status=$row['status']??'present';if(isset($daily[$date]['attendance'][$status]))$daily[$date]['attendance'][$status]++;}
     foreach (noitru_exits_all() as $row) { $date=substr($row['from_date']??'',0,10); if(isset($daily[$date])) $daily[$date]['exits']++; }
     foreach (noitru_health_all() as $row) { $date=substr($row['date']??'',0,10); if(isset($daily[$date])) $daily[$date]['health']++; }
     foreach (noitru_duty_all() as $row) { $date=substr($row['date']??'',0,10); if(isset($daily[$date])) $daily[$date]['duty']++; }

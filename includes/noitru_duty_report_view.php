@@ -22,13 +22,26 @@ $attendanceByShift = [];
 $absentDetails = [];
 $studentMap = [];
 foreach (noitru_attendance_students_all() as $student) $studentMap[(string)($student['id'] ?? '')] = $student;
+noitru_att_ensure_legacy_reports(count($studentMap));
+$attendanceReportShifts = [];
+foreach (noitru_att_reports_all() as $attendanceReport) {
+    if (($attendanceReport['date'] ?? '') !== $reportDate) continue;
+    $shift = trim((string)($attendanceReport['shift'] ?? '')) ?: 'Khác';
+    $attendanceReportShifts[$shift]=true;
+    if (!isset($attendanceByShift[$shift])) $attendanceByShift[$shift] = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
+    foreach ($attendance as $status=>$_) {
+        $count=(int)($attendanceReport[$status]??0);$attendance[$status]+=$count;$attendanceByShift[$shift][$status]+=$count;
+    }
+}
 foreach (noitru_att_all() as $row) {
     if (($row['date'] ?? '') !== $reportDate) continue;
     $status = (string)($row['status'] ?? 'present');
-    if (isset($attendance[$status])) $attendance[$status]++;
     $shift = trim((string)($row['shift'] ?? '')) ?: 'Khác';
-    if (!isset($attendanceByShift[$shift])) $attendanceByShift[$shift] = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
-    if (isset($attendanceByShift[$shift][$status])) $attendanceByShift[$shift][$status]++;
+    if (!isset($attendanceReportShifts[$shift])) {
+        if (isset($attendance[$status])) $attendance[$status]++;
+        if (!isset($attendanceByShift[$shift])) $attendanceByShift[$shift] = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
+        if (isset($attendanceByShift[$shift][$status])) $attendanceByShift[$shift][$status]++;
+    }
     if (in_array($status, ['absent','late','excused'], true)) {
         $student = $studentMap[(string)($row['student_id'] ?? '')] ?? [];
         $absentDetails[] = [
