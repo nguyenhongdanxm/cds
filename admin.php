@@ -61,6 +61,24 @@ $birthdayByRole = [
         'tomorrow'=>array_values(array_filter($birthdays['tomorrow'], fn($person)=>($person['type'] ?? '') === 'student')),
     ],
 ];
+$birthdayClassNames = [];
+foreach (csdl_classes_all() as $classRow) {
+    $classId = trim((string)($classRow['id'] ?? ''));
+    if ($classId !== '') $birthdayClassNames[$classId] = trim((string)($classRow['name'] ?? $classId));
+}
+$birthdayPersonName = static function (array $person) use ($birthdayClassNames): string {
+    $name = trim((string)($person['name'] ?? ''));
+    if (($person['type'] ?? '') !== 'student') return $name;
+    $classId = trim((string)($person['class_id'] ?? ''));
+    $className = trim((string)($person['class_name'] ?? ''));
+    if ($className === '' && $classId !== '') $className = $birthdayClassNames[$classId] ?? $classId;
+    return $name . ($className !== '' ? ' (' . $className . ')' : '');
+};
+$birthdayTodayTeachers = array_map($birthdayPersonName, $birthdayByRole['teacher']['today']);
+$birthdayTodayStudents = array_map($birthdayPersonName, $birthdayByRole['student']['today']);
+$birthdayUpcoming = [];
+foreach ($birthdayByRole['teacher']['tomorrow'] as $person) $birthdayUpcoming[] = 'đồng chí ' . $birthdayPersonName($person);
+foreach ($birthdayByRole['student']['tomorrow'] as $person) $birthdayUpcoming[] = 'em ' . $birthdayPersonName($person);
 $dashboard = cds_dashboard_scope_data($user);
 $quickActions = cds_dashboard_quick_actions($user);
 $feedItems = cds_dashboard_notice_tasks($user);
@@ -87,7 +105,7 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
   <meta name="theme-color" content="#0f4c81">
   <title>Trang chủ quản trị – <?= e(SCHOOL_SHORT) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260812-2" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260812-3" rel="stylesheet">
 </head>
 <body>
 <header class="app-header">
@@ -122,9 +140,9 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
       <h1><?= e($user['name'] ?? 'Thầy/Cô') ?></h1>
       <?php if ($hasBirthdays): ?>
         <div class="birthday-line"><span class="birthday-icon">🎂</span><div>
-          <?php foreach (['teacher'=>'đồng chí', 'student'=>'em'] as $role=>$salutation): $todayNames=array_column($birthdayByRole[$role]['today'],'name'); $tomorrowNames=array_column($birthdayByRole[$role]['tomorrow'],'name'); if (!$todayNames && !$tomorrowNames) continue; ?>
-            <div class="birthday-role-row <?= e($role) ?>"><strong><?php if ($todayNames): ?>Chúc mừng sinh nhật <?= e($salutation) ?> <?= e(implode(', ', $todayNames)) ?><?php endif; ?><?php if ($todayNames && $tomorrowNames): ?> · <?php endif; ?><?php if ($tomorrowNames): ?>Sinh nhật ngày mai: <?= e($salutation) ?> <?= e(implode(', ', $tomorrowNames)) ?><?php endif; ?></strong></div>
-          <?php endforeach; ?>
+          <?php if ($birthdayTodayTeachers): ?><div class="birthday-role-row teacher">Chúc mừng sinh nhật đồng chí <?= e(implode(', ', $birthdayTodayTeachers)) ?></div><?php endif; ?>
+          <?php if ($birthdayTodayStudents): ?><div class="birthday-role-row student">Chúc mừng sinh nhật em <?= e(implode(', ', $birthdayTodayStudents)) ?></div><?php endif; ?>
+          <?php if ($birthdayUpcoming): ?><div class="birthday-role-row upcoming">Sinh nhật sắp tới: <?= e(implode(', ', $birthdayUpcoming)) ?></div><?php endif; ?>
         </div></div>
       <?php else: ?><p class="daily-quote">“<?= e(cds_dashboard_quote()) ?>”</p><?php endif; ?>
     </div>
