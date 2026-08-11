@@ -5,12 +5,17 @@ require_login();
 
 $user = current_user() ?? [];
 $role = (string)($user['role'] ?? '');
-$moduleLevel = (string)($user['modules']['thuvien'] ?? 'none');
-$canManage = $role === 'admin' || $role === 'bgh' || in_array($moduleLevel, ['edit','admin'], true);
+$isAdmin = $role === 'admin';
+$canLibraryManage = $isAdmin || cds_can_feature('hl.thuvien', 'edit');
+$canLibraryDelete = $isAdmin || cds_can_feature('hl.thuvien', 'delete');
+$canEquipmentManage = $isAdmin || cds_can_feature('hl.thietbi', 'edit');
+$canEquipmentDelete = $isAdmin || cds_can_feature('hl.thietbi', 'delete');
+$canEquipmentBorrow = true; // Mọi tài khoản đã đăng nhập được lập phiếu mượn thiết bị.
+$canManage = $canLibraryManage || $canEquipmentManage;
 $userName = trim((string)($user['teacher_name'] ?? $user['name'] ?? $user['username'] ?? ''));
 $dataFile = DATA_PATH . '/library_equipment.json';
-$data = load_json($dataFile, ['books'=>[], 'loans'=>[], 'equipment'=>[]]);
-foreach (['books','loans','equipment'] as $key) $data[$key] = is_array($data[$key] ?? null) ? array_values($data[$key]) : [];
+$data = load_json($dataFile, ['books'=>[], 'loans'=>[], 'equipment'=>[], 'equipment_loans'=>[], 'maintenance'=>[]]);
+foreach (['books','loans','equipment','equipment_loans','maintenance'] as $key) $data[$key] = is_array($data[$key] ?? null) ? array_values($data[$key]) : [];
 
 if (empty($_SESSION['library_csrf'])) $_SESSION['library_csrf'] = bin2hex(random_bytes(24));
 $csrf = (string)$_SESSION['library_csrf'];
@@ -31,43 +36,49 @@ $classMap=[];foreach($classes as $class)$classMap[(string)($class['id']??'')]=(s
 
 if ($_SERVER['REQUEST_METHOD']==='POST') {
     if (!hash_equals($csrf,(string)($_POST['csrf']??''))) { http_response_code(403);exit('Phiên làm việc không hợp lệ.'); }
-    if (!$canManage) { http_response_code(403);exit('Tài khoản chưa có quyền quản lý thư viện.'); }
-    $action=(string)($_POST['action']??'');$tab=(string)($_POST['tab']??'books');
+    $action=(string)($_POST['action']??'');$tab=(string)($_POST['tab']??'library_books');
+    $libraryActions=['save_book','delete_book','save_loan','return_loan','delete_loan'];
+    $equipmentManageActions=['save_equipment','delete_equipment','save_maintenance','delete_maintenance'];
+    $equipmentBorrowActions=['save_equipment_loan','return_equipment_loan','delete_equipment_loan'];
+    if(in_array($action,$libraryActions,true)&&!$canLibraryManage){http_response_code(403);exit('Tài khoản chưa có quyền quản lý thư viện.');}
+    if(in_array($action,$equipmentManageActions,true)&&!$canEquipmentManage){http_response_code(403);exit('Tài khoản chưa có quyền quản lý thiết bị.');}
+    if(in_array($action,$equipmentBorrowActions,true)&&!$canEquipmentBorrow){http_response_code(403);exit('Tài khoản chưa có quyền lập phiếu thiết bị.');}
 
     if ($action==='save_book') {
         $id=trim((string)($_POST['id']??''));$title=trim((string)($_POST['title']??''));$quantity=max(0,(int)($_POST['quantity']??0));
-        if($title===''||$quantity<1){flash('Tên sách và số lượng phải hợp lệ.','danger');lib_redirect('books');}
+        if($title===''||$quantity<1){flash('Tên sách và số lượng phải hợp lệ.','danger');lib_redirect('library_books');}
         $row=['id'=>$id?:'book_'.bin2hex(random_bytes(7)),'title'=>$title,'code'=>trim((string)($_POST['code']??'')),'barcode'=>trim((string)($_POST['barcode']??'')),'category'=>trim((string)($_POST['category']??'')),'subject'=>trim((string)($_POST['subject']??'')),'grade'=>trim((string)($_POST['grade']??'')),'quantity'=>$quantity,'import_date'=>trim((string)($_POST['import_date']??date('Y-m-d'))),'source'=>trim((string)($_POST['source']??'')),'shelf'=>trim((string)($_POST['shelf']??'')),'note'=>trim((string)($_POST['note']??'')),'updated_at'=>date('c')];
         $index=lib_index($data['books'],$id);
         if($index>=0){$row['created_at']=$data['books'][$index]['created_at']??date('c');$data['books'][$index]=$row;}else{$row['created_at']=date('c');$data['books'][]=$row;}
-        save_json($dataFile,$data);flash('Đã lưu thông tin sách.','success');lib_redirect('books');
+        save_json($dataFile,$data);flash('Đã lưu thông tin sách.','success');lib_redirect('library_books');
     }
     if ($action==='delete_book') {
         $id=trim((string)($_POST['id']??''));$active=false;foreach($data['loans'] as $loan)if(($loan['book_id']??'')===$id&&empty($loan['returned_at'])){$active=true;break;}
-        if($active){flash('Không thể xóa sách đang có lượt mượn chưa trả.','danger');lib_redirect('books');}
+        if($active){flash('Không thể xóa sách đang có lượt mượn chưa trả.','danger');lib_redirect('library_books');}
         $index=lib_index($data['books'],$id);if($index>=0)array_splice($data['books'],$index,1);
-        save_json($dataFile,$data);flash('Đã xóa sách.','warning');lib_redirect('books');
+        save_json($dataFile,$data);flash('Đã xóa sách.','warning');lib_redirect('library_books');
     }
     if ($action==='save_loan') {
-        $bookId=trim((string)($_POST['book_id']??''));$bookIndex=lib_index($data['books'],$bookId);$qty=max(1,(int)($_POST['quantity']??1));
+        $bookIds=array_values((array)($_POST['book_id']??[]));$quantities=array_values((array)($_POST['quantity']??[]));
         $name=trim((string)($_POST['borrower_name']??''));$borrowerType=in_array($_POST['borrower_type']??'', ['student','teacher','manual'],true)?(string)$_POST['borrower_type']:'manual';
-        if($bookIndex<0||$name===''){flash('Vui lòng chọn sách và nhập người mượn.','danger');lib_redirect('loans');}
-        $available=lib_book_available($data['books'][$bookIndex],$data['loans']);if($qty>$available){flash('Số lượng mượn vượt quá số sách còn sẵn ('.$available.').','danger');lib_redirect('loans');}
-        $borrowedAt=trim((string)($_POST['borrowed_at']??date('Y-m-d')));$dueAt=trim((string)($_POST['due_at']??''));
-        $data['loans'][]=['id'=>'loan_'.bin2hex(random_bytes(8)),'book_id'=>$bookId,'book_title'=>(string)$data['books'][$bookIndex]['title'],'book_category'=>(string)($data['books'][$bookIndex]['category']??''),'borrower_type'=>$borrowerType,'borrower_id'=>trim((string)($_POST['borrower_id']??'')),'borrower_name'=>$name,'class_name'=>trim((string)($_POST['class_name']??'')),'quantity'=>$qty,'borrowed_at'=>$borrowedAt,'due_at'=>$dueAt,'condition_out'=>trim((string)($_POST['condition_out']??'')),'note'=>trim((string)($_POST['note']??'')),'returned_at'=>'','return_condition'=>'','created_by'=>$userName,'created_at'=>date('c')];
-        save_json($dataFile,$data);flash('Đã ghi nhận mượn sách.','success');lib_redirect('loans');
+        if($name===''){flash('Vui lòng nhập người mượn.','danger');lib_redirect('library_loans');}
+        $borrowedAt=trim((string)($_POST['borrowed_at']??date('Y-m-d')));$dueAt=trim((string)($_POST['due_at']??''));$batch='batch_'.bin2hex(random_bytes(6));$added=0;
+        foreach($bookIds as $line=>$bookId){$bookId=trim((string)$bookId);if($bookId==='')continue;$bookIndex=lib_index($data['books'],$bookId);$qty=max(1,(int)($quantities[$line]??1));if($bookIndex<0)continue;$available=lib_book_available($data['books'][$bookIndex],$data['loans']);if($qty>$available){flash('Sách “'.$data['books'][$bookIndex]['title'].'” chỉ còn '.$available.' cuốn.','danger');lib_redirect('library_loans');}
+        $data['loans'][]=['id'=>'loan_'.bin2hex(random_bytes(8)),'batch_id'=>$batch,'book_id'=>$bookId,'book_title'=>(string)$data['books'][$bookIndex]['title'],'book_category'=>(string)($data['books'][$bookIndex]['category']??''),'borrower_type'=>$borrowerType,'borrower_id'=>trim((string)($_POST['borrower_id']??'')),'borrower_name'=>$name,'class_name'=>trim((string)($_POST['class_name']??'')),'quantity'=>$qty,'borrowed_at'=>$borrowedAt,'due_at'=>$dueAt,'condition_out'=>trim((string)($_POST['condition_out']??'')),'note'=>trim((string)($_POST['note']??'')),'returned_at'=>'','return_condition'=>'','created_by'=>$userName,'created_at'=>date('c')];$added++;}
+        if(!$added){flash('Vui lòng thêm ít nhất một sách vào phiếu mượn.','danger');lib_redirect('library_loans');}
+        save_json($dataFile,$data);flash('Đã ghi nhận phiếu mượn gồm '.$added.' đầu sách.','success');lib_redirect('library_loans');
     }
     if ($action==='return_loan') {
-        $index=lib_index($data['loans'],trim((string)($_POST['id']??'')));if($index<0){flash('Không tìm thấy phiếu mượn.','danger');lib_redirect('loans');}
+        $index=lib_index($data['loans'],trim((string)($_POST['id']??'')));if($index<0){flash('Không tìm thấy phiếu mượn.','danger');lib_redirect('library_loans');}
         $data['loans'][$index]['returned_at']=trim((string)($_POST['returned_at']??date('Y-m-d')));
         $data['loans'][$index]['return_condition']=trim((string)($_POST['return_condition']??''));
         $extra=trim((string)($_POST['return_note']??''));if($extra!=='')$data['loans'][$index]['note']=trim((string)($data['loans'][$index]['note']??'')."\nTrả sách: ".$extra);
         $data['loans'][$index]['returned_by']=$userName;$data['loans'][$index]['updated_at']=date('c');
-        save_json($dataFile,$data);flash('Đã xác nhận trả sách.','success');lib_redirect('loans');
+        save_json($dataFile,$data);flash('Đã xác nhận trả sách.','success');lib_redirect('library_loans');
     }
     if ($action==='delete_loan') {
         $index=lib_index($data['loans'],trim((string)($_POST['id']??'')));if($index>=0)array_splice($data['loans'],$index,1);
-        save_json($dataFile,$data);flash('Đã xóa phiếu mượn.','warning');lib_redirect('loans');
+        save_json($dataFile,$data);flash('Đã xóa phiếu mượn.','warning');lib_redirect('library_loans');
     }
     if ($action==='save_equipment') {
         $id=trim((string)($_POST['id']??''));$name=trim((string)($_POST['name']??''));if($name===''){flash('Vui lòng nhập tên thiết bị.','danger');lib_redirect('equipment');}
