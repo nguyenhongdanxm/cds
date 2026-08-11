@@ -87,7 +87,16 @@ function cm_education_is_visible(array $row, bool $isAdmin, bool $isLeader, stri
 }
 
 function cm_education_redirect(string $appendix = 'I'): void {
-    header('Location: ' . BASE_URL . 'kehoach.php?tab=vanban&appendix=' . urlencode($appendix));
+    $redirect = BASE_URL . 'kehoach.php?tab=vanban&appendix=' . urlencode($appendix);
+    if (strcasecmp((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''), 'XMLHttpRequest') === 0) {
+        $flash = is_array($_SESSION['flash'] ?? null) ? $_SESSION['flash'] : [];
+        unset($_SESSION['flash']);
+        $type = (string)($flash['type'] ?? 'success');
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => $type === 'success', 'message' => (string)($flash['message'] ?? ''), 'redirect' => $redirect], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    header('Location: ' . $redirect);
     exit;
 }
 
@@ -346,10 +355,10 @@ function editEducationPlan(button){try{var row=JSON.parse(decodeURIComponent(esc
     event.preventDefault();if(!form.reportValidity())return;
     box.hidden=false;bar.className='progress-bar progress-bar-striped progress-bar-animated';setProgress(0);setBusy(true);
     status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đang tải PDF lên máy chủ…';detail.textContent='Vui lòng giữ nguyên trang cho đến khi có thông báo thành công.';
-    var xhr=new XMLHttpRequest();xhr.open('POST',form.action||window.location.href,true);xhr.timeout=300000;
+    var xhr=new XMLHttpRequest();xhr.open('POST',form.action||window.location.href,true);xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');xhr.timeout=300000;
     xhr.upload.addEventListener('progress',function(progress){if(progress.lengthComputable){setProgress(progress.loaded/progress.total*100);detail.textContent='Đã gửi '+Math.round(progress.loaded/1024)+' KB / '+Math.round(progress.total/1024)+' KB';}});
     xhr.upload.addEventListener('load',function(){setProgress(100);status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đã tải 100% — đang lưu vào Google Drive…';detail.textContent='Máy chủ đang hoàn tất lưu tệp và cập nhật danh sách.'});
-    xhr.addEventListener('load',function(){if(xhr.status>=200&&xhr.status<400){bar.classList.remove('progress-bar-animated','bg-danger');bar.classList.add('bg-success');status.innerHTML='<i class="bi bi-check-circle-fill text-success me-2"></i>Tải lên thành công';detail.textContent='Đang mở danh sách kế hoạch…';setTimeout(function(){window.location.href=xhr.responseURL||window.location.href},500);}else fail('Máy chủ trả về lỗi '+xhr.status+'. Vui lòng thử lại.')});
+    xhr.addEventListener('load',function(){if(xhr.status>=200&&xhr.status<400){var result={};try{result=JSON.parse(xhr.responseText||'{}')}catch(error){fail('Máy chủ trả về dữ liệu không hợp lệ. Vui lòng thử lại.');return}if(!result.ok){fail(result.message||'Google Drive chưa lưu được tệp. Vui lòng thử lại.');return}bar.classList.remove('progress-bar-animated','bg-danger');bar.classList.add('bg-success');status.innerHTML='<i class="bi bi-check-circle-fill text-success me-2"></i>Tải lên thành công';detail.textContent=result.message||'Đã lưu PDF vào Google Drive. Đang mở danh sách…';setTimeout(function(){window.location.href=result.redirect||window.location.href},700);}else fail('Máy chủ trả về lỗi '+xhr.status+'. Vui lòng thử lại.')});
     xhr.addEventListener('error',function(){fail('Mất kết nối trong khi tải lên. Vui lòng kiểm tra mạng và thử lại.')});xhr.addEventListener('timeout',function(){fail('Quá thời gian chờ lưu Google Drive. Vui lòng thử lại với tệp nhỏ hơn.')});
     xhr.send(new FormData(form));
   });
