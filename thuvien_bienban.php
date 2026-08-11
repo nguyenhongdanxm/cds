@@ -1,0 +1,25 @@
+<?php
+require_once __DIR__ . '/includes/auth.php';
+require_login();
+$user=current_user()??[];$isAdmin=($user['role']??'')==='admin';
+if(!$isAdmin&&!cds_can_feature('hl.thuvien','view')){http_response_code(403);exit('Không có quyền xem biên bản.');}
+$batch=trim((string)($_GET['batch']??''));$data=load_json(DATA_PATH.'/library_equipment.json',['loans'=>[]]);$rows=array_values(array_filter((array)($data['loans']??[]),fn($row)=>($row['batch_id']??'')===$batch));
+if(!$rows){http_response_code(404);exit('Không tìm thấy biên bản.');}
+$first=$rows[0];$date=strtotime((string)($first['borrowed_at']??''))?:time();$time=trim((string)($first['borrowed_time']??''))?:date('H:i',$date);[$hour,$minute]=array_pad(explode(':',$time),2,'00');
+$class=(string)($first['class_name']??'');$teacher=(string)($first['homeroom_teacher']??'');$year=(string)($first['school_year']??SCHOOL_YEAR);$endTime=date('H:i',strtotime($time)+30*60);[$endHour,$endMinute]=array_pad(explode(':',$endTime),2,'00');
+?><!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Biên bản mượn sách – <?=htmlspecialchars($class)?></title><style>
+@page{size:A4;margin:18mm 18mm 16mm}*{box-sizing:border-box}body{font-family:"Times New Roman",serif;font-size:14pt;line-height:1.45;color:#000;margin:0}.toolbar{position:fixed;top:10px;right:12px}.toolbar button,.toolbar a{font:14px Arial;padding:8px 14px;margin-left:6px;text-decoration:none;border:1px solid #555;border-radius:5px;background:#fff;color:#111}.head{display:grid;grid-template-columns:1fr 1.15fr;gap:25px;text-align:center;font-size:12.5pt}.head strong{display:block;text-transform:uppercase}.line{width:65%;border-top:1px solid #000;margin:4px auto 0}.title{text-align:center;margin:28px 0 18px}.title h1{font-size:18pt;margin:0;text-transform:uppercase}.title p{margin:4px 0}.section{font-weight:bold;margin:12px 0 4px}p{margin:5px 0;text-align:justify;text-indent:28px}table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13pt}th,td{border:1px solid #000;padding:7px 6px;text-align:center}td:nth-child(2){text-align:left}.sign{display:grid;grid-template-columns:1fr 1fr;text-align:center;margin-top:25px}.sign strong{display:block}.space{height:75px}@media print{.toolbar{display:none}}</style></head><body>
+<div class="toolbar"><a href="<?=BASE_URL?>thuvien.php?tab=library_loans">Quay lại</a><button onclick="window.print()">In / Lưu PDF</button></div>
+<div class="head"><div><strong><?=htmlspecialchars(SCHOOL_SO)?></strong><strong><?=htmlspecialchars(SCHOOL_NAME)?></strong><div class="line"></div></div><div><strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><strong>Độc lập – Tự do – Hạnh phúc</strong><div class="line"></div></div></div>
+<div class="title"><h1>BIÊN BẢN MƯỢN SÁCH</h1><p>Năm học <?=htmlspecialchars($year)?></p></div>
+<div class="section">1. Thời gian – Địa điểm</div>
+<p>Thời gian: <?=htmlspecialchars($hour)?> giờ <?=htmlspecialchars($minute)?> phút, ngày <?=date('d',$date)?> tháng <?=date('m',$date)?> năm <?=date('Y',$date)?>.</p>
+<p>Địa điểm: Phòng thư viện <?=htmlspecialchars(SCHOOL_NAME)?>.</p>
+<div class="section">2. Nội dung</div>
+<p>Giáo viên chủ nhiệm <strong><?=htmlspecialchars($teacher)?></strong> và lớp trưởng lớp <strong><?=htmlspecialchars($class)?></strong> mượn và nhận sách giáo khoa năm học <strong><?=htmlspecialchars($year)?></strong>. Số lượng sách như sau:</p>
+<table><thead><tr><th style="width:7%">STT</th><th>Tên sách giáo khoa</th><th style="width:12%">Số lượng</th><th style="width:20%">Tình trạng</th><th style="width:18%">Ghi chú</th></tr></thead><tbody><?php foreach($rows as $i=>$row):?><tr><td><?=$i+1?></td><td><?=htmlspecialchars((string)$row['book_title'])?></td><td><?=(int)$row['quantity']?></td><td><?=htmlspecialchars((string)($row['condition_out']??''))?></td><td><?=htmlspecialchars((string)($row['note']??''))?></td></tr><?php endforeach;?><tr><th colspan="2">Tổng cộng</th><th><?=array_sum(array_map(fn($r)=>(int)($r['quantity']??0),$rows))?></th><th colspan="2"></th></tr></tbody></table>
+<p>Học sinh lớp <strong><?=htmlspecialchars($class)?></strong> có trách nhiệm sử dụng sách đúng mục đích, bảo quản và giữ gìn cẩn thận sách giáo khoa; không được vẽ, viết, tẩy xóa, làm rách hoặc làm mất các trang sách. Mọi hư hỏng, mất mát, học sinh phải có trách nhiệm bồi thường theo quy định của nhà trường.</p>
+<p>Bên bàn giao và bên nhận đã kiểm kê kỹ số lượng và tình trạng sách giáo khoa.</p>
+<p>Biên bản kết thúc vào hồi <?=htmlspecialchars($endHour)?> giờ <?=htmlspecialchars($endMinute)?> phút cùng ngày, đã được các bên thông qua, nhất trí và lập thành 02 bản có giá trị như nhau; mỗi bên giữ 01 bản.</p>
+<div class="sign"><div><strong>NGƯỜI BÀN GIAO</strong><span>(Ký và ghi rõ họ tên)</span><div class="space"></div></div><div><strong>NGƯỜI NHẬN</strong><span>(Ký và ghi rõ họ tên)</span><div class="space"></div><strong><?=htmlspecialchars($teacher)?></strong></div></div>
+</body></html>
