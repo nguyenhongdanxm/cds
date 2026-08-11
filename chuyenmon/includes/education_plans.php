@@ -323,8 +323,13 @@ require __DIR__ . '/header.php';
 <div class="education-form-grid"><div><label class="form-label fw-semibold">Tên giáo viên</label><input class="form-control" value="<?= e($educationTeacher) ?>" readonly></div><div><label class="form-label fw-semibold">Tổ</label><input class="form-control" value="<?= e($educationGroup) ?>" readonly></div><div><label class="form-label fw-semibold">Phụ lục</label><select class="form-select" name="appendix" id="educationAppendix" required><?php foreach (['I','II','III'] as $value): ?><option value="<?= $value ?>" <?= $value === $educationAppendix ? 'selected' : '' ?>>Phụ lục <?= $value ?></option><?php endforeach; ?></select></div>
 <div><label class="form-label fw-semibold">Môn</label><select class="form-select" name="subject" id="educationSubject" required><option value="">Chọn môn</option><?php foreach ($educationSubjects as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></div>
 <div><label class="form-label fw-semibold">Khối</label><select class="form-select" name="grade" id="educationGrade" required><option value="">Chọn khối</option><?php foreach ($educationAssignments as $assignment): ?><option value="<?= e($assignment['grade']) ?>" data-subject="<?= e($assignment['subject']) ?>"><?= e($assignment['grade']) ?></option><?php endforeach; ?></select></div>
-<div class="wide"><label class="form-label fw-semibold">Văn bản PDF ký số</label><input class="form-control" type="file" name="file" id="educationFile" accept="application/pdf,.pdf"><div class="form-text" id="educationFileNote">Chỉ tải tệp PDF đã ký số, tối đa 25 MB.</div></div></div></div>
-<div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-primary" type="submit"><i class="bi bi-floppy"></i> Lưu kế hoạch</button></div></form></div></div></div>
+<div class="wide"><label class="form-label fw-semibold">Văn bản PDF ký số</label><input class="form-control" type="file" name="file" id="educationFile" accept="application/pdf,.pdf"><div class="form-text" id="educationFileNote">Chỉ tải tệp PDF đã ký số, tối đa 25 MB.</div></div></div>
+<div class="mt-3 p-3 border rounded bg-light" id="educationUploadProgress" hidden aria-live="polite">
+  <div class="d-flex justify-content-between align-items-center gap-2 mb-2"><span class="fw-semibold" id="educationUploadStatus"><span class="spinner-border spinner-border-sm me-2"></span>Đang chuẩn bị tải lên…</span><strong id="educationUploadPercent">0%</strong></div>
+  <div class="progress" role="progressbar" aria-label="Tiến độ tải kế hoạch" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar progress-bar-striped progress-bar-animated" id="educationUploadBar" style="width:0%" aria-valuenow="0"></div></div>
+  <div class="small text-muted mt-2" id="educationUploadDetail">Vui lòng giữ nguyên trang cho đến khi có thông báo thành công.</div>
+</div></div>
+<div class="modal-footer"><button class="btn btn-outline-secondary" id="educationCancelButton" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-primary" id="educationSubmitButton" type="submit"><i class="bi bi-cloud-arrow-up"></i> Tải lên và lưu</button></div></form></div></div></div>
 
 <script>
 var educationAssignments=<?= json_encode($educationAssignments, JSON_UNESCAPED_UNICODE) ?>;
@@ -332,5 +337,22 @@ function educationFilterGrades(){var subject=document.getElementById('educationS
 document.getElementById('educationSubject').addEventListener('change',educationFilterGrades);
 function resetEducationForm(){document.getElementById('educationPlanForm').reset();document.getElementById('educationId').value='';document.getElementById('educationAppendix').value='<?= e($educationAppendix) ?>';document.getElementById('educationFile').required=true;document.getElementById('educationFileNote').textContent='Chỉ tải tệp PDF đã ký số, tối đa 25 MB.';educationFilterGrades()}
 function editEducationPlan(button){try{var row=JSON.parse(decodeURIComponent(escape(atob(button.dataset.plan||''))));document.getElementById('educationId').value=row.id||'';document.getElementById('educationAppendix').value=row.appendix||'I';document.getElementById('educationSubject').value=row.subject||'';educationFilterGrades();document.getElementById('educationGrade').value=row.grade||'';document.getElementById('educationFile').required=false;document.getElementById('educationFileNote').textContent='Để trống nếu giữ nguyên PDF hiện tại; chọn tệp mới để thay thế.';bootstrap.Modal.getOrCreateInstance(document.getElementById('educationPlanModal')).show()}catch(error){alert('Không đọc được dữ liệu kế hoạch.')}}
+(function(){
+  var form=document.getElementById('educationPlanForm'),box=document.getElementById('educationUploadProgress'),bar=document.getElementById('educationUploadBar'),percent=document.getElementById('educationUploadPercent'),status=document.getElementById('educationUploadStatus'),detail=document.getElementById('educationUploadDetail'),submit=document.getElementById('educationSubmitButton'),cancel=document.getElementById('educationCancelButton');
+  function setProgress(value){value=Math.max(0,Math.min(100,Math.round(value)));bar.style.width=value+'%';bar.setAttribute('aria-valuenow',String(value));percent.textContent=value+'%'}
+  function setBusy(busy){submit.disabled=busy;cancel.disabled=busy;form.querySelectorAll('.btn-close').forEach(function(button){button.disabled=busy})}
+  function fail(message){setBusy(false);bar.classList.remove('bg-success');bar.classList.add('bg-danger');status.innerHTML='<i class="bi bi-x-circle-fill text-danger me-2"></i>Tải lên chưa thành công';detail.textContent=message||'Không kết nối được máy chủ. Vui lòng thử lại.'}
+  form.addEventListener('submit',function(event){
+    event.preventDefault();if(!form.reportValidity())return;
+    box.hidden=false;bar.className='progress-bar progress-bar-striped progress-bar-animated';setProgress(0);setBusy(true);
+    status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đang tải PDF lên máy chủ…';detail.textContent='Vui lòng giữ nguyên trang cho đến khi có thông báo thành công.';
+    var xhr=new XMLHttpRequest();xhr.open('POST',form.action||window.location.href,true);xhr.timeout=300000;
+    xhr.upload.addEventListener('progress',function(progress){if(progress.lengthComputable){setProgress(progress.loaded/progress.total*100);detail.textContent='Đã gửi '+Math.round(progress.loaded/1024)+' KB / '+Math.round(progress.total/1024)+' KB';}});
+    xhr.upload.addEventListener('load',function(){setProgress(100);status.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đã tải 100% — đang lưu vào Google Drive…';detail.textContent='Máy chủ đang hoàn tất lưu tệp và cập nhật danh sách.'});
+    xhr.addEventListener('load',function(){if(xhr.status>=200&&xhr.status<400){bar.classList.remove('progress-bar-animated','bg-danger');bar.classList.add('bg-success');status.innerHTML='<i class="bi bi-check-circle-fill text-success me-2"></i>Tải lên thành công';detail.textContent='Đang mở danh sách kế hoạch…';setTimeout(function(){window.location.href=xhr.responseURL||window.location.href},500);}else fail('Máy chủ trả về lỗi '+xhr.status+'. Vui lòng thử lại.')});
+    xhr.addEventListener('error',function(){fail('Mất kết nối trong khi tải lên. Vui lòng kiểm tra mạng và thử lại.')});xhr.addEventListener('timeout',function(){fail('Quá thời gian chờ lưu Google Drive. Vui lòng thử lại với tệp nhỏ hơn.')});
+    xhr.send(new FormData(form));
+  });
+})();
 </script>
 <?php require __DIR__ . '/footer.php'; ?>
