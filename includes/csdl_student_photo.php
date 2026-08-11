@@ -1,6 +1,14 @@
 <?php
 /** Xử lý ảnh thẻ học sinh: xoay EXIF, cắt giữa 3:4, thu về 600x800 JPEG. */
+require_once __DIR__ . '/google_drive_storage.php';
 if (!defined('CSDL_STUDENT_PHOTO_DIR')) define('CSDL_STUDENT_PHOTO_DIR', DATA_PATH . '/student_photos');
+if (!defined('CSDL_STUDENT_PHOTO_DRIVE_MAP')) define('CSDL_STUDENT_PHOTO_DRIVE_MAP', DATA_PATH . '/student_photo_drive.json');
+
+function csdl_student_photo_drive_map(): array {
+    $map=is_file(CSDL_STUDENT_PHOTO_DRIVE_MAP)?json_decode((string)file_get_contents(CSDL_STUDENT_PHOTO_DRIVE_MAP),true):[];
+    return is_array($map)?$map:[];
+}
+function csdl_student_photo_drive_id(string $studentId): string { return (string)(csdl_student_photo_drive_map()[$studentId]??''); }
 
 function csdl_student_photo_public_path(string $studentId): string {
     return 'student_photo.php?id=' . rawurlencode($studentId);
@@ -11,6 +19,7 @@ function csdl_student_photo_remove(string $studentId): void {
     if ($safe === '') return;
     $file = CSDL_STUDENT_PHOTO_DIR . '/' . $safe . '.jpg';
     if (is_file($file)) @unlink($file);
+    $map=csdl_student_photo_drive_map();unset($map[$studentId]);@file_put_contents(CSDL_STUDENT_PHOTO_DRIVE_MAP,json_encode($map,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX);
 }
 
 function csdl_student_photo_save_upload(string $studentId, array $upload): array {
@@ -52,5 +61,13 @@ function csdl_student_photo_save_upload(string $studentId, array $upload): array
     $ok = @imagejpeg($dst, $file, 88);
     imagedestroy($src); imagedestroy($dst);
     if (!$ok) return ['ok'=>false, 'message'=>'Không ghi được ảnh học sinh.'];
+    $drive=cds_drive_settings();
+    if(!empty($drive['enabled'])&&!empty($drive['folders']['photos'])){
+        $result=cds_drive_upload_bytes((string)file_get_contents($file),$safe.'.jpg','image/jpeg','photos');
+        if(empty($result['ok'])){@unlink($file);return ['ok'=>false,'message'=>$result['message']??'Không lưu được ảnh lên Google Drive.'];}
+        $map=csdl_student_photo_drive_map();$map[$studentId]=$result['id'];
+        if(false===file_put_contents(CSDL_STUDENT_PHOTO_DRIVE_MAP,json_encode($map,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX)){@unlink($file);return ['ok'=>false,'message'=>'Không lưu được liên kết ảnh Google Drive.'];}
+        @unlink($file);
+    }
     return ['ok'=>true, 'changed'=>true, 'path'=>csdl_student_photo_public_path($studentId)];
 }
