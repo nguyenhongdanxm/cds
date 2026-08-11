@@ -6,11 +6,11 @@ require_login();
 $user = current_user() ?? [];
 $role = (string)($user['role'] ?? '');
 $isAdmin = $role === 'admin';
-$canLibraryOperations = $isAdmin || cds_can_feature('hl.thuvien', 'view');
-$canLibraryManage = $isAdmin || cds_can_feature('hl.thuvien', 'edit');
-$canLibraryDelete = $isAdmin || cds_can_feature('hl.thuvien', 'delete');
-$canEquipmentManage = $isAdmin || cds_can_feature('hl.thietbi', 'edit');
-$canEquipmentDelete = $isAdmin || cds_can_feature('hl.thietbi', 'delete');
+$canLibraryOperations = $isAdmin || can_perm_level('hl.thuvien', 'view');
+$canLibraryManage = $isAdmin || can_perm_level('hl.thuvien', 'edit');
+$canLibraryDelete = $isAdmin || can_perm_level('hl.thuvien', 'delete');
+$canEquipmentManage = $isAdmin || can_perm_level('hl.thietbi', 'edit');
+$canEquipmentDelete = $isAdmin || can_perm_level('hl.thietbi', 'delete');
 $canEquipmentBorrow = true; // Mọi tài khoản đã đăng nhập được lập phiếu mượn thiết bị.
 $canManage = $canLibraryManage || $canEquipmentManage;
 $userName = trim((string)($user['teacher_name'] ?? $user['name'] ?? $user['username'] ?? ''));
@@ -35,7 +35,7 @@ $students = function_exists('csdl_students_all') ? csdl_students_all() : [];
 $classes = function_exists('csdl_classes_all') ? csdl_classes_all() : [];
 $classMap=[];foreach($classes as $class)$classMap[(string)($class['id']??'')]=(string)($class['name']??'');
 $teacherMap=[];foreach($teachers as $teacher)$teacherMap[(string)($teacher['id']??'')]=(string)($teacher['name']??'');
-$currentSchoolYear=SCHOOL_YEAR;$years=function_exists('csdl_years_all')?csdl_years_all():[];foreach($years as $year)if(!empty($year['is_current'])){$currentSchoolYear=(string)($year['label']??SCHOOL_YEAR);break;}
+$currentYearRow=function_exists('csdl_year_current')?csdl_year_current():null;$currentSchoolYear=trim((string)($currentYearRow['label']??SCHOOL_YEAR))?:SCHOOL_YEAR;
 $currentTeacher=[];foreach($teachers as $teacher)if(lib_norm((string)($teacher['name']??''))===lib_norm($userName)){$currentTeacher=$teacher;break;}
 $currentSubject=trim((string)($currentTeacher['specialty']??''));$currentGroup=trim((string)($currentTeacher['to_chuyen_mon']??$currentTeacher['pccm_group']??''));
 
