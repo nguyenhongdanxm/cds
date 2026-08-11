@@ -7,4 +7,4 @@ deployment:
     - /bin/cp -R chuyenmon $DEPLOYPATH
     - /bin/bash tools/install_chuyenmon_switcher_host.sh $DEPLOYPATH
     - /bin/bash tools/install_student_photo.sh $DEPLOYPATH
-    - /bin/cp activity.php admin.php hoclieu.php hoclieu_file.php chuyenmon.php csdl.php csdl_export.php csdl_student_cards.php danhgia.php dashboard_settings.php database_admin.php index.php login.php logout.php noitru.php noitru_attendance.php noitru_list.php noitru_assign.php noitru_assign_sync.php student_card_students.php student_photo.php student_verify.php thidua.php thidua_baiviet.php users.php vanban.php $DEPLOYPATH
+    - /bin/cp activity.php admin.php hoclieu.php hoclieu_file.php chuyenmon.php csdl.php csdl_export.php csdl_student_cards.php danhgia.php dashboard_settings.php database_admin.php index.php login.php logout.php noitru.php noitru_attendance.php noitru_list.php noitru_assign.php noitru_assign_sync.php student_card_students.php student_photo.php student_verify.php thuvien.php thidua.php thidua_baiviet.php users.php vanban.php $DEPLOYPATH
