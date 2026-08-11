@@ -59,10 +59,14 @@ function cm_education_upload_pdf(string $field): string {
 
     $settings = function_exists('cds_drive_settings') ? cds_drive_settings() : [];
     $category = 'education_plans';
-    foreach ((array)($settings['types'] ?? []) as $key => $type) {
-        if (cm_education_norm($type['label'] ?? '') === cm_education_norm('Kế hoạch giáo dục') && !empty($type['folder_id'])) {
-            $category = (string)$key;
-            break;
+    // Luôn ưu tiên loại chuẩn đã được kiểm tra trong Kho Google Drive.
+    // Chỉ tìm loại tùy chỉnh cùng tên để tương thích dữ liệu cũ khi loại chuẩn chưa có thư mục.
+    if (empty($settings['types'][$category]['folder_id'])) {
+        foreach ((array)($settings['types'] ?? []) as $key => $type) {
+            if (cm_education_norm($type['label'] ?? '') === cm_education_norm('Kế hoạch giáo dục') && !empty($type['folder_id'])) {
+                $category = (string)$key;
+                break;
+            }
         }
     }
     if (empty($settings['enabled'])) throw new RuntimeException('Kho Google Drive chưa được bật.');
