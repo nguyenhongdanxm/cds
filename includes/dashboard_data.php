@@ -298,25 +298,102 @@ function cds_dashboard_feed_visible(array $row): bool {
     }
     return true;
 }
-function cds_dashboard_notice_tasks(array $user, int $limit = 10): array {
-    if (($user['role'] ?? '') !== 'admin' && !can_module('chuyenmon', 'view')) return [];
-    $feed = cds_dashboard_feed_data();
+
+function cds_dashboard_user_identities(array $user): array {
+    $values = [];
+    foreach (['id','username','name','teacher_name','email'] as $key) {
+        $value = cds_dashboard_lower($user[$key] ?? '');
+        if ($value !== '') $values[] = $value;
+    }
+    return array_values(array_unique($values));
+}
+
+function cds_dashboard_teacher_for_user(array $user): ?array {
+    $identities = cds_dashboard_user_identities($user);
+    if (!$identities) return null;
+    foreach (csdl_teachers_all() as $teacher) {
+        if (isset($teacher['active']) && !$teacher['active']) continue;
+        $teacherIdentities = [];
+        foreach (['id','code','name','email'] as $key) {
+            $value = cds_dashboard_lower($teacher[$key] ?? '');
+            if ($value !== '') $teacherIdentities[] = $value;
+        }
+        if (array_intersect($identities, $teacherIdentities)) return $teacher;
+    }
+    return null;
+}
+
+function cds_dashboard_next_anniversary(string $sourceDate): array {
+    $sourceDate = cds_dashboard_parse_date($sourceDate);
+    if ($sourceDate === '') return [];
+    $source = new DateTimeImmutable($sourceDate);
+    $today = new DateTimeImmutable(date('Y-m-d'));
+    $year = (int)$today->format('Y');
+    $next = new DateTimeImmutable($year . '-' . $source->format('m-d'));
+    if ($next < $today) $next = new DateTimeImmutable(($year + 1) . '-' . $source->format('m-d'));
+    return ['date'=>$next->format('Y-m-d'),'years'=>max(0, (int)$next->format('Y') - (int)$source->format('Y'))];
+}
+
+function cds_dashboard_staff_milestones(array $user): array {
+    $teacher = cds_dashboard_teacher_for_user($user);
+    if (!$teacher) return [];
+    $today = date('Y-m-d');
+    $until = date('Y-m-d', strtotime('+365 days'));
     $rows = [];
-    $identities = array_values(array_filter(array_map('strval', [$user['id'] ?? '', $user['username'] ?? '', $user['name'] ?? ''])));
-    $identityLower = array_map('cds_dashboard_lower', $identities);
-    foreach (array_merge($feed['tasks'], $feed['notices']) as $row) {
+    $salaryFrom = cds_dashboard_parse_date($teacher['he_so_from'] ?? $teacher['salary_from'] ?? '');
+    if ($salaryFrom !== '') {
+        $nextSalary = new DateTimeImmutable($salaryFrom);
+        $todayDate = new DateTimeImmutable($today);
+        do { $nextSalary = $nextSalary->modify('+3 years'); } while ($nextSalary < $todayDate);
+        $nextSalaryDate = $nextSalary->format('Y-m-d');
+        if ($nextSalaryDate <= $until) {
+            $detail = implode(' · ', array_filter([
+                !empty($teacher['bac']) ? 'Bậc ' . $teacher['bac'] : '',
+                !empty($teacher['he_so']) ? 'Hệ số ' . $teacher['he_so'] : '',
+            ]));
+            $rows[] = ['kind'=>'salary','title'=>'Dự kiến đến mốc nâng lương','_dashboard_detail'=>$detail ?: 'Mốc nhân sự cá nhân','_dashboard_start'=>$nextSalaryDate,'_dashboard_end'=>'','_dashboard_nearest'=>$nextSalaryDate,'_dashboard_state'=>'Sắp đến'];
+        }
+    }
+    $seniority = cds_dashboard_next_anniversary((string)($teacher['join_date'] ?? ''));
+    if ($seniority && $seniority['date'] >= $today && $seniority['date'] <= $until && $seniority['years'] > 0) {
+        $rows[] = ['kind'=>'seniority','title'=>'Mốc thâm niên ' . $seniority['years'] . ' năm','_dashboard_detail'=>'Tính theo ngày vào ngành','_dashboard_start'=>$seniority['date'],'_dashboard_end'=>'','_dashboard_nearest'=>$seniority['date'],'_dashboard_state'=>'Sắp đến'];
+    }
+    return $rows;
+}
+
+function cds_dashboard_notice_tasks(array $user, int $limit = 10): array {
+    $feed = cds_dashboard_feed_data();
+    $rows = cds_dashboard_staff_milestones($user);
+    $identityLower = cds_dashboard_user_identities($user);
+    foreach ($feed['notices'] as $row) {
+        if (($row['_dashboard_module'] ?? '') !== 'chuyenmon' || !cds_dashboard_feed_visible($row)) continue;
+        $assignees = cds_dashboard_feed_assignees($row);
+        $schedule = cds_dashboard_feed_schedule($row);
+        if (!$schedule) continue;
+        $assigneeLower = array_map('cds_dashboard_lower', $assignees);
+        $isGeneral = !$assignees || array_intersect($assigneeLower, ['all','everyone','tất cả','tat ca','toàn trường','toan truong']);
+        if (!$isGeneral && !array_intersect($assigneeLower, $identityLower)) continue;
+        $row['kind'] = 'notice';
+        $row['_dashboard_assignees'] = $isGeneral ? [] : $assignees;
+        $row['_dashboard_detail'] = $isGeneral ? 'Thông báo chuyên môn chung' : 'Thông báo dành cho bạn';
+        $row['_dashboard_start'] = $schedule['start'];
+        $row['_dashboard_end'] = $schedule['end'];
+        $row['_dashboard_state'] = $schedule['state'];
+        $row['_dashboard_nearest'] = $schedule['nearest'];
+        $rows[] = $row;
+    }
+    foreach ($feed['tasks'] as $row) {
         if (($row['_dashboard_module'] ?? '') !== 'chuyenmon' || !cds_dashboard_feed_visible($row)) continue;
         $assignees = cds_dashboard_feed_assignees($row);
         $schedule = cds_dashboard_feed_schedule($row);
         if (!$assignees || !$schedule) continue;
         $status = cds_dashboard_lower($row['status'] ?? $row['trang_thai'] ?? '');
         if (in_array($status, ['done','completed','complete','finished','hoàn thành','đã hoàn thành','da_hoan_thanh'], true)) continue;
-        if (($user['role'] ?? '') !== 'admin') {
-            $assigneeLower = array_map('cds_dashboard_lower', $assignees);
-            if (!array_intersect($assigneeLower, $identityLower)) continue;
-        }
+        $assigneeLower = array_map('cds_dashboard_lower', $assignees);
+        if (!array_intersect($assigneeLower, $identityLower)) continue;
         $row['kind'] = 'task';
         $row['_dashboard_assignees'] = $assignees;
+        $row['_dashboard_detail'] = 'Công việc được giao cho bạn';
         $row['_dashboard_start'] = $schedule['start'];
         $row['_dashboard_end'] = $schedule['end'];
         $row['_dashboard_state'] = $schedule['state'];

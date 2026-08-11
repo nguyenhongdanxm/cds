@@ -142,17 +142,20 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
           $endDate = $item['_dashboard_end'] ?? '';
           $state = $item['_dashboard_state'] ?? 'Đang diễn ra';
           $assigneeText = implode(', ', array_slice($item['_dashboard_assignees'] ?? [], 0, 3));
+          $kind = in_array(($item['kind'] ?? ''), ['notice','task','salary','seniority'], true) ? $item['kind'] : 'task';
+          $icons = ['notice'=>'bi-megaphone-fill','task'=>'bi-check2-square','salary'=>'bi-cash-coin','seniority'=>'bi-award-fill'];
+          $detail = $item['_dashboard_detail'] ?? ($assigneeText ? 'Giao cho ' . $assigneeText : 'Nội dung chuyên môn');
         ?>
           <?php if ($url): ?><a href="<?= e($url) ?>" class="feed-row<?= $feedIndex >= 5 ? ' feed-page-hidden' : '' ?>" data-feed-item data-feed-page="<?= intdiv($feedIndex, 5) + 1 ?>"><?php else: ?><div class="feed-row<?= $feedIndex >= 5 ? ' feed-page-hidden' : '' ?>" data-feed-item data-feed-page="<?= intdiv($feedIndex, 5) + 1 ?>"><?php endif; ?>
-            <span class="feed-icon task"><i class="bi bi-check2-square"></i></span>
+            <span class="feed-icon <?= e($kind) ?>"><i class="bi <?= e($icons[$kind]) ?>"></i></span>
             <span class="feed-copy">
               <strong><?= e($title) ?></strong>
-              <small><i class="bi bi-person-check"></i> <?= e($assigneeText) ?><?php if ($nearestDate): ?> · <i class="bi bi-calendar-event"></i> <?= $endDate ? 'Hạn ' : '' ?><?= e(date('d/m/Y', strtotime($nearestDate))) ?><?php endif; ?></small>
+              <small><?= e($detail) ?><?php if ($nearestDate): ?> · <i class="bi bi-calendar-event"></i> <?= $endDate ? 'Hạn ' : '' ?><?= e(date('d/m/Y', strtotime($nearestDate))) ?><?php endif; ?></small>
             </span>
             <span class="schedule-pill <?= $state === 'Sắp diễn ra' ? 'upcoming' : 'active' ?>"><?= e($state) ?></span>
           <?php if ($url): ?></a><?php else: ?></div><?php endif; ?>
         <?php endforeach; ?>
-        <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có công việc Chuyên môn phù hợp</strong><span>Chỉ hiện nội dung có thời gian hoặc hạn thực hiện và đã giao người phụ trách.</span></div><?php endif; ?>
+        <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có nội dung sắp tới</strong><span>Thông báo chuyên môn chung, công việc được giao và mốc nhân sự cá nhân sẽ xuất hiện tại đây.</span></div><?php endif; ?>
       </div>
       <?php if (count($feedItems) > 5): ?><nav class="feed-pagination" aria-label="Trang công việc Chuyên môn"><button type="button" class="active" data-feed-page-button="1" aria-current="page">1</button><button type="button" data-feed-page-button="2">2</button></nav><?php endif; ?>
     </section>
