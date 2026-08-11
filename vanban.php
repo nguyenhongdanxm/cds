@@ -1,0 +1,159 @@
+<?php
+require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/vanban_store.php';
+require_login();
+
+$user = current_user();
+$canManage = can_perm_level('vb.quanly', 'edit') || can_module('vanban', 'edit');
+$canNumber = can_perm_level('vb.layso', 'edit') || $canManage;
+$canArchive = can_perm_level('vb.hosoluutru', 'edit') || $canManage;
+$tab = (string)($_GET['tab'] ?? 'overview');
+if (!in_array($tab, ['overview','documents','numbers','archives'], true)) $tab = 'overview';
+if (empty($_SESSION['vb_csrf'])) $_SESSION['vb_csrf'] = bin2hex(random_bytes(24));
+$csrf = (string)$_SESSION['vb_csrf'];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $returnTab = (string)($_POST['return_tab'] ?? $tab);
+    try {
+        if (!hash_equals($csrf, (string)($_POST['csrf'] ?? ''))) throw new RuntimeException('Phiên làm việc đã hết hạn.');
+        $action = (string)($_POST['action'] ?? '');
+        if ($action === 'create_document') {
+            if (!$canManage) throw new RuntimeException('Bạn không có quyền cập nhật văn bản.');
+            $reserved = vb_find_number(vb_clean((string)($_POST['reserved_id'] ?? ''), 80));
+            $title = vb_clean((string)($_POST['title'] ?? ''), 500);
+            $symbol = vb_clean((string)($_POST['symbol'] ?? ''), 120);
+            $issuedDate = vb_date((string)($_POST['issued_date'] ?? ''));
+            $issuer = vb_clean((string)($_POST['issuer'] ?? ''), 180);
+            if ($reserved) {
+                if ($title === '') $title = (string)($reserved['title'] ?? '');
+                if ($symbol === '') $symbol = (string)($reserved['symbol'] ?? '');
+                if ($issuedDate === '') $issuedDate = (string)($reserved['issued_date'] ?? '');
+                if ($issuer === '') $issuer = (string)($reserved['issuer'] ?? '');
+            }
+            if ($title === '' || $symbol === '' || $issuedDate === '' || $issuer === '') throw new RuntimeException('Hãy nhập đủ số ký hiệu, tên, ngày và đơn vị ban hành.');
+            $type = vb_clean((string)($_POST['type'] ?? ''), 80);
+            $path = vb_upload('document_file', 'documents', ['title'=>$title,'document_title'=>$title,'document_date'=>$issuedDate,'issuer'=>$issuer,'symbol'=>$symbol]);
+            if ($path === '') throw new RuntimeException('Hãy chọn tệp văn bản cần tải lên.');
+            $documents = vb_rows(VANBAN_DOCUMENTS_FILE);
+            $id = vb_id('doc');
+            $documents[] = [
+                'id'=>$id, 'type'=>$type ?: 'Khác', 'symbol'=>$symbol, 'title'=>$title,
+                'issued_date'=>$issuedDate, 'issuer'=>$issuer,
+                'issuer_level'=>vb_clean((string)($_POST['issuer_level'] ?? ''), 80),
+                'field'=>vb_clean((string)($_POST['field'] ?? ''), 80),
+                'signer'=>vb_clean((string)($_POST['signer'] ?? ($reserved['signer'] ?? '')), 180),
+                'notes'=>vb_clean((string)($_POST['notes'] ?? ''), 1000), 'file_path'=>$path,
+                'reserved_id'=>$reserved['id'] ?? '', 'created_by'=>$user['name'] ?? '', 'created_at'=>date('c')
+            ];
+            if (!vb_save_rows(VANBAN_DOCUMENTS_FILE, $documents)) throw new RuntimeException('Không lưu được dữ liệu văn bản.');
+            if ($reserved) {
+                $numbers = vb_rows(VANBAN_NUMBERS_FILE);
+                foreach ($numbers as &$row) if (($row['id'] ?? '') === ($reserved['id'] ?? '')) {
+                    $row['status'] = 'published'; $row['document_id'] = $id; $row['updated_at'] = date('c');
+                }
+                unset($row); vb_save_rows(VANBAN_NUMBERS_FILE, $numbers);
+            }
+            flash('Đã cập nhật văn bản và lưu tệp thành công.');
+        } elseif ($action === 'reserve_number') {
+            if (!$canNumber) throw new RuntimeException('Bạn không có quyền lấy số văn bản.');
+            $book = (string)($_POST['book'] ?? 'other');
+            if (!in_array($book, ['decision','other'], true)) $book = 'other';
+            $date = vb_date((string)($_POST['issued_date'] ?? '')) ?: date('Y-m-d');
+            $year = (int)substr($date, 0, 4);
+            $number = vb_next_number($book, $year);
+            $title = vb_clean((string)($_POST['title'] ?? ''), 500);
+            if ($title === '') throw new RuntimeException('Hãy nhập tên hoặc trích yếu văn bản.');
+            $numbers = vb_rows(VANBAN_NUMBERS_FILE);
+            $numbers[] = [
+                'id'=>vb_id('num'), 'book'=>$book, 'year'=>$year, 'number'=>$number,
+                'symbol'=>vb_number_symbol($book, $number), 'title'=>$title, 'issued_date'=>$date,
+                'issuer'=>vb_clean((string)($_POST['issuer'] ?? SCHOOL_NAME), 180),
+                'drafter'=>vb_clean((string)($_POST['drafter'] ?? ''), 180),
+                'signer'=>vb_clean((string)($_POST['signer'] ?? ''), 180),
+                'status'=>'reserved', 'created_by'=>$user['name'] ?? '', 'created_at'=>date('c')
+            ];
+            if (!vb_save_rows(VANBAN_NUMBERS_FILE, $numbers)) throw new RuntimeException('Không lưu được sổ số văn bản.');
+            flash('Đã lấy số ' . vb_number_symbol($book, $number) . '.');
+        } elseif ($action === 'cancel_number') {
+            if (!$canNumber) throw new RuntimeException('Bạn không có quyền hủy số.');
+            $id = vb_clean((string)($_POST['id'] ?? ''), 80);
+            $reason = vb_clean((string)($_POST['reason'] ?? ''), 500);
+            if ($reason === '') throw new RuntimeException('Hãy nhập lý do hủy số.');
+            $numbers = vb_rows(VANBAN_NUMBERS_FILE); $found = false;
+            foreach ($numbers as &$row) if (($row['id'] ?? '') === $id && ($row['status'] ?? '') !== 'published') {
+                $row['status']='cancelled'; $row['cancel_reason']=$reason; $row['updated_at']=date('c'); $found=true;
+            }
+            unset($row);
+            if (!$found || !vb_save_rows(VANBAN_NUMBERS_FILE, $numbers)) throw new RuntimeException('Không thể hủy số này.');
+            flash('Đã đánh dấu số văn bản là đã hủy.', 'warning');
+        } elseif ($action === 'create_archive') {
+            if (!$canArchive) throw new RuntimeException('Bạn không có quyền cập nhật hồ sơ lưu trữ.');
+            $title = vb_clean((string)($_POST['title'] ?? ''), 500);
+            if ($title === '') throw new RuntimeException('Hãy nhập tên hồ sơ hoặc biểu mẫu.');
+            $date = vb_date((string)($_POST['record_date'] ?? '')) ?: date('Y-m-d');
+            $path = vb_upload('archive_file', 'documents', ['title'=>$title,'document_title'=>$title,'document_date'=>$date]);
+            if ($path === '') throw new RuntimeException('Hãy chọn tệp cần tải lên.');
+            $rows = vb_rows(VANBAN_ARCHIVES_FILE);
+            $rows[] = [
+                'id'=>vb_id('arc'), 'type'=>vb_clean((string)($_POST['type'] ?? 'Khác'), 100), 'title'=>$title,
+                'record_date'=>$date, 'department'=>vb_clean((string)($_POST['department'] ?? ''), 180),
+                'notes'=>vb_clean((string)($_POST['notes'] ?? ''), 1000), 'file_path'=>$path,
+                'created_by'=>$user['name'] ?? '', 'created_at'=>date('c')
+            ];
+            if (!vb_save_rows(VANBAN_ARCHIVES_FILE, $rows)) throw new RuntimeException('Không lưu được hồ sơ.');
+            flash('Đã lưu hồ sơ lên kho lưu trữ.');
+        }
+    } catch (Throwable $error) {
+        flash($error->getMessage(), 'danger');
+    }
+    header('Location: ' . BASE_URL . 'vanban.php?tab=' . urlencode($returnTab)); exit;
+}
+
+$documents = vb_rows(VANBAN_DOCUMENTS_FILE);
+$numbers = vb_rows(VANBAN_NUMBERS_FILE);
+$archives = vb_rows(VANBAN_ARCHIVES_FILE);
+usort($documents, fn($a,$b)=>strcmp((string)($b['issued_date']??''),(string)($a['issued_date']??'')) ?: strcmp((string)($b['created_at']??''),(string)($a['created_at']??'')));
+usort($numbers, fn($a,$b)=>strcmp((string)($b['created_at']??''),(string)($a['created_at']??'')));
+usort($archives, fn($a,$b)=>strcmp((string)($b['record_date']??''),(string)($a['record_date']??'')));
+$filters = ['q'=>(string)($_GET['q']??''),'type'=>(string)($_GET['type']??''),'issuer_level'=>(string)($_GET['issuer_level']??''),'field'=>(string)($_GET['field']??'')];
+$filteredDocuments = array_values(array_filter($documents, fn($row)=>vb_matches($row,$filters)));
+$qArchive = vb_norm((string)($_GET['archive_q'] ?? ''));
+$filteredArchives = array_values(array_filter($archives, fn($row)=>$qArchive==='' || str_contains(vb_norm(implode(' ',[$row['title']??'',$row['type']??'',$row['department']??''])),$qArchive)));
+$pendingNumbers = array_values(array_filter($numbers, fn($row)=>($row['status']??'')==='reserved' && empty($row['document_id'])));
+$typeCounts=[]; foreach($documents as $row){$key=(string)($row['type']??'Khác');$typeCounts[$key]=($typeCounts[$key]??0)+1;} arsort($typeCounts);
+$nav = [
+    'overview'=>['Tổng quan','bi-grid-1x2-fill'], 'documents'=>['Cập nhật văn bản','bi-cloud-arrow-up-fill'],
+    'numbers'=>['Lấy số văn bản','bi-journal-check'], 'archives'=>['Hồ sơ lưu trữ','bi-archive-fill']
+];
+function vb_fmt_date(string $date): string { $time=strtotime($date); return $time?date('d/m/Y',$time):'—'; }
+function vb_status(array $row): array { return match($row['status']??'reserved'){'published'=>['Đã phát hành','success'],'cancelled'=>['Đã hủy','danger'],default=>['Đang giữ số','warning']}; }
+?>
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Văn thư nội bộ – CDS</title><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{--vb:#5b3db2;--vb-dark:#30206f;--vb-soft:#f2effc;--ink:#172033;--muted:#657087;--line:#e5e8f0;--good:#16835d;--warn:#b56c08;--bad:#c83c55}*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif}.shell{min-height:100vh;display:grid;grid-template-columns:260px minmax(0,1fr)}.side{height:100vh;position:sticky;top:0;background:linear-gradient(180deg,var(--vb-dark),#211653);color:#fff;padding:1.15rem;display:flex;flex-direction:column}.brand{display:flex;gap:.75rem;align-items:center;padding:.4rem .35rem 1.5rem}.brand-icon{width:45px;height:45px;border-radius:14px;background:#ffffff1c;display:grid;place-items:center;font-size:1.35rem}.brand strong{font-size:1.12rem}.brand small{display:block;color:#d6cdf9;margin-top:.15rem}.nav-label{font-size:.68rem;letter-spacing:.14em;color:#a99be2;font-weight:800;margin:.2rem .6rem .65rem}.nav a{display:flex;align-items:center;gap:.7rem;color:#eae6ff;text-decoration:none;padding:.78rem .8rem;border-radius:12px;margin:.2rem 0;font-weight:700}.nav a i{font-size:1.05rem}.nav a.active,.nav a:hover{background:#fff;color:var(--vb-dark)}.side-foot{margin-top:auto}.side-foot a{color:#dfd9fa;text-decoration:none;display:block;padding:.65rem}.main{min-width:0;padding:1.25rem 1.4rem 2.5rem}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.1rem}.top h1{font-size:clamp(1.6rem,3vw,2.25rem);margin:.1rem 0}.top p{color:var(--muted);margin:.2rem 0}.user{background:#fff;border:1px solid var(--line);border-radius:999px;padding:.5rem .75rem;display:flex;gap:.5rem;align-items:center;white-space:nowrap}.card{background:#fff;border:1px solid var(--line);border-radius:17px;box-shadow:0 6px 24px #1b245008}.pad{padding:1rem}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1rem}.kpi{padding:1rem;position:relative;overflow:hidden}.kpi i{position:absolute;right:.85rem;top:.75rem;font-size:1.5rem;color:#a99be2}.kpi strong{display:block;font-size:1.65rem;color:var(--vb-dark)}.kpi span{color:var(--muted);font-size:.82rem}.grid-2{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);gap:1rem}.section-head{display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.85rem}.section-head h2{margin:0;font-size:1.05rem}.btn{border:0;border-radius:10px;padding:.68rem .9rem;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font:inherit}.btn-primary{background:var(--vb);color:#fff}.btn-soft{background:var(--vb-soft);color:var(--vb-dark)}.btn-outline{background:#fff;color:var(--vb-dark);border:1px solid #cfc6f1}.filters{display:grid;grid-template-columns:2fr repeat(3,1fr) auto;gap:.6rem;padding:1rem;margin-bottom:1rem}.field label{display:block;font-weight:750;font-size:.78rem;margin:0 0 .35rem}.input,select,textarea{width:100%;border:1px solid #d7dce7;border-radius:10px;padding:.7rem .75rem;background:#fff;color:var(--ink);font:inherit;min-height:44px}textarea{min-height:86px;resize:vertical}.input:focus,select:focus,textarea:focus{outline:3px solid #7357c822;border-color:#7357c8}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:780px}.table th{background:#f7f5fd;color:#54457f;text-align:left;font-size:.73rem;text-transform:uppercase;letter-spacing:.04em;padding:.72rem}.table td{border-top:1px solid var(--line);padding:.78rem .72rem;vertical-align:middle}.table .title{font-weight:750}.sub{color:var(--muted);font-size:.78rem;margin-top:.2rem}.pill{display:inline-flex;padding:.28rem .55rem;border-radius:999px;background:var(--vb-soft);color:var(--vb-dark);font-size:.72rem;font-weight:800}.pill.success{background:#e1f5ed;color:var(--good)}.pill.warning{background:#fff1d7;color:var(--warn)}.pill.danger{background:#fee8ec;color:var(--bad)}.type-list{display:grid;gap:.55rem}.type-row{display:grid;grid-template-columns:1fr auto;align-items:center;padding:.7rem .8rem;background:#faf9fe;border-radius:11px}.empty{text-align:center;color:var(--muted);padding:2.4rem 1rem}.empty i{font-size:2rem;display:block;margin-bottom:.5rem;color:#b5a9df}.form-card{padding:1rem;margin-bottom:1rem}.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}.span-2{grid-column:span 2}.span-3{grid-column:1/-1}.hint{padding:.8rem;background:#fff8e8;border:1px solid #f5dda8;border-radius:11px;color:#805615;margin-bottom:.8rem}.mobile-nav{display:none}.alert{padding:.8rem 1rem;border-radius:11px;margin-bottom:1rem;background:#e1f5ed;color:#126544}.alert-danger{background:#fee8ec;color:#9e2740}.alert-warning{background:#fff1d7;color:#8b5707}.modal{border:0;border-radius:16px;padding:0;max-width:680px;width:calc(100% - 2rem);box-shadow:0 20px 80px #11182755}.modal::backdrop{background:#12142b99}.modal-head{display:flex;justify-content:space-between;align-items:center;padding:1rem;border-bottom:1px solid var(--line)}.modal-body{padding:1rem}.icon-btn{border:0;background:transparent;font-size:1.4rem;cursor:pointer}.quick-actions{display:flex;gap:.55rem;flex-wrap:wrap}.doc-cards{display:none}
+@media(max-width:1050px){.kpis{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr 1fr}.filters .search{grid-column:1/-1}.grid-2{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr 1fr}.span-3{grid-column:1/-1}}
+@media(max-width:760px){.shell{display:block}.side{display:none}.main{padding:.85rem .75rem 5.4rem}.top{align-items:center}.top p,.user span{display:none}.kpis{gap:.55rem}.kpi{padding:.8rem}.kpi strong{font-size:1.35rem}.filters,.form-grid{grid-template-columns:1fr}.filters .search,.span-2,.span-3{grid-column:auto}.mobile-nav{position:fixed;z-index:30;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid var(--line);padding:.38rem max(.25rem,env(safe-area-inset-right)) calc(.38rem + env(safe-area-inset-bottom)) max(.25rem,env(safe-area-inset-left));box-shadow:0 -5px 20px #1b245014}.mobile-nav a{text-align:center;color:#70778a;text-decoration:none;font-size:.62rem;font-weight:750}.mobile-nav i{display:block;font-size:1.2rem;margin-bottom:.18rem}.mobile-nav a.active{color:var(--vb)}.desktop-table{display:none}.doc-cards{display:grid;gap:.65rem}.doc-card{padding:.85rem}.doc-card .meta{display:flex;gap:.35rem;flex-wrap:wrap;margin:.5rem 0}.section-head{align-items:flex-start}.section-head .quick-actions{justify-content:flex-end}.btn{padding:.62rem .72rem}}
+</style></head><body><div class="shell">
+<aside class="side"><div class="brand"><div class="brand-icon"><i class="bi bi-file-earmark-text-fill"></i></div><div><strong>VĂN THƯ NỘI BỘ</strong><small>Hệ sinh thái CDS</small></div></div><div class="nav-label">DANH MỤC</div><nav class="nav"><?php foreach($nav as $key=>$item):?><a class="<?=$tab===$key?'active':''?>" href="<?=BASE_URL?>vanban.php?tab=<?=e($key)?>"><i class="bi <?=e($item[1])?>"></i><?=e($item[0])?></a><?php endforeach;?></nav><div class="side-foot"><a href="<?=BASE_URL?>"><i class="bi bi-grid"></i> Hệ sinh thái CDS</a><a href="<?=BASE_URL?>logout.php"><i class="bi bi-box-arrow-right"></i> Đăng xuất</a></div></aside>
+<main class="main"><header class="top"><div><h1><?=e($nav[$tab][0])?></h1><p>Tra cứu, phát hành và lưu trữ văn bản tập trung</p></div><div class="user"><i class="bi bi-person-circle"></i><span><?=e($user['name']??'')?></span></div></header><?php show_flash();?>
+<?php if($tab==='overview'):?>
+<section class="kpis"><article class="card kpi"><i class="bi bi-files"></i><strong><?=count($documents)?></strong><span>Văn bản đã cập nhật</span></article><article class="card kpi"><i class="bi bi-hourglass-split"></i><strong><?=count($pendingNumbers)?></strong><span>Đang chờ bổ sung tệp</span></article><article class="card kpi"><i class="bi bi-calendar3"></i><strong><?=count(array_filter($documents,fn($r)=>str_starts_with((string)($r['issued_date']??''),date('Y'))))?></strong><span>Văn bản năm <?=date('Y')?></span></article><article class="card kpi"><i class="bi bi-archive"></i><strong><?=count($archives)?></strong><span>Hồ sơ và biểu mẫu</span></article></section>
+<form class="card filters" method="get"><input type="hidden" name="tab" value="overview"><div class="field search"><label>Tìm nhanh</label><input class="input" name="q" value="<?=e($filters['q'])?>" placeholder="Tên, số ký hiệu, đơn vị, người ký..."></div><div class="field"><label>Loại văn bản</label><select name="type"><option value="">Tất cả</option><?php foreach(vb_document_types() as $v):?><option <?=$filters['type']===$v?'selected':''?>><?=e($v)?></option><?php endforeach;?></select></div><div class="field"><label>Cấp ban hành</label><select name="issuer_level"><option value="">Tất cả</option><?php foreach(vb_issuer_levels() as $v):?><option <?=$filters['issuer_level']===$v?'selected':''?>><?=e($v)?></option><?php endforeach;?></select></div><div class="field"><label>Lĩnh vực</label><select name="field"><option value="">Tất cả</option><option <?=$filters['field']==='Chuyên môn'?'selected':''?>>Chuyên môn</option><option <?=$filters['field']==='Hành chính'?'selected':''?>>Hành chính</option></select></div><button class="btn btn-primary" type="submit"><i class="bi bi-search"></i> Lọc</button></form>
+<div class="grid-2"><section class="card"><div class="pad"><div class="section-head"><h2>Văn bản mới nhất</h2><a class="btn btn-soft" href="?tab=documents">Xem tất cả</a></div></div><?php include __DIR__.'/includes/vanban_table.php';?></section><aside class="card pad"><div class="section-head"><h2>Thống kê theo loại</h2></div><div class="type-list"><?php if(!$typeCounts):?><div class="empty"><i class="bi bi-pie-chart"></i>Chưa có số liệu</div><?php else:foreach(array_slice($typeCounts,0,10,true) as $name=>$count):?><div class="type-row"><span><?=e($name)?></span><strong><?=number_format($count)?></strong></div><?php endforeach;endif;?></div></aside></div>
+<?php elseif($tab==='documents'):?>
+<div class="section-head"><div><?php if($pendingNumbers):?><div class="hint"><strong><i class="bi bi-lightbulb"></i> Có <?=count($pendingNumbers)?> số đã lấy đang chờ cập nhật tệp.</strong> Chọn số trong biểu mẫu để tự điền thông tin.</div><?php endif;?></div><?php if($canManage):?><button class="btn btn-primary" onclick="document.getElementById('documentDialog').showModal()"><i class="bi bi-plus-lg"></i> Thêm văn bản</button><?php endif;?></div>
+<form class="card filters" method="get"><input type="hidden" name="tab" value="documents"><div class="field search"><label>Tìm văn bản</label><input class="input" name="q" value="<?=e($filters['q'])?>" placeholder="Tên, số ký hiệu, đơn vị..."></div><div class="field"><label>Loại</label><select name="type"><option value="">Tất cả</option><?php foreach(vb_document_types() as $v):?><option <?=$filters['type']===$v?'selected':''?>><?=e($v)?></option><?php endforeach;?></select></div><div class="field"><label>Cấp ban hành</label><select name="issuer_level"><option value="">Tất cả</option><?php foreach(vb_issuer_levels() as $v):?><option <?=$filters['issuer_level']===$v?'selected':''?>><?=e($v)?></option><?php endforeach;?></select></div><div class="field"><label>Lĩnh vực</label><select name="field"><option value="">Tất cả</option><option>Chuyên môn</option><option>Hành chính</option></select></div><button class="btn btn-primary"><i class="bi bi-search"></i> Lọc</button></form><section class="card"><?php include __DIR__.'/includes/vanban_table.php';?></section>
+<?php elseif($tab==='numbers'):?>
+<div class="section-head"><div class="quick-actions"><span class="pill">Quyết định: <?=count(array_filter($numbers,fn($r)=>($r['book']??'')==='decision'&&(int)($r['year']??0)===(int)date('Y')))?></span><span class="pill">Văn bản khác: <?=count(array_filter($numbers,fn($r)=>($r['book']??'')==='other'&&(int)($r['year']??0)===(int)date('Y')))?></span></div><?php if($canNumber):?><button class="btn btn-primary" onclick="document.getElementById('numberDialog').showModal()"><i class="bi bi-plus-lg"></i> Lấy số mới</button><?php endif;?></div><section class="card table-wrap"><table class="table"><thead><tr><th>Số, ký hiệu</th><th>Tên văn bản</th><th>Ngày phát hành</th><th>Người soạn</th><th>Người ký</th><th>Trạng thái</th><th></th></tr></thead><tbody><?php if(!$numbers):?><tr><td colspan="7" class="empty">Chưa có số văn bản nào.</td></tr><?php else:foreach($numbers as $row):$st=vb_status($row);?><tr><td><strong><?=e($row['symbol']??'')?></strong><div class="sub"><?=($row['book']??'')==='decision'?'Sổ Quyết định':'Sổ văn bản khác'?></div></td><td><div class="title"><?=e($row['title']??'')?></div><div class="sub"><?=e($row['issuer']??'')?></div></td><td><?=vb_fmt_date((string)($row['issued_date']??''))?></td><td><?=e($row['drafter']??'—')?></td><td><?=e($row['signer']??'—')?></td><td><span class="pill <?=e($st[1])?>"><?=e($st[0])?></span></td><td><?php if(($row['status']??'')==='reserved'&&$canManage):?><a class="btn btn-soft" href="?tab=documents&reserved=<?=e($row['id'])?>">Bổ sung tệp</a><?php endif;?></td></tr><?php endforeach;endif;?></tbody></table></section>
+<?php else:?>
+<div class="section-head"><form method="get" class="quick-actions"><input type="hidden" name="tab" value="archives"><input class="input" name="archive_q" value="<?=e((string)($_GET['archive_q']??''))?>" placeholder="Tìm hồ sơ, biểu mẫu..."><button class="btn btn-soft"><i class="bi bi-search"></i></button></form><?php if($canArchive):?><button class="btn btn-primary" onclick="document.getElementById('archiveDialog').showModal()"><i class="bi bi-plus-lg"></i> Thêm hồ sơ</button><?php endif;?></div><section class="card table-wrap"><table class="table"><thead><tr><th>Loại hồ sơ</th><th>Tên hồ sơ/biểu mẫu</th><th>Ngày</th><th>Đơn vị</th><th>Người cập nhật</th><th></th></tr></thead><tbody><?php if(!$filteredArchives):?><tr><td colspan="6" class="empty">Chưa có hồ sơ phù hợp.</td></tr><?php else:foreach($filteredArchives as $row):?><tr><td><span class="pill"><?=e($row['type']??'')?></span></td><td><div class="title"><?=e($row['title']??'')?></div><div class="sub"><?=e($row['notes']??'')?></div></td><td><?=vb_fmt_date((string)($row['record_date']??''))?></td><td><?=e($row['department']??'—')?></td><td><?=e($row['created_by']??'')?></td><td><a class="btn btn-soft" target="_blank" href="<?=e(vb_file_url((string)($row['file_path']??'')))?>"><i class="bi bi-eye"></i> Xem</a></td></tr><?php endforeach;endif;?></tbody></table></section>
+<?php endif;?></main></div>
+<nav class="mobile-nav"><?php foreach($nav as $key=>$item):?><a class="<?=$tab===$key?'active':''?>" href="?tab=<?=e($key)?>"><i class="bi <?=e($item[1])?>"></i><?=e($item[0])?></a><?php endforeach;?></nav>
+<?php if($canManage):$selectedReserved=vb_find_number((string)($_GET['reserved']??''));?><dialog class="modal" id="documentDialog"><div class="modal-head"><strong><i class="bi bi-cloud-arrow-up"></i> Cập nhật văn bản</strong><button class="icon-btn" onclick="this.closest('dialog').close()">×</button></div><form method="post" enctype="multipart/form-data" class="modal-body"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="create_document"><input type="hidden" name="return_tab" value="documents"><div class="form-grid"><div class="field span-3"><label>Lấy thông tin từ số đã đăng ký</label><select name="reserved_id" id="reservedSelect"><option value="">Không liên kết – nhập văn bản mới</option><?php foreach($pendingNumbers as $row):?><option value="<?=e($row['id'])?>" data-symbol="<?=e($row['symbol'])?>" data-title="<?=e($row['title'])?>" data-date="<?=e($row['issued_date'])?>" data-issuer="<?=e($row['issuer'])?>" data-signer="<?=e($row['signer']??'')?>" <?=($selectedReserved['id']??'')===($row['id']??'')?'selected':''?>><?=e($row['symbol'].' — '.$row['title'])?></option><?php endforeach;?></select></div><div class="field"><label>Loại văn bản *</label><select name="type" required><?php foreach(vb_document_types() as $v):?><option><?=e($v)?></option><?php endforeach;?></select></div><div class="field"><label>Số, ký hiệu *</label><input class="input" name="symbol" required></div><div class="field"><label>Ngày ban hành *</label><input class="input" type="date" name="issued_date" value="<?=date('Y-m-d')?>" required></div><div class="field span-3"><label>Tên/trích yếu văn bản *</label><input class="input" name="title" required></div><div class="field"><label>Đơn vị ban hành *</label><input class="input" name="issuer" required></div><div class="field"><label>Cấp ban hành</label><select name="issuer_level"><?php foreach(vb_issuer_levels() as $v):?><option><?=e($v)?></option><?php endforeach;?></select></div><div class="field"><label>Lĩnh vực</label><select name="field"><option>Chuyên môn</option><option>Hành chính</option></select></div><div class="field"><label>Người ký</label><input class="input" name="signer"></div><div class="field span-2"><label>Chọn văn bản tải lên * (tối đa 25 MB)</label><input class="input" type="file" name="document_file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" required></div><div class="field span-3"><label>Ghi chú</label><textarea name="notes"></textarea></div><button class="btn btn-primary span-3"><i class="bi bi-cloud-check"></i> Tải lên và lưu</button></div></form></dialog><?php endif;?>
+<?php if($canNumber):?><dialog class="modal" id="numberDialog"><div class="modal-head"><strong><i class="bi bi-journal-check"></i> Lấy số văn bản</strong><button class="icon-btn" onclick="this.closest('dialog').close()">×</button></div><form method="post" class="modal-body"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="reserve_number"><input type="hidden" name="return_tab" value="numbers"><div class="form-grid"><div class="field"><label>Sổ số *</label><select name="book"><option value="decision">Quyết định (số riêng)</option><option value="other">Văn bản khác (số riêng)</option></select></div><div class="field"><label>Ngày phát hành *</label><input class="input" type="date" name="issued_date" value="<?=date('Y-m-d')?>" required></div><div class="field"><label>Đơn vị phát hành *</label><input class="input" name="issuer" value="<?=e(SCHOOL_NAME)?>" required></div><div class="field span-3"><label>Tên/trích yếu văn bản *</label><input class="input" name="title" required></div><div class="field"><label>Người soạn thảo</label><input class="input" name="drafter" value="<?=e($user['name']??'')?>"></div><div class="field"><label>Người ký</label><input class="input" name="signer"></div><button class="btn btn-primary span-3"><i class="bi bi-check2-circle"></i> Xác nhận lấy số tiếp theo</button></div></form></dialog><?php endif;?>
+<?php if($canArchive):?><dialog class="modal" id="archiveDialog"><div class="modal-head"><strong><i class="bi bi-archive"></i> Thêm hồ sơ lưu trữ</strong><button class="icon-btn" onclick="this.closest('dialog').close()">×</button></div><form method="post" enctype="multipart/form-data" class="modal-body"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="create_archive"><input type="hidden" name="return_tab" value="archives"><div class="form-grid"><div class="field"><label>Loại hồ sơ *</label><select name="type"><?php foreach(vb_archive_types() as $v):?><option><?=e($v)?></option><?php endforeach;?></select></div><div class="field"><label>Ngày lập</label><input class="input" type="date" name="record_date" value="<?=date('Y-m-d')?>"></div><div class="field"><label>Đơn vị/bộ phận</label><input class="input" name="department"></div><div class="field span-3"><label>Tên hồ sơ/biểu mẫu *</label><input class="input" name="title" required></div><div class="field span-3"><label>Chọn tệp * (tối đa 25 MB)</label><input class="input" type="file" name="archive_file" required></div><div class="field span-3"><label>Mô tả</label><textarea name="notes"></textarea></div><button class="btn btn-primary span-3"><i class="bi bi-cloud-check"></i> Tải lên và lưu</button></div></form></dialog><?php endif;?>
+<script>
+document.querySelectorAll('dialog').forEach(function(d){d.addEventListener('click',function(e){if(e.target===d)d.close()})});
+const reserve=document.getElementById('reservedSelect');if(reserve){function fillReserve(){const o=reserve.options[reserve.selectedIndex];if(!o||!o.value)return;const f=reserve.form;['symbol','title'].forEach(k=>f.elements[k].value=o.dataset[k]||'');f.elements.issued_date.value=o.dataset.date||'';f.elements.issuer.value=o.dataset.issuer||'';f.elements.signer.value=o.dataset.signer||'';}reserve.addEventListener('change',fillReserve);if(reserve.value){fillReserve();document.getElementById('documentDialog').showModal();}}
+</script></body></html>

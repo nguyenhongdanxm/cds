@@ -19,9 +19,9 @@ function get_ecosystem_modules() {
         [
             'id' => 'vanban', 'num' => 3,
             'title' => 'Văn bản',
-            'subtitle' => 'Công văn · biểu mẫu · lưu trữ điện tử',
+            'subtitle' => 'Văn thư nội bộ · lấy số · hồ sơ lưu trữ',
             'icon' => 'bi-file-earmark-text', 'color' => '#6f42c1',
-            'status' => 'soon', 'url' => '', 'external' => false,
+            'status' => 'live', 'url' => BASE_URL . 'vanban.php', 'external' => false,
         ],
         [
             'id' => 'truyenthong', 'num' => 4,
