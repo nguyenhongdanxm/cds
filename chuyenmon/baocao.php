@@ -2,6 +2,7 @@
 $page_title = 'Báo cáo chuyên môn';
 require_once 'includes/functions.php';
 require_once 'includes/cm_docs.php';
+require_once __DIR__ . '/../includes/google_drive_storage.php';
 
 $tabs = [
     'dinhky' => ['Báo cáo định kỳ', 'bi-calendar-month', 'cm.baocao.dinhky'],
@@ -186,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     if ($action === 'save') {
-        $file = cm_handle_upload('file');
+        $file = cds_storage_handle_upload('file', 'plans');
         $oldFile = trim($_POST['file_path'] ?? '');
         $kind = trim($_POST['kind'] ?? 'report');
         $hasDeadline = !empty($_POST['has_deadline']);

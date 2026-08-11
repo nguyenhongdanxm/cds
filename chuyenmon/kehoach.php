@@ -2,6 +2,7 @@
 $page_title = 'Kế hoạch chuyên môn';
 require_once 'includes/functions.php';
 require_once 'includes/cm_docs.php';
+require_once __DIR__ . '/../includes/google_drive_storage.php';
 require_login();
 
 $tabs = [
@@ -17,7 +18,7 @@ $teachers = get_teachers_sorted();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     if ($action === 'save') {
-        $file = cm_handle_upload('file');
+        $file = cds_storage_handle_upload('file', $tab === 'vanban' ? 'documents' : 'plans');
         $oldFile = trim($_POST['file_path'] ?? '');
         $hasDeadline = !empty($_POST['has_deadline']);
         $hasAssignees = !empty($_POST['has_assignees']);
@@ -98,7 +99,7 @@ require_once 'includes/header.php';
 <link href="<?= BASE_URL ?>../assets/article-editor.css?v=20260804-2" rel="stylesheet">
 <?php if ($articleView): ?>
 <a class="btn btn-outline-secondary mb-3" href="<?= BASE_URL ?>kehoach.php?tab=chitieu"><i class="bi bi-arrow-left"></i> Quay lại danh sách</a>
-<article class="article-compose"><h1 class="h3 text-primary mb-3"><?= e($articleView['title']??'') ?></h1><div class="article-editor-area p-0"><?= cm_article_body($articleView['content']??'') ?></div><div class="mt-4"><?php if(!empty($articleView['link'])): ?><a class="btn btn-outline-primary me-2" target="_blank" rel="noopener" href="<?= e($articleView['link']) ?>"><i class="bi bi-link-45deg"></i> Mở văn bản liên quan</a><?php endif; ?><?php if(!empty($articleView['file_path'])): ?><a class="btn btn-outline-success" target="_blank" rel="noopener" href="<?= e(cm_file_url($articleView['file_path'])) ?>"><i class="bi bi-file-earmark-arrow-down"></i> File đính kèm</a><?php endif; ?></div></article>
+<article class="article-compose"><h1 class="h3 text-primary mb-3"><?= e($articleView['title']??'') ?></h1><div class="article-editor-area p-0"><?= cm_article_body($articleView['content']??'') ?></div><div class="mt-4"><?php if(!empty($articleView['link'])): ?><a class="btn btn-outline-primary me-2" target="_blank" rel="noopener" href="<?= e($articleView['link']) ?>"><i class="bi bi-link-45deg"></i> Mở văn bản liên quan</a><?php endif; ?><?php if(!empty($articleView['file_path'])): ?><a class="btn btn-outline-success" target="_blank" rel="noopener" href="<?= e(cds_storage_file_url($articleView['file_path'])) ?>"><i class="bi bi-file-earmark-arrow-down"></i> File đính kèm</a><?php endif; ?></div></article>
 <?php else: ?>
 <div class="article-feed">
 <?php foreach ($items as $it): ?>
@@ -214,7 +215,7 @@ function resetArticle(){article_id.value='';article_title.value='';article_link.
             <td class="small"><?= $asg ? e(implode(', ', $asg)) : '—' ?></td>
             <td class="small">
               <?php if (!empty($it['link'])): ?><a href="<?= e($it['link']) ?>" target="_blank">Link</a><?php endif; ?>
-              <?php if (!empty($it['file_path'])): ?><?= !empty($it['link'])?' · ':'' ?><a href="<?= e(cm_file_url($it['file_path'])) ?>" target="_blank">File</a><?php endif; ?>
+              <?php if (!empty($it['file_path'])): ?><?= !empty($it['link'])?' · ':'' ?><a href="<?= e(cds_storage_file_url($it['file_path'])) ?>" target="_blank">File</a><?php endif; ?>
               <?php if (empty($it['link']) && empty($it['file_path'])): ?>—<?php endif; ?>
             </td>
             <td class="text-nowrap">

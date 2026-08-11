@@ -2,6 +2,7 @@
 $page_title = 'Bài viết chỉ tiêu chuyên môn';
 require_once 'includes/functions.php';
 require_once 'includes/cm_docs.php';
+require_once __DIR__ . '/../includes/google_drive_storage.php';
 require_login();
 
 $id = trim((string)($_GET['id'] ?? ''));
@@ -49,7 +50,7 @@ require_once 'includes/header.php';
         <div class="article-docs mt-4">
           <strong class="d-block mb-2"><i class="bi bi-paperclip"></i> Văn bản liên quan</strong>
           <?php if (!empty($article['link'])): ?><a class="btn btn-outline-primary" href="<?= e($article['link']) ?>" target="_blank" rel="noopener"><i class="bi bi-link-45deg"></i> Mở liên kết văn bản</a><?php endif; ?>
-          <?php if (!empty($article['file_path'])): ?><a class="btn btn-outline-success" href="<?= e(cm_file_url($article['file_path'])) ?>" target="_blank" rel="noopener"><i class="bi bi-file-earmark-arrow-down"></i> Mở file đính kèm</a><?php endif; ?>
+          <?php if (!empty($article['file_path'])): ?><a class="btn btn-outline-success" href="<?= e(cds_storage_file_url($article['file_path'])) ?>" target="_blank" rel="noopener"><i class="bi bi-file-earmark-arrow-down"></i> Mở file đính kèm</a><?php endif; ?>
           <?php if (empty($article['link']) && empty($article['file_path'])): ?><span class="text-muted">Chưa có văn bản đính kèm.</span><?php endif; ?>
         </div>
       </div>
