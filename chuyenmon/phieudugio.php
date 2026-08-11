@@ -48,7 +48,7 @@ require_once 'includes/header.php';
 @media(max-width:767px){.lesson-sheet{padding:14px}.score-table{min-width:720px}.sheet-table-wrap{overflow-x:auto}.sheet-title{font-size:19px}.meta-triplet{gap:8px}}
 @media print{@page{size:A4 portrait;margin:20mm}html,body{width:auto!important;height:auto!important;background:#fff!important}.navbar,.sidebar,.topbar,.app-header,.sheet-actions,footer,.no-print{display:none!important}body>.container,.container,.main-content,.content-wrapper,main{margin:0!important;padding:0!important;width:100%!important;max-width:none!important}.lesson-sheet{width:170mm!important;max-width:170mm!important;height:257mm!important;box-sizing:border-box;box-shadow:none;border-radius:0;padding:0;margin:0 auto;font-size:13pt;display:flex!important;flex-direction:column!important}.lesson-sheet form{display:flex;flex:1;min-height:0;flex-direction:column}.sheet-table-wrap{display:flex;flex:1;min-height:0}.score-table{height:100%;font-size:13pt;line-height:1.05}.score-table .criterion{font-size:12.5pt}.sheet-school{font-size:13pt;margin-bottom:13pt}.sheet-title{font-size:16pt;margin:0 0 13pt}.sheet-meta{font-size:13pt;gap:0;margin-bottom:4px;line-height:1.05}.sheet-meta>div{border-bottom:0;padding:1px 0}.score-table th,.score-table td{border:.5pt solid #444;padding:1px 3px}.score-table input{border:0;padding:0;font:inherit}.sheet-result{min-height:7mm;font-size:13pt;margin:0}.sheet-signatures{font-size:13pt;margin-top:2mm}.signature-space{height:35px}.signature-date{min-height:15px}}
 </style>
-<div class="sheet-actions no-print"><a class="btn btn-outline-secondary" href="<?=BASE_URL?>dugio.php"><i class="bi bi-arrow-left"></i> Quay lại dự giờ</a><?php if(!empty($evaluation['completed'])):?><button class="btn btn-primary" type="button" onclick="window.print()"><i class="bi bi-printer"></i> In phiếu</button><button class="btn btn-success" type="button" id="downloadPdf"><i class="bi bi-file-earmark-arrow-down"></i> Tải PDF</button><?php endif;?></div>
+<div class="sheet-actions no-print"><a class="btn btn-outline-secondary" href="<?=BASE_URL?>dugio.php"><i class="bi bi-arrow-left"></i> Quay lại dự giờ</a><?php if(!empty($evaluation['completed'])):?><button class="btn btn-primary" type="button" onclick="window.print()"><i class="bi bi-printer"></i> In phiếu</button><button class="btn btn-success" type="button" id="downloadPdf"><i class="bi bi-file-earmark-arrow-down"></i> Tải PDF</button><button class="btn btn-outline-success" type="button" id="savePdfDrive"><i class="bi bi-google"></i> Lưu Drive</button><?php endif;?></div>
 <div class="lesson-sheet" id="lessonSheet">
 <?php if(count($observers)>1):?><div class="sheet-observer-tabs no-print"><?php foreach($observers as $name):?><a class="btn btn-sm <?=obs_form_norm($name)===obs_form_norm($observer)?'btn-primary':'btn-outline-primary'?>" href="?id=<?=urlencode($id)?>&observer=<?=urlencode($name)?>"><?=e($name)?></a><?php endforeach;?></div><?php endif;?>
 <div class="sheet-school">SỞ GIÁO DỤC VÀ ĐÀO TẠO TUYÊN QUANG<br><strong>TRƯỜNG PTDTNT THCS&amp;THPT XÍN MẦN</strong></div>
@@ -65,18 +65,28 @@ require_once 'includes/header.php';
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-document.getElementById('downloadPdf')?.addEventListener('click',async function(){
-  const button=this,sheet=document.getElementById('lessonSheet'),oldText=button.innerHTML;
-  if(!window.html2canvas||!window.jspdf){alert('Chưa tải được công cụ tạo PDF. Vui lòng kiểm tra kết nối mạng và thử lại.');return}
-  button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm"></span> Đang tạo PDF';sheet.classList.add('pdf-mode');
+async function createLessonPdf(){
+  const sheet=document.getElementById('lessonSheet');sheet.classList.add('pdf-mode');
   try{
     const canvas=await html2canvas(sheet,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});
     const pdf=new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
     const pageWidth=210,pageHeight=297,margin=20,maxWidth=pageWidth-margin*2,maxHeight=pageHeight-margin*2;
     let width=maxWidth,height=canvas.height*width/canvas.width;if(height>maxHeight){height=maxHeight;width=canvas.width*height/canvas.height}
-    pdf.addImage(canvas.toDataURL('image/jpeg',0.96),'JPEG',(pageWidth-width)/2,margin,width,height,undefined,'FAST');
+    pdf.addImage(canvas.toDataURL('image/jpeg',0.96),'JPEG',(pageWidth-width)/2,margin,width,height,undefined,'FAST');return pdf;
+  }finally{sheet.classList.remove('pdf-mode');}
+}
+document.getElementById('downloadPdf')?.addEventListener('click',async function(){
+  const button=this,sheet=document.getElementById('lessonSheet'),oldText=button.innerHTML;
+  if(!window.html2canvas||!window.jspdf){alert('Chưa tải được công cụ tạo PDF. Vui lòng kiểm tra kết nối mạng và thử lại.');return}
+  button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm"></span> Đang tạo PDF';
+  try{
+    const pdf=await createLessonPdf();
     pdf.save('phieu-danh-gia-bai-day-<?=preg_replace('/[^a-zA-Z0-9_-]+/','-',trim((string)($record['id']??'du-gio')))?>.pdf');
-  }catch(error){console.error(error);alert('Không thể tạo PDF. Vui lòng thử lại hoặc dùng nút In phiếu.')}finally{sheet.classList.remove('pdf-mode');button.disabled=false;button.innerHTML=oldText}
+  }catch(error){console.error(error);alert('Không thể tạo PDF. Vui lòng thử lại hoặc dùng nút In phiếu.')}finally{button.disabled=false;button.innerHTML=oldText}
+});
+document.getElementById('savePdfDrive')?.addEventListener('click',async function(){
+  const button=this,oldText=button.innerHTML;if(!window.html2canvas||!window.jspdf){alert('Chưa tải được công cụ tạo PDF.');return}
+  button.disabled=true;button.innerHTML='Đang lưu…';try{const pdf=await createLessonPdf(),data=new FormData();data.append('drive_api','save');data.append('csrf','<?=e(cds_drive_csrf_token())?>');data.append('type','observations');data.append('name','phieu-du-gio-<?=preg_replace('/[^a-zA-Z0-9_-]+/','-',trim((string)($record['id']??'du-gio')))?>.pdf');data.append('file',pdf.output('blob'),'phieu-du-gio.pdf');const response=await fetch('../admin.php',{method:'POST',body:data});const result=await response.json();alert(result.ok?'Đã lưu phiếu dự giờ lên Google Drive.':(result.message||'Không lưu được lên Drive.'));}catch(error){console.error(error);alert('Không lưu được phiếu lên Drive.');}finally{button.disabled=false;button.innerHTML=oldText;}
 });
 </script>
 <?php endif;?>

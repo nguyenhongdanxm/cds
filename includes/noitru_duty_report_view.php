@@ -52,8 +52,17 @@ $field = fn($key) => (string)($report[$key] ?? '');
 
 <div class="duty-report-toolbar">
   <div><h4 class="mb-1"><i class="bi bi-file-earmark-text text-info"></i> Biên bản trực nội trú</h4><div class="text-muted small">Tự động tổng hợp lịch trực và điểm danh trong ngày; nội dung nhận xét do người trực nhập.</div></div>
-  <form method="get" class="d-flex gap-2 align-items-end"><input type="hidden" name="tab" value="duty_report"><div><label class="form-label small mb-1">Ngày trực</label><input type="date" name="date" class="form-control" value="<?= e($reportDate) ?>"></div><button class="btn btn-outline-info"><i class="bi bi-search"></i> Xem</button><button class="btn btn-info text-white" type="button" onclick="window.print()"><i class="bi bi-printer"></i> In / Xuất PDF</button></form>
+  <form method="get" class="d-flex gap-2 align-items-end"><input type="hidden" name="tab" value="duty_report"><div><label class="form-label small mb-1">Ngày trực</label><input type="date" name="date" class="form-control" value="<?= e($reportDate) ?>"></div><button class="btn btn-outline-info"><i class="bi bi-search"></i> Xem</button><button class="btn btn-info text-white" type="button" onclick="window.print()"><i class="bi bi-printer"></i> In / Xuất PDF</button><button class="btn btn-success" type="button" id="saveDutyDrive"><i class="bi bi-google"></i> Lưu Drive</button></form>
 </div>
+<script>
+document.getElementById('saveDutyDrive')?.addEventListener('click',async function(){
+  const button=this,old=button.innerHTML,paper=document.querySelector('.duty-report-paper');
+  const styles=[...document.querySelectorAll('style')].map(node=>node.textContent).join('\n');
+  const html='<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Biên bản trực <?=e($reportDate)?></title><style>'+styles+'</style></head><body>'+paper.outerHTML+'</body></html>';
+  const data=new FormData();data.append('drive_api','save');data.append('csrf','<?=e(cds_drive_csrf_token())?>');data.append('type','duty_reports');data.append('name','bien-ban-truc-<?=e($reportDate)?>.html');data.append('file',new Blob([html],{type:'text/html'}),'document.html');
+  button.disabled=true;button.innerHTML='Đang lưu…';try{const response=await fetch('<?=e(BASE_URL)?>admin.php',{method:'POST',body:data});const result=await response.json();alert(result.ok?'Đã lưu biên bản lên Google Drive.':(result.message||'Không lưu được lên Drive.'));}catch(error){alert('Không kết nối được máy chủ để lưu Drive.');}finally{button.disabled=false;button.innerHTML=old;}
+});
+</script>
 
 <div class="duty-report-editor">
   <form method="post" class="duty-report-form">

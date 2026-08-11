@@ -211,7 +211,7 @@ function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYe
         . '</worksheet>';
 }
 
-function nt_export_meal_month_xlsx(array $students, $month, $type, $exportedBy = '') {
+function nt_export_meal_month_xlsx(array $students, $month, $type, $exportedBy = '', $saveToDrive = false) {
     if (!preg_match('/^\\d{4}-\\d{2}$/', $month)) $month = date('Y-m');
     if (!in_array($type, ['breakfast','lunch_dinner'], true)) $type = 'breakfast';
     $classes = [];
@@ -274,8 +274,14 @@ function nt_export_meal_month_xlsx(array $students, $month, $type, $exportedBy =
     foreach ($sheetXml as $i => $xml) $files['xl/worksheets/sheet' . ($i + 1) . '.xml'] = $xml;
     nt_xlsx_write_zip($files, $tmp);
     $typeName = $type === 'breakfast' ? 'bua-sang' : 'bua-trua-toi';
+    $filename = 'bao-cao-' . $typeName . '-thang-' . $month . '.xlsx';
+    if ($saveToDrive) {
+        $bytes = file_get_contents($tmp);@unlink($tmp);
+        if ($bytes === false) throw new RuntimeException('Không đọc được file Excel vừa tạo.');
+        return cds_drive_save_generated($bytes, $filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'meal_reports');
+    }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    header('Content-Disposition: attachment; filename="bao-cao-' . $typeName . '-thang-' . $month . '.xlsx"');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Content-Length: ' . filesize($tmp));
     header('Cache-Control: max-age=0');
     readfile($tmp);

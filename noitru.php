@@ -854,12 +854,14 @@ if (in_array($tab, ['meals','meal_summary'], true) && in_array($_GET['export'] ?
     }
     try {
         require_once __DIR__ . '/includes/noitru_meal_month_export.php';
-        nt_export_meal_month_xlsx(
+        $driveResult = nt_export_meal_month_xlsx(
             $exportStudents,
             $exportMonth,
             ($_GET['export'] ?? '') === 'month_breakfast' ? 'breakfast' : 'lunch_dinner',
-            $user['name'] ?? ''
+            $user['name'] ?? '',
+            !empty($_GET['save_drive'])
         );
+        if(!empty($_GET['save_drive'])){flash(!empty($driveResult['ok'])?'Đã lưu báo cáo Excel lên Google Drive.':($driveResult['message']??'Không lưu được báo cáo lên Drive.'),!empty($driveResult['ok'])?'success':'danger');header('Location: '.BASE_URL.'noitru.php?tab='.urlencode($tab));exit;}
     } catch (Throwable $error) {
         flash('Không thể tạo file Excel: ' . $error->getMessage(), 'danger');
         header('Location: ' . BASE_URL . 'noitru.php?tab=' . urlencode($tab));
@@ -1483,7 +1485,7 @@ form[method="post"]{display:none!important}
   <div class="modal fade" id="mealExcelModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><form class="modal-content" method="get">
     <div class="modal-header"><h5 class="modal-title" id="mealExcelTitle"><i class="bi bi-file-earmark-excel text-success me-2"></i>Xuất sổ bữa ăn</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
     <div class="modal-body"><input type="hidden" name="tab" value="meals"><input type="hidden" name="class" value="<?= e($className) ?>"><input type="hidden" name="export" id="mealExcelType" value="month_breakfast"><label class="form-label fw-bold">Chọn tháng báo cáo</label><input class="form-control" type="month" name="month" value="<?= e(substr($date,0,7)) ?>" required><div class="form-text mt-2">File chỉ chứa sheet lớp <?= e($className) ?> theo quyền GVCN.</div></div>
-    <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-success" type="submit"><i class="bi bi-download"></i> Tải file Excel</button></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-success" type="submit"><i class="bi bi-download"></i> Tải Excel</button><button class="btn btn-outline-success" type="submit" name="save_drive" value="1"><i class="bi bi-google"></i> Lưu Drive</button></div>
   </form></div></div>
 
 <?php elseif ($tab === 'meal_summary'): ?>
@@ -1570,7 +1572,7 @@ form[method="post"]{display:none!important}
   <div class="modal fade" id="mealExcelModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><form class="modal-content" method="get">
     <div class="modal-header"><h5 class="modal-title" id="mealExcelTitle"><i class="bi bi-file-earmark-excel text-success me-2"></i>Xuất sổ bữa ăn</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
     <div class="modal-body"><input type="hidden" name="tab" value="meal_summary"><input type="hidden" name="export" id="mealExcelType" value="month_breakfast"><label class="form-label fw-bold">Chọn tháng báo cáo</label><input class="form-control" type="month" name="month" value="<?= e(substr($date,0,7)) ?>" required><div class="form-text mt-2">Mỗi lớp được tạo thành một sheet riêng, định dạng in A4 ngang.</div></div>
-    <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-success" type="submit"><i class="bi bi-download"></i> Tải file Excel</button></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-success" type="submit"><i class="bi bi-download"></i> Tải Excel</button><button class="btn btn-outline-success" type="submit" name="save_drive" value="1"><i class="bi bi-google"></i> Lưu Drive</button></div>
   </form></div></div>
   <script>window.ntMealDayData=<?= json_encode($dayExportData, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) ?>;</script>
 
