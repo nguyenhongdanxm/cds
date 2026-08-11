@@ -19,6 +19,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = (string)($_POST['action'] ?? '');
         if ($action === 'create_document') {
             if (!$canManage) throw new RuntimeException('Bạn không có quyền cập nhật văn bản.');
+            $editId = vb_clean((string)($_POST['id'] ?? ''), 80);
+            $documents = vb_rows(VANBAN_DOCUMENTS_FILE);
+            $existingDocument = null;
+            foreach ($documents as $row) if (($row['id'] ?? '') === $editId) { $existingDocument = $row; break; }
+            if ($editId !== '' && !$existingDocument) throw new RuntimeException('Không tìm thấy văn bản cần sửa.');
             $reserved = vb_find_number(vb_clean((string)($_POST['reserved_id'] ?? ''), 80));
             $title = vb_clean((string)($_POST['title'] ?? ''), 500);
             $symbol = vb_clean((string)($_POST['symbol'] ?? ''), 120);
@@ -32,19 +37,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if ($title === '' || $symbol === '' || $issuedDate === '' || $issuer === '') throw new RuntimeException('Hãy nhập đủ số ký hiệu, tên, ngày và đơn vị ban hành.');
             $type = vb_clean((string)($_POST['type'] ?? ''), 80);
-            $path = vb_upload('document_file', 'documents', ['title'=>$title,'document_title'=>$title,'document_date'=>$issuedDate,'issuer'=>$issuer,'symbol'=>$symbol]);
+            $path = (string)($existingDocument['file_path'] ?? '');
+            $newPath = vb_upload('document_file', 'documents', ['title'=>$title,'document_title'=>$title,'document_date'=>$issuedDate,'issuer'=>$issuer,'symbol'=>$symbol]);
+            if ($newPath !== '') $path = $newPath;
             if ($path === '') throw new RuntimeException('Hãy chọn tệp văn bản cần tải lên.');
-            $documents = vb_rows(VANBAN_DOCUMENTS_FILE);
-            $id = vb_id('doc');
-            $documents[] = [
+            $id = $editId !== '' ? $editId : vb_id('doc');
+            $record = [
                 'id'=>$id, 'type'=>$type ?: 'Khác', 'symbol'=>$symbol, 'title'=>$title,
                 'issued_date'=>$issuedDate, 'issuer'=>$issuer,
                 'issuer_level'=>vb_clean((string)($_POST['issuer_level'] ?? ''), 80),
                 'field'=>vb_clean((string)($_POST['field'] ?? ''), 80),
                 'signer'=>vb_clean((string)($_POST['signer'] ?? ($reserved['signer'] ?? '')), 180),
                 'notes'=>vb_clean((string)($_POST['notes'] ?? ''), 1000), 'file_path'=>$path,
-                'reserved_id'=>$reserved['id'] ?? '', 'created_by'=>$user['name'] ?? '', 'created_at'=>date('c')
+                'featured'=>!empty($_POST['featured']),
+                'reserved_id'=>$reserved['id'] ?? ($existingDocument['reserved_id'] ?? ''),
+                'created_by'=>$existingDocument['created_by'] ?? ($user['name'] ?? ''),
+                'created_at'=>$existingDocument['created_at'] ?? date('c'),
+                'updated_by'=>$user['name'] ?? '', 'updated_at'=>date('c')
             ];
+            if ($existingDocument) {
+                foreach ($documents as &$row) if (($row['id'] ?? '') === $id) { $row = $record; break; }
+                unset($row);
+            } else $documents[] = $record;
             if (!vb_save_rows(VANBAN_DOCUMENTS_FILE, $documents)) throw new RuntimeException('Không lưu được dữ liệu văn bản.');
             if ($reserved) {
                 $numbers = vb_rows(VANBAN_NUMBERS_FILE);
@@ -53,9 +67,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 unset($row); vb_save_rows(VANBAN_NUMBERS_FILE, $numbers);
             }
-            flash('Đã cập nhật văn bản và lưu tệp thành công.');
+            flash($existingDocument ? 'Đã sửa văn bản.' : 'Đã cập nhật văn bản và lưu tệp thành công.');
+        } elseif ($action === 'delete_document') {
+            if (!$canManage) throw new RuntimeException('Bạn không có quyền xóa văn bản.');
+            $id = vb_clean((string)($_POST['id'] ?? ''), 80);
+            $documents = vb_rows(VANBAN_DOCUMENTS_FILE); $deleted = null; $kept = [];
+            foreach ($documents as $row) { if (($row['id'] ?? '') === $id) $deleted = $row; else $kept[] = $row; }
+            if (!$deleted) throw new RuntimeException('Không tìm thấy văn bản cần xóa.');
+            if (!vb_save_rows(VANBAN_DOCUMENTS_FILE, $kept)) throw new RuntimeException('Không xóa được văn bản.');
+            if (!empty($deleted['reserved_id'])) {
+                $numberRows = vb_rows(VANBAN_NUMBERS_FILE);
+                foreach ($numberRows as &$row) if (($row['id'] ?? '') === $deleted['reserved_id']) {
+                    $row['status']='reserved'; unset($row['document_id']); $row['updated_at']=date('c');
+                }
+                unset($row); vb_save_rows(VANBAN_NUMBERS_FILE, $numberRows);
+            }
+            flash('Đã xóa nội dung văn bản khỏi danh mục. Tệp gốc trên Drive vẫn được giữ an toàn.', 'warning');
         } elseif ($action === 'reserve_number') {
             if (!$canNumber) throw new RuntimeException('Bạn không có quyền lấy số văn bản.');
+            $editId = vb_clean((string)($_POST['id'] ?? ''), 80);
             $book = (string)($_POST['book'] ?? 'other');
             if (!in_array($book, ['decision','other'], true)) $book = 'other';
             $date = vb_date((string)($_POST['issued_date'] ?? '')) ?: date('Y-m-d');
@@ -66,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($title === '') throw new RuntimeException('Hãy nhập tên hoặc trích yếu văn bản.');
             $numbers = vb_rows(VANBAN_NUMBERS_FILE);
             foreach ($numbers as $existing) {
+                if (($existing['id'] ?? '') === $editId) continue;
                 if (($existing['book'] ?? '') === $book && (int)($existing['year'] ?? 0) === $year
                     && mb_strtolower(trim((string)($existing['symbol'] ?? '')), 'UTF-8') === mb_strtolower($symbol, 'UTF-8')) {
                     throw new RuntimeException('Số ký hiệu này đã tồn tại trong sổ năm ' . $year . '.');
@@ -73,16 +104,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             preg_match('/^\s*(\d+)/u', $symbol, $numberMatch);
             $number = isset($numberMatch[1]) ? (int)$numberMatch[1] : 0;
-            $numbers[] = [
-                'id'=>vb_id('num'), 'book'=>$book, 'year'=>$year, 'number'=>$number,
+            $existingNumber = null;
+            foreach ($numbers as $row) if (($row['id'] ?? '') === $editId) { $existingNumber=$row; break; }
+            if ($editId !== '' && !$existingNumber) throw new RuntimeException('Không tìm thấy số văn bản cần sửa.');
+            $record = [
+                'id'=>$editId !== '' ? $editId : vb_id('num'), 'book'=>$book, 'year'=>$year, 'number'=>$number,
                 'symbol'=>$symbol, 'title'=>$title, 'issued_date'=>$date,
                 'issuer'=>vb_clean((string)($_POST['issuer'] ?? SCHOOL_NAME), 180),
                 'drafter'=>vb_clean((string)($_POST['drafter'] ?? ''), 180),
                 'signer'=>vb_clean((string)($_POST['signer'] ?? ''), 180),
-                'status'=>'reserved', 'created_by'=>$user['name'] ?? '', 'created_at'=>date('c')
+                'status'=>$existingNumber['status'] ?? 'reserved',
+                'document_id'=>$existingNumber['document_id'] ?? '',
+                'created_by'=>$existingNumber['created_by'] ?? ($user['name'] ?? ''),
+                'created_at'=>$existingNumber['created_at'] ?? date('c'),
+                'updated_by'=>$user['name'] ?? '', 'updated_at'=>date('c')
             ];
+            if ($existingNumber) {
+                foreach ($numbers as &$row) if (($row['id'] ?? '') === $editId) { $row=$record; break; }
+                unset($row);
+            } else $numbers[] = $record;
             if (!vb_save_rows(VANBAN_NUMBERS_FILE, $numbers)) throw new RuntimeException('Không lưu được sổ số văn bản.');
-            flash('Đã lấy số ' . $symbol . '.');
+            flash($existingNumber ? 'Đã sửa số văn bản.' : 'Đã lấy số ' . $symbol . '.');
+        } elseif ($action === 'delete_number') {
+            if (!$canNumber) throw new RuntimeException('Bạn không có quyền xóa số văn bản.');
+            $id = vb_clean((string)($_POST['id'] ?? ''), 80);
+            $numbers = vb_rows(VANBAN_NUMBERS_FILE); $found = null; $kept = [];
+            foreach ($numbers as $row) { if (($row['id'] ?? '') === $id) $found=$row; else $kept[]=$row; }
+            if (!$found) throw new RuntimeException('Không tìm thấy số văn bản cần xóa.');
+            if (!empty($found['document_id'])) throw new RuntimeException('Số này đã liên kết với văn bản. Hãy xóa văn bản cập nhật trước.');
+            if (!vb_save_rows(VANBAN_NUMBERS_FILE, $kept)) throw new RuntimeException('Không xóa được số văn bản.');
+            flash('Đã xóa số văn bản khỏi sổ.', 'warning');
         } elseif ($action === 'cancel_number') {
             if (!$canNumber) throw new RuntimeException('Bạn không có quyền hủy số.');
             $id = vb_clean((string)($_POST['id'] ?? ''), 80);
@@ -140,7 +191,7 @@ function vb_status(array $row): array { return match($row['status']??'reserved')
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Văn thư nội bộ – CDS</title><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <style>
-:root{--vb:#5b3db2;--vb-dark:#30206f;--vb-soft:#f2effc;--ink:#172033;--muted:#657087;--line:#e5e8f0;--good:#16835d;--warn:#b56c08;--bad:#c83c55}*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif}.shell{min-height:100vh;display:grid;grid-template-columns:260px minmax(0,1fr)}.side{height:100vh;position:sticky;top:0;background:linear-gradient(180deg,var(--vb-dark),#211653);color:#fff;padding:1.15rem;display:flex;flex-direction:column}.brand{display:flex;gap:.75rem;align-items:center;padding:.4rem .35rem 1.5rem}.brand-icon{width:45px;height:45px;border-radius:14px;background:#ffffff1c;display:grid;place-items:center;font-size:1.35rem}.brand strong{font-size:1.12rem}.brand small{display:block;color:#d6cdf9;margin-top:.15rem}.nav-label{font-size:.68rem;letter-spacing:.14em;color:#a99be2;font-weight:800;margin:.2rem .6rem .65rem}.nav a{display:flex;align-items:center;gap:.7rem;color:#eae6ff;text-decoration:none;padding:.78rem .8rem;border-radius:12px;margin:.2rem 0;font-weight:700}.nav a i{font-size:1.05rem}.nav a.active,.nav a:hover{background:#fff;color:var(--vb-dark)}.side-foot{margin-top:auto}.side-foot a{color:#dfd9fa;text-decoration:none;display:block;padding:.65rem}.main{min-width:0;padding:1.25rem 1.4rem 2.5rem}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.1rem}.top h1{font-size:clamp(1.6rem,3vw,2.25rem);margin:.1rem 0}.top p{color:var(--muted);margin:.2rem 0}.user{background:#fff;border:1px solid var(--line);border-radius:999px;padding:.5rem .75rem;display:flex;gap:.5rem;align-items:center;white-space:nowrap}.card{background:#fff;border:1px solid var(--line);border-radius:17px;box-shadow:0 6px 24px #1b245008}.pad{padding:1rem}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1rem}.kpi{padding:1rem;position:relative;overflow:hidden}.kpi i{position:absolute;right:.85rem;top:.75rem;font-size:1.5rem;color:#a99be2}.kpi strong{display:block;font-size:1.65rem;color:var(--vb-dark)}.kpi span{color:var(--muted);font-size:.82rem}.grid-2{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);gap:1rem}.section-head{display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.85rem}.section-head h2{margin:0;font-size:1.05rem}.btn{border:0;border-radius:10px;padding:.68rem .9rem;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font:inherit}.btn-primary{background:var(--vb);color:#fff}.btn-soft{background:var(--vb-soft);color:var(--vb-dark)}.btn-outline{background:#fff;color:var(--vb-dark);border:1px solid #cfc6f1}.filters{display:grid;grid-template-columns:2fr repeat(3,1fr) auto;gap:.6rem;padding:1rem;margin-bottom:1rem}.field label{display:block;font-weight:750;font-size:.78rem;margin:0 0 .35rem}.input,select,textarea{width:100%;border:1px solid #d7dce7;border-radius:10px;padding:.7rem .75rem;background:#fff;color:var(--ink);font:inherit;min-height:44px}textarea{min-height:86px;resize:vertical}.input:focus,select:focus,textarea:focus{outline:3px solid #7357c822;border-color:#7357c8}.radio-group{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}.radio-card{position:relative}.radio-card input{position:absolute;opacity:0;pointer-events:none}.radio-card span{display:flex;align-items:center;gap:.5rem;min-height:44px;padding:.65rem .7rem;border:1px solid #d7dce7;border-radius:10px;font-weight:700;cursor:pointer}.radio-card span::before{content:'';width:16px;height:16px;border:2px solid #a3a9b7;border-radius:50%;box-shadow:inset 0 0 0 3px #fff}.radio-card input:checked+span{border-color:var(--vb);background:var(--vb-soft);color:var(--vb-dark)}.radio-card input:checked+span::before{background:var(--vb);border-color:var(--vb)}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:780px}.table th{background:#f7f5fd;color:#54457f;text-align:left;font-size:.73rem;text-transform:uppercase;letter-spacing:.04em;padding:.72rem}.table td{border-top:1px solid var(--line);padding:.78rem .72rem;vertical-align:middle}.table .title{font-weight:750}.sub{color:var(--muted);font-size:.78rem;margin-top:.2rem}.pill{display:inline-flex;padding:.28rem .55rem;border-radius:999px;background:var(--vb-soft);color:var(--vb-dark);font-size:.72rem;font-weight:800}.pill.success{background:#e1f5ed;color:var(--good)}.pill.warning{background:#fff1d7;color:var(--warn)}.pill.danger{background:#fee8ec;color:var(--bad)}.type-list{display:grid;gap:.55rem}.type-row{display:grid;grid-template-columns:1fr auto;align-items:center;padding:.7rem .8rem;background:#faf9fe;border-radius:11px}.empty{text-align:center;color:var(--muted);padding:2.4rem 1rem}.empty i{font-size:2rem;display:block;margin-bottom:.5rem;color:#b5a9df}.form-card{padding:1rem;margin-bottom:1rem}.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}.span-2{grid-column:span 2}.span-3{grid-column:1/-1}.hint{padding:.8rem;background:#fff8e8;border:1px solid #f5dda8;border-radius:11px;color:#805615;margin-bottom:.8rem}.mobile-nav{display:none}.alert{padding:.8rem 1rem;border-radius:11px;margin-bottom:1rem;background:#e1f5ed;color:#126544}.alert-danger{background:#fee8ec;color:#9e2740}.alert-warning{background:#fff1d7;color:#8b5707}.modal{border:0;border-radius:16px;padding:0;max-width:680px;width:calc(100% - 2rem);box-shadow:0 20px 80px #11182755}.modal::backdrop{background:#12142b99}.modal-head{display:flex;justify-content:space-between;align-items:center;padding:1rem;border-bottom:1px solid var(--line)}.modal-body{padding:1rem}.icon-btn{border:0;background:transparent;font-size:1.4rem;cursor:pointer}.quick-actions{display:flex;gap:.55rem;flex-wrap:wrap}.doc-cards{display:none}
+:root{--vb:#5b3db2;--vb-dark:#30206f;--vb-soft:#f2effc;--ink:#172033;--muted:#657087;--line:#e5e8f0;--good:#16835d;--warn:#b56c08;--bad:#c83c55}*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif}.shell{min-height:100vh;display:grid;grid-template-columns:260px minmax(0,1fr)}.side{height:100vh;position:sticky;top:0;background:linear-gradient(180deg,var(--vb-dark),#211653);color:#fff;padding:1.15rem;display:flex;flex-direction:column}.brand{display:flex;gap:.75rem;align-items:center;padding:.4rem .35rem 1.5rem}.brand-icon{width:45px;height:45px;border-radius:14px;background:#ffffff1c;display:grid;place-items:center;font-size:1.35rem}.brand strong{font-size:1.12rem}.brand small{display:block;color:#d6cdf9;margin-top:.15rem}.nav-label{font-size:.68rem;letter-spacing:.14em;color:#a99be2;font-weight:800;margin:.2rem .6rem .65rem}.nav a{display:flex;align-items:center;gap:.7rem;color:#eae6ff;text-decoration:none;padding:.78rem .8rem;border-radius:12px;margin:.2rem 0;font-weight:700}.nav a i{font-size:1.05rem}.nav a.active,.nav a:hover{background:#fff;color:var(--vb-dark)}.side-foot{margin-top:auto}.side-foot a{color:#dfd9fa;text-decoration:none;display:block;padding:.65rem}.main{min-width:0;padding:1.25rem 1.4rem 2.5rem}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.1rem}.top h1{font-size:clamp(1.6rem,3vw,2.25rem);margin:.1rem 0}.top p{color:var(--muted);margin:.2rem 0}.user{background:#fff;border:1px solid var(--line);border-radius:999px;padding:.5rem .75rem;display:flex;gap:.5rem;align-items:center;white-space:nowrap}.card{background:#fff;border:1px solid var(--line);border-radius:17px;box-shadow:0 6px 24px #1b245008}.pad{padding:1rem}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1rem}.kpi{padding:1rem;position:relative;overflow:hidden}.kpi i{position:absolute;right:.85rem;top:.75rem;font-size:1.5rem;color:#a99be2}.kpi strong{display:block;font-size:1.65rem;color:var(--vb-dark)}.kpi span{color:var(--muted);font-size:.82rem}.grid-2{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);gap:1rem}.section-head{display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.85rem}.section-head h2{margin:0;font-size:1.05rem}.btn{border:0;border-radius:10px;padding:.68rem .9rem;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font:inherit}.btn-primary{background:var(--vb);color:#fff}.btn-soft{background:var(--vb-soft);color:var(--vb-dark)}.btn-outline{background:#fff;color:var(--vb-dark);border:1px solid #cfc6f1}.btn-danger{background:#fee8ec;color:var(--bad)}.row-actions{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap}.row-actions form{margin:0}.filters{display:grid;grid-template-columns:2fr repeat(3,1fr) auto;gap:.6rem;padding:1rem;margin-bottom:1rem}.field label{display:block;font-weight:750;font-size:.78rem;margin:0 0 .35rem}.input,select,textarea{width:100%;border:1px solid #d7dce7;border-radius:10px;padding:.7rem .75rem;background:#fff;color:var(--ink);font:inherit;min-height:44px}textarea{min-height:86px;resize:vertical}.input:focus,select:focus,textarea:focus{outline:3px solid #7357c822;border-color:#7357c8}.radio-group{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}.radio-card{position:relative}.radio-card input{position:absolute;opacity:0;pointer-events:none}.radio-card span{display:flex;align-items:center;gap:.5rem;min-height:44px;padding:.65rem .7rem;border:1px solid #d7dce7;border-radius:10px;font-weight:700;cursor:pointer}.radio-card span::before{content:'';width:16px;height:16px;border:2px solid #a3a9b7;border-radius:50%;box-shadow:inset 0 0 0 3px #fff}.radio-card input:checked+span{border-color:var(--vb);background:var(--vb-soft);color:var(--vb-dark)}.radio-card input:checked+span::before{background:var(--vb);border-color:var(--vb)}.check-row{display:flex;align-items:center;gap:.55rem;padding:.75rem;border:1px solid #d7dce7;border-radius:10px;font-weight:750;background:#faf9fe}.check-row input{width:18px;height:18px;accent-color:var(--vb)}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:780px}.table th{background:#f7f5fd;color:#54457f;text-align:left;font-size:.73rem;text-transform:uppercase;letter-spacing:.04em;padding:.72rem}.table td{border-top:1px solid var(--line);padding:.78rem .72rem;vertical-align:middle}.table .title{font-weight:750}.sub{color:var(--muted);font-size:.78rem;margin-top:.2rem}.pill{display:inline-flex;padding:.28rem .55rem;border-radius:999px;background:var(--vb-soft);color:var(--vb-dark);font-size:.72rem;font-weight:800}.pill.success{background:#e1f5ed;color:var(--good)}.pill.warning{background:#fff1d7;color:var(--warn)}.pill.danger{background:#fee8ec;color:var(--bad)}.type-list{display:grid;gap:.55rem}.type-row{display:grid;grid-template-columns:1fr auto;align-items:center;padding:.7rem .8rem;background:#faf9fe;border-radius:11px}.empty{text-align:center;color:var(--muted);padding:2.4rem 1rem}.empty i{font-size:2rem;display:block;margin-bottom:.5rem;color:#b5a9df}.form-card{padding:1rem;margin-bottom:1rem}.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}.span-2{grid-column:span 2}.span-3{grid-column:1/-1}.hint{padding:.8rem;background:#fff8e8;border:1px solid #f5dda8;border-radius:11px;color:#805615;margin-bottom:.8rem}.mobile-nav{display:none}.alert{padding:.8rem 1rem;border-radius:11px;margin-bottom:1rem;background:#e1f5ed;color:#126544}.alert-danger{background:#fee8ec;color:#9e2740}.alert-warning{background:#fff1d7;color:#8b5707}.modal{border:0;border-radius:16px;padding:0;max-width:680px;width:calc(100% - 2rem);box-shadow:0 20px 80px #11182755}.modal::backdrop{background:#12142b99}.modal-head{display:flex;justify-content:space-between;align-items:center;padding:1rem;border-bottom:1px solid var(--line)}.modal-body{padding:1rem}.icon-btn{border:0;background:transparent;font-size:1.4rem;cursor:pointer}.quick-actions{display:flex;gap:.55rem;flex-wrap:wrap}.doc-cards{display:none}
 @media(max-width:1050px){.kpis{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr 1fr}.filters .search{grid-column:1/-1}.grid-2{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr 1fr}.span-3{grid-column:1/-1}}
 @media(max-width:760px){.shell{display:block}.side{display:none}.main{padding:.85rem .75rem 5.4rem}.top{align-items:center}.top p,.user span{display:none}.kpis{gap:.55rem}.kpi{padding:.8rem}.kpi strong{font-size:1.35rem}.filters,.form-grid{grid-template-columns:1fr}.filters .search,.span-2,.span-3{grid-column:auto}.mobile-nav{position:fixed;z-index:30;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid var(--line);padding:.38rem max(.25rem,env(safe-area-inset-right)) calc(.38rem + env(safe-area-inset-bottom)) max(.25rem,env(safe-area-inset-left));box-shadow:0 -5px 20px #1b245014}.mobile-nav a{text-align:center;color:#70778a;text-decoration:none;font-size:.62rem;font-weight:750}.mobile-nav i{display:block;font-size:1.2rem;margin-bottom:.18rem}.mobile-nav a.active{color:var(--vb)}.desktop-table{display:none}.doc-cards{display:grid;gap:.65rem}.doc-card{padding:.85rem}.doc-card .meta{display:flex;gap:.35rem;flex-wrap:wrap;margin:.5rem 0}.section-head{align-items:flex-start}.section-head .quick-actions{justify-content:flex-end}.btn{padding:.62rem .72rem}}
 </style></head><body><div class="shell">
@@ -165,4 +216,23 @@ function vb_status(array $row): array { return match($row['status']??'reserved')
 <script>
 document.querySelectorAll('dialog').forEach(function(d){d.addEventListener('click',function(e){if(e.target===d)d.close()})});
 const reserve=document.getElementById('reservedSelect');if(reserve){function fillReserve(){const o=reserve.options[reserve.selectedIndex];if(!o||!o.value)return;const f=reserve.form;['symbol','title'].forEach(k=>f.elements[k].value=o.dataset[k]||'');f.elements.issued_date.value=o.dataset.date||'';f.elements.issuer.value=o.dataset.issuer||'';f.elements.signer.value=o.dataset.signer||'';}reserve.addEventListener('change',fillReserve);if(reserve.value){fillReserve();document.getElementById('documentDialog').showModal();}}
+function hiddenInput(form,name,value){let input=form.querySelector('input[type="hidden"][name="'+name+'"]');if(!input){input=document.createElement('input');input.type='hidden';input.name=name;form.appendChild(input)}input.value=value||'';return input}
+const documentDialog=document.getElementById('documentDialog');
+if(documentDialog){
+  const form=documentDialog.querySelector('form'),submit=form.querySelector('button[type="submit"],button:not([type])');
+  const featuredWrap=document.createElement('div');featuredWrap.className='field span-3';featuredWrap.innerHTML='<label class="check-row"><input type="checkbox" name="featured" value="1"> <span>Văn bản nổi bật – hiển thị trên trang Tổng quan Hệ sinh thái</span></label>';
+  submit.parentNode.insertBefore(featuredWrap,submit);
+  document.querySelectorAll('.edit-document').forEach(button=>button.addEventListener('click',()=>{const row=JSON.parse(button.dataset.record||'{}');form.reset();hiddenInput(form,'id',row.id);['type','symbol','title','issued_date','issuer','issuer_level','field','signer','notes'].forEach(name=>{if(form.elements[name])form.elements[name].value=row[name]||''});form.elements.featured.checked=!!row.featured;form.elements.document_file.required=false;submit.innerHTML='<i class="bi bi-check2-circle"></i> Lưu thay đổi';documentDialog.showModal()}));
+  const addButton=document.querySelector('button[onclick*="documentDialog"]');if(addButton)addButton.addEventListener('click',()=>{form.reset();hiddenInput(form,'id','');form.elements.document_file.required=true;submit.innerHTML='<i class="bi bi-cloud-check"></i> Tải lên và lưu'});
+}
+const numberDialog=document.getElementById('numberDialog');
+if(numberDialog){
+  const form=numberDialog.querySelector('form'),submit=form.querySelector('button[type="submit"],button:not([type])'),rows=<?=json_encode($tab==='numbers'?$numbers:[],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;
+  const tableRows=document.querySelectorAll('main .table tbody tr');
+  rows.forEach((row,index)=>{const tr=tableRows[index];if(!tr)return;const cell=tr.lastElementChild;if(!cell)return;const actions=document.createElement('div');actions.className='row-actions';
+    const edit=document.createElement('button');edit.type='button';edit.className='btn btn-outline';edit.innerHTML='<i class="bi bi-pencil"></i> Sửa';edit.addEventListener('click',()=>{form.reset();hiddenInput(form,'id',row.id);const radio=form.querySelector('input[name="book"][value="'+row.book+'"]');if(radio)radio.checked=true;['symbol','title','issued_date','issuer','drafter','signer'].forEach(name=>{if(form.elements[name])form.elements[name].value=row[name]||''});submit.innerHTML='<i class="bi bi-check2-circle"></i> Lưu thay đổi';numberDialog.showModal()});actions.appendChild(edit);
+    const del=document.createElement('form');del.method='post';del.innerHTML='<input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="delete_number"><input type="hidden" name="return_tab" value="numbers"><input type="hidden" name="id" value="'+String(row.id).replace(/"/g,'&quot;')+'"><button class="btn btn-danger" type="submit"><i class="bi bi-trash"></i></button>';del.addEventListener('submit',event=>{if(!confirm('Xóa số văn bản '+row.symbol+'?'))event.preventDefault()});actions.appendChild(del);cell.appendChild(actions)
+  });
+  const addButton=document.querySelector('button[onclick*="numberDialog"]');if(addButton)addButton.addEventListener('click',()=>{form.reset();hiddenInput(form,'id','');submit.innerHTML='<i class="bi bi-check2-circle"></i> Xác nhận lấy số'});
+}
 </script></body></html>

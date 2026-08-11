@@ -1,8 +1,12 @@
 <?php
 require_once 'includes/auth.php';
 require_once 'includes/modules.php';
+require_once 'includes/vanban_store.php';
 $modules = get_ecosystem_modules();
 $user = current_user();
+$featuredDocuments = array_values(array_filter(vb_rows(VANBAN_DOCUMENTS_FILE), fn($row) => !empty($row['featured'])));
+usort($featuredDocuments, fn($a, $b) => strcmp((string)($b['issued_date'] ?? ''), (string)($a['issued_date'] ?? '')));
+$featuredDocuments = array_slice($featuredDocuments, 0, 4);
 $logoPath = BASE_URL . 'assets/logo.png';
 $logoExists = file_exists(__DIR__ . '/assets/logo.png');
 $nModules = count($modules);
@@ -93,6 +97,7 @@ body::after{
   -webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 2px 10px rgba(0,40,100,.45));
 }
+.featured-strip{position:relative;z-index:4;display:flex;align-items:center;gap:.55rem;width:min(94vw,980px);margin:.22rem auto 0;padding:.34rem .45rem;border:1px solid rgba(255,255,255,.2);border-radius:14px;background:rgba(3,27,65,.58);backdrop-filter:blur(12px);overflow-x:auto;scrollbar-width:none;flex-shrink:0}.featured-strip::-webkit-scrollbar{display:none}.featured-title{display:flex;align-items:center;gap:.3rem;color:#ffe28a;font-size:.7rem;font-weight:800;white-space:nowrap;padding:.32rem .4rem}.featured-doc{display:block;min-width:0;max-width:245px;padding:.35rem .55rem;border-radius:9px;background:rgba(255,255,255,.1);color:#fff;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.7rem;font-weight:650}.featured-doc:hover{background:rgba(255,255,255,.2);color:#fff}.featured-doc small{color:#c8ddff;margin-right:.3rem}
 
 .stage{
   flex:1 1 auto;min-height:0;
@@ -461,6 +466,21 @@ body::after{
   <div class="line1">TRƯỜNG PTDTNT THCS&THPT XÍN MẦN</div>
   <div class="line2">HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG</div>
 </header>
+<?php if ($featuredDocuments): ?>
+<section class="featured-strip" aria-label="Văn bản nổi bật">
+  <div class="featured-title"><i class="bi bi-star-fill"></i> VĂN BẢN NỔI BẬT</div>
+  <?php foreach ($featuredDocuments as $document):
+    $featuredHref = $user
+      ? vb_file_url((string)($document['file_path'] ?? ''))
+      : BASE_URL . 'login.php?next=' . urlencode(BASE_URL . 'vanban.php?tab=documents');
+  ?>
+  <a class="featured-doc" href="<?= e($featuredHref) ?>" <?= $user ? 'target="_blank" rel="noopener"' : '' ?> title="<?= e($document['title'] ?? '') ?>">
+    <small><?= e($document['symbol'] ?? '') ?></small><?= e($document['title'] ?? '') ?>
+  </a>
+  <?php endforeach; ?>
+  <a class="featured-doc" href="<?= e($user ? BASE_URL . 'vanban.php' : BASE_URL . 'login.php?next=' . urlencode(BASE_URL . 'vanban.php')) ?>"><i class="bi bi-arrow-right-circle"></i> Xem tất cả</a>
+</section>
+<?php endif; ?>
 
 <div class="stage">
   <div class="eco" id="ecoStage">
