@@ -62,7 +62,8 @@ function csdl_student_photo_save_upload(string $studentId, array $upload): array
     if (!$ok) return ['ok'=>false, 'message'=>'Không ghi được ảnh học sinh.'];
     $drive=cds_drive_settings();
     if(!empty($drive['enabled'])&&cds_drive_folder('photos',$drive)!==''){
-        $result=cds_drive_upload_bytes((string)file_get_contents($file),$safe.'.jpg','image/jpeg','photos');
+        $student=[];if(function_exists('csdl_students_all'))foreach(csdl_students_all() as $row)if((string)($row['id']??'')===$studentId){$student=$row;break;}
+        $result=cds_drive_upload_bytes((string)file_get_contents($file),$safe.'.jpg','image/jpeg','photos',['title'=>$student['name']??('Học sinh '.$safe),'class_name'=>$student['class_name']??'']);
         if(empty($result['ok'])) return ['ok'=>true,'changed'=>true,'path'=>csdl_student_photo_public_path($studentId),'warning'=>$result['message']??'Chưa lưu được ảnh lên Google Drive; bản trên host vẫn được giữ an toàn.'];
         $map=csdl_student_photo_drive_map();$map[$studentId]=$result['id'];
         if(false===file_put_contents(CSDL_STUDENT_PHOTO_DRIVE_MAP,json_encode($map,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX)) return ['ok'=>true,'changed'=>true,'path'=>csdl_student_photo_public_path($studentId),'warning'=>'Chưa lưu được liên kết Drive; bản trên host vẫn được giữ an toàn.'];
