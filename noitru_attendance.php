@@ -35,6 +35,7 @@ function noitru_attendance_school_students() {
 }
 
 $attendanceStudents = noitru_attendance_school_students();
+noitru_att_ensure_legacy_reports(count($attendanceStudents));
 $attendanceStudentMap = [];
 foreach ($attendanceStudents as $attendanceStudent) {
     $attendanceStudentMap[(string)($attendanceStudent['id'] ?? '')] = $attendanceStudent;
@@ -84,33 +85,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'att_save') {
         $d = trim($_POST['date'] ?? $date);
         $sh = trim($_POST['shift'] ?? $shift);
-        $ids = $_POST['sid'] ?? [];
-        $sts = $_POST['status'] ?? [];
-        $reasons = $_POST['reason'] ?? [];
-        $excuses = $_POST['excuse'] ?? [];
+        $payload = json_decode((string)($_POST['attendance_payload'] ?? ''), true);
+        $payloadRows = is_array($payload) ? ($payload['students'] ?? []) : [];
+        if (!$payloadRows) {
+            $payloadRows=[];$ids=$_POST['sid']??[];$sts=$_POST['status']??[];$reasons=$_POST['reason']??[];$excuses=$_POST['excuse']??[];
+            foreach($ids as $i=>$sid)$payloadRows[]=['id'=>$sid,'status'=>$sts[$i]??'present','reason'=>$reasons[$i]??'','excuse'=>$excuses[$i]??''];
+        }
         $reporterName = $canManageAttendance ? trim($_POST['reporter'] ?? ($user['name'] ?? '')) : ($user['name'] ?? '');
         $generalNote = trim($_POST['general_note'] ?? '');
-        foreach ($ids as $i => $sid) {
-            $sid = trim($sid);
+        $submitted=[];
+        foreach ($payloadRows as $payloadRow) {
+            $sid = trim((string)($payloadRow['id'] ?? ''));
             if ($sid === '') continue;
             $student = $attendanceStudentMap[$sid] ?? null;
             if (!$student) continue;
-            $studentClass = $student['class_name'] ?? '';
-            $st = $sts[$i] ?? 'present';
+            $st = $payloadRow['status'] ?? 'present';
             if (!in_array($st, ['present','absent','late','excused'], true)) $st = 'present';
-            $ex = $excuses[$i] ?? '';
+            $ex = (string)($payloadRow['excuse'] ?? '');
             if ($st === 'absent' && $ex === 'P') $st = 'excused';
-            noitru_att_upsert([
+            $submitted[$sid]=['status'=>$st,'excuse'=>$ex,'reason'=>trim((string)($payloadRow['reason']??''))];
+        }
+        $existing=noitru_att_for($d,$sh);$records=[];
+        foreach($attendanceStudents as $student){
+            $sid=(string)($student['id']??'');if($sid==='')continue;$value=$submitted[$sid]??($existing[$sid]??['status'=>'present','excuse'=>'','reason'=>'']);
+            $records[] = [
                 'date' => $d, 'shift' => $sh, 'student_id' => $sid,
-                'status' => $st, 'excuse' => $ex,
-                'reason' => trim($reasons[$i] ?? ''),
-                'class_name' => $studentClass,
+                'status' => $value['status']??'present', 'excuse' => $value['excuse']??'',
+                'reason' => trim((string)($value['reason'] ?? '')),
+                'class_name' => $student['class_name'] ?? '',
                 'by' => $reporterName,
                 'saved_by' => $user['name'] ?? '',
                 'report_note' => $generalNote,
-            ]);
+            ];
         }
-        flash('Đã lưu điểm danh.');
+        $saved=noitru_att_save_report($d,$sh,$records,['by'=>$reporterName,'saved_by'=>$user['name']??'','report_note'=>$generalNote]);
+        flash($saved?'Đã lưu đủ '.count($records).' học sinh.':'Không lưu được báo cáo điểm danh. Vui lòng thử lại.',$saved?'success':'danger');
         $sep = strpos($redir, '?') !== false ? '&' : '?';
         header('Location: ' . $redir . $sep . 'saved=1');
         exit;

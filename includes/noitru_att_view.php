@@ -97,6 +97,12 @@
       $allowedStudentIds=array_fill_keys(array_column($boarders,'id'),true);
       $studentById=[];
       foreach ($boarders as $student) $studentById[$student['id']]=$student;
+      $historyReportKeys=[];
+      foreach (noitru_att_reports_all() as $report) {
+        $rowDate=$report['date']??'';if($rowDate<$historyFrom||$rowDate>$historyTo)continue;$rowShift=$report['shift']??'dot_xuat';
+        $historyReportKeys[$rowDate.'|'.$rowShift]=true;
+        $historyDays[$rowDate][$rowShift]=['total'=>(int)($report['total']??0),'present'=>(int)($report['present']??0)+(int)($report['late']??0),'absent'=>(int)($report['absent']??0)+(int)($report['excused']??0),'students'=>[]];
+      }
       foreach (noitru_att_all() as $row) {
         if (!isset($allowedStudentIds[$row['student_id']??''])) continue;
         $rowDate=$row['date']??'';
@@ -104,11 +110,8 @@
         $rowShift=$row['shift']??'dot_xuat';
         if (!isset($historyDays[$rowDate][$rowShift])) $historyDays[$rowDate][$rowShift]=['total'=>0,'present'=>0,'absent'=>0,'students'=>[]];
         $summary=&$historyDays[$rowDate][$rowShift];
-        $summary['total']++;
-        if (in_array($row['status']??'present',['present','late'],true)) {
-          $summary['present']++;
-        } else {
-          $summary['absent']++;
+        if (!isset($historyReportKeys[$rowDate.'|'.$rowShift])) {$summary['total']++;if(in_array($row['status']??'present',['present','late'],true))$summary['present']++;else $summary['absent']++;}
+        if (!in_array($row['status']??'present',['present','late'],true)) {
           $student=$studentById[$row['student_id']??'']??[];
           $summary['students'][]=[
             'name'=>$student['name']??($row['student_name']??'Học sinh'),
@@ -195,6 +198,7 @@
 
       <form method="post" id="attendanceForm">
         <input type="hidden" name="action" value="att_save"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="shift" value="<?= e($shift) ?>"><input type="hidden" name="class" value="<?= e($class) ?>"><input type="hidden" name="view" value="diemdanh">
+        <input type="hidden" name="attendance_payload" id="attendancePayload">
         <?php if (can_edit_perm('nt.diemdanh')): ?><div class="att-bulk"><button class="btn btn-outline-success" type="button" onclick="setAll('present')"><i class="bi bi-check-circle"></i> Đủ tất cả</button><button class="btn btn-outline-danger" type="button" onclick="setAll('absent')"><i class="bi bi-x-circle"></i> Vắng tất cả</button></div><?php endif; ?>
         <div class="att-search"><i class="bi bi-search"></i><input class="form-control" type="search" id="studentSearch" placeholder="Tìm học sinh…"></div>
         <div class="att-students" id="studentList">
@@ -237,7 +241,7 @@
   <div class="d-flex justify-content-around border-top border-bottom py-2 mb-2"><span class="text-success">Có mặt: <strong id="confirmPresent"></strong></span><span class="text-danger">Vắng: <strong id="confirmAbsent"></strong></span><span>Tổng: <strong id="confirmTotal"></strong></span></div>
   <div class="att-confirm-list" id="confirmList"></div>
   <label class="form-label fw-bold mt-2">Ghi chú chung</label><textarea name="general_note" form="attendanceForm" class="form-control" rows="2" placeholder="Nhập ghi chú nếu có…"></textarea>
-  <div class="att-dialog-actions"><button class="btn btn-outline-secondary" type="button" onclick="closeDialog('confirmDialog')">Quay lại chỉnh sửa</button><button class="btn btn-nt" type="button" onclick="document.getElementById('attendanceForm').submit()"><i class="bi bi-check-circle"></i> Xác nhận lưu</button></div>
+  <div class="att-dialog-actions"><button class="btn btn-outline-secondary" type="button" onclick="closeDialog('confirmDialog')">Quay lại chỉnh sửa</button><button class="btn btn-nt" type="button" onclick="submitAttendanceForm()"><i class="bi bi-check-circle"></i> Xác nhận lưu</button></div>
 </div></dialog>
 
 <dialog class="att-dialog" id="reportDialog"><div class="att-dialog-body">
@@ -269,6 +273,12 @@ function openConfirm(){
   document.getElementById('confirmTotal').textContent=rows.length;document.getElementById('confirmPresent').textContent=rows.length-absent.length;document.getElementById('confirmAbsent').textContent=absent.length;
   document.getElementById('confirmList').innerHTML=Object.entries(groups).map(([c,rs])=>'<section class="att-confirm-class"><header><span>'+escapeHtml(c)+'</span><span>'+rs.length+' vắng</span></header>'+rs.map((r,i)=>{var d=rowData(r);return '<div>'+(i+1)+'. '+escapeHtml(r.dataset.name)+' <strong>'+escapeHtml(d.excuse.value||'KP')+'</strong>'+(d.reason.value?' – '+escapeHtml(d.reason.value):'')+'</div>'}).join('')+'</section>').join('')||( '<div class="text-center text-success py-3">Tất cả học sinh có mặt.</div>');
   document.getElementById('confirmDialog').showModal();
+}
+function submitAttendanceForm(){
+  var rows=[...document.querySelectorAll('.att-person')],students=rows.map(function(row){var d=rowData(row),sid=row.querySelector('[name="sid[]"]');return{id:sid?sid.value:'',status:d.status.value,excuse:d.excuse.value,reason:d.reason.value}});
+  document.getElementById('attendancePayload').value=JSON.stringify({version:1,students:students});
+  rows.forEach(function(row){row.querySelectorAll('input[name$="[]"]').forEach(function(input){input.disabled=true})});
+  document.getElementById('attendanceForm').submit();
 }
 function confirmHistoryBulkDelete(){
   var checked=document.querySelectorAll('input[name="delete_dates[]"]:checked');
