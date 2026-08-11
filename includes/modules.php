@@ -24,11 +24,11 @@ function get_ecosystem_modules() {
             'status' => 'live', 'url' => BASE_URL . 'vanban.php', 'external' => false,
         ],
         [
-            'id' => 'truyenthong', 'num' => 4,
-            'title' => 'Truyền thông',
-            'subtitle' => 'Cuộc thi – dự án – chiến dịch hành động',
-            'icon' => 'bi-broadcast', 'color' => '#fd7e14',
-            'status' => 'soon', 'url' => '', 'external' => false,
+            'id' => 'thuvien', 'num' => 4,
+            'title' => 'Thư viện – Thiết bị',
+            'subtitle' => 'Sách · mượn trả · kho thiết bị · thống kê',
+            'icon' => 'bi-book-half', 'color' => '#6f42c1',
+            'status' => 'live', 'url' => BASE_URL . 'thuvien.php', 'external' => false,
         ],
         [
             'id' => 'csdl', 'num' => 5,
