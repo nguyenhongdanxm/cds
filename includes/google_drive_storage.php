@@ -5,7 +5,7 @@ if (!defined('CDS_DRIVE_SETTINGS')) define('CDS_DRIVE_SETTINGS', DATA_PATH . '/g
 
 function cds_drive_settings(): array {
     $raw = is_file(CDS_DRIVE_SETTINGS) ? json_decode((string)file_get_contents(CDS_DRIVE_SETTINGS), true) : [];
-    return array_merge(['enabled'=>false,'client_email'=>'','private_key'=>'','folders'=>['documents'=>'','plans'=>'','photos'=>'']], is_array($raw)?$raw:[]);
+    return array_merge(['enabled'=>false,'client_email'=>'','private_key'=>'','folders'=>['documents'=>'','plans'=>'','education_plans'=>'','photos'=>'']], is_array($raw)?$raw:[]);
 }
 function cds_drive_save_settings(array $settings): bool {
     if (!is_dir(DATA_PATH)) @mkdir(DATA_PATH,0755,true);

@@ -26,7 +26,7 @@ body > .container > .nav-pills + * {
 (function(){
   function cleanLegacyMenus(){
     var groups = [
-      ['Thông báo chuyên môn','Văn bản kế hoạch','Chỉ tiêu'],
+      ['Thông báo chuyên môn','Kế hoạch giáo dục','Chỉ tiêu'],
       ['Kế hoạch','Báo cáo','PCCM']
     ];
     var candidates = document.querySelectorAll(

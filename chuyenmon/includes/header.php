@@ -166,6 +166,11 @@ body{background:#f0f4f8;font-family:'Segoe UI',system-ui,sans-serif;color:#21252
 </div>
 </div></div></nav>
 <div class="container pb-5">
+<script>
+document.querySelectorAll('.cm-sidebar-link span,.cm-mobile-bottom span,.cm-mobile-more span').forEach(function(label){
+  if ((label.textContent || '').trim() === 'Văn bản kế hoạch') label.textContent = 'Kế hoạch giáo dục';
+});
+</script>
 <?php show_flash(); ?>
 <?php if ($logged && $active_ver && in_array($current, ['them','danhsach','tongquan','sua','doicheo','rasoat'], true)): ?>
 <div class="version-bar">

@@ -51,29 +51,29 @@ function cm_education_upload_pdf(string $field): string {
     $name = basename((string)($upload['name'] ?? 'ke-hoach.pdf'));
     $tmp = (string)($upload['tmp_name'] ?? '');
     $size = (int)($upload['size'] ?? 0);
-    $mime = function_exists('mime_content_type') ? (mime_content_type($tmp) ?: '') : '';
-    if (strtolower(pathinfo($name, PATHINFO_EXTENSION)) !== 'pdf' || !in_array($mime, ['application/pdf', 'application/x-pdf'], true)) {
+    $signature = $tmp !== '' ? file_get_contents($tmp, false, null, 0, 5) : false;
+    if (strtolower(pathinfo($name, PATHINFO_EXTENSION)) !== 'pdf' || $signature !== '%PDF-') {
         throw new RuntimeException('Chỉ chấp nhận văn bản PDF đã ký số.');
     }
     if ($size <= 0 || $size > 25 * 1024 * 1024) throw new RuntimeException('Tệp PDF phải có dung lượng không quá 25 MB.');
 
     $settings = function_exists('cds_drive_settings') ? cds_drive_settings() : [];
-    $category = function_exists('cds_drive_type_for_action') ? cds_drive_type_for_action(cds_drive_page_action(), 'plans') : 'plans';
-    if (!empty($settings['enabled']) && !empty($settings['types'][$category]['folder_id'])) {
-        $bytes = file_get_contents($tmp);
-        if ($bytes === false) throw new RuntimeException('Không đọc được tệp PDF.');
-        $result = cds_drive_upload_bytes($bytes, $name, 'application/pdf', $category);
-        if (empty($result['ok'])) throw new RuntimeException($result['message'] ?? 'Không lưu được tệp lên Google Drive.');
-        return (string)$result['path'];
+    $category = 'education_plans';
+    foreach ((array)($settings['types'] ?? []) as $key => $type) {
+        if (cm_education_norm($type['label'] ?? '') === cm_education_norm('Kế hoạch giáo dục') && !empty($type['folder_id'])) {
+            $category = (string)$key;
+            break;
+        }
     }
-
-    $uploadDir = dirname(__DIR__) . '/uploads/education-plans';
-    if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
-        throw new RuntimeException('Không tạo được thư mục lưu văn bản.');
+    if (empty($settings['enabled'])) throw new RuntimeException('Kho Google Drive chưa được bật.');
+    if (empty($settings['types'][$category]['folder_id'])) {
+        throw new RuntimeException('Chưa chọn thư mục “Kế hoạch giáo dục” trong Kho Google Drive.');
     }
-    $safeName = date('YmdHis') . '-' . bin2hex(random_bytes(6)) . '.pdf';
-    if (!move_uploaded_file($tmp, $uploadDir . '/' . $safeName)) throw new RuntimeException('Không lưu được tệp PDF.');
-    return 'uploads/education-plans/' . $safeName;
+    $bytes = file_get_contents($tmp);
+    if ($bytes === false) throw new RuntimeException('Không đọc được tệp PDF.');
+    $result = cds_drive_upload_bytes($bytes, $name, 'application/pdf', $category);
+    if (empty($result['ok'])) throw new RuntimeException($result['message'] ?? 'Không lưu được tệp vào thư mục Kế hoạch giáo dục.');
+    return (string)$result['path'];
 }
 
 function cm_education_is_visible(array $row, bool $isAdmin, bool $isLeader, string $teacher, string $group): bool {
