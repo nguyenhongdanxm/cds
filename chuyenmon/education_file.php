@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/includes/functions.php';
-require_login();
+if (!cds_user() || !cds_can_feature('cm.kehoach', 'view')) { http_response_code(403); exit('Tài khoản chưa có quyền Kế hoạch giáo dục.'); }
 $id=trim((string)($_GET['id']??''));$rows=load_json(DATA_PATH.'/education_plans.json',[]);$row=null;foreach((array)$rows as $candidate)if(($candidate['id']??'')===$id){$row=$candidate;break;}
 if(!$row){http_response_code(404);exit('Không tìm thấy kế hoạch.');}
 $user=cds_user()??[];$teacher=trim((string)($user['teacher_name']??$user['name']??''));$group=$teacher!==''?trim((string)get_teacher_group($teacher)):'';$role=(string)($user['role']??'');$leader=$role==='totruong'||in_array('totruong',(array)($user['groups']??[]),true);
