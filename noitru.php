@@ -1843,7 +1843,7 @@ document.getElementById('saveDutyDrive')?.addEventListener('click',async functio
   document.querySelectorAll('style').forEach(function(source){const style=doc.createElement('style');style.textContent=source.textContent;doc.head.append(style)});
   doc.body.append(paper.cloneNode(true));
   const html='<!doctype html>'+doc.documentElement.outerHTML,data=new FormData();
-  data.append('drive_api','save');data.append('csrf',button.dataset.csrf||'');data.append('type','duty_reports');data.append('name',button.dataset.filename||'bien-ban-truc.html');data.append('file',new Blob([html],{type:'text/html'}),'document.html');
+  data.append('drive_api','save');data.append('csrf',button.dataset.csrf||'');data.append('source_action',button.dataset.source||'');data.append('type','duty_reports');data.append('name',button.dataset.filename||'bien-ban-truc.html');data.append('file',new Blob([html],{type:'text/html'}),'document.html');
   button.disabled=true;button.innerHTML='Đang lưu…';
   try{const response=await fetch('<?=e(BASE_URL)?>admin.php',{method:'POST',body:data});const result=await response.json();alert(result.ok?'Đã lưu biên bản lên Google Drive.':(result.message||'Không lưu được lên Drive.'));}
   catch(error){alert('Không kết nối được máy chủ để lưu Drive.');}

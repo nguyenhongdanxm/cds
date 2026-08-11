@@ -32,7 +32,7 @@ uksort($groupEntries,static fn($left,$right)=>strnatcasecmp((string)$left,(strin
 document.getElementById('saveAssignmentDrive')?.addEventListener('click',async function(){
   const button=this,old=button.textContent,papers=[...document.querySelectorAll('.paper')].map(node=>node.outerHTML).join('');
   const html='<!doctype html><html lang="vi"><head><meta charset="utf-8"><title><?=e($documentTitle)?></title><style>'+document.querySelector('style').textContent+'</style></head><body>'+papers+'</body></html>';
-  const data=new FormData();data.append('drive_api','save');data.append('csrf','<?=e(cds_drive_csrf_token())?>');data.append('type','room_meal_lists');data.append('name','<?=e($mode==='rooms'?'danh-sach-phong':'danh-sach-mam')?>-<?=e(date('Ymd',strtotime($preparedDate)))?>.html');data.append('file',new Blob([html],{type:'text/html'}),'document.html');
+  const data=new FormData();data.append('drive_api','save');data.append('csrf','<?=e(cds_drive_csrf_token())?>');data.append('source_action','<?=e(cds_drive_page_action())?>');data.append('type','room_meal_lists');data.append('name','<?=e($mode==='rooms'?'danh-sach-phong':'danh-sach-mam')?>-<?=e(date('Ymd',strtotime($preparedDate)))?>.html');data.append('file',new Blob([html],{type:'text/html'}),'document.html');
   button.disabled=true;button.textContent='Đang lưu…';try{const response=await fetch('<?=e(BASE_URL)?>admin.php',{method:'POST',body:data});const result=await response.json();alert(result.ok?'Đã lưu bản in lên Google Drive.':(result.message||'Không lưu được lên Drive.'));}catch(error){alert('Không kết nối được máy chủ để lưu Drive.');}finally{button.disabled=false;button.textContent=old;}
 });
 </script>
