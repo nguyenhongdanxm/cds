@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/includes/functions.php';
-require_login();
+if (!cds_user() || !cds_can_feature('cm.kehoach', 'view')) { header('Content-Type: application/json; charset=utf-8'); http_response_code(403); echo json_encode(['ok'=>false,'message'=>'Tài khoản chưa có quyền Kế hoạch giáo dục.'],JSON_UNESCAPED_UNICODE); exit; }
 header('Content-Type: application/json; charset=utf-8');
 
 function edu_json(bool $ok,string $message='',array $extra=[]): void {echo json_encode(array_merge(['ok'=>$ok,'message'=>$message],$extra),JSON_UNESCAPED_UNICODE);exit;}
