@@ -766,7 +766,9 @@ function require_login() {
             && in_array($action, ['observation_save','observation_review'], true);
         $fileCheckSelfService = cds_current_page_feature() === 'cm.baocao.kythi'
             && $action === 'file_check_save';
-        $requiredLevel = ($observationSelfService || $fileCheckSelfService)
+        $educationPlanSelfService = cds_current_page_feature() === 'cm.kehoach'
+            && in_array($action, ['save_plan', 'delete_plan'], true);
+        $requiredLevel = ($observationSelfService || $fileCheckSelfService || $educationPlanSelfService)
             ? 'view'
             : (str_contains($action, 'delete') || str_contains($action, 'xoa') ? 'delete' : 'edit');
         if (!cds_can_feature(cds_current_page_feature(), $requiredLevel)) {
