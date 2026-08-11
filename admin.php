@@ -41,13 +41,6 @@ if(($_GET['view']??'')==='drive'){
     <section class="card shadow-sm border-0 mb-3"><div class="card-body p-4"><h5>5. Chuyển dữ liệu cũ</h5><p class="text-muted">Mỗi lượt chuyển tối đa 20 file; bản gốc trên host được giữ nguyên. File trùng được bỏ qua.</p><form method="post" onsubmit="return confirm('Chuyển tối đa 20 file cũ lên Drive?')"><input type="hidden" name="drive_action" value="migrate"><button class="btn btn-warning"><i class="bi bi-cloud-arrow-up"></i> Chuyển 20 file tiếp theo</button></form></div></section>
     <section class="card shadow-sm border-0"><div class="card-body p-4"><h5>6. Lịch sử lưu Drive</h5><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Thời gian</th><th>Loại</th><th>File</th><th>Người lưu</th><th>Trạng thái</th></tr></thead><tbody><?php foreach($history as $row):?><tr><td><?=e(isset($row['at'])?date('d/m/Y H:i',strtotime($row['at'])):'')?></td><td><?=e($drive['types'][$row['type']??'']['label']??($row['type']??''))?></td><td><?=e($row['name']??'')?></td><td><?=e($row['by']??'')?></td><td><?=!empty($row['file_id'])?'<span class="badge bg-success">Đã lưu</span>':'—'?></td></tr><?php endforeach;?><?php if(!$history):?><tr><td colspan="5" class="text-muted text-center">Chưa có lịch sử.</td></tr><?php endif;?></tbody></table></div></div></section></main><script>function addDriveType(){var key=prompt('Nhập mã loại, ví dụ: ho_so_y_te');if(!key)return;var label=prompt('Tên hiển thị','Loại dữ liệu mới')||'Loại dữ liệu mới';var row=document.createElement('div');row.className='drive-type-row mb-2';row.innerHTML='<input class="form-control" name="type_key[]" readonly><input class="form-control" name="type_label[]"><input class="form-control" name="type_folder[]" placeholder="ID thư mục"><input class="form-control" name="type_prefix[]"><button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()"><i class="bi bi-trash"></i></button>';row.children[0].value=key;row.children[1].value=label;row.children[3].value=key;document.getElementById('driveTypes').appendChild(row)}</script></body></html><?php exit;
 }
-if (empty($_SESSION['dashboard_csrf'])) $_SESSION['dashboard_csrf'] = bin2hex(random_bytes(20));
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mute_birthday') {
-    $token = (string)($_POST['csrf'] ?? '');
-    if (hash_equals((string)$_SESSION['dashboard_csrf'], $token)) cds_dashboard_mute_birthday($user, trim((string)($_POST['teacher_id'] ?? '')));
-    header('Location: ' . BASE_URL . 'admin.php'); exit;
-}
-
 $modules = [];
 foreach (get_ecosystem_modules() as $module) {
     $id = $module['id'] ?? '';
@@ -55,8 +48,9 @@ foreach (get_ecosystem_modules() as $module) {
     if (($module['status'] ?? '') === 'link' || $isAdmin || can_module($id, 'view')) $modules[] = $module;
 }
 $teachers = array_values(array_filter(csdl_teachers_all(), fn($row)=>!isset($row['active']) || !empty($row['active'])));
-$preferences = cds_dashboard_preferences($user);
-$birthday = cds_dashboard_birthday($teachers, $preferences['muted_birthdays'] ?? []);
+$students = array_values(array_filter(csdl_students_all(), fn($row)=>!isset($row['active']) || !empty($row['active'])));
+$birthdays = cds_dashboard_birthdays($teachers, $students);
+$hasBirthdays = !empty($birthdays['today']) || !empty($birthdays['tomorrow']);
 $dashboard = cds_dashboard_scope_data($user);
 $quickActions = cds_dashboard_quick_actions($user);
 $feedItems = cds_dashboard_notice_tasks($user);
@@ -116,8 +110,11 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
     <div class="welcome-copy">
       <span class="eyebrow"><i class="bi bi-stars"></i><?= e($greeting) ?></span>
       <h1><?= e($user['name'] ?? 'Thầy/Cô') ?></h1>
-      <?php if ($birthday): ?>
-        <div class="birthday-line"><span class="birthday-icon">🎂</span><div><strong><?= $birthday['today'] ? 'Chúc mừng sinh nhật ' : 'Sinh nhật sắp tới: ' ?><?= e($birthday['name']) ?></strong><small><?= $birthday['today'] ? 'Chúc một tuổi mới nhiều sức khỏe, niềm vui và thành công!' : 'Còn ' . (int)$birthday['days'] . ' ngày · ' . date('d/m', strtotime($birthday['date'])) ?></small></div><form method="post"><input type="hidden" name="action" value="mute_birthday"><input type="hidden" name="csrf" value="<?= e($_SESSION['dashboard_csrf']) ?>"><input type="hidden" name="teacher_id" value="<?= e($birthday['id']) ?>"><button title="Ẩn thông báo sinh nhật của người này" aria-label="Ẩn thông báo sinh nhật"><i class="bi bi-x-lg"></i></button></form></div>
+      <?php if ($hasBirthdays): ?>
+        <div class="birthday-line"><span class="birthday-icon">🎂</span><div>
+          <?php if (!empty($birthdays['today'])): ?><div><strong>Chúc mừng sinh nhật <?= e(implode(', ', array_column($birthdays['today'], 'name'))) ?></strong><small>Chúc một tuổi mới nhiều sức khỏe, niềm vui và thành công!</small></div><?php endif; ?>
+          <?php if (!empty($birthdays['tomorrow'])): ?><div<?= !empty($birthdays['today']) ? ' style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.28)"' : '' ?>><strong>Sinh nhật ngày mai: <?= e(implode(', ', array_column($birthdays['tomorrow'], 'name'))) ?></strong><small>Còn 1 ngày · <?= date('d/m', strtotime('+1 day')) ?></small></div><?php endif; ?>
+        </div></div>
       <?php else: ?><p class="daily-quote">“<?= e(cds_dashboard_quote()) ?>”</p><?php endif; ?>
     </div>
     <div class="school-year"><i class="bi bi-calendar3"></i><span>Năm học</span><strong><?= e(SCHOOL_YEAR) ?></strong></div>

@@ -83,29 +83,41 @@ function cds_dashboard_solar_to_lunar($day, $month, $year, $timezone = 7): array
     return ['day'=>$lunarDay,'month'=>$lunarMonth,'year'=>$lunarYear,'leap'=>$lunarLeap];
 }
 
-function cds_dashboard_preferences_file(): string { return DATA_PATH . '/dashboard_preferences.json'; }
-function cds_dashboard_preferences(array $user): array {
-    $all = load_json(cds_dashboard_preferences_file(), []); $key = (string)($user['id'] ?? $user['username'] ?? '');
-    return array_merge(['muted_birthdays'=>[]], is_array($all[$key] ?? null) ? $all[$key] : []);
-}
-function cds_dashboard_mute_birthday(array $user, string $teacherId): void {
-    $all = load_json(cds_dashboard_preferences_file(), []); $key = (string)($user['id'] ?? $user['username'] ?? '');
-    $pref = array_merge(['muted_birthdays'=>[]], is_array($all[$key] ?? null) ? $all[$key] : []);
-    $pref['muted_birthdays'] = array_values(array_unique(array_merge($pref['muted_birthdays'], [$teacherId])));
-    $all[$key] = $pref; save_json(cds_dashboard_preferences_file(), $all);
-}
-function cds_dashboard_birthday(array $teachers, array $muted = []): ?array {
-    $today = date('m-d'); $todayYear = (int)date('Y'); $found = [];
-    foreach ($teachers as $teacher) {
-        $id = (string)($teacher['id'] ?? ''); $dob = (string)($teacher['dob'] ?? '');
-        if ($id === '' || in_array($id, $muted, true) || !preg_match('/^\d{4}-(\d{2})-(\d{2})$/', $dob, $m)) continue;
-        $md = $m[1] . '-' . $m[2]; $year = $todayYear; $ts = strtotime($year . '-' . $md);
-        if ($ts < strtotime(date('Y-m-d'))) $ts = strtotime(($year + 1) . '-' . $md);
-        $days = (int)floor(($ts - strtotime(date('Y-m-d'))) / 86400);
-        if ($days <= 7) $found[] = ['id'=>$id,'name'=>$teacher['name'] ?? '','dob'=>$dob,'days'=>$days,'date'=>date('Y-m-d',$ts),'today'=>$md===$today];
+function cds_dashboard_birthdays(array $teachers, array $students): array {
+    $todayMd = date('m-d');
+    $tomorrowMd = date('m-d', strtotime('+1 day'));
+    $groups = ['today'=>[], 'tomorrow'=>[]];
+    $seen = [];
+
+    $collect = static function (array $rows, string $personType) use (&$groups, &$seen, $todayMd, $tomorrowMd): void {
+        foreach ($rows as $row) {
+            if (isset($row['active']) && empty($row['active'])) continue;
+            $name = trim((string)($row['name'] ?? ''));
+            $dob = trim((string)($row['dob'] ?? ''));
+            if ($name === '' || !preg_match('/^\d{4}-(\d{2})-(\d{2})$/', $dob, $match)) continue;
+
+            $monthDay = $match[1] . '-' . $match[2];
+            $group = $monthDay === $todayMd ? 'today' : ($monthDay === $tomorrowMd ? 'tomorrow' : '');
+            if ($group === '') continue;
+
+            $id = trim((string)($row['id'] ?? ''));
+            $identity = $personType . '|' . ($id !== '' ? $id : $name . '|' . $dob);
+            if (isset($seen[$identity])) continue;
+            $seen[$identity] = true;
+            $groups[$group][] = ['name'=>$name, 'type'=>$personType];
+        }
+    };
+
+    $collect($teachers, 'teacher');
+    $collect($students, 'student');
+    foreach ($groups as &$people) {
+        usort($people, static function ($left, $right): int {
+            if (function_exists('csdl_compare_person_names')) return csdl_compare_person_names($left['name'], $right['name']);
+            return strnatcasecmp($left['name'], $right['name']);
+        });
     }
-    usort($found, fn($a,$b)=>$a['days']<=>$b['days'] ?: strcasecmp($a['name'],$b['name']));
-    return $found[0] ?? null;
+    unset($people);
+    return $groups;
 }
 
 function cds_dashboard_quote(): string {
