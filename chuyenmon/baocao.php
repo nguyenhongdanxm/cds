@@ -72,6 +72,10 @@ function cm_progress_weeks($year) {
 function cm_progress_num($value) {
     return is_numeric($value) ? max(0, (float)$value) : 0;
 }
+function cm_progress_name_key($value) {
+    $value = trim(preg_replace('/\s+/u', ' ', (string)$value));
+    return function_exists('mb_strtolower') ? mb_strtolower($value, 'UTF-8') : strtolower($value);
+}
 function cm_progress_diff_class($diff) {
     if ($diff >= 2) return 'danger';
     if ($diff > 0) return 'warning';
@@ -101,6 +105,7 @@ foreach ($progressAssignmentsAll as $assignment) {
     if (empty($assignment['teacher']) || empty($assignment['class']) || empty($assignment['subject'])) continue;
     $progressAssignmentMap[cm_progress_assignment_key($assignment)] = $assignment;
 }
+$progressCanEdit = cds_can_feature('cm.baocao.tiendo', 'edit');
 $progressIsAdmin = (($_SESSION['cds_user']['role'] ?? '') === 'admin')
     || cds_can_feature('cm.baocao.tiendo', 'delete');
 $sessionTeacherName = trim($_SESSION['cds_user']['teacher_name'] ?? $_SESSION['cds_user']['name'] ?? '');
@@ -122,7 +127,7 @@ $progressFilterTeachers = array_keys($progressFilterTeachers);
 sort($progressFilterSubjects, SORT_NATURAL | SORT_FLAG_CASE);
 sort($progressFilterTeachers, SORT_NATURAL | SORT_FLAG_CASE);
 $progressAssignments = array_values(array_filter($progressAssignmentMap, function($assignment) use ($progressTeacher) {
-    return $progressTeacher !== '' && mb_strtolower(trim($assignment['teacher'] ?? ''), 'UTF-8') === mb_strtolower($progressTeacher, 'UTF-8');
+    return $progressTeacher !== '' && cm_progress_name_key($assignment['teacher'] ?? '') === cm_progress_name_key($progressTeacher);
 }));
 usort($progressAssignments, fn($a, $b) => csdl_compare_class_names($a['class'] ?? '', $b['class'] ?? '') ?: strnatcasecmp($a['subject'] ?? '', $b['subject'] ?? ''));
 $progressByAssignment = [];
@@ -142,11 +147,15 @@ foreach ($progressRecords as $record) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     if ($action === 'progress_save') {
+        if (!$progressCanEdit) {
+            http_response_code(403);
+            exit('Tài khoản chỉ có quyền xem, chưa được cấp quyền sửa Tiến độ chương trình.');
+        }
         $weekNumber = max(1, (int)($_POST['week_number'] ?? $progressWeekNumber));
         $teacherName = $progressIsAdmin ? trim($_POST['teacher'] ?? '') : $sessionTeacherName;
         $allowed = [];
         foreach ($progressAssignmentMap as $key => $assignment) {
-            if (mb_strtolower(trim($assignment['teacher'] ?? ''), 'UTF-8') === mb_strtolower($teacherName, 'UTF-8')) $allowed[$key] = $assignment;
+            if (cm_progress_name_key($assignment['teacher'] ?? '') === cm_progress_name_key($teacherName)) $allowed[$key] = $assignment;
         }
         $rows = is_array($_POST['rows'] ?? null) ? $_POST['rows'] : [];
         $savedCount = 0;
@@ -352,6 +361,7 @@ function cm_view_btns($it) {
 <?php if ($progressView === 'nhaplieu'): ?>
 <?php if ($progressTeacher === ''): ?><div class="alert alert-warning">Tài khoản chưa được liên kết với tên giáo viên. Quản trị cần đặt trường <strong>Giáo viên liên kết</strong> trong phần Tài khoản.</div>
 <?php elseif (!$progressAssignments): ?><div class="alert alert-info">Không tìm thấy phân công môn/lớp hiện hành của <strong><?= e($progressTeacher) ?></strong>.</div>
+<?php elseif (!$progressCanEdit): ?><div class="alert alert-warning"><i class="bi bi-lock-fill"></i> Tài khoản đang có quyền xem nhưng chưa được cấp quyền sửa Tiến độ chương trình.</div>
 <?php else: ?>
 <form method="post">
   <input type="hidden" name="action" value="progress_save">

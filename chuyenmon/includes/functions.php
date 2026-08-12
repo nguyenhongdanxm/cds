@@ -605,8 +605,8 @@ function cds_default_chuyenmon_groups() {
     return [
         'bgh' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.thongke'=>'view','cm.kehoach'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view','cm.pccm'=>'edit','cm.nhaplieu'=>'edit'],
         'totruong' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.thongke'=>'view','cm.kehoach'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view','cm.pccm'=>'edit'],
-        'gvcn' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.baocao.dugio'=>'view'],
-        'gv' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view'],
+        'gvcn' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.baocao.tiendo'=>'edit','cm.baocao.dugio'=>'view'],
+        'gv' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'edit','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view'],
     ];
 }
 

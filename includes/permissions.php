@@ -134,11 +134,11 @@ function permission_default_groups() {
         ],
         'gvcn' => [
             'label' => 'Giáo viên chủ nhiệm',
-            'access' => array_merge($view(['cm.dashboard','cm.tracuu','cm.baocao.dugio','csdl.overview','csdl.students','nt.danhsach','td.student_score','vb.xem']), $edit($ntEdit)),
+            'access' => array_merge($view(['cm.dashboard','cm.tracuu','cm.baocao.dugio','csdl.overview','csdl.students','nt.danhsach','td.student_score','vb.xem']), $edit(array_merge($ntEdit, ['cm.baocao.tiendo']))),
         ],
         'gv' => [
             'label' => 'Giáo viên',
-            'access' => $view(array_merge(['cm.dashboard','cm.tracuu','nt.danhsach','vb.xem'], $cmReports)),
+            'access' => array_merge($view(array_merge(['cm.dashboard','cm.tracuu','nt.danhsach','vb.xem'], array_values(array_diff($cmReports, ['cm.baocao.tiendo'])))), $edit(['cm.baocao.tiendo'])),
         ],
         'qlnt' => [
             'label' => 'Cán bộ nội trú / y tế',
