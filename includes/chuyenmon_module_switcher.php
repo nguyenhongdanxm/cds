@@ -1,7 +1,7 @@
 <?php
 if(defined('CDS_CM_SWITCHER_RENDERED'))return;define('CDS_CM_SWITCHER_RENDERED',true);
 $cdsUser=$_SESSION['cds_user']??null;if(!$cdsUser)return;$isAdmin=($cdsUser['role']??'')==='admin';
-$links=[['Tổng quan CDS','/admin.php','bi-speedometer2','#2563eb'],['Chuyên môn','/chuyenmon/','bi-journal-bookmark-fill','#198754'],['Cơ sở dữ liệu','/csdl.php','bi-database','#20c997'],['Quản lý nội trú','/noitru.php','bi-building','#d63384'],['Thi đua','/thidua.php','bi-trophy','#ca8a04']];
+$links=[['Tổng quan CDS','/admin.php','bi-speedometer2','#2563eb'],['Chuyên môn','/chuyenmon/','bi-journal-bookmark-fill','#198754'],['Văn bản','/vanban.php','bi-file-earmark-text','#6f42c1'],['Học liệu – Thi','/hoclieu.php','bi-laptop','#0ea5e9'],['Thư viện – Thiết bị','/thuvien.php','bi-book-half','#8b5cf6'],['Cơ sở dữ liệu','/csdl.php','bi-database','#20c997'],['Quản lý nội trú','/noitru.php','bi-building','#d63384'],['Thi đua','/thidua.php','bi-trophy','#ca8a04']];
 ?>
 <style>
 .cds-cm-switch{position:fixed;z-index:2500;right:0;top:50%;transform:translate(68%,-50%);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;transition:transform .18s ease}.cds-cm-switch:hover,.cds-cm-switch:focus-within,.cds-cm-switch.open{transform:translate(0,-50%)}
