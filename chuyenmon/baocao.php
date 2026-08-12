@@ -129,7 +129,10 @@ sort($progressFilterTeachers, SORT_NATURAL | SORT_FLAG_CASE);
 $progressAssignments = array_values(array_filter($progressAssignmentMap, function($assignment) use ($progressTeacher) {
     return $progressTeacher !== '' && cm_progress_name_key($assignment['teacher'] ?? '') === cm_progress_name_key($progressTeacher);
 }));
-usort($progressAssignments, fn($a, $b) => csdl_compare_class_names($a['class'] ?? '', $b['class'] ?? '') ?: strnatcasecmp($a['subject'] ?? '', $b['subject'] ?? ''));
+usort($progressAssignments, static function ($left, $right): int {
+    $classOrder = strnatcasecmp(trim((string)($left['class'] ?? '')), trim((string)($right['class'] ?? '')));
+    return $classOrder !== 0 ? $classOrder : strnatcasecmp((string)($left['subject'] ?? ''), (string)($right['subject'] ?? ''));
+});
 $progressByAssignment = [];
 $progressPreviousByAssignment = [];
 foreach ($progressRecords as $record) {
