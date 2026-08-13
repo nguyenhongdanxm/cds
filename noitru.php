@@ -1427,6 +1427,9 @@ form[method="post"]{display:none!important}
     $mealReport = $className !== '' && $meal !== 'all' ? noitru_meal_report_for($date, $className, $meal) : null;
     $readOnly = $mealState !== 'open' && allowed_classes() !== null;
   ?>
+  <?php if (($_GET['meal_view'] ?? '') === 'history'): ?>
+    <?= nt_meal_history_panel_html() ?>
+  <?php else: ?>
   <div class="nt-page-head"><div><h4><i class="bi bi-fork-knife text-primary"></i> Báo ăn lớp chủ nhiệm</h4><div class="subtitle">Chỉ hiển thị học sinh thuộc lớp được giao</div></div>
     <?php if ($className!==''): ?><div class="dropdown"><button class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-file-earmark-excel"></i> Xuất Excel</button><ul class="dropdown-menu dropdown-menu-end"><li><button class="dropdown-item" type="button" onclick="openMealExcelModal('breakfast')">Báo cáo bữa sáng</button></li><li><button class="dropdown-item" type="button" onclick="openMealExcelModal('lunch_dinner')">Báo cáo bữa trưa, tối</button></li></ul></div><?php endif; ?>
   </div>
@@ -1487,6 +1490,8 @@ form[method="post"]{display:none!important}
     <div class="modal-body"><input type="hidden" name="tab" value="meals"><input type="hidden" name="class" value="<?= e($className) ?>"><input type="hidden" name="export" id="mealExcelType" value="month_breakfast"><label class="form-label fw-bold">Chọn tháng báo cáo</label><input class="form-control" type="month" name="month" value="<?= e(substr($date,0,7)) ?>" required><div class="form-text mt-2">File chỉ chứa sheet lớp <?= e($className) ?> theo quyền GVCN.</div></div>
     <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-success" type="submit"><i class="bi bi-download"></i> Tải Excel</button><button class="btn btn-outline-success" type="submit" name="save_drive" value="1"><i class="bi bi-google"></i> Lưu Drive</button></div>
   </form></div></div>
+
+  <?php endif; ?>
 
 <?php elseif ($tab === 'meal_summary'): ?>
   <?php
