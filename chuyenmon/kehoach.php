@@ -1,6 +1,7 @@
 <?php
 $page_title = 'Kế hoạch chuyên môn';
 require_once 'includes/functions.php';
+require_once dirname(__DIR__) . '/includes/push_notifications.php';
 require_login();
 
 $tabs = [
@@ -25,6 +26,9 @@ $teachers = get_teachers_sorted();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     if ($action === 'save') {
+        $recordId = trim((string)($_POST['id'] ?? ''));
+        $isNewRecord = $recordId === '';
+        if ($isNewRecord) $recordId = 'cm_' . date('YmdHis') . '_' . bin2hex(random_bytes(4));
         $file = cds_storage_handle_upload('file', $tab === 'vanban' ? 'documents' : 'plans');
         $oldFile = trim($_POST['file_path'] ?? '');
         $hasDeadline = !empty($_POST['has_deadline']);
@@ -33,8 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($hasAssignees && !empty($_POST['assignees']) && is_array($_POST['assignees'])) {
             $assignees = array_values(array_filter(array_map('trim', $_POST['assignees'])));
         }
-        cm_doc_save([
-            'id' => trim($_POST['id'] ?? ''),
+        $savedRecord = [
+            'id' => $recordId,
             'section' => $section,
             'title' => trim($_POST['title'] ?? ''),
             'date' => trim($_POST['date'] ?? date('Y-m-d')),
@@ -49,8 +53,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'link' => trim($_POST['link'] ?? ''),
             'file_path' => $file !== '' ? $file : $oldFile,
             'by' => $_SESSION['cds_user']['name'] ?? 'admin',
-        ]);
-        flash('Đã lưu.');
+        ];
+        cm_doc_save($savedRecord);
+        if ($tab === 'thongbao' && $isNewRecord && empty($savedRecord['completed'])) {
+            $dashboardItem = $savedRecord + ['_dashboard_module'=>'chuyenmon'];
+            $pushResult = cds_push_publish(
+                (string)$savedRecord['title'],
+                trim((string)$savedRecord['content']) !== '' ? mb_strimwidth(strip_tags((string)$savedRecord['content']), 0, 180, '…', 'UTF-8') : 'Có thông báo chuyên môn mới.',
+                BASE_URL . 'kehoach.php?tab=thongbao',
+                ['source_id'=>cds_push_dashboard_source_id($dashboardItem),'audience'=>['all'],'expires_at'=>(string)$savedRecord['due_date']]
+            );
+            flash('Đã lưu và gửi thông báo tới ' . (int)($pushResult['sent'] ?? 0) . ' thiết bị.');
+        } else flash('Đã lưu.');
         header('Location: ' . BASE_URL . 'kehoach.php?tab=' . urlencode($tab));
         exit;
     }

@@ -15,6 +15,7 @@ if (!defined('CDS_PUSH_SUBSCRIPTIONS_FILE')) define('CDS_PUSH_SUBSCRIPTIONS_FILE
 if (!defined('CDS_PUSH_NOTIFICATIONS_FILE')) define('CDS_PUSH_NOTIFICATIONS_FILE', CDS_PUSH_DATA_PATH . '/push_notifications.json');
 if (!defined('CDS_PUSH_READ_FILE')) define('CDS_PUSH_READ_FILE', CDS_PUSH_DATA_PATH . '/push_notification_reads.json');
 if (!defined('CDS_PUSH_KEYS_FILE')) define('CDS_PUSH_KEYS_FILE', CDS_PUSH_DATA_PATH . '/push_vapid_keys.json');
+if (!defined('CDS_PUSH_DASHBOARD_SYNC_FILE')) define('CDS_PUSH_DASHBOARD_SYNC_FILE', CDS_PUSH_DATA_PATH . '/push_dashboard_sync.json');
 
 function cds_push_b64url_encode(string $value): string { return rtrim(strtr(base64_encode($value), '+/', '-_'), '='); }
 function cds_push_b64url_decode(string $value): string {
@@ -91,12 +92,14 @@ function cds_push_current_device_count(?array $user = null): int {
 }
 function cds_push_add_notification(string $title, string $body, string $url, array $options = []): array {
     $rows = cds_push_json_rows(CDS_PUSH_NOTIFICATIONS_FILE);
+    $expiresAt = trim((string)($options['expires_at'] ?? ''));
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiresAt)) $expiresAt .= ' 23:59:59';
     $row = [
         'id'=>'push_' . date('YmdHis') . '_' . bin2hex(random_bytes(4)), 'title'=>trim($title),
         'body'=>trim($body), 'url'=>$url !== '' ? $url : BASE_URL . 'admin.php',
         'source_id'=>(string)($options['source_id'] ?? ''), 'level'=>(string)($options['level'] ?? 'normal'),
         'audience'=>(array)($options['audience'] ?? ['all']), 'created_at'=>date('c'),
-        'expires_at'=>(string)($options['expires_at'] ?? ''), 'created_by'=>(string)($_SESSION['cds_user']['name'] ?? 'Hệ thống'),
+        'expires_at'=>$expiresAt, 'created_by'=>(string)($_SESSION['cds_user']['name'] ?? 'Hệ thống'),
     ];
     array_unshift($rows, $row);
     cds_push_save_json(CDS_PUSH_NOTIFICATIONS_FILE, array_slice($rows, 0, 500));
@@ -227,4 +230,55 @@ function cds_push_publish(string $title, string $body, string $url, array $optio
     $notification = cds_push_add_notification($title, $body, $url, $options);
     $result = cds_push_send($notification, (array)($options['audience'] ?? ['all']));
     return ['notification'=>$notification] + $result;
+}
+
+function cds_push_dashboard_source_id(array $item): string {
+    $module = trim((string)($item['_dashboard_module'] ?? $item['module'] ?? 'dashboard')) ?: 'dashboard';
+    $id = trim((string)($item['id'] ?? $item['uuid'] ?? ''));
+    if ($id === '') {
+        $identity = implode('|', [
+            (string)($item['title'] ?? $item['name'] ?? $item['content'] ?? ''),
+            (string)($item['_dashboard_start'] ?? $item['start_date'] ?? $item['date'] ?? ''),
+            (string)($item['_dashboard_end'] ?? $item['due_date'] ?? $item['end_date'] ?? ''),
+            (string)($item['url'] ?? $item['link'] ?? ''),
+        ]);
+        $id = substr(hash('sha256', $identity), 0, 24);
+    }
+    return 'dashboard:' . preg_replace('/[^a-z0-9_-]+/i', '-', $module) . ':' . $id;
+}
+
+/** Gửi đúng một lần cho mỗi nội dung mới xuất hiện trong bảng Tổng quan. */
+function cds_push_sync_dashboard_feed(array $items, array $user): array {
+    $lockPath = CDS_PUSH_DASHBOARD_SYNC_FILE . '.lock';
+    if (!is_dir(dirname($lockPath))) @mkdir(dirname($lockPath), 0750, true);
+    $lock = @fopen($lockPath, 'c');
+    if (!$lock || !flock($lock, LOCK_EX)) { if ($lock) fclose($lock); return ['sent'=>0,'skipped'=>count($items)]; }
+    $exists = is_file(CDS_PUSH_DASHBOARD_SYNC_FILE);
+    $state = $exists ? cds_push_json_rows(CDS_PUSH_DASHBOARD_SYNC_FILE) : [];
+    $seen = array_fill_keys(array_values(array_filter((array)($state['seen'] ?? []), 'is_string')), true);
+    $sourceIds = [];
+    foreach (cds_push_json_rows(CDS_PUSH_NOTIFICATIONS_FILE) as $notice) {
+        $sourceId = trim((string)($notice['source_id'] ?? ''));
+        if ($sourceId !== '') $sourceIds[$sourceId] = true;
+    }
+    $current = []; $sent = 0; $skipped = 0;
+    foreach ($items as $item) {
+        if (!is_array($item)) continue;
+        $sourceId = cds_push_dashboard_source_id($item); $current[$sourceId] = true;
+        if (!$exists || isset($seen[$sourceId]) || isset($sourceIds[$sourceId])) { $seen[$sourceId] = true; $skipped++; continue; }
+        $title = trim((string)($item['title'] ?? $item['name'] ?? $item['content'] ?? 'Nội dung mới'));
+        $detail = trim((string)($item['_dashboard_detail'] ?? 'Có nội dung mới trong Thông báo đang và sắp diễn ra.'));
+        $url = trim((string)($item['url'] ?? $item['link'] ?? BASE_URL . 'admin.php')) ?: BASE_URL . 'admin.php';
+        $kind = (string)($item['kind'] ?? 'notice');
+        $audience = in_array($kind, ['task','salary','seniority'], true) ? [cds_push_user_key($user)] : ['all'];
+        $result = cds_push_publish($title, $detail, $url, [
+            'source_id'=>$sourceId, 'audience'=>$audience,
+            'expires_at'=>(string)($item['_dashboard_end'] ?? ''), 'level'=>'normal',
+        ]);
+        $sent += (int)($result['sent'] ?? 0); $seen[$sourceId] = true;
+    }
+    foreach (array_keys($seen) as $sourceId) if (!isset($current[$sourceId]) && count($seen) > 1500) unset($seen[$sourceId]);
+    cds_push_save_json(CDS_PUSH_DASHBOARD_SYNC_FILE, ['initialized_at'=>$state['initialized_at'] ?? date('c'),'updated_at'=>date('c'),'seen'=>array_slice(array_keys($seen), -1500)]);
+    flock($lock, LOCK_UN); fclose($lock);
+    return ['sent'=>$sent,'skipped'=>$skipped];
 }

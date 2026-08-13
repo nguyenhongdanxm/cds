@@ -83,6 +83,7 @@ foreach ($birthdayByRole['student']['tomorrow'] as $person) $birthdayUpcoming[] 
 $dashboard = cds_dashboard_scope_data($user);
 $quickActions = cds_dashboard_quick_actions($user);
 $feedItems = cds_dashboard_notice_tasks($user);
+cds_push_sync_dashboard_feed($feedItems, $user);
 $observations = can_module('chuyenmon','view') ? cds_dashboard_observations() : [];
 $lunar = cds_dashboard_solar_to_lunar((int)date('d'), (int)date('m'), (int)date('Y'));
 $weekdays = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
