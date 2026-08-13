@@ -48,6 +48,14 @@
 .push-setup strong{font-size:12px;line-height:1.25}
 .push-setup small{margin-top:2px;color:#567089;font-size:10px;line-height:1.35}
 .push-setup em{margin-top:2px;color:#8a99a7;font-size:9px;font-style:normal}
+.push-platform-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:10px;padding:3px;border-radius:10px;background:#e5eef7}
+.push-platform-tabs button{min-height:29px;border:0;border-radius:8px;background:transparent;color:#61778b;font-size:10px}
+.push-platform-tabs button.active{background:#fff;color:#126bd4;box-shadow:0 2px 7px rgba(29,69,104,.12)}
+.push-guide{margin-top:8px;padding:8px 9px;border-radius:10px;background:#fff;color:#536b80;font-size:9px;line-height:1.45}
+.push-guide[hidden]{display:none!important}
+.push-guide>strong{color:#304e69;font-size:10px}
+.push-guide ol{margin:5px 0 0;padding-left:17px}
+.push-guide li+li{margin-top:2px}
 .push-setup-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .push-setup button{min-height:32px;padding:0 10px;border-radius:9px;font-size:10px}
 .push-setup button[hidden]{display:none!important}

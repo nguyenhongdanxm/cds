@@ -114,7 +114,7 @@ $pushUnread = cds_push_unread_count($user);
   <link rel="manifest" href="<?= e(BASE_URL) ?>manifest.webmanifest">
   <link rel="apple-touch-icon" href="<?= e(BASE_URL) ?>assets/icons/cds-192.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260813-2" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260813-3" rel="stylesheet">
 </head>
 <body>
 <header class="app-header">
@@ -129,8 +129,10 @@ $pushUnread = cds_push_unread_count($user);
         <header><div><strong>Thông báo</strong><small>Cập nhật mới từ CDS</small></div><?php if ($pushUnread): ?><button type="button" data-mark-all-read>Đọc tất cả</button><?php endif; ?></header>
         <section class="push-setup" id="pushSetup" aria-label="Cài đặt thông báo">
           <div class="push-setup-main"><span class="push-setup-icon"><i class="bi bi-bell-fill"></i></span><div><strong>Thông báo trên điện thoại</strong><small data-push-state>Đang kiểm tra thiết bị…</small><em><b data-push-device-count>0</b> thiết bị đã đăng ký</em></div></div>
+          <div class="push-platform-tabs" role="tablist" aria-label="Chọn loại điện thoại"><button type="button" data-guide-platform="android" role="tab"><i class="bi bi-android2"></i> Android</button><button type="button" data-guide-platform="ios" role="tab"><i class="bi bi-apple"></i> iPhone/iPad</button></div>
+          <div class="push-guide" data-guide-panel="android"><strong>Cài trên Android</strong><ol><li>Mở CDS bằng Chrome.</li><li>Chọn <b>Cài CDS</b> hoặc “Thêm vào màn hình chính”.</li><li>Mở CDS vừa cài, bấm <b>Bật thông báo</b> và chọn Cho phép.</li></ol></div>
+          <div class="push-guide" data-guide-panel="ios" hidden><strong>Cài trên iPhone/iPad</strong><ol><li>Dùng Safari và yêu cầu iOS/iPadOS 16.4 trở lên.</li><li>Chọn Chia sẻ → <b>Thêm vào Màn hình chính</b>.</li><li>Mở CDS từ biểu tượng mới, bấm <b>Bật thông báo</b> và chọn Cho phép.</li></ol></div>
           <div class="push-setup-actions"><button type="button" data-pwa-install><i class="bi bi-phone"></i> Cài CDS</button><button type="button" class="primary" data-push-enable><i class="bi bi-bell"></i> Bật thông báo</button><button type="button" data-push-test hidden><i class="bi bi-send-check"></i> Gửi thử</button><button type="button" class="danger" data-push-disable hidden><i class="bi bi-bell-slash"></i> Tắt</button></div>
-          <p data-ios-help hidden><i class="bi bi-info-circle"></i> Trên iPhone/iPad: mở CDS bằng Safari, chọn Chia sẻ → Thêm vào Màn hình chính, sau đó mở CDS từ biểu tượng vừa tạo.</p>
         </section>
         <div class="notification-list-title"><span>Gần đây</span><span><?= count($pushNotifications) ?> thông báo</span></div>
         <div class="notification-list">
@@ -248,5 +250,5 @@ $pushUnread = cds_push_unread_count($user);
   document.addEventListener('click',function(e){document.querySelectorAll('details[open]').forEach(function(d){if(!d.contains(e.target)&&!e.target.closest('#mobileModules'))d.open=false})});
 })();
 </script>
-<script src="<?= e(BASE_URL) ?>assets/pwa-push.js?v=20260813-2" defer></script>
+<script src="<?= e(BASE_URL) ?>assets/pwa-push.js?v=20260813-3" defer></script>
 </body></html>
