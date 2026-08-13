@@ -60,10 +60,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pushResult = cds_push_publish(
                 (string)$savedRecord['title'],
                 trim((string)$savedRecord['content']) !== '' ? mb_strimwidth(strip_tags((string)$savedRecord['content']), 0, 180, '…', 'UTF-8') : 'Có thông báo chuyên môn mới.',
-                BASE_URL . 'kehoach.php?tab=thongbao',
+                '/chuyenmon/kehoach.php?tab=thongbao',
                 ['source_id'=>cds_push_dashboard_source_id($dashboardItem),'audience'=>['all'],'expires_at'=>(string)$savedRecord['due_date']]
             );
-            flash('Đã lưu và gửi thông báo tới ' . (int)($pushResult['sent'] ?? 0) . ' thiết bị.');
+            if (empty($pushResult['saved'])) flash('Đã lưu thông báo chuyên môn nhưng chưa tạo được thông báo chuông. Hãy kiểm tra quyền ghi thư mục cds_private.', 'warning');
+            elseif ((int)($pushResult['devices'] ?? 0) < 1) flash('Đã lưu vào menu chuông; hiện chưa có thiết bị nào đăng ký nhận thông báo.', 'warning');
+            else flash('Đã lưu vào menu chuông và gửi tới ' . (int)($pushResult['sent'] ?? 0) . '/' . (int)($pushResult['devices'] ?? 0) . ' thiết bị.');
         } else flash('Đã lưu.');
         header('Location: ' . BASE_URL . 'kehoach.php?tab=' . urlencode($tab));
         exit;

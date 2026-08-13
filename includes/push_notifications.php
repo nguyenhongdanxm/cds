@@ -7,7 +7,9 @@ require_once __DIR__ . '/config.php';
 
 /* Khóa VAPID và endpoint thiết bị không đặt trong public_html. */
 if (!defined('CDS_PUSH_DATA_PATH')) {
-    $privateDir = dirname(BASE_PATH) . '/cds_private';
+    /* Luôn tính từ thư mục gốc của CDS, không phụ thuộc BASE_PATH của module con. */
+    $applicationRoot = dirname(__DIR__);
+    $privateDir = dirname($applicationRoot) . '/cds_private';
     if (!is_dir($privateDir)) @mkdir($privateDir, 0750, true);
     define('CDS_PUSH_DATA_PATH', $privateDir);
 }
@@ -102,8 +104,7 @@ function cds_push_add_notification(string $title, string $body, string $url, arr
         'expires_at'=>$expiresAt, 'created_by'=>(string)($_SESSION['cds_user']['name'] ?? 'Hệ thống'),
     ];
     array_unshift($rows, $row);
-    cds_push_save_json(CDS_PUSH_NOTIFICATIONS_FILE, array_slice($rows, 0, 500));
-    return $row;
+    return cds_push_save_json(CDS_PUSH_NOTIFICATIONS_FILE, array_slice($rows, 0, 500)) ? $row : [];
 }
 function cds_push_visible_to(array $notification, array $user): bool {
     $audience = (array)($notification['audience'] ?? ['all']);
@@ -228,8 +229,9 @@ function cds_push_send(array $notification, array $audience = ['all']): array {
 }
 function cds_push_publish(string $title, string $body, string $url, array $options = []): array {
     $notification = cds_push_add_notification($title, $body, $url, $options);
+    if (!$notification) return ['notification'=>[],'sent'=>0,'failed'=>0,'devices'=>0,'saved'=>false];
     $result = cds_push_send($notification, (array)($options['audience'] ?? ['all']));
-    return ['notification'=>$notification] + $result;
+    return ['notification'=>$notification,'saved'=>true] + $result;
 }
 
 function cds_push_dashboard_source_id(array $item): string {
