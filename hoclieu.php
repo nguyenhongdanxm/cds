@@ -170,6 +170,11 @@ usort($list, fn($a, $b) => strcmp((string)($b['created_at'] ?? ''), (string)($a[
 
 function lh_item_url(array $row): string {
     if (($row['source_kind'] ?? '') === 'link') return (string)($row['url'] ?? '#');
+    $path = (string)($row['file_path'] ?? '');
+    if (($row['source_kind'] ?? '') !== 'html' && str_starts_with($path, 'gdrive:')) {
+        $fileId = trim(substr($path, 7));
+        if ($fileId !== '') return 'https://drive.google.com/file/d/' . rawurlencode($fileId) . '/view?usp=drive_link';
+    }
     return BASE_URL . 'hoclieu_file.php?id=' . urlencode((string)($row['id'] ?? ''));
 }
 function lh_icon(string $kind): string {
