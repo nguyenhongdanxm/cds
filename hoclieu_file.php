@@ -20,7 +20,17 @@ if (empty($row['approved']) && !$isAdmin && ($row['author_id'] ?? '') !== $userI
 
 $path = (string)($row['file_path'] ?? '');
 if (!str_starts_with($path, 'gdrive:')) { http_response_code(404); exit('Không tìm thấy tệp.'); }
-$fileId = substr($path, 7);
+$fileId = trim(substr($path, 7));
+if ($fileId === '') { http_response_code(404); exit('Không tìm thấy tệp.'); }
+
+// Tài liệu thông thường mở thẳng bằng trình xem gốc của Google Drive để cPanel
+// không phải tải toàn bộ tệp rồi truyền lại. HTML tương tác vẫn cần proxy an toàn.
+if (($row['source_kind'] ?? '') !== 'html') {
+    header('Cache-Control: private, no-store');
+    header('Location: https://drive.google.com/file/d/' . rawurlencode($fileId) . '/view?usp=drive_link', true, 302);
+    exit;
+}
+
 $file = cds_drive_download($fileId);
 if (empty($file['ok'])) { http_response_code((int)($file['status'] ?? 404)); exit('Không tải được tệp từ Google Drive.'); }
 
