@@ -2,7 +2,7 @@
 /**
  * Mở rộng Báo ăn nội trú:
  * - Ghi lịch sử thay đổi trước/sau mỗi lần lưu.
- * - GVCN chỉ xem lịch sử lớp được giao.
+ * - GVCN xem toàn bộ lịch sử lớp được giao và mở lại phiếu khi còn thời gian.
  * - Sau khi khóa chỉ admin hoặc người có mức quyền Xóa tại nt.baoan được sửa.
  *
  * File được nạp từ auth.php sau khi hệ thống xác thực và phân quyền hoàn tất.
@@ -12,7 +12,7 @@ if (!defined('DATA_PATH') || !function_exists('current_user')) return;
 
 function nt_meal_history_is_request() {
     $script = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
-    return $script === 'noitru.php' && (($_GET['tab'] ?? $_POST['tab'] ?? '') === 'meals' || ($_POST['action'] ?? '') === 'meals_save');
+    return $script === 'noitru.php' && (($_GET['tab'] ?? $_POST['tab'] ?? '') === 'meals' || in_array(($_POST['action'] ?? ''), ['meals_save','meal_history_delete'], true));
 }
 
 if (!nt_meal_history_is_request()) return;
@@ -24,7 +24,30 @@ define('NOITRU_MEAL_HISTORY', DATA_PATH . '/noitru/meal_history.json');
 function nt_meal_history_all() {
     noitru_ensure_dir();
     $rows = load_json(NOITRU_MEAL_HISTORY, []);
-    return is_array($rows) ? $rows : [];
+    $rows = is_array($rows) ? $rows : [];
+    /* Đưa các phiếu đã báo trước khi có nhật ký vào sổ lịch sử một lần. */
+    $known = []; $knownKeys = [];
+    foreach ($rows as $row) {
+        $known[(string)($row['source_report_id'] ?? '')] = true;
+        $knownKeys[implode('|', [(string)($row['date']??''),(string)($row['class_name']??''),(string)($row['meal']??'')])] = true;
+    }
+    $changed = false;
+    foreach ((array)(noitru_meal_reports_data()['reports'] ?? []) as $report) {
+        $reportId = trim((string)($report['id'] ?? ''));
+        $reportKey = implode('|', [(string)($report['date']??''),(string)($report['class_name']??''),(string)($report['meal']??'')]);
+        if ($reportId === '' || isset($known[$reportId]) || isset($knownKeys[$reportKey])) continue;
+        $rows[] = [
+            'id'=>noitru_uid('mh'),'source_report_id'=>$reportId,'date'=>(string)($report['date']??''),
+            'class_name'=>(string)($report['class_name']??''),'meal'=>(string)($report['meal']??''),'changes'=>[],
+            'changed_count'=>(int)($report['absent_count']??0),'student_count'=>(int)($report['student_count']??0),
+            'changed_by'=>(string)($report['reported_by']??''),'changed_by_id'=>'',
+            'changed_at'=>(string)($report['updated_at']??$report['created_at']??noitru_now()),
+            'after_lock'=>false,'submission_mode'=>'regular','legacy_import'=>true,
+        ];
+        $known[$reportId] = true; $knownKeys[$reportKey] = true; $changed = true;
+    }
+    if ($changed) save_json(NOITRU_MEAL_HISTORY, array_values(array_slice($rows, -3000)));
+    return $rows;
 }
 
 function nt_meal_history_save(array $rows) {
@@ -36,6 +59,13 @@ function nt_meal_history_can_edit_locked() {
     $user = current_user();
     if (!$user) return false;
     return ($user['role'] ?? '') === 'admin' || can_delete_perm('nt.baoan');
+}
+
+function nt_meal_history_can_delete() {
+    $user = current_user();
+    if (!$user) return false;
+    $groups = is_array($user['groups'] ?? null) ? $user['groups'] : [];
+    return ($user['role'] ?? '') === 'admin' || in_array('ketoan', $groups, true) || can_delete_perm('nt.baoan');
 }
 
 function nt_meal_history_target_meals($meal, $raw) {
@@ -104,7 +134,6 @@ function nt_meal_history_append_from_change(array $context) {
                     'to' => $new,
                 ];
             }
-            if (!$changes) continue;
             $rows[] = [
                 'id' => noitru_uid('mh'),
                 'date' => $date,
@@ -112,6 +141,7 @@ function nt_meal_history_append_from_change(array $context) {
                 'meal' => $meal,
                 'changes' => $changes,
                 'changed_count' => count($changes),
+                'student_count' => count($studentIds),
                 'changed_by' => $user['name'] ?? ($user['username'] ?? ''),
                 'changed_by_id' => $user['id'] ?? '',
                 'changed_at' => noitru_now(),
@@ -129,16 +159,16 @@ function nt_meal_history_label($value) {
     return $value === 'no' ? 'Nghỉ ăn' : 'Có ăn';
 }
 
-function nt_meal_history_visible_rows($date, $className, $meal) {
+function nt_meal_history_visible_rows($date, $className, $meal, $showAll = true) {
     $rows = nt_meal_history_all();
     $visible = [];
     foreach (array_reverse($rows) as $row) {
-        if (($row['date'] ?? '') !== $date) continue;
+        if (!$showAll && ($row['date'] ?? '') !== $date) continue;
         if ($className !== '' && ($row['class_name'] ?? '') !== $className) continue;
         if ($meal !== 'all' && ($row['meal'] ?? '') !== $meal) continue;
         if (!can_class($row['class_name'] ?? '')) continue;
         $visible[] = $row;
-        if (count($visible) >= 30) break;
+        if (count($visible) >= 300) break;
     }
     return $visible;
 }
@@ -150,32 +180,49 @@ function nt_meal_history_panel_html() {
     if ($className !== '' && !can_class($className)) $className = '';
     $meal = (string)($_GET['meal'] ?? 'sang');
     if (!in_array($meal, ['all','sang','trua','toi'], true)) $meal = 'sang';
-    $rows = nt_meal_history_visible_rows($date, $className, $meal);
+    $historyDate = trim((string)($_GET['history_date'] ?? ''));
+    $showAll = $historyDate === '';
+    if (!$showAll && preg_match('/^\d{4}-\d{2}-\d{2}$/', $historyDate)) $date = $historyDate;
+    $rows = nt_meal_history_visible_rows($date, $className, $meal, $showAll);
     $mealLabels = ['sang'=>'Bữa sáng','trua'=>'Bữa trưa','toi'=>'Bữa tối'];
+    $canDelete = nt_meal_history_can_delete();
+    $csrf = $_SESSION['nt_meal_history_csrf'] ??= bin2hex(random_bytes(24));
 
     ob_start();
     ?>
     <div class="card card-soft mt-3" id="mealEditHistory">
       <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <div><strong><i class="bi bi-clock-history me-1"></i>Lịch sử chỉnh sửa báo ăn</strong><div class="small text-muted">GVCN chỉ xem lịch sử của lớp được giao.</div></div>
-        <span class="badge bg-secondary"><?= count($rows) ?> lần sửa</span>
+        <div><strong><i class="bi bi-clock-history me-1"></i>Lịch sử báo ăn</strong><div class="small text-muted">GVCN xem toàn bộ lịch sử lớp được giao; được sửa khi bữa ăn còn mở.</div></div>
+        <span class="badge bg-secondary"><?= count($rows) ?> lượt báo</span>
       </div>
+      <form method="get" class="card-body border-bottom d-flex align-items-end gap-2 flex-wrap">
+        <input type="hidden" name="tab" value="meals"><input type="hidden" name="class" value="<?= e($className) ?>"><input type="hidden" name="meal" value="<?= e($meal) ?>">
+        <div><label class="form-label small mb-1">Lọc theo ngày</label><input class="form-control form-control-sm" type="date" name="history_date" value="<?= e($historyDate) ?>"></div>
+        <button class="btn btn-sm btn-outline-primary"><i class="bi bi-funnel"></i> Lọc</button>
+        <a class="btn btn-sm btn-outline-secondary" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','class'=>$className,'meal'=>$meal])) ?>">Xem tất cả</a>
+      </form>
       <div class="card-body p-0">
         <?php if (!$rows): ?>
           <div class="text-muted text-center py-4">Chưa có thay đổi nào trong ngày và bữa đang chọn.</div>
         <?php else: ?>
           <div class="table-responsive"><table class="table table-sm align-middle mb-0">
-            <thead><tr><th>Thời gian</th><th>Lớp / bữa</th><th>Người sửa</th><th>Nội dung thay đổi</th></tr></thead>
+            <thead><tr><th>Ngày ăn / thời gian báo</th><th>Lớp / bữa</th><th>Người báo</th><th>Nội dung</th><th class="text-end">Thao tác</th></tr></thead>
             <tbody>
             <?php foreach ($rows as $row): ?>
               <tr>
-                <td class="small text-nowrap"><?= e(date('d/m/Y H:i', strtotime($row['changed_at'] ?? 'now'))) ?><?= !empty($row['after_lock']) ? '<br><span class="badge bg-warning text-dark">Sau khóa</span>' : '' ?></td>
+                <td class="small text-nowrap"><strong><?= e(date('d/m/Y', strtotime($row['date'] ?? 'now'))) ?></strong><br><?= e(date('H:i d/m/Y', strtotime($row['changed_at'] ?? 'now'))) ?><?= !empty($row['after_lock']) ? '<br><span class="badge bg-warning text-dark">Sau khóa</span>' : '' ?></td>
                 <td><strong><?= e($row['class_name'] ?? '') ?></strong><br><span class="small text-muted"><?= e($mealLabels[$row['meal'] ?? ''] ?? '') ?></span></td>
                 <td><?= e($row['changed_by'] ?? '') ?></td>
                 <td class="small">
+                  <?php if (empty($row['changes'])): ?><span class="text-muted">Đã báo đủ <?= (int)($row['student_count'] ?? 0) ?> học sinh, không có thay đổi trạng thái.</span><?php endif; ?>
                   <?php foreach (($row['changes'] ?? []) as $change): ?>
                     <div><strong><?= e($change['student_name'] ?? '') ?></strong>: <?= e(nt_meal_history_label($change['from'] ?? 'yes')) ?> → <?= e(nt_meal_history_label($change['to'] ?? 'yes')) ?></div>
                   <?php endforeach; ?>
+                </td>
+                <td class="text-end text-nowrap">
+                  <?php $state=noitru_meal_state((string)($row['date']??''),(string)($row['meal']??''));$isOpen=($state['status']??'open')==='open'; ?>
+                  <?php if ($isOpen || nt_meal_history_can_edit_locked()): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','date'=>$row['date']??'','class'=>$row['class_name']??'','meal'=>$row['meal']??''])) ?>" title="Mở lại phiếu"><i class="bi bi-pencil-square"></i></a><?php endif; ?>
+                  <?php if ($canDelete): ?><form method="post" class="d-inline" onsubmit="return confirm('CẢNH BÁO: Xóa vĩnh viễn lượt lịch sử báo ăn này? Dữ liệu lịch sử đã xóa không thể khôi phục.');"><input type="hidden" name="action" value="meal_history_delete"><input type="hidden" name="tab" value="meals"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="id" value="<?= e($row['id']??'') ?>"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="class" value="<?= e($className) ?>"><input type="hidden" name="meal" value="<?= e($meal) ?>"><button class="btn btn-sm btn-outline-danger" title="Xóa lịch sử"><i class="bi bi-trash"></i></button></form><?php endif; ?>
                 </td>
               </tr>
             <?php endforeach; ?>
@@ -186,6 +233,16 @@ function nt_meal_history_panel_html() {
     </div>
     <?php
     return ob_get_clean();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'meal_history_delete') {
+    if (!nt_meal_history_can_delete()) { http_response_code(403); exit('Bạn không có quyền xóa lịch sử báo ăn.'); }
+    if (empty($_POST['csrf']) || !hash_equals((string)($_SESSION['nt_meal_history_csrf'] ?? ''), (string)$_POST['csrf'])) { http_response_code(403); exit('Phiên làm việc không hợp lệ.'); }
+    $id = trim((string)($_POST['id'] ?? '')); $rows = nt_meal_history_all(); $before = count($rows);
+    $rows = array_values(array_filter($rows, fn($row)=>(string)($row['id']??'') !== $id));
+    if (count($rows) < $before) { nt_meal_history_save($rows); flash('Đã xóa lịch sử báo ăn. Dữ liệu phiếu báo ăn hiện tại không bị thay đổi.', 'warning'); }
+    else flash('Không tìm thấy lịch sử cần xóa.', 'warning');
+    header('Location: ' . BASE_URL . 'noitru.php?' . http_build_query(['tab'=>'meals','date'=>$_POST['date']??'','class'=>$_POST['class']??'','meal'=>$_POST['meal']??'sang'])); exit;
 }
 
 // Chặn hoặc chuẩn bị ghi lịch sử trước khi noitru.php xử lý lưu.

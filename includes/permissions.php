@@ -154,7 +154,7 @@ function permission_default_groups() {
         ],
         'ketoan' => [
             'label' => 'Kế toán',
-            'access' => array_merge($view(['csdl.overview','csdl.students','csdl.export','tc.xem','tc.baocao']), $edit(['tc.capnhat'])),
+            'access' => array_merge($view(['csdl.overview','csdl.students','csdl.export','tc.xem','tc.baocao']), $edit(['tc.capnhat']), ['nt.baoan'=>'delete']),
         ],
         'doandoi' => [
             'label' => 'Đoàn – Đội',
@@ -190,7 +190,7 @@ function permission_groups_all() {
 
     // Chỉ chuyển dữ liệu cũ. Từ phiên bản 3, mức "none" cũng được lưu rõ
     // nên tuyệt đối không tự cấp lại quyền mà quản trị đã gỡ.
-    foreach ($saved as &$group) {
+    foreach ($saved as $groupKey => &$group) {
         if (!is_array($group)) continue;
         $group['access'] = is_array($group['access'] ?? null) ? $group['access'] : [];
         $version = (int)($group['version'] ?? 1);
@@ -234,6 +234,9 @@ function permission_groups_all() {
             // lưu ở phiên bản 5, quản trị có thể gỡ độc lập mà không bị cấp lại.
             $group['access']['csdl.statistics'] = $group['access']['csdl.overview'] ?? 'none';
         }
+        if ($version < 8 && $groupKey === 'ketoan') {
+            if (level_rank($group['access']['nt.baoan'] ?? 'none') < level_rank('delete')) $group['access']['nt.baoan'] = 'delete';
+        }
         if ($version < 6) {
             if (!isset($group['access']['vb.xem'])) $group['access']['vb.xem'] = 'view';
             $manageLevel = $group['access']['vb.quanly'] ?? 'none';
@@ -259,7 +262,7 @@ function permission_groups_save(array $groups) {
             $level = $group['access'][$code] ?? 'none';
             $access[$code] = in_array($level, ['none','view','edit','delete'], true) ? $level : 'none';
         }
-        $clean[$key] = ['version' => 7, 'label' => $label !== '' ? $label : $key, 'access' => $access];
+        $clean[$key] = ['version' => 8, 'label' => $label !== '' ? $label : $key, 'access' => $access];
     }
     if (!$clean || !save_json(permission_groups_file(), $clean)) return false;
     $check = load_json(permission_groups_file(), []);
