@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/vanban_store.php';
 require_once __DIR__ . '/includes/vanban_engagement.php';
+require_once __DIR__ . '/includes/push_notifications.php';
 require_login();
 
 $user = current_user();
@@ -80,7 +81,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 unset($row); vb_save_rows(VANBAN_NUMBERS_FILE, $numbers);
             }
-            flash($existingDocument ? 'Đã sửa văn bản.' : 'Đã cập nhật văn bản và lưu tệp thành công.');
+            $pushResult = null;
+            if ($dashboardVisible && !empty($_POST['push_notification'])) {
+                $pushResult = cds_push_publish(
+                    'CDS – Có văn bản mới',
+                    trim($symbol . ' · ' . $title),
+                    vb_file_url($path),
+                    ['source_id'=>$id,'expires_at'=>$dashboardTo,'audience'=>['all'],'level'=>!empty($_POST['push_urgent'])?'urgent':'normal']
+                );
+            }
+            $message = $existingDocument ? 'Đã sửa văn bản.' : 'Đã cập nhật văn bản và lưu tệp thành công.';
+            if (is_array($pushResult)) $message .= ' Đã gửi chuông tới ' . (int)($pushResult['sent']??0) . '/' . (int)($pushResult['devices']??0) . ' thiết bị.';
+            flash($message);
         } elseif ($action === 'delete_document') {
             if (!$canManage) throw new RuntimeException('Bạn không có quyền xóa văn bản.');
             $id = vb_clean((string)($_POST['id'] ?? ''), 80);
@@ -254,7 +266,7 @@ if(documentDialog){
   const form=documentDialog.querySelector('form'),submit=form.querySelector('button[type="submit"],button:not([type])');
   const featuredWrap=document.createElement('div');featuredWrap.className='field span-3';featuredWrap.innerHTML='<label class="check-row"><input type="checkbox" name="featured" value="1"> <span>Văn bản nổi bật – hiển thị trên trang Tổng quan Hệ sinh thái</span></label>';
   submit.parentNode.insertBefore(featuredWrap,submit);
-  const dashboardWrap=document.createElement('div');dashboardWrap.className='span-3';dashboardWrap.innerHTML='<div class="field"><label class="check-row"><input type="checkbox" name="dashboard_visible" value="1"> <span>Hiển thị trong mục công việc sắp tới ở trang Tổng quan</span></label></div><div class="form-grid" data-dashboard-schedule><div class="field"><label>Bắt đầu hiển thị</label><input class="input" type="datetime-local" name="dashboard_from"></div><div class="field"><label>Hết hiệu lực hiển thị</label><input class="input" type="datetime-local" name="dashboard_to"></div><div class="field"><div class="hint" style="margin:0">Tự đánh dấu <strong>Mới</strong> trong 3 ngày đầu và <strong>Sắp hết hạn</strong> trong 3 ngày cuối.</div></div></div>';
+  const dashboardWrap=document.createElement('div');dashboardWrap.className='span-3';dashboardWrap.innerHTML='<div class="field"><label class="check-row"><input type="checkbox" name="dashboard_visible" value="1"> <span>Hiển thị trong mục công việc sắp tới ở trang Tổng quan</span></label></div><div class="form-grid" data-dashboard-schedule><div class="field"><label>Bắt đầu hiển thị</label><input class="input" type="datetime-local" name="dashboard_from"></div><div class="field"><label>Hết hiệu lực hiển thị</label><input class="input" type="datetime-local" name="dashboard_to"></div><div class="field"><div class="hint" style="margin:0">Tự đánh dấu <strong>Mới</strong> trong 3 ngày đầu và <strong>Sắp hết hạn</strong> trong 3 ngày cuối.</div></div><div class="field span-3 push-options"><label class="check-row"><input type="checkbox" name="push_notification" value="1"> <span><strong>Gửi chuông thông báo đến điện thoại</strong> (chỉ gửi khi bấm lưu)</span></label><label class="check-row"><input type="checkbox" name="push_urgent" value="1"> <span>Thông báo khẩn – yêu cầu người nhận chú ý</span></label></div></div>';
   submit.parentNode.insertBefore(dashboardWrap,submit);
   const dashboardToggle=form.elements.dashboard_visible,schedule=dashboardWrap.querySelector('[data-dashboard-schedule]');
   function syncDashboardSchedule(){const enabled=dashboardToggle.checked;schedule.hidden=!enabled;form.elements.dashboard_from.required=enabled;form.elements.dashboard_to.required=enabled}

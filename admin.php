@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/modules.php';
 require_once __DIR__ . '/includes/dashboard_data.php';
+require_once __DIR__ . '/includes/push_notifications.php';
 require_login();
 
 $user = current_user();
@@ -96,6 +97,9 @@ $avatarUpper = function_exists('mb_strtoupper') ? mb_strtoupper($avatar, 'UTF-8'
 $duty = $dashboard['noitru']['duty'] ?? null;
 $dutyHours = $duty ? intdiv((int)$duty['remaining'], 3600) : 0;
 $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
+$pushNotifications = cds_push_notifications_for_user($user, 12);
+$pushReadIds = array_flip(cds_push_read_ids($user));
+$pushUnread = cds_push_unread_count($user);
 ?>
 <!doctype html>
 <html lang="vi">
@@ -103,7 +107,12 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0f4c81">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="CDS Xín Mần">
   <title>Trang chủ quản trị – <?= e(SCHOOL_SHORT) ?></title>
+  <link rel="manifest" href="<?= e(BASE_URL) ?>manifest.webmanifest">
+  <link rel="apple-touch-icon" href="<?= e(BASE_URL) ?>assets/icons/cds-192.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260813-1" rel="stylesheet">
 </head>
@@ -114,6 +123,18 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
     <span><strong><?= e(SCHOOL_NAME) ?></strong><small>Hệ sinh thái quản lý nhà trường</small></span>
   </a>
   <div class="header-actions">
+    <details class="notification-picker">
+      <summary aria-label="Thông báo"><i class="bi bi-bell-fill"></i><span data-push-unread <?= $pushUnread ? '' : 'hidden' ?>><?= $pushUnread ?></span></summary>
+      <div class="notification-menu">
+        <header><strong>Thông báo</strong><?php if ($pushUnread): ?><button type="button" data-mark-all-read>Đánh dấu đã đọc</button><?php endif; ?></header>
+        <div class="notification-list">
+          <?php foreach ($pushNotifications as $notice): $noticeUnread=!isset($pushReadIds[(string)($notice['id']??'')]); ?>
+            <a href="<?= e($notice['url']??'admin.php') ?>" data-notification-id="<?= e($notice['id']??'') ?>" class="<?= $noticeUnread?'unread':'' ?>"><i class="bi <?= ($notice['level']??'')==='urgent'?'bi-exclamation-triangle-fill':'bi-megaphone-fill' ?>"></i><span><strong><?= e($notice['title']??'Thông báo CDS') ?></strong><small><?= e($notice['body']??'') ?></small><time><?= e(isset($notice['created_at'])?date('d/m H:i',strtotime($notice['created_at'])):'') ?></time></span></a>
+          <?php endforeach; ?>
+          <?php if (!$pushNotifications): ?><div class="notification-empty"><i class="bi bi-bell-slash"></i>Chưa có thông báo</div><?php endif; ?>
+        </div>
+      </div>
+    </details>
     <details class="module-picker">
       <summary><i class="bi bi-grid-3x3-gap-fill"></i><span>Chuyển module</span><i class="bi bi-chevron-down"></i></summary>
       <div class="module-menu">
@@ -156,6 +177,13 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
   </section>
 
   <?php if ($quickActions): ?><section class="quick-section"><div class="section-heading"><div><span class="section-kicker">Truy cập nhanh</span><h2>Thao tác thường dùng</h2></div></div><div class="quick-grid"><?php foreach ($quickActions as $action): ?><a href="<?= e($action['url']) ?>" style="--quick-color:<?= e($action['color']) ?>"><i class="bi <?= e($action['icon']) ?>"></i><span><?= e($action['label']) ?></span><i class="bi bi-arrow-up-right"></i></a><?php endforeach; ?></div></section><?php endif; ?>
+
+  <section class="push-setup" id="pushSetup" aria-label="Cài đặt thông báo">
+    <span class="push-setup-icon"><i class="bi bi-bell-fill"></i></span>
+    <div><strong>Nhận thông báo trên điện thoại</strong><small data-push-state>Đang kiểm tra thiết bị…</small><em><b data-push-device-count>0</b> thiết bị đã đăng ký</em></div>
+    <div class="push-setup-actions"><button type="button" data-pwa-install><i class="bi bi-phone"></i> Cài CDS</button><button type="button" class="primary" data-push-enable><i class="bi bi-bell"></i> Bật thông báo</button><button type="button" data-push-test hidden><i class="bi bi-send-check"></i> Gửi thử</button><button type="button" class="danger" data-push-disable hidden>Tắt</button></div>
+    <p data-ios-help hidden><i class="bi bi-info-circle"></i> iPhone/iPad: mở bằng Safari → Chia sẻ → Thêm vào Màn hình chính; sau đó mở CDS từ biểu tượng mới để bật thông báo.</p>
+  </section>
 
   <div class="content-grid">
     <section class="panel feed-panel">
@@ -221,4 +249,5 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
   document.addEventListener('click',function(e){document.querySelectorAll('details[open]').forEach(function(d){if(!d.contains(e.target)&&!e.target.closest('#mobileModules'))d.open=false})});
 })();
 </script>
+<script src="<?= e(BASE_URL) ?>assets/pwa-push.js?v=20260813-1" defer></script>
 </body></html>
