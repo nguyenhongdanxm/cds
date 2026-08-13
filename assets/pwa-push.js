@@ -9,7 +9,7 @@
   const b64=value=>{const padding='='.repeat((4-value.length%4)%4);const raw=atob((value+padding).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)))};
   const installed=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
   const isiOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
-  function toast(message,error){let el=$('#pushToast');if(!el){el=document.createElement('div');el.id='pushToast';el.className='push-toast';document.body.appendChild(el)}el.textContent=message;el.classList.toggle('error',!!error);el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3500)}
+  function toast(message,error){let el=$('#pushToast');if(!el){el=document.createElement('div');el.id='pushToast';el.className='push-toast';el.setAttribute('role','status');el.setAttribute('aria-live','polite');document.body.appendChild(el)}el.textContent=message;el.classList.toggle('error',!!error);el.classList.add('show');clearTimeout(el._hideTimer);el._hideTimer=setTimeout(()=>el.classList.remove('show'),3800)}
   async function refresh(){
     try{state.status=await api({},'GET');state.currentSubscription=state.registration?await state.registration.pushManager.getSubscription():null;const badge=$('[data-push-unread]');if(badge){badge.textContent=state.status.unread||0;badge.hidden=!state.status.unread}renderPanel()}catch(error){}
   }
@@ -32,16 +32,17 @@
     const status=state.status||await api({},'GET');if(!status.publicKey)throw new Error('Máy chủ chưa tạo được khóa Web Push.');
     let subscription=await state.registration.pushManager.getSubscription();
     if(!subscription)subscription=await state.registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(status.publicKey)});
-    await api({action:'subscribe',subscription:subscription.toJSON()});await refresh();toast('Đã bật thông báo. CDS sẽ gửi thử ngay.');await api({action:'test'});
+    await api({action:'subscribe',subscription:subscription.toJSON()});await refresh();
+    try{await api({action:'test'});toast('Đã bật thông báo và gửi một thông báo thử tới thiết bị này.')}catch(error){toast('Đã bật thông báo, nhưng chưa gửi được thông báo thử.',true)}
   }
   async function unsubscribe(){const sub=await state.registration.pushManager.getSubscription();if(sub){await api({action:'unsubscribe',endpoint:sub.endpoint});await sub.unsubscribe()}await refresh();toast('Đã tắt thông báo trên thiết bị này.')}
-  async function install(){if(state.deferredInstall){state.deferredInstall.prompt();await state.deferredInstall.userChoice;state.deferredInstall=null;renderPanel();return}if(isiOS())toast('Bấm Chia sẻ trong Safari → Thêm vào Màn hình chính.');else toast('Mở menu trình duyệt → Cài đặt ứng dụng hoặc Thêm vào màn hình chính.')}
+  async function install(){if(state.deferredInstall){state.deferredInstall.prompt();const choice=await state.deferredInstall.userChoice;state.deferredInstall=null;renderPanel();toast(choice.outcome==='accepted'?'Đã cài CDS vào màn hình chính.':'Bạn có thể cài CDS sau trong menu trình duyệt.',choice.outcome!=='accepted');return}if(isiOS())toast('Trong Safari, chọn Chia sẻ → Thêm vào Màn hình chính.');else toast('Chọn Cài đặt ứng dụng hoặc Thêm vào màn hình chính trong menu trình duyệt.')}
   window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();state.deferredInstall=event;renderPanel()});
   document.addEventListener('DOMContentLoaded',async()=>{
     if(!('serviceWorker'in navigator))return;
     try{state.registration=await navigator.serviceWorker.register('/sw.js',{scope:'/'});await navigator.serviceWorker.ready;await refresh()}catch(error){console.error(error)}
     $('#pushSetup')?.addEventListener('click',async event=>{const button=event.target.closest('button');if(!button)return;button.disabled=true;try{if(button.matches('[data-pwa-install]'))await install();if(button.matches('[data-push-enable]'))await subscribe();if(button.matches('[data-push-test]')){const result=await api({action:'test'});toast(result.message)}if(button.matches('[data-push-disable]'))await unsubscribe()}catch(error){toast(error.message,true)}finally{button.disabled=false}});
     document.querySelectorAll('[data-notification-id]').forEach(link=>link.addEventListener('click',()=>api({action:'mark_read',id:link.dataset.notificationId}).catch(()=>null)));
-    $('[data-mark-all-read]')?.addEventListener('click',async()=>{await api({action:'mark_read',all:true});await refresh();location.reload()});
+    $('[data-mark-all-read]')?.addEventListener('click',async()=>{try{await api({action:'mark_read',all:true});document.querySelectorAll('[data-notification-id]').forEach(link=>link.classList.remove('unread'));const badge=$('[data-push-unread]');if(badge)badge.hidden=true;const button=$('[data-mark-all-read]');if(button)button.hidden=true;toast('Đã đánh dấu tất cả thông báo là đã đọc.')}catch(error){toast(error.message,true)}});
   });
 })();
