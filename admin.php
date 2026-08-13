@@ -105,7 +105,7 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
   <meta name="theme-color" content="#0f4c81">
   <title>Trang chủ quản trị – <?= e(SCHOOL_SHORT) ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260812-4" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260813-1" rel="stylesheet">
 </head>
 <body>
 <header class="app-header">
@@ -167,6 +167,7 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
           $nearestDate = $item['_dashboard_nearest'] ?? '';
           $endDate = $item['_dashboard_end'] ?? '';
           $state = $item['_dashboard_state'] ?? 'Đang diễn ra';
+          $badgeClass = $item['_dashboard_badge_class'] ?? ($state === 'Sắp diễn ra' ? 'upcoming' : 'active');
           $assigneeText = implode(', ', array_slice($item['_dashboard_assignees'] ?? [], 0, 3));
           $kind = in_array(($item['kind'] ?? ''), ['notice','task','salary','seniority'], true) ? $item['kind'] : 'task';
           $icons = ['notice'=>'bi-megaphone-fill','task'=>'bi-check2-square','salary'=>'bi-cash-coin','seniority'=>'bi-award-fill'];
@@ -176,9 +177,9 @@ $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
             <span class="feed-icon <?= e($kind) ?>"><i class="bi <?= e($icons[$kind]) ?>"></i></span>
             <span class="feed-copy">
               <strong><?= e($title) ?></strong>
-              <small><?= e($detail) ?><?php if ($nearestDate): ?> · <i class="bi bi-calendar-event"></i> <?= $endDate ? 'Hạn ' : '' ?><?= e(date('d/m/Y', strtotime($nearestDate))) ?><?php endif; ?></small>
+              <small><?= e($detail) ?><?php if ($nearestDate): ?> · <i class="bi bi-calendar-event"></i> <?= $endDate ? 'Hạn ' : '' ?><?= e(date(str_contains((string)$nearestDate, ':') ? 'd/m/Y H:i' : 'd/m/Y', strtotime($nearestDate))) ?><?php endif; ?></small>
             </span>
-            <span class="schedule-pill <?= $state === 'Sắp diễn ra' ? 'upcoming' : 'active' ?>"><?= e($state) ?></span>
+            <span class="schedule-pill <?= e($badgeClass) ?>"><?= e($state) ?></span>
           <?php if ($url): ?></a><?php else: ?></div><?php endif; ?>
         <?php endforeach; ?>
         <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có nội dung sắp tới</strong><span>Thông báo chuyên môn chung, công việc được giao và mốc nhân sự cá nhân sẽ xuất hiện tại đây.</span></div><?php endif; ?>

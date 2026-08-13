@@ -42,6 +42,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if ($title === '' || $symbol === '' || $issuedDate === '' || $issuer === '') throw new RuntimeException('Hãy nhập đủ số ký hiệu, tên, ngày và đơn vị ban hành.');
             $type = vb_clean((string)($_POST['type'] ?? ''), 80);
+            $dashboardVisible = !empty($_POST['dashboard_visible']);
+            $dashboardFrom = vb_datetime_local((string)($_POST['dashboard_from'] ?? ''));
+            $dashboardTo = vb_datetime_local((string)($_POST['dashboard_to'] ?? ''));
+            if ($dashboardVisible && ($dashboardFrom === '' || $dashboardTo === '')) throw new RuntimeException('Hãy chọn đủ thời gian bắt đầu và hết hiển thị trên trang tổng quan.');
+            if ($dashboardVisible && strtotime($dashboardTo) <= strtotime($dashboardFrom)) throw new RuntimeException('Thời gian hết hiển thị phải sau thời gian bắt đầu.');
             $path = (string)($existingDocument['file_path'] ?? '');
             $newPath = vb_upload('document_file', 'documents', ['title'=>$title,'document_title'=>$title,'document_date'=>$issuedDate,'issuer'=>$issuer,'symbol'=>$symbol]);
             if ($newPath !== '') $path = $newPath;
@@ -55,6 +60,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'signer'=>vb_clean((string)($_POST['signer'] ?? ($reserved['signer'] ?? '')), 180),
                 'notes'=>vb_clean((string)($_POST['notes'] ?? ''), 1000), 'file_path'=>$path,
                 'featured'=>!empty($_POST['featured']),
+                'dashboard_visible'=>$dashboardVisible,
+                'dashboard_from'=>$dashboardVisible ? $dashboardFrom : '',
+                'dashboard_to'=>$dashboardVisible ? $dashboardTo : '',
                 'reserved_id'=>$reserved['id'] ?? ($existingDocument['reserved_id'] ?? ''),
                 'created_by'=>$existingDocument['created_by'] ?? ($user['name'] ?? ''),
                 'created_at'=>$existingDocument['created_at'] ?? date('c'),
@@ -246,8 +254,13 @@ if(documentDialog){
   const form=documentDialog.querySelector('form'),submit=form.querySelector('button[type="submit"],button:not([type])');
   const featuredWrap=document.createElement('div');featuredWrap.className='field span-3';featuredWrap.innerHTML='<label class="check-row"><input type="checkbox" name="featured" value="1"> <span>Văn bản nổi bật – hiển thị trên trang Tổng quan Hệ sinh thái</span></label>';
   submit.parentNode.insertBefore(featuredWrap,submit);
-  document.querySelectorAll('.edit-document').forEach(button=>button.addEventListener('click',()=>{const row=JSON.parse(button.dataset.record||'{}');form.reset();hiddenInput(form,'id',row.id);['type','symbol','title','issued_date','issuer','issuer_level','field','signer','notes'].forEach(name=>{if(form.elements[name])form.elements[name].value=row[name]||''});form.elements.featured.checked=!!row.featured;form.elements.document_file.required=false;submit.innerHTML='<i class="bi bi-check2-circle"></i> Lưu thay đổi';documentDialog.showModal()}));
-  const addButton=document.querySelector('button[onclick*="documentDialog"]');if(addButton)addButton.addEventListener('click',()=>{form.reset();hiddenInput(form,'id','');form.elements.document_file.required=true;submit.innerHTML='<i class="bi bi-cloud-check"></i> Tải lên và lưu'});
+  const dashboardWrap=document.createElement('div');dashboardWrap.className='span-3';dashboardWrap.innerHTML='<div class="field"><label class="check-row"><input type="checkbox" name="dashboard_visible" value="1"> <span>Hiển thị trong mục công việc sắp tới ở trang Tổng quan</span></label></div><div class="form-grid" data-dashboard-schedule><div class="field"><label>Bắt đầu hiển thị</label><input class="input" type="datetime-local" name="dashboard_from"></div><div class="field"><label>Hết hiệu lực hiển thị</label><input class="input" type="datetime-local" name="dashboard_to"></div><div class="field"><div class="hint" style="margin:0">Tự đánh dấu <strong>Mới</strong> trong 3 ngày đầu và <strong>Sắp hết hạn</strong> trong 3 ngày cuối.</div></div></div>';
+  submit.parentNode.insertBefore(dashboardWrap,submit);
+  const dashboardToggle=form.elements.dashboard_visible,schedule=dashboardWrap.querySelector('[data-dashboard-schedule]');
+  function syncDashboardSchedule(){const enabled=dashboardToggle.checked;schedule.hidden=!enabled;form.elements.dashboard_from.required=enabled;form.elements.dashboard_to.required=enabled}
+  dashboardToggle.addEventListener('change',syncDashboardSchedule);syncDashboardSchedule();
+  document.querySelectorAll('.edit-document').forEach(button=>button.addEventListener('click',()=>{const row=JSON.parse(button.dataset.record||'{}');form.reset();hiddenInput(form,'id',row.id);['type','symbol','title','issued_date','issuer','issuer_level','field','signer','notes','dashboard_from','dashboard_to'].forEach(name=>{if(form.elements[name])form.elements[name].value=row[name]||''});form.elements.featured.checked=!!row.featured;form.elements.dashboard_visible.checked=!!row.dashboard_visible;syncDashboardSchedule();form.elements.document_file.required=false;submit.innerHTML='<i class="bi bi-check2-circle"></i> Lưu thay đổi';documentDialog.showModal()}));
+  const addButton=document.querySelector('button[onclick*="documentDialog"]');if(addButton)addButton.addEventListener('click',()=>{form.reset();hiddenInput(form,'id','');syncDashboardSchedule();form.elements.document_file.required=true;submit.innerHTML='<i class="bi bi-cloud-check"></i> Tải lên và lưu'});
 }
 const numberDialog=document.getElementById('numberDialog');
 if(numberDialog){
