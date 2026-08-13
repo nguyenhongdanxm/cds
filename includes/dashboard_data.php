@@ -396,9 +396,41 @@ function cds_dashboard_staff_milestones(array $user): array {
     return $rows;
 }
 
+function cds_dashboard_document_notices(): array {
+    if (!can_module('vanban', 'view')) return [];
+    require_once __DIR__ . '/vanban_store.php';
+    $now = time();
+    $rows = [];
+    foreach (vb_rows(VANBAN_DOCUMENTS_FILE) as $document) {
+        if (empty($document['dashboard_visible'])) continue;
+        $from = strtotime((string)($document['dashboard_from'] ?? ''));
+        $to = strtotime((string)($document['dashboard_to'] ?? ''));
+        if ($from === false || $to === false || $now < $from || $now > $to) continue;
+        $state = 'Đang hiệu lực';
+        $badgeClass = 'active';
+        if ($to - $now <= 3 * 86400) {
+            $state = 'Sắp hết hạn';
+            $badgeClass = 'expiring';
+        } elseif ($now - $from <= 3 * 86400) {
+            $state = 'Mới';
+            $badgeClass = 'new';
+        }
+        $rows[] = [
+            'id'=>(string)($document['id'] ?? ''), 'kind'=>'notice',
+            'title'=>(string)($document['title'] ?? 'Văn bản'),
+            'url'=>vb_file_url((string)($document['file_path'] ?? '')),
+            '_dashboard_detail'=>'Văn bản ' . trim((string)($document['symbol'] ?? '')),
+            '_dashboard_start'=>date('Y-m-d H:i', $from), '_dashboard_end'=>date('Y-m-d H:i', $to),
+            '_dashboard_nearest'=>date('Y-m-d H:i', $to), '_dashboard_state'=>$state,
+            '_dashboard_badge_class'=>$badgeClass, '_dashboard_assignees'=>[],
+        ];
+    }
+    return $rows;
+}
+
 function cds_dashboard_notice_tasks(array $user, int $limit = 0): array {
     $feed = cds_dashboard_feed_data();
-    $rows = cds_dashboard_staff_milestones($user);
+    $rows = array_merge(cds_dashboard_staff_milestones($user), cds_dashboard_document_notices());
     $identityLower = cds_dashboard_user_identities($user);
     foreach ($feed['notices'] as $row) {
         if (($row['_dashboard_module'] ?? '') !== 'chuyenmon' || !cds_dashboard_feed_visible($row)) continue;
