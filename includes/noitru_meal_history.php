@@ -36,6 +36,65 @@ function nt_meal_history_remember_deleted_sources(array $rows) {
     save_json(NOITRU_MEAL_HISTORY_DELETED, array_keys($deleted));
 }
 
+/**
+ * Xóa dữ liệu nguồn của các lượt lịch sử được chọn để mọi bảng tổng hợp,
+ * báo cáo tháng và thống kê gạo không tiếp tục tính các lượt này.
+ */
+function nt_meal_history_delete_related_data(array $historyRows) {
+    $targets = [];
+    foreach ($historyRows as $row) {
+        $date = trim((string)($row['date'] ?? ''));
+        $className = trim((string)($row['class_name'] ?? ''));
+        $meal = trim((string)($row['meal'] ?? ''));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || $className === '' || !in_array($meal, ['sang','trua','toi'], true)) continue;
+        $targets[$date . '|' . $className . '|' . $meal] = ['date'=>$date, 'class_name'=>$className, 'meal'=>$meal];
+    }
+    if (!$targets) return 0;
+
+    $reportData = noitru_meal_reports_data();
+    $beforeReports = count($reportData['reports'] ?? []);
+    $reportData['reports'] = array_values(array_filter($reportData['reports'] ?? [], function ($report) use ($targets) {
+        $key = (string)($report['date'] ?? '') . '|' . (string)($report['class_name'] ?? '') . '|' . (string)($report['meal'] ?? '');
+        return !isset($targets[$key]);
+    }));
+    noitru_meal_reports_save($reportData);
+
+    $studentsByClass = [];
+    foreach (noitru_boarders_live() as $student) {
+        $className = trim((string)($student['class_name'] ?? ''));
+        $studentId = trim((string)($student['id'] ?? ''));
+        if ($className !== '' && $studentId !== '') $studentsByClass[$className][$studentId] = true;
+    }
+    /* Bổ sung ID lưu trong nhật ký để vẫn xóa đúng khi học sinh đã chuyển lớp. */
+    foreach ($historyRows as $historyRow) foreach (($historyRow['changes'] ?? []) as $change) {
+        $className = trim((string)($historyRow['class_name'] ?? ''));
+        $studentId = trim((string)($change['student_id'] ?? ''));
+        if ($className !== '' && $studentId !== '') $studentsByClass[$className][$studentId] = true;
+    }
+
+    $mealRows = noitru_meals_all();
+    foreach ($mealRows as &$mealRow) {
+        $date = (string)($mealRow['date'] ?? '');
+        $studentId = (string)($mealRow['student_id'] ?? '');
+        foreach ($targets as $target) {
+            if ($date !== $target['date'] || empty($studentsByClass[$target['class_name']][$studentId])) continue;
+            unset($mealRow[$target['meal']]);
+        }
+    }
+    unset($mealRow);
+    $mealRows = array_values(array_filter($mealRows, fn($row) => isset($row['sang']) || isset($row['trua']) || isset($row['toi'])));
+    save_json(NOITRU_MEALS, $mealRows);
+    return $beforeReports - count($reportData['reports']);
+}
+
+function nt_meal_history_target_keys(array $historyRows) {
+    $keys = [];
+    foreach ($historyRows as $row) {
+        $keys[(string)($row['date'] ?? '') . '|' . (string)($row['class_name'] ?? '') . '|' . (string)($row['meal'] ?? '')] = true;
+    }
+    return $keys;
+}
+
 function nt_meal_history_all() {
     noitru_ensure_dir();
     $rows = load_json(NOITRU_MEAL_HISTORY, []);
@@ -250,7 +309,7 @@ function nt_meal_history_panel_html() {
                 <td class="text-end text-nowrap">
                   <?php $state=noitru_meal_state((string)($row['date']??''),(string)($row['meal']??''));$isOpen=($state['status']??'open')==='open'; ?>
                   <?php if ($isOpen || nt_meal_history_can_edit_locked()): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','date'=>$row['date']??'','class'=>$row['class_name']??'','meal'=>$row['meal']??''])) ?>" title="Mở lại phiếu"><i class="bi bi-pencil-square"></i></a><?php endif; ?>
-                  <?php if ($canDelete): ?><form method="post" class="d-inline" onsubmit="return confirm('CẢNH BÁO: Xóa vĩnh viễn lượt lịch sử báo ăn này? Dữ liệu lịch sử đã xóa không thể khôi phục.');"><input type="hidden" name="action" value="meal_history_delete"><input type="hidden" name="tab" value="meals"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="id" value="<?= e($row['id']??'') ?>"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="class" value="<?= e($className) ?>"><input type="hidden" name="meal" value="<?= e($meal) ?>"><button class="btn btn-sm btn-outline-danger" title="Xóa lịch sử"><i class="bi bi-trash"></i></button></form><?php endif; ?>
+                  <?php if ($canDelete): ?><form method="post" class="d-inline" onsubmit="return confirm('CẢNH BÁO: Xóa vĩnh viễn lượt báo ăn này và toàn bộ số liệu liên quan trong các bảng thống kê? Dữ liệu đã xóa không thể khôi phục.');"><input type="hidden" name="action" value="meal_history_delete"><input type="hidden" name="tab" value="meals"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="id" value="<?= e($row['id']??'') ?>"><input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="class" value="<?= e($className) ?>"><input type="hidden" name="meal" value="<?= e($meal) ?>"><button class="btn btn-sm btn-outline-danger" title="Xóa lịch sử và số liệu liên quan"><i class="bi bi-trash"></i></button></form><?php endif; ?>
                 </td>
               </tr>
             <?php endforeach; ?>
@@ -260,7 +319,7 @@ function nt_meal_history_panel_html() {
       </div>
     </div>
     <style>.meal-history-tabs{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}.meal-history-tabs a{display:flex;align-items:center;justify-content:center;gap:.45rem;min-height:44px;border:1px solid #dce5ec;border-radius:13px;background:#fff;color:#334155;text-decoration:none;font-weight:700}.meal-history-tabs a.active{border-color:#0ea5e9;background:#0ea5e9;color:#fff}@media(max-width:600px){.meal-history-tabs a{font-size:.82rem}}</style>
-    <script>(function(){var all=document.getElementById('mealHistorySelectAll');if(all)all.addEventListener('change',function(){document.querySelectorAll('.meal-history-check').forEach(function(box){box.checked=all.checked})});window.confirmMealHistoryBulkDelete=function(){var count=document.querySelectorAll('.meal-history-check:checked').length;if(!count){alert('Hãy tích chọn ít nhất một lượt lịch sử.');return false}return confirm('CẢNH BÁO: Xóa vĩnh viễn '+count+' lượt lịch sử báo ăn đã chọn? Dữ liệu đã xóa không thể khôi phục.')};})();</script>
+    <script>(function(){var all=document.getElementById('mealHistorySelectAll');if(all)all.addEventListener('change',function(){document.querySelectorAll('.meal-history-check').forEach(function(box){box.checked=all.checked})});window.confirmMealHistoryBulkDelete=function(){var count=document.querySelectorAll('.meal-history-check:checked').length;if(!count){alert('Hãy tích chọn ít nhất một lượt lịch sử.');return false}return confirm('CẢNH BÁO: Xóa vĩnh viễn '+count+' lượt báo ăn và toàn bộ số liệu liên quan trong các bảng thống kê? Dữ liệu đã xóa không thể khôi phục.')};})();</script>
     <?php
     return ob_get_clean();
 }
@@ -269,9 +328,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'meal_
     if (!nt_meal_history_can_delete()) { http_response_code(403); exit('Bạn không có quyền xóa lịch sử báo ăn.'); }
     if (empty($_POST['csrf']) || !hash_equals((string)($_SESSION['nt_meal_history_csrf'] ?? ''), (string)$_POST['csrf'])) { http_response_code(403); exit('Phiên làm việc không hợp lệ.'); }
     $id = trim((string)($_POST['id'] ?? '')); $rows = nt_meal_history_all(); $before = count($rows);
-    nt_meal_history_remember_deleted_sources(array_values(array_filter($rows, fn($row)=>(string)($row['id']??'') === $id)));
-    $rows = array_values(array_filter($rows, fn($row)=>(string)($row['id']??'') !== $id));
-    if (count($rows) < $before) { nt_meal_history_save($rows); flash('Đã xóa lịch sử báo ăn. Dữ liệu phiếu báo ăn hiện tại không bị thay đổi.', 'warning'); }
+    $selectedRows = array_values(array_filter($rows, fn($row)=>(string)($row['id']??'') === $id));
+    $targetKeys = nt_meal_history_target_keys($selectedRows);
+    $deletedRows = array_values(array_filter($rows, fn($row)=>isset($targetKeys[(string)($row['date']??'').'|'.(string)($row['class_name']??'').'|'.(string)($row['meal']??'')])));
+    nt_meal_history_remember_deleted_sources($deletedRows);
+    nt_meal_history_delete_related_data($deletedRows);
+    $rows = array_values(array_filter($rows, fn($row)=>!isset($targetKeys[(string)($row['date']??'').'|'.(string)($row['class_name']??'').'|'.(string)($row['meal']??'')])));
+    if (count($rows) < $before) { nt_meal_history_save($rows); flash('Đã xóa lượt báo ăn và cập nhật toàn bộ bảng tổng hợp, báo cáo, thống kê liên quan.', 'warning'); }
     else flash('Không tìm thấy lịch sử cần xóa.', 'warning');
     header('Location: ' . BASE_URL . 'noitru.php?' . http_build_query(['tab'=>'meals','meal_view'=>'history','class'=>$_POST['class']??'','meal'=>$_POST['meal']??'sang'])); exit;
 }
@@ -281,7 +344,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'meal_
     if (empty($_POST['csrf']) || !hash_equals((string)($_SESSION['nt_meal_history_csrf'] ?? ''), (string)$_POST['csrf'])) { http_response_code(403); exit('Phiên làm việc không hợp lệ.'); }
     $ids = array_fill_keys(array_values(array_filter(array_map('strval', (array)($_POST['ids'] ?? [])))), true);
     if (!$ids) { flash('Chưa chọn lịch sử cần xóa.', 'warning'); }
-    else { $rows=nt_meal_history_all();$before=count($rows);nt_meal_history_remember_deleted_sources(array_values(array_filter($rows,fn($row)=>isset($ids[(string)($row['id']??'')]))));$rows=array_values(array_filter($rows,fn($row)=>!isset($ids[(string)($row['id']??'')])));nt_meal_history_save($rows);flash('Đã xóa '.($before-count($rows)).' lượt lịch sử báo ăn đã chọn. Dữ liệu phiếu hiện tại không bị thay đổi.','warning'); }
+    else { $rows=nt_meal_history_all();$before=count($rows);$selectedRows=array_values(array_filter($rows,fn($row)=>isset($ids[(string)($row['id']??'')])));$targetKeys=nt_meal_history_target_keys($selectedRows);$deletedRows=array_values(array_filter($rows,fn($row)=>isset($targetKeys[(string)($row['date']??'').'|'.(string)($row['class_name']??'').'|'.(string)($row['meal']??'')])));nt_meal_history_remember_deleted_sources($deletedRows);nt_meal_history_delete_related_data($deletedRows);$rows=array_values(array_filter($rows,fn($row)=>!isset($targetKeys[(string)($row['date']??'').'|'.(string)($row['class_name']??'').'|'.(string)($row['meal']??'')])));nt_meal_history_save($rows);flash('Đã xóa '.($before-count($rows)).' lượt báo ăn và cập nhật toàn bộ bảng tổng hợp, báo cáo, thống kê liên quan.','warning'); }
     header('Location: '.BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','meal_view'=>'history','class'=>$_POST['class']??'','meal'=>$_POST['meal']??'sang']));exit;
 }
 
