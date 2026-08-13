@@ -30,7 +30,7 @@ body > .container > .nav-pills + * {
       ['Kế hoạch','Báo cáo','PCCM']
     ];
     var candidates = document.querySelectorAll(
-      'body > .container > .d-flex, body > .container > .btn-group, body > .container > .row, body > .container > nav, body > .container > section'
+      'body > .container .d-flex, body > .container .btn-group, body > .container nav, body > .container section, body > .container header'
     );
 
     candidates.forEach(function(node){
@@ -40,10 +40,26 @@ body > .container > .nav-pills + * {
       var texts = controls.map(function(el){ return (el.textContent || '').replace(/\s+/g,' ').trim(); });
       var duplicate = groups.some(function(group){
         return group.filter(function(label){
-          return texts.some(function(text){ return text === label || text.indexOf(label) !== -1; });
+          return texts.some(function(text){ return text === label; });
         }).length >= 2;
       });
       if (duplicate) node.classList.add('cm-legacy-menu-hidden');
+    });
+
+    /* Ba lối tắt trên banner Tổng quan đã trùng hoàn toàn với sidebar. */
+    document.querySelectorAll('body > .container a, body > .container button').forEach(function(control){
+      if ((control.textContent || '').replace(/\s+/g,' ').trim() !== 'Kế hoạch') return;
+      var box = control.parentElement;
+      while (box && box !== document.body) {
+        var labels = Array.from(box.querySelectorAll('a,button')).map(function(el){
+          return (el.textContent || '').replace(/\s+/g,' ').trim();
+        });
+        if (['Kế hoạch','Báo cáo','PCCM'].every(function(label){ return labels.indexOf(label) !== -1; })) {
+          box.classList.add('cm-legacy-menu-hidden');
+          break;
+        }
+        box = box.parentElement;
+      }
     });
   }
 
