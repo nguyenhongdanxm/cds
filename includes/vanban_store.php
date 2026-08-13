@@ -28,6 +28,13 @@ function vb_date(string $value): string {
     return $date && $date->format('Y-m-d') === $value ? $value : '';
 }
 
+function vb_datetime_local(string $value): string {
+    $value = trim($value);
+    if ($value === '') return '';
+    $date = DateTime::createFromFormat('Y-m-d\TH:i', $value);
+    return $date && $date->format('Y-m-d\TH:i') === $value ? $value : '';
+}
+
 function vb_document_types(): array {
     return ['Quyết định','Kế hoạch','Hướng dẫn','Chỉ thị','Thông tư','Quy chế','Quy định','Công văn','Thông báo','Báo cáo','Biên bản','Khác'];
 }
