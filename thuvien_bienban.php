@@ -3,7 +3,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_store.php';
 require_login();
 $user=current_user()??[];$isAdmin=($user['role']??'')==='admin';
-if(!$isAdmin&&!can_perm_level('hl.thuvien','view')){http_response_code(403);exit('Không có quyền xem biên bản.');}
+if(!$isAdmin&&!can_perm_level('tv.muontra','view')){http_response_code(403);exit('Không có quyền xem biên bản.');}
 $batch=trim((string)($_GET['batch']??''));$data=load_json(DATA_PATH.'/library_equipment.json',['loans'=>[]]);$rows=array_values(array_filter((array)($data['loans']??[]),fn($row)=>($row['batch_id']??'')===$batch));
 if(!$rows){http_response_code(404);exit('Không tìm thấy biên bản.');}
 $first=$rows[0];$date=strtotime((string)($first['borrowed_at']??''))?:time();$time=trim((string)($first['borrowed_time']??''))?:date('H:i',$date);[$hour,$minute]=array_pad(explode(':',$time),2,'00');
