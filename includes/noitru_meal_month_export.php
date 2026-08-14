@@ -154,10 +154,10 @@ function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYe
                 $info = $dayData[$day];
                 $meal = $info['map'][$student['id'] ?? ''] ?? [];
                 if ($type === 'breakfast' && $info['sang_report']) {
-                    if (($meal['sang'] ?? 'yes') === 'yes') { $symbol = 'x'; $valueCount = 1; }
+                    if (($meal['sang'] ?? '') === 'yes') { $symbol = 'x'; $valueCount = 1; }
                 } elseif ($type === 'lunch_dinner') {
-                    $lunchYes = $info['trua_report'] && (($meal['trua'] ?? 'yes') === 'yes');
-                    $dinnerYes = $info['toi_report'] && (($meal['toi'] ?? 'yes') === 'yes');
+                    $lunchYes = $info['trua_report'] && (($meal['trua'] ?? '') === 'yes');
+                    $dinnerYes = $info['toi_report'] && (($meal['toi'] ?? '') === 'yes');
                     if ($lunchYes && $dinnerYes) { $symbol = 'x'; $valueCount = 2; }
                     elseif ($lunchYes) { $symbol = '\\'; $valueCount = 1; }
                     elseif ($dinnerYes) { $symbol = '/'; $valueCount = 1; }

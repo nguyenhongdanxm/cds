@@ -895,7 +895,7 @@ function nt_meal_day_overview($date, array $students) {
             }
             $info['reported'][$class] = $report;
             foreach ($classStudents as $student) {
-                $value = $mealMap[$student['id']][$meal] ?? 'yes';
+                $value = $mealMap[$student['id']][$meal] ?? 'no';
                 $info['total']++;
                 if ($value === 'no') {
                     $info['absent']++;
@@ -1460,7 +1460,7 @@ form[method="post"]{display:none!important}
     <input type="hidden" name="long_from" id="mealLongFrom" value="<?= e($date) ?>"><input type="hidden" name="long_until" id="mealLongUntil" value="<?= e($date) ?>">
     <div class="card-body">
       <div class="d-flex justify-content-between gap-2 flex-wrap meal-form-head mb-3"><div><h5 class="mb-1"><?= e($className) ?> · <?= e($mealLabels[$meal]) ?></h5><div class="small text-muted"><?= $mealReport?'Đã báo bởi '.e($mealReport['reported_by']??'').' lúc '.e(date('d/m/Y H:i',strtotime($mealReport['updated_at']??$mealReport['created_at']??'now'))):($meal==='all'?'Báo đồng thời cả 3 bữa':'Chưa gửi báo cáo') ?></div></div>
-        <?php if (!$readOnly && $classStudents): ?><div class="meal-quick-actions"><button class="btn btn-outline-success btn-sm" type="button" onclick="setMealAbsent(false)">Đủ cả lớp</button><button class="btn btn-outline-danger btn-sm" type="button" onclick="setMealAbsent(true)">Nghỉ cả lớp</button><button class="btn btn-outline-warning btn-sm" type="button" onclick="openLongMealModal()"><i class="bi bi-calendar-range"></i> Nghỉ dài ngày</button></div><?php endif; ?>
+        <?php if (!$readOnly && $classStudents): ?><div class="meal-quick-actions"><button class="btn btn-outline-success btn-sm" type="button" onclick="setMealAbsent(false)">Đủ cả lớp</button><button class="btn btn-outline-danger btn-sm" type="button" onclick="setMealAbsent(true)">Nghỉ cả lớp</button><button class="btn btn-outline-warning btn-sm" type="button" onclick="openLongMealModal()"><i class="bi bi-calendar-range"></i> Cập nhật nhiều ngày</button></div><?php endif; ?>
       </div>
       <div class="alert alert-light border py-2"><strong>Mặc định tất cả học sinh ăn.</strong> Chỉ tích vào học sinh nghỉ ăn.</div>
       <div class="meal-student-grid">
@@ -1472,9 +1472,10 @@ form[method="post"]{display:none!important}
     <?php if ($classStudents && !$readOnly): ?><div class="card-body border-top meal-save-bar"><button class="btn btn-nt w-100" type="submit"><i class="bi bi-send-check"></i> Kiểm tra và lưu báo ăn <?= e($mealLabels[$meal]) ?></button></div><?php endif; ?>
   </form>
   <div class="modal fade" id="longMealModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-calendar-range me-2"></i>Học sinh nghỉ dài ngày</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-calendar-range me-2"></i>Cập nhật báo ăn nhiều ngày</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <div class="alert alert-warning py-2"><span id="longAbsentCount">0</span> học sinh đã được tích chọn.</div>
+      <div class="alert alert-info py-2 mb-2"><strong>Cách sử dụng:</strong> tích học sinh nghỉ, bỏ tích học sinh ăn lại; sau đó chọn khoảng ngày cần áp dụng.</div>
+      <div class="small text-muted mb-3">Hiện có <strong><span id="longAbsentCount">0</span> học sinh nghỉ</strong>; các học sinh còn lại được ghi nhận ăn bình thường.</div>
       <div class="row g-2"><div class="col-6"><label class="form-label">Từ ngày</label><input class="form-control" type="date" id="longFromInput" min="<?= e($date) ?>" max="<?= e(date('Y-m-d',strtotime($date.' +60 days'))) ?>" value="<?= e($date) ?>"></div><div class="col-6"><label class="form-label">Đến ngày</label><input class="form-control" type="date" id="longUntilInput" min="<?= e($date) ?>" max="<?= e(date('Y-m-d',strtotime($date.' +60 days'))) ?>" value="<?= e($date) ?>"></div></div>
       <label class="form-label mt-3">Áp dụng bữa ăn</label><select class="form-select" id="longMealsInput"><option value="sang">Bữa sáng</option><option value="trua">Bữa trưa</option><option value="toi">Bữa tối</option><option value="sang,trua,toi" selected>Cả 3 bữa</option></select>
     </div>
@@ -1874,7 +1875,6 @@ function mealDateVi(value){
 }
 function openLongMealModal(){
   var selected=selectedMealStudents();
-  if(!selected.length){alert('Hãy tích chọn ít nhất 1 học sinh nghỉ trước.');return}
   document.getElementById('longAbsentCount').textContent=selected.length;
   bootstrap.Modal.getOrCreateInstance(document.getElementById('longMealModal')).show();
 }

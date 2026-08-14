@@ -247,6 +247,12 @@ function noitru_meal_reports_data() {
     noitru_ensure_dir();
     $data = load_json(NOITRU_MEAL_REPORTS, ['reports'=>[], 'states'=>[], 'settings'=>[]]);
     $data['reports'] = $data['reports'] ?? [];
+    /* Các lượt đã xóa khỏi lịch sử không được tiếp tục tham gia tổng hợp. */
+    $deletedReportIds = load_json(NOITRU_DIR . '/meal_history_deleted.json', []);
+    if (is_array($deletedReportIds) && $deletedReportIds) {
+        $deletedReportIds = array_fill_keys(array_map('strval', $deletedReportIds), true);
+        $data['reports'] = array_values(array_filter($data['reports'], fn($row) => !isset($deletedReportIds[(string)($row['id'] ?? '')])));
+    }
     $data['states'] = $data['states'] ?? [];
     $data['settings'] = array_merge([
         'sang_lock_time'=>'20:00',
@@ -408,6 +414,10 @@ function noitru_meals_count_day($date) {
 function noitru_meals_summary($from, $to) {
     $students = [];
     foreach (noitru_boarders_live() as $s) $students[$s['id']] = $s;
+    $reported = [];
+    foreach (noitru_meal_reports_data()['reports'] ?? [] as $report) {
+        $reported[(string)($report['date'] ?? '') . '|' . (string)($report['class_name'] ?? '') . '|' . (string)($report['meal'] ?? '')] = true;
+    }
     $out = ['classes'=>[], 'groups'=>[], 'days'=>[], 'total'=>['sang'=>0,'trua'=>0,'toi'=>0]];
     foreach (noitru_meals_all() as $m) {
         $date = $m['date'] ?? '';
@@ -416,6 +426,8 @@ function noitru_meals_summary($from, $to) {
         $class = trim($student['class_name'] ?? '') ?: '(Chưa lớp)';
         $group = trim($student['meal_group'] ?? '') ?: '(Chưa mâm)';
         foreach (['sang','trua','toi'] as $meal) {
+            /* Không có phiếu báo của lớp/bữa thì không được mặc định là có ăn. */
+            if (empty($reported[$date . '|' . $class . '|' . $meal])) continue;
             if (!in_array($m[$meal] ?? '', ['yes','sick','guest'], true)) continue;
             $out['total'][$meal]++;
             $out['days'][$date][$meal] = ($out['days'][$date][$meal] ?? 0) + 1;
