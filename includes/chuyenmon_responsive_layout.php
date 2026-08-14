@@ -129,7 +129,7 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
 }
 </style>
 
-<aside class="cm-desktop-sidebar" aria-label="Điều hướng Chuyên môn">
+<style>.cm-sidebar-link.disabled,.cm-mobile-bottom a.disabled,.cm-mobile-link.disabled{display:none!important}</style><aside class="cm-desktop-sidebar" aria-label="Điều hướng Chuyên môn">
   <a class="cm-sidebar-brand" href="<?= BASE_URL ?>index.php">
     <span class="cm-logo"><i class="bi bi-journal-bookmark-fill"></i></span>
     <span><strong>Chuyên môn</strong><small>Cổng dữ liệu số CDS</small></span>
