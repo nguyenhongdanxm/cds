@@ -11,14 +11,16 @@
 
 function permission_modules_catalog() {
     return [
-        'chuyenmon' => ['label' => 'Chuyên môn', 'icon' => 'bi-journal-bookmark-fill'],
-        'csdl'      => ['label' => 'Cơ sở dữ liệu', 'icon' => 'bi-database'],
-        'noitru'    => ['label' => 'Nội trú', 'icon' => 'bi-building'],
-        'vanban'    => ['label' => 'Văn bản', 'icon' => 'bi-file-earmark-text'],
-        'thidua'    => ['label' => 'Thi đua', 'icon' => 'bi-trophy'],
-        'truyenthong'=> ['label' => 'Truyền thông', 'icon' => 'bi-broadcast'],
-        'hoclieu'   => ['label' => 'Học liệu – Thư viện – Thiết bị', 'icon' => 'bi-book'],
-        'taichinh'  => ['label' => 'Tài chính – Kế toán', 'icon' => 'bi-cash-coin'],
+        // Mỗi mục tương ứng đúng một trang/module trên hệ sinh thái.
+        'chuyenmon' => ['label' => 'Chuyên môn', 'icon' => 'bi-journal-bookmark-fill', 'page' => 'chuyenmon.php'],
+        'vanban'    => ['label' => 'Văn bản', 'icon' => 'bi-file-earmark-text', 'page' => 'vanban.php'],
+        'thuvien'   => ['label' => 'Thư viện – Thiết bị', 'icon' => 'bi-book-half', 'page' => 'thuvien.php'],
+        'csdl'      => ['label' => 'Cơ sở dữ liệu', 'icon' => 'bi-database', 'page' => 'csdl.php'],
+        'hoclieu'   => ['label' => 'Học liệu và thi', 'icon' => 'bi-laptop', 'page' => 'hoclieu.php'],
+        'noitru'    => ['label' => 'Quản lý nội trú', 'icon' => 'bi-building', 'page' => 'noitru.php'],
+        'thidua'    => ['label' => 'Thi đua', 'icon' => 'bi-trophy', 'page' => 'thidua.php'],
+        'truyenthong'=> ['label' => 'Truyền thông – Tin tức', 'icon' => 'bi-broadcast', 'page' => 'Trang tin tức'],
+        'taichinh'  => ['label' => 'Kế toán – Tài chính', 'icon' => 'bi-cash-coin', 'page' => 'Trang kế toán – tài chính'],
     ];
 }
 
@@ -81,11 +83,15 @@ function permission_features_catalog() {
         'tt.bientap'  => ['module' => 'truyenthong', 'label' => 'Biên tập tin · bài · hoạt động', 'group' => 'Truyền thông'],
         'tt.xuatban'  => ['module' => 'truyenthong', 'label' => 'Duyệt và xuất bản', 'group' => 'Truyền thông'],
 
-        // Học liệu, thư viện, thiết bị
-        'hl.xem'      => ['module' => 'hoclieu', 'label' => 'Xem học liệu và danh mục', 'group' => 'Học liệu'],
-        'hl.thuvien'  => ['module' => 'hoclieu', 'label' => 'Quản lý thư viện · mượn trả', 'group' => 'Học liệu'],
-        'hl.thietbi'  => ['module' => 'hoclieu', 'label' => 'Quản lý thiết bị', 'group' => 'Học liệu'],
-        'hl.kiemtra'  => ['module' => 'hoclieu', 'label' => 'Ngân hàng đề và kiểm tra', 'group' => 'Học liệu'],
+        // Trang Học liệu và thi
+        'hl.xem'      => ['module' => 'hoclieu', 'label' => 'Học liệu: xem · nộp · sửa · xóa', 'group' => 'Học liệu'],
+        'hl.kiemtra'  => ['module' => 'hoclieu', 'label' => 'Kiểm tra và thi: xem · nộp · sửa · xóa', 'group' => 'Kiểm tra và thi'],
+        'hl.lienket'  => ['module' => 'hoclieu', 'label' => 'Liên kết hữu ích: xem · thêm · sửa · xóa', 'group' => 'Liên kết'],
+        'hl.duyet'    => ['module' => 'hoclieu', 'label' => 'Duyệt · công khai · đánh dấu nổi bật', 'group' => 'Quản trị nội dung'],
+
+        // Trang Thư viện – Thiết bị (tách khỏi Học liệu và thi)
+        'hl.thuvien'  => ['module' => 'thuvien', 'label' => 'Thư viện: danh mục · mượn trả · thống kê · xuất biên bản', 'group' => 'Thư viện'],
+        'hl.thietbi'  => ['module' => 'thuvien', 'label' => 'Thiết bị: danh mục · phiếu mượn · bảo dưỡng · kiểm kê', 'group' => 'Thiết bị'],
 
         // Tài chính
         'tc.xem'      => ['module' => 'taichinh', 'label' => 'Xem dữ liệu tài chính được giao', 'group' => 'Tài chính'],
@@ -262,7 +268,7 @@ function permission_groups_save(array $groups) {
             $level = $group['access'][$code] ?? 'none';
             $access[$code] = in_array($level, ['none','view','edit','delete'], true) ? $level : 'none';
         }
-        $clean[$key] = ['version' => 8, 'label' => $label !== '' ? $label : $key, 'access' => $access];
+        $clean[$key] = ['version' => 9, 'label' => $label !== '' ? $label : $key, 'access' => $access];
     }
     if (!$clean || !save_json(permission_groups_file(), $clean)) return false;
     $check = load_json(permission_groups_file(), []);
