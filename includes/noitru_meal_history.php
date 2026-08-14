@@ -51,6 +51,11 @@ function nt_meal_history_delete_related_data(array $historyRows) {
     }
     if (!$targets) return 0;
 
+    /* Ghi dấu theo ngày–lớp–bữa: mọi báo cáo dẫn xuất phải loại cùng nguồn. */
+    $deletedTargets = noitru_meal_deleted_targets();
+    foreach (array_keys($targets) as $targetKey) $deletedTargets[$targetKey] = true;
+    noitru_meal_deleted_targets_save($deletedTargets);
+
     $reportData = noitru_meal_reports_data();
     $beforeReports = count($reportData['reports'] ?? []);
     $reportData['reports'] = array_values(array_filter($reportData['reports'] ?? [], function ($report) use ($targets) {
@@ -274,15 +279,16 @@ function nt_meal_history_panel_html() {
 
     ob_start();
     ?>
-    <div class="meal-history-tabs mb-3"><a href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','class'=>$className,'meal'=>$meal])) ?>"><i class="bi bi-clipboard-check"></i> Nhập báo ăn</a><a class="active" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','meal_view'=>'history','class'=>$className,'meal'=>$meal])) ?>"><i class="bi bi-clock-history"></i> Lịch sử báo ăn</a></div>
+    <div class="meal-history-tabs mb-3"><a href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','class'=>$className,'meal'=>'sang'])) ?>"><i class="bi bi-clipboard-check"></i> Nhập báo ăn</a><a class="active" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','meal_view'=>'history','class'=>$className,'meal'=>'all'])) ?>"><i class="bi bi-clock-history"></i> Lịch sử báo ăn</a></div>
     <div class="card card-soft" id="mealEditHistory">
       <div class="card-header bg-white d-flex justify-content-between align-items-center">
         <div><strong><i class="bi bi-clock-history me-1"></i>Lịch sử báo ăn</strong><div class="small text-muted"><?= $mode==='recent'?'Đang hiển thị 5 ngày gần nhất. ':'' ?>GVCN chỉ xem các lớp được giao.</div></div>
         <span class="badge bg-secondary"><?= count($rows) ?> lượt báo</span>
       </div>
       <form method="get" class="card-body border-bottom d-flex align-items-end gap-2 flex-wrap">
-        <input type="hidden" name="tab" value="meals"><input type="hidden" name="meal_view" value="history"><input type="hidden" name="class" value="<?= e($className) ?>"><input type="hidden" name="meal" value="<?= e($meal) ?>">
+        <input type="hidden" name="tab" value="meals"><input type="hidden" name="meal_view" value="history"><input type="hidden" name="class" value="<?= e($className) ?>">
         <div><label class="form-label small mb-1">Lọc theo ngày</label><input class="form-control form-control-sm" type="date" name="history_date" value="<?= e($historyDate) ?>"></div>
+        <div><label class="form-label small mb-1">Bữa ăn</label><select class="form-select form-select-sm" name="meal"><option value="all" <?= $meal==='all'?'selected':'' ?>>Cả 3 bữa</option><?php foreach ($mealLabels as $mealKey=>$mealLabel): ?><option value="<?= e($mealKey) ?>" <?= $meal===$mealKey?'selected':'' ?>><?= e($mealLabel) ?></option><?php endforeach; ?></select></div>
         <button class="btn btn-sm btn-outline-primary"><i class="bi bi-funnel"></i> Lọc</button>
         <a class="btn btn-sm btn-outline-secondary" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','meal_view'=>'history','history_all'=>1,'class'=>$className,'meal'=>$meal])) ?>"><i class="bi bi-list-ul"></i> Xem tất cả</a>
       </form>
@@ -417,7 +423,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && empty($_GET['export'])) {
         }
         if (!$historyView) {
             $className=trim((string)($_GET['class']??''));$meal=(string)($_GET['meal']??'sang');
-            $tabs='<div class="meal-history-tabs mb-3"><a class="active" href="'.e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','class'=>$className,'meal'=>$meal])).'"><i class="bi bi-clipboard-check"></i> Nhập báo ăn</a><a href="'.e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','meal_view'=>'history','class'=>$className,'meal'=>$meal])).'"><i class="bi bi-clock-history"></i> Lịch sử báo ăn</a></div><style>.meal-history-tabs{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}.meal-history-tabs a{display:flex;align-items:center;justify-content:center;gap:.45rem;min-height:44px;border:1px solid #dce5ec;border-radius:13px;background:#fff;color:#334155;text-decoration:none;font-weight:700}.meal-history-tabs a.active{border-color:#0ea5e9;background:#0ea5e9;color:#fff}</style>';
+            $tabs='<div class="meal-history-tabs mb-3"><a class="active" href="'.e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','class'=>$className,'meal'=>$meal])).'"><i class="bi bi-clipboard-check"></i> Nhập báo ăn</a><a href="'.e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'meals','meal_view'=>'history','class'=>$className,'meal'=>'all'])).'"><i class="bi bi-clock-history"></i> Lịch sử báo ăn</a></div><style>.meal-history-tabs{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}.meal-history-tabs a{display:flex;align-items:center;justify-content:center;gap:.45rem;min-height:44px;border:1px solid #dce5ec;border-radius:13px;background:#fff;color:#334155;text-decoration:none;font-weight:700}.meal-history-tabs a.active{border-color:#0ea5e9;background:#0ea5e9;color:#fff}</style>';
             $html=preg_replace('/(<div class="nt-page-head">)/',$tabs.'$1',$html,1);
         }
         $insert = $script;

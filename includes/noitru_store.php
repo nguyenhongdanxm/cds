@@ -243,6 +243,16 @@ function noitru_meals_all() {
     noitru_ensure_dir();
     return load_json(NOITRU_MEALS, []);
 }
+function noitru_meal_target_key($date, $class, $meal) {
+    return trim((string)$date) . '|' . trim((string)$class) . '|' . trim((string)$meal);
+}
+function noitru_meal_deleted_targets() {
+    $rows = load_json(NOITRU_DIR . '/meal_history_deleted_targets.json', []);
+    return is_array($rows) ? array_fill_keys(array_map('strval', $rows), true) : [];
+}
+function noitru_meal_deleted_targets_save(array $keys) {
+    save_json(NOITRU_DIR . '/meal_history_deleted_targets.json', array_keys($keys));
+}
 function noitru_meal_reports_data() {
     noitru_ensure_dir();
     $data = load_json(NOITRU_MEAL_REPORTS, ['reports'=>[], 'states'=>[], 'settings'=>[]]);
@@ -252,6 +262,12 @@ function noitru_meal_reports_data() {
     if (is_array($deletedReportIds) && $deletedReportIds) {
         $deletedReportIds = array_fill_keys(array_map('strval', $deletedReportIds), true);
         $data['reports'] = array_values(array_filter($data['reports'], fn($row) => !isset($deletedReportIds[(string)($row['id'] ?? '')])));
+    }
+    $deletedTargets = noitru_meal_deleted_targets();
+    if ($deletedTargets) {
+        $data['reports'] = array_values(array_filter($data['reports'], function ($row) use ($deletedTargets) {
+            return !isset($deletedTargets[noitru_meal_target_key($row['date'] ?? '', $row['class_name'] ?? '', $row['meal'] ?? '')]);
+        }));
     }
     $data['states'] = $data['states'] ?? [];
     $data['settings'] = array_merge([
@@ -287,6 +303,13 @@ function noitru_meal_report_for($date, $class, $meal) {
 }
 function noitru_meal_report_upsert(array $row) {
     $data = noitru_meal_reports_data();
+    /* Báo lại sau khi đã xóa là một phiếu mới hợp lệ, nên mở lại đúng khóa này. */
+    $deletedTargets = noitru_meal_deleted_targets();
+    $targetKey = noitru_meal_target_key($row['date'] ?? '', $row['class_name'] ?? '', $row['meal'] ?? '');
+    if (isset($deletedTargets[$targetKey])) {
+        unset($deletedTargets[$targetKey]);
+        noitru_meal_deleted_targets_save($deletedTargets);
+    }
     $found = false;
     foreach ($data['reports'] as &$saved) {
         if (($saved['date'] ?? '') === ($row['date'] ?? '') && ($saved['class_name'] ?? '') === ($row['class_name'] ?? '') && ($saved['meal'] ?? '') === ($row['meal'] ?? '')) {
