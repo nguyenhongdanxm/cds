@@ -197,6 +197,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: users.php'); exit;
     }
 
+    if ($action === 'reset_overrides') {
+        $selectedIds = array_values(array_filter(array_map('strval', (array)($_POST['selected_users'] ?? []))));
+        if (!$selectedIds) {
+            flash('Hãy tích chọn ít nhất một người dùng.', 'warning');
+            header('Location: users.php'); exit;
+        }
+        $changed = 0;
+        foreach ($users as &$u) {
+            if (!in_array((string)($u['id'] ?? ''), $selectedIds, true) || ($u['role'] ?? '') === 'admin') continue;
+            $u['permission_overrides'] = [];
+            $u['permission_model_version'] = 2;
+            $u['updated_at'] = date('c');
+            $changed++;
+        }
+        unset($u);
+        if (!save_users($users)) {
+            flash('Không thể đưa quyền cá nhân về theo nhóm.', 'danger');
+            header('Location: users.php'); exit;
+        }
+        flash('Đã xóa quyền ghi đè của ' . $changed . ' người dùng. Quyền hiện tại được lấy hoàn toàn từ các nhóm đã gán.');
+        header('Location: users.php'); exit;
+    }
+
     if ($action === 'bulk_group') {
         $groupKey = trim($_POST['group_key'] ?? '');
         $mode = ($_POST['group_mode'] ?? 'add') === 'remove' ? 'remove' : 'add';
@@ -440,9 +463,15 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
       <h3 class="mb-0"><i class="bi bi-shield-lock"></i> Tài khoản & phân quyền</h3>
-      <div class="text-muted small">Load từ CSDL · SĐT = tài khoản · Gán nhóm theo chức vụ / PCCM</div>
+      <div class="text-muted small">Mỗi trang một danh mục quyền · Quyền nhóm là nền · Quyền cá nhân chỉ dùng khi cần ngoại lệ</div>
     </div>
     <a href="admin.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Quản trị</a>
+  </div>
+
+  <div class="alert alert-info py-2 small mb-3">
+    <strong>Cách tính quyền:</strong> nhiều nhóm được cộng theo mức cao nhất; sau đó quyền cá nhân ghi đè kết quả nhóm.
+    Chọn <strong>Theo nhóm</strong> hoặc dùng nút <strong>Xóa ghi đè cá nhân</strong> để tránh một quyền cá nhân cũ che quyền nhóm mới.
+    Quản trị hệ thống luôn có toàn quyền.
   </div>
 
   <div class="btn-group mb-4">
@@ -607,6 +636,10 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
             <button class="btn btn-sm btn-primary" type="button" onclick="openPermissionModal()">
               <i class="bi bi-shield-check"></i> Phân quyền
             </button>
+            <button class="btn btn-sm btn-outline-secondary" name="action" value="reset_overrides" type="submit"
+                    onclick="return confirm('Xóa toàn bộ quyền chỉnh riêng của người đã chọn và chuyển về dùng quyền nhóm?')">
+              <i class="bi bi-arrow-counterclockwise"></i> Xóa ghi đè cá nhân
+            </button>
             <div class="vr d-none d-lg-block"></div>
             <div>
               <label class="small text-muted">Nhóm quyền</label>
@@ -732,7 +765,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
           <div class="modal-body">
             <div class="alert alert-info py-2 small">
               Tích <strong>Áp dụng</strong> ở chức năng muốn thay đổi. Quyền Xóa tự bao gồm quyền Xem và Sửa.
-              Chức năng không tích “Áp dụng” sẽ được giữ nguyên.
+              Chức năng không tích “Áp dụng” sẽ được giữ nguyên. Khi phân cho người dùng, đây là quyền cá nhân và sẽ ghi đè quyền nhóm; muốn quay về nhóm hãy dùng “Xóa ghi đè cá nhân”.
             </div>
             <ul class="nav nav-tabs flex-nowrap overflow-auto" role="tablist">
               <?php $tabIndex = 0; foreach ($modCatalog as $moduleKey => $module): ?>
@@ -850,7 +883,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
             </div>
 
             <h6 class="text-primary"><i class="bi bi-2-circle"></i> Quyền cá nhân</h6>
-            <div class="form-text mb-2">Theo nhóm hoặc ghi đè riêng: Không quyền / Xem / Sửa / Xóa.</div>
+            <div class="form-text mb-2"><strong>Theo nhóm</strong> là lựa chọn nên dùng. Chỉ chọn Không quyền / Xem / Sửa / Xóa khi người này cần ngoại lệ riêng; ngoại lệ cá nhân luôn ưu tiên hơn nhóm.</div>
             <div class="perm-box mb-3" style="max-height:360px">
               <?php foreach ($featsByMod as $mod => $feats): ?>
                 <div class="small fw-semibold text-secondary mb-1 mt-2"><?= e($modCatalog[$mod]['label'] ?? $mod) ?></div>
