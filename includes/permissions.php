@@ -82,9 +82,16 @@ function permission_features_catalog() {
         'hl.lienket'  => ['module' => 'hoclieu', 'label' => 'Liên kết hữu ích: xem · thêm · sửa · xóa', 'group' => 'Liên kết'],
         'hl.duyet'    => ['module' => 'hoclieu', 'label' => 'Duyệt · công khai · đánh dấu nổi bật', 'group' => 'Quản trị nội dung'],
 
-        // Trang Thư viện – Thiết bị (tách khỏi Học liệu và thi)
-        'hl.thuvien'  => ['module' => 'thuvien', 'label' => 'Thư viện: danh mục · mượn trả · thống kê · xuất biên bản', 'group' => 'Thư viện'],
-        'hl.thietbi'  => ['module' => 'thuvien', 'label' => 'Thiết bị: danh mục · phiếu mượn · bảo dưỡng · kiểm kê', 'group' => 'Thiết bị'],
+        // Trang Thư viện – Thiết bị — quyền đến từng menu con
+        'tv.tongquan' => ['module' => 'thuvien', 'label' => 'Tổng quan Thư viện – Thiết bị', 'group' => 'Tổng quan'],
+        'tv.danhmuc'  => ['module' => 'thuvien', 'label' => 'Danh mục sách và tài liệu', 'group' => 'Thư viện'],
+        'tv.muontra'  => ['module' => 'thuvien', 'label' => 'Mượn – trả sách', 'group' => 'Thư viện'],
+        'tv.thongke'  => ['module' => 'thuvien', 'label' => 'Thống kê thư viện', 'group' => 'Thư viện'],
+        'tb.danhmuc'  => ['module' => 'thuvien', 'label' => 'Danh mục thiết bị', 'group' => 'Thiết bị'],
+        'tb.nguongoc' => ['module' => 'thuvien', 'label' => 'Mã số và nguồn gốc tài sản', 'group' => 'Thiết bị'],
+        'tb.muontra'  => ['module' => 'thuvien', 'label' => 'Phiếu mượn – trả thiết bị', 'group' => 'Thiết bị'],
+        'tb.baoduong' => ['module' => 'thuvien', 'label' => 'Bảo dưỡng – sửa chữa', 'group' => 'Thiết bị'],
+        'tb.kiemke'   => ['module' => 'thuvien', 'label' => 'Kiểm kê tài sản', 'group' => 'Thiết bị'],
 
     ];
 }
@@ -160,7 +167,7 @@ function permission_default_groups() {
         ],
         'thuvien_thietbi' => [
             'label' => 'Thư viện – Thiết bị',
-            'access' => array_merge($view(['csdl.overview','hl.xem']), $edit(['hl.thuvien','hl.thietbi'])),
+            'access' => array_merge($view(['csdl.overview','hl.xem']), $edit(['tv.danhmuc','tv.muontra','tv.thongke','tb.danhmuc','tb.nguongoc','tb.muontra','tb.baoduong','tb.kiemke'])),
         ],
     ];
 }
@@ -232,6 +239,27 @@ function permission_groups_all() {
         if ($version < 8 && $groupKey === 'ketoan') {
             if (level_rank($group['access']['nt.baoan'] ?? 'none') < level_rank('delete')) $group['access']['nt.baoan'] = 'delete';
         }
+        if ($version < 10) {
+            $legacyLibrary = $group['access']['hl.thuvien'] ?? 'none';
+            $legacyEquipment = $group['access']['hl.thietbi'] ?? 'none';
+            foreach (['tv.danhmuc','tv.muontra','tv.thongke'] as $code) {
+                if (!isset($group['access'][$code]) && $legacyLibrary !== 'none') $group['access'][$code] = $legacyLibrary;
+            }
+            foreach (['tb.danhmuc','tb.nguongoc','tb.muontra','tb.baoduong','tb.kiemke'] as $code) {
+                if (!isset($group['access'][$code]) && $legacyEquipment !== 'none') $group['access'][$code] = $legacyEquipment;
+            }
+            if (!isset($group['access']['tv.tongquan']) && (level_rank($legacyLibrary) >= 1 || level_rank($legacyEquipment) >= 1)) {
+                $group['access']['tv.tongquan'] = 'view';
+            }
+            // Giáo viên trước đây mặc định được xem danh mục và lập phiếu mượn thiết bị.
+            if (in_array($groupKey, ['bgh','totruong','gvcn','gv','doandoi'], true)) {
+                if (!isset($group['access']['tv.danhmuc'])) $group['access']['tv.danhmuc'] = 'view';
+                if (!isset($group['access']['tb.danhmuc'])) $group['access']['tb.danhmuc'] = 'view';
+                if (!isset($group['access']['tb.muontra'])) $group['access']['tb.muontra'] = 'edit';
+                if (!isset($group['access']['tb.baoduong'])) $group['access']['tb.baoduong'] = 'view';
+            }
+            unset($group['access']['hl.thuvien'], $group['access']['hl.thietbi']);
+        }
         if ($version < 9) {
             // Trước đây mọi giáo viên đã đăng nhập đều xem được Học liệu và
             // Kiểm tra. Giữ nguyên quyền xem khi chuyển sang kiểm soát thật.
@@ -241,8 +269,9 @@ function permission_groups_all() {
                 if (!isset($group['access']['hl.lienket'])) $group['access']['hl.lienket'] = 'view';
             }
             if ($groupKey === 'thuvien_thietbi') {
-                if (!isset($group['access']['hl.thuvien'])) $group['access']['hl.thuvien'] = 'edit';
-                if (!isset($group['access']['hl.thietbi'])) $group['access']['hl.thietbi'] = 'edit';
+                foreach (['tv.danhmuc','tv.muontra','tv.thongke','tb.danhmuc','tb.nguongoc','tb.muontra','tb.baoduong','tb.kiemke'] as $code) {
+                    if (!isset($group['access'][$code])) $group['access'][$code] = 'edit';
+                }
             }
         }
         if ($version < 6) {
@@ -270,7 +299,7 @@ function permission_groups_save(array $groups) {
             $level = $group['access'][$code] ?? 'none';
             $access[$code] = in_array($level, ['none','view','edit','delete'], true) ? $level : 'none';
         }
-        $clean[$key] = ['version' => 9, 'label' => $label !== '' ? $label : $key, 'access' => $access];
+        $clean[$key] = ['version' => 10, 'label' => $label !== '' ? $label : $key, 'access' => $access];
     }
     if (!$clean || !save_json(permission_groups_file(), $clean)) return false;
     $check = load_json(permission_groups_file(), []);
