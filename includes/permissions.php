@@ -19,8 +19,6 @@ function permission_modules_catalog() {
         'hoclieu'   => ['label' => 'Học liệu và thi', 'icon' => 'bi-laptop', 'page' => 'hoclieu.php'],
         'noitru'    => ['label' => 'Quản lý nội trú', 'icon' => 'bi-building', 'page' => 'noitru.php'],
         'thidua'    => ['label' => 'Thi đua', 'icon' => 'bi-trophy', 'page' => 'thidua.php'],
-        'truyenthong'=> ['label' => 'Truyền thông – Tin tức', 'icon' => 'bi-broadcast', 'page' => 'Trang tin tức'],
-        'taichinh'  => ['label' => 'Kế toán – Tài chính', 'icon' => 'bi-cash-coin', 'page' => 'Trang kế toán – tài chính'],
     ];
 }
 
@@ -78,11 +76,6 @@ function permission_features_catalog() {
         'td.stats'               => ['module' => 'thidua', 'label' => 'Thống kê thi đua', 'group' => 'Thi đua'],
         'td.all_data'            => ['module' => 'thidua', 'label' => 'Xem dữ liệu của tất cả giáo viên/lớp', 'group' => 'Phạm vi dữ liệu'],
 
-        // Truyền thông
-        'tt.xem'      => ['module' => 'truyenthong', 'label' => 'Xem nội dung truyền thông', 'group' => 'Truyền thông'],
-        'tt.bientap'  => ['module' => 'truyenthong', 'label' => 'Biên tập tin · bài · hoạt động', 'group' => 'Truyền thông'],
-        'tt.xuatban'  => ['module' => 'truyenthong', 'label' => 'Duyệt và xuất bản', 'group' => 'Truyền thông'],
-
         // Trang Học liệu và thi
         'hl.xem'      => ['module' => 'hoclieu', 'label' => 'Học liệu: xem · nộp · sửa · xóa', 'group' => 'Học liệu'],
         'hl.kiemtra'  => ['module' => 'hoclieu', 'label' => 'Kiểm tra và thi: xem · nộp · sửa · xóa', 'group' => 'Kiểm tra và thi'],
@@ -93,10 +86,6 @@ function permission_features_catalog() {
         'hl.thuvien'  => ['module' => 'thuvien', 'label' => 'Thư viện: danh mục · mượn trả · thống kê · xuất biên bản', 'group' => 'Thư viện'],
         'hl.thietbi'  => ['module' => 'thuvien', 'label' => 'Thiết bị: danh mục · phiếu mượn · bảo dưỡng · kiểm kê', 'group' => 'Thiết bị'],
 
-        // Tài chính
-        'tc.xem'      => ['module' => 'taichinh', 'label' => 'Xem dữ liệu tài chính được giao', 'group' => 'Tài chính'],
-        'tc.capnhat'  => ['module' => 'taichinh', 'label' => 'Cập nhật thu · chi · chế độ', 'group' => 'Tài chính'],
-        'tc.baocao'   => ['module' => 'taichinh', 'label' => 'Xem và xuất báo cáo tài chính', 'group' => 'Tài chính'],
     ];
 }
 
@@ -127,7 +116,7 @@ function permission_default_groups() {
         'bgh' => [
             'label' => 'Ban giám hiệu',
             'access' => array_merge(
-                $view(array_merge($cmView, $ntView, array_merge(['csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','csdl.export','vb.xem','tt.xem','hl.xem','hl.kiemtra','hl.lienket','tc.xem','tc.baocao','td.all_data'], $tdSections))),
+                $view(array_merge($cmView, $ntView, array_merge(['csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','csdl.export','vb.xem','hl.xem','hl.kiemtra','hl.lienket','td.all_data'], $tdSections))),
                 $edit($cmEdit)
             ),
         ],
@@ -160,12 +149,12 @@ function permission_default_groups() {
         ],
         'ketoan' => [
             'label' => 'Kế toán',
-            'access' => array_merge($view(['csdl.overview','csdl.students','csdl.export','tc.xem','tc.baocao']), $edit(['tc.capnhat']), ['nt.baoan'=>'delete']),
+            'access' => array_merge($view(['csdl.overview','csdl.students','csdl.export']), ['nt.baoan'=>'delete']),
         ],
         'doandoi' => [
             'label' => 'Đoàn – Đội',
             'access' => array_merge(
-                $view(array_merge(['cm.dashboard','cm.tracuu','csdl.overview','csdl.students','nt.danhsach','tt.xem','hl.xem','hl.kiemtra','hl.lienket','td.all_data'], $tdSections)),
+                $view(array_merge(['cm.dashboard','cm.tracuu','csdl.overview','csdl.students','nt.danhsach','hl.xem','hl.kiemtra','hl.lienket','td.all_data'], $tdSections)),
                 $edit(array_merge($tdNonAttendance, ['tt.bientap']))
             ),
         ],
