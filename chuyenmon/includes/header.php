@@ -84,7 +84,7 @@ body{background:#f0f4f8;font-family:'Segoe UI',system-ui,sans-serif;color:#21252
 @keyframes pccmToastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @media (max-width:576px){.pccm-toast{left:12px;right:12px;bottom:12px;max-width:none;min-width:0}}
 </style>
-</head>
+<style>.permission-disabled{display:none!important}</style></head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark mb-4">
 <div class="container">
