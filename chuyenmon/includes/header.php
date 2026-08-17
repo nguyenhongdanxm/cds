@@ -25,6 +25,8 @@ require_once __DIR__ . '/cds_manual_assignment_processor.php';
 <title><?= e($page_title ?? 'Chuyên môn') ?> – Chuyên môn</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="/assets/cds-global-ui.css?v=20260817-1" rel="stylesheet">
+<link href="/assets/chuyenmon-unified.css?v=20260817-1" rel="stylesheet">
 <style>
 :root{--primary:#1F4E79;--primary-light:#2E6DA4}
 body{background:#f0f4f8;font-family:'Segoe UI',system-ui,sans-serif;color:#212529}
@@ -87,7 +89,7 @@ body{background:#f0f4f8;font-family:'Segoe UI',system-ui,sans-serif;color:#21252
 @media (max-width:576px){.pccm-toast{left:12px;right:12px;bottom:12px;max-width:none;min-width:0}}
 </style>
 <style>.permission-disabled{display:none!important}</style></head>
-<body>
+<body class="cm-body">
 <?php
 require_once __DIR__ . '/cds_manual_save_fix.php';
 require_once __DIR__ . '/cds_manual_delete_fix.php';
