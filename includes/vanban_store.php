@@ -79,6 +79,27 @@ function vb_file_url(string $path): string {
     return str_starts_with($path, 'gdrive:') ? cds_storage_file_url($path) : BASE_URL . ltrim($path, '/');
 }
 
+function vb_delete_file(string $path): bool {
+    if ($path === '') return true;
+    if (str_starts_with($path, 'gdrive:')) {
+        $id = substr($path, 7);
+        if ($id === '') return true;
+        $settings = cds_drive_settings();
+        $token = cds_drive_token($settings);
+        if (empty($token['ok'])) return false;
+        $result = cds_drive_http(
+            'https://www.googleapis.com/drive/v3/files/' . rawurlencode($id) . '?supportsAllDrives=true',
+            'DELETE',
+            ['Authorization: Bearer ' . $token['token']]
+        );
+        if ($result['ok']) cds_drive_history_add(['action'=>'delete','type'=>'documents','file_id'=>$id]);
+        return !empty($result['ok']);
+    }
+    $relative = ltrim($path, '/');
+    $target = dirname(__DIR__) . '/' . $relative;
+    return !is_file($target) || @unlink($target);
+}
+
 function vb_next_number(string $book, int $year): int {
     $max = 0;
     foreach (vb_rows(VANBAN_NUMBERS_FILE) as $row) {
