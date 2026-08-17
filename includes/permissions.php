@@ -384,6 +384,10 @@ function permission_effective_access_for_user(array $user) {
         if ($level === 'inherit') continue;
         if (in_array($level, ['none','view','edit','delete'], true)) $access[$code] = $level;
     }
+    // Chuyên môn và màn hình phân quyền dùng chung đúng một bộ tính quyền.
+    foreach (cds_cm_permission_codes() as $code) {
+        $access[$code] = cds_cm_feature_access_for_user($user, $code, DATA_PATH);
+    }
     return $access;
 }
 

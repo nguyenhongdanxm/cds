@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once dirname(__DIR__, 2) . '/includes/json_store.php';
+require_once dirname(__DIR__, 2) . '/includes/session_user.php';
+require_once dirname(__DIR__, 2) . '/includes/chuyenmon_permission_runtime.php';
+require_once dirname(__DIR__, 2) . '/includes/drive_action_registry.php';
 
 /* Google Drive storage cho module Chuyên môn. */
 if (!defined('CDS_DRIVE_SETTINGS')) define('CDS_DRIVE_SETTINGS', dirname(__DIR__,2) . '/data/google_drive_settings.json');
@@ -9,7 +13,7 @@ if (!function_exists('cds_drive_settings')) {
 function cds_drive_settings(): array {$raw=is_file(CDS_DRIVE_SETTINGS)?json_decode((string)file_get_contents(CDS_DRIVE_SETTINGS),true):[];$raw=is_array($raw)?$raw:[];$legacy=(array)($raw['folders']??[]);$types=is_array($raw['types']??null)?$raw['types']:[];foreach(['documents'=>'Văn bản','plans'=>'Kế hoạch và báo cáo','education_plans'=>'Kế hoạch giáo dục','photos'=>'Ảnh học sinh'] as $key=>$label){$types[$key]=array_merge(['label'=>$label,'folder_id'=>''],is_array($types[$key]??null)?$types[$key]:[]);if(empty($types[$key]['folder_id'])&&!empty($legacy[$key]))$types[$key]['folder_id']=$legacy[$key];}return array_merge(['enabled'=>false,'oauth'=>[],'types'=>$types,'bindings'=>[]],$raw,['types'=>$types,'bindings'=>is_array($raw['bindings']??null)?$raw['bindings']:[]]);}
 function cds_drive_page_action(?string $uri=null): string {$path=parse_url($uri??($_SERVER['REQUEST_URI']??($_SERVER['SCRIPT_NAME']??'')),PHP_URL_PATH)?:'';$query=[];parse_str((string)parse_url($uri??($_SERVER['REQUEST_URI']??''),PHP_URL_QUERY),$raw);foreach(['tab','view','mode'] as $key)if(isset($raw[$key])&&preg_match('/^[a-zA-Z0-9_-]+$/',(string)$raw[$key]))$query[$key]=(string)$raw[$key];return 'page:/'.ltrim($path,'/').($query?'?'.http_build_query($query):'');}
 function cds_drive_type_for_action(string $action,string $fallback): string {$settings=cds_drive_settings();$mapped=trim((string)($settings['bindings'][$action]??''));return $mapped!==''&&isset($settings['types'][$mapped])?$mapped:$fallback;}
-function cds_drive_register_action(string $action): void {$rows=is_file(CDS_DRIVE_ACTIONS)?json_decode((string)file_get_contents(CDS_DRIVE_ACTIONS),true):[];$rows=is_array($rows)?$rows:[];$rows[$action]=['label'=>'Chuyên môn · '.ucwords(str_replace(['-','_','.php','/'],' ',substr($action,5))),'last_seen'=>date('c')];file_put_contents(CDS_DRIVE_ACTIONS,json_encode($rows,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX);}
+function cds_drive_register_action(string $action): void {$label='Chuyên môn · '.ucwords(str_replace(['-','_','.php','/'],' ',substr($action,5)));cds_drive_action_register_shared(CDS_DRIVE_ACTIONS,$action,$label);}
 function cds_drive_b64url(string $value): string {return rtrim(strtr(base64_encode($value),'+/','-_'),'=');}
 function cds_drive_http(string $url,string $method='GET',array $headers=[],string $body=''): array {if(!function_exists('curl_init'))return ['ok'=>false,'status'=>0,'body'=>'','error'=>'Hosting chưa bật PHP cURL.'];$ch=curl_init($url);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CUSTOMREQUEST=>$method,CURLOPT_HTTPHEADER=>$headers,CURLOPT_TIMEOUT=>60,CURLOPT_CONNECTTIMEOUT=>15]);if($body!=='')curl_setopt($ch,CURLOPT_POSTFIELDS,$body);$response=curl_exec($ch);$error=curl_error($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);return ['ok'=>$response!==false&&$status>=200&&$status<300,'status'=>$status,'body'=>(string)$response,'error'=>$error];}
 function cds_drive_token(array $settings=[]): array {
@@ -29,7 +33,7 @@ function cds_drive_token(array $settings=[]): array {
 }
 function cds_drive_clean_filename_part(string $value): string {$value=preg_replace('/[\\\\\/:*?"<>|\x00-\x1F]+/u',' ',trim($value));return trim((string)preg_replace('/\s+/u',' ',$value)," .-_\t\n\r\0\x0B");}
 function cds_drive_descriptive_name(string $original,string $category): string {$settings=cds_drive_settings();$extension=strtolower((string)pathinfo($original,PATHINFO_EXTENSION));$request=array_merge($_GET,$_POST);$title='';foreach(['title','document_title','lesson_title','subject','name'] as $key)if(trim((string)($request[$key]??''))!==''){$title=(string)$request[$key];break;}if($title==='')$title=(string)pathinfo($original,PATHINFO_FILENAME);$scope='';foreach(['class_name','class','lop','grade','block','khoi'] as $key)if(trim((string)($request[$key]??''))!==''){$scope=(string)$request[$key];break;}$person=trim((string)($_SESSION['cds_user']['teacher_name']??$_SESSION['cds_user']['name']??$_SESSION['cds_user']['username']??''));$rawDate=trim((string)($request['date']??$request['document_date']??''));$timestamp=$rawDate!==''?strtotime($rawDate):false;$parts=[];$seen=[];foreach([(string)($settings['types'][$category]['label']??$category),$title,$scope!==''?(preg_match('/^(lớp|khối)\b/ui',$scope)?$scope:'Lớp '.$scope):'',$person,$timestamp?date('Y-m-d',$timestamp):date('Y-m-d')] as $part){$part=cds_drive_clean_filename_part($part);$key=function_exists('mb_strtolower')?mb_strtolower($part,'UTF-8'):strtolower($part);if($part!==''&&!isset($seen[$key])){$parts[]=$part;$seen[$key]=true;}}$base=implode(' - ',$parts)?:'Tài liệu';$limit=max(40,180-($extension!==''?strlen($extension)+1:0));$base=function_exists('mb_strcut')?mb_strcut($base,0,$limit,'UTF-8'):substr($base,0,$limit);return rtrim($base).($extension!==''?'.'.preg_replace('/[^a-z0-9]+/','',$extension):'');}
-function cds_drive_upload_bytes(string $bytes,string $name,string $mime,string $category): array {$settings=cds_drive_settings();$folder=trim((string)($settings['types'][$category]['folder_id']??''));if(empty($settings['enabled'])||$folder==='')return ['ok'=>false,'disabled'=>true,'message'=>'Google Drive chưa bật hoặc chưa chọn thư mục.'];$name=cds_drive_descriptive_name($name,$category);$fingerprint=hash('sha256',$folder.'|'.$bytes);$history=is_file(CDS_DRIVE_HISTORY)?json_decode((string)file_get_contents(CDS_DRIVE_HISTORY),true):[];$history=is_array($history)?$history:[];foreach($history as $old)if(($old['fingerprint']??'')===$fingerprint&&!empty($old['file_id']))return ['ok'=>true,'id'=>$old['file_id'],'path'=>'gdrive:'.$old['file_id'],'duplicate'=>true];$token=cds_drive_token($settings);if(empty($token['ok']))return $token;$boundary='cds-'.bin2hex(random_bytes(12));$meta=json_encode(['name'=>$name,'parents'=>[$folder],'appProperties'=>['cdsType'=>$category,'cdsFingerprint'=>$fingerprint]],JSON_UNESCAPED_UNICODE);$body="--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$meta\r\n--$boundary\r\nContent-Type: $mime\r\n\r\n$bytes\r\n--$boundary--";$res=cds_drive_http('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name','POST',['Authorization: Bearer '.$token['token'],'Content-Type: multipart/related; boundary='.$boundary],$body);$json=json_decode($res['body'],true);if(!$res['ok']||empty($json['id']))return ['ok'=>false,'message'=>$json['error']['message']??'Không tải được file lên Drive.'];array_unshift($history,['at'=>date('c'),'by'=>$_SESSION['cds_user']['name']??'','action'=>'upload','type'=>$category,'name'=>$name,'file_id'=>$json['id'],'folder_id'=>$folder,'fingerprint'=>$fingerprint]);file_put_contents(CDS_DRIVE_HISTORY,json_encode(array_slice($history,0,1000),JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX);return ['ok'=>true,'id'=>$json['id'],'path'=>'gdrive:'.$json['id']];}
+function cds_drive_upload_bytes(string $bytes,string $name,string $mime,string $category): array {$settings=cds_drive_settings();$folder=trim((string)($settings['types'][$category]['folder_id']??''));if(empty($settings['enabled'])||$folder==='')return ['ok'=>false,'disabled'=>true,'message'=>'Google Drive chưa bật hoặc chưa chọn thư mục.'];$name=cds_drive_descriptive_name($name,$category);$fingerprint=hash('sha256',$folder.'|'.$bytes);$history=is_file(CDS_DRIVE_HISTORY)?json_decode((string)file_get_contents(CDS_DRIVE_HISTORY),true):[];$history=is_array($history)?$history:[];foreach($history as $old)if(($old['fingerprint']??'')===$fingerprint&&!empty($old['file_id']))return ['ok'=>true,'id'=>$old['file_id'],'path'=>'gdrive:'.$old['file_id'],'duplicate'=>true];$token=cds_drive_token($settings);if(empty($token['ok']))return $token;$boundary='cds-'.bin2hex(random_bytes(12));$meta=json_encode(['name'=>$name,'parents'=>[$folder],'appProperties'=>['cdsType'=>$category,'cdsFingerprint'=>$fingerprint]],JSON_UNESCAPED_UNICODE);$body="--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$meta\r\n--$boundary\r\nContent-Type: $mime\r\n\r\n$bytes\r\n--$boundary--";$res=cds_drive_http('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name','POST',['Authorization: Bearer '.$token['token'],'Content-Type: multipart/related; boundary='.$boundary],$body);$json=json_decode($res['body'],true);if(!$res['ok']||empty($json['id']))return ['ok'=>false,'message'=>$json['error']['message']??'Không tải được file lên Drive.'];cds_json_prepend_bounded(CDS_DRIVE_HISTORY,['at'=>date('c'),'by'=>$_SESSION['cds_user']['name']??'','action'=>'upload','type'=>$category,'name'=>$name,'file_id'=>$json['id'],'folder_id'=>$folder,'fingerprint'=>$fingerprint],1000);return ['ok'=>true,'id'=>$json['id'],'path'=>'gdrive:'.$json['id']];}
 function cds_storage_handle_upload(string $field,string $category): string {$category=cds_drive_type_for_action(cds_drive_page_action(),$category);$upload=$_FILES[$field]??null;if(!$upload||($upload['error']??UPLOAD_ERR_NO_FILE)===UPLOAD_ERR_NO_FILE)return '';$settings=cds_drive_settings();if(!empty($settings['enabled'])&&!empty($settings['types'][$category]['folder_id'])){$tmp=(string)($upload['tmp_name']??'');$bytes=$tmp!==''?file_get_contents($tmp):false;if(($upload['error']??UPLOAD_ERR_OK)!==UPLOAD_ERR_OK||$bytes===false)throw new RuntimeException('Không đọc được file tải lên.');$mime=function_exists('mime_content_type')?(mime_content_type($tmp)?:'application/octet-stream'):'application/octet-stream';$result=cds_drive_upload_bytes($bytes,basename((string)($upload['name']??'file')),$mime,$category);if(empty($result['ok']))throw new RuntimeException($result['message']??'Không lưu được file lên Drive.');return $result['path'];}return function_exists('cm_handle_upload')?cm_handle_upload($field):'';}
 function cds_storage_file_url(string $path): string {return str_starts_with($path,'gdrive:')?BASE_URL.'../admin.php?drive_file='.rawurlencode(substr($path,7)):(function_exists('cm_file_url')?cm_file_url($path):$path);}
 function cds_drive_csrf_token(): string {if(empty($_SESSION['cds_drive_csrf']))$_SESSION['cds_drive_csrf']=bin2hex(random_bytes(24));return (string)$_SESSION['cds_drive_csrf'];}
@@ -40,14 +44,10 @@ if (!defined('QUOTA_HIEU_TRUONG')) define('QUOTA_HIEU_TRUONG', 2);
 if (!defined('QUOTA_PHO_HIEU_TRUONG')) define('QUOTA_PHO_HIEU_TRUONG', 4);
 
 function load_json($file, $default = []) {
-    if (file_exists($file)) {
-        $data = json_decode(file_get_contents($file), true);
-        return is_array($data) ? $data : $default;
-    }
-    return $default;
+    return cds_json_load((string)$file, $default);
 }
 function save_json($file, $data) {
-    file_put_contents($file, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    return cds_json_save((string)$file, $data);
 }
 
 function assignments_file($vid) { return DATA_PATH . '/assignments_' . $vid . '.json'; }
@@ -597,17 +597,11 @@ function show_flash() {
 function e($str) { return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8'); }
 
 function cds_permission_rank($level) {
-    $ranks = ['none'=>0, 'view'=>1, 'edit'=>2, 'delete'=>3, 'admin'=>4];
-    return $ranks[$level] ?? 0;
+    return cds_cm_permission_rank((string)$level);
 }
 
 function cds_default_chuyenmon_groups() {
-    return [
-        'bgh' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.thongke'=>'view','cm.kehoach'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view','cm.pccm'=>'edit','cm.nhaplieu'=>'edit'],
-        'totruong' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.thongke'=>'view','cm.kehoach'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view','cm.pccm'=>'edit'],
-        'gvcn' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.baocao.tiendo'=>'edit','cm.baocao.dugio'=>'view'],
-        'gv' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'edit','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view'],
-    ];
+    return cds_cm_default_group_access();
 }
 
 function cds_refresh_chuyenmon_session() {
@@ -629,18 +623,7 @@ function cds_refresh_chuyenmon_session() {
         return;
     }
 
-    $_SESSION['cds_user'] = [
-        'id'=>$record['id']??'', 'username'=>$record['username']??'',
-        'name'=>$record['name']??($record['username']??''), 'role'=>$record['role']??'gv',
-        'modules'=>is_array($record['modules']??null)?$record['modules']:[],
-        'perms'=>is_array($record['perms']??null)?$record['perms']:[],
-        'groups'=>is_array($record['groups']??null)?$record['groups']:[],
-        'permission_overrides'=>is_array($record['permission_overrides']??null)?$record['permission_overrides']:[],
-        'permission_model_version'=>(int)($record['permission_model_version']??1),
-        'classes'=>is_array($record['classes']??null)?$record['classes']:[],
-        'homeroom_classes'=>is_array($record['homeroom_classes']??null)?$record['homeroom_classes']:[],
-        'teacher_name'=>$record['teacher_name']??'',
-    ];
+    $_SESSION['cds_user'] = cds_session_user_from_record($record);
 
     $_SESSION['pccm_admin'] = ($record['role']??'') === 'admin'
         || cds_can_feature_for_user($record, 'cm.pccm', 'edit')
@@ -654,55 +637,7 @@ function cds_refresh_chuyenmon_session() {
 }
 
 function cds_feature_access_for_user($user, $code) {
-    if (($user['role'] ?? '') === 'admin') return 'delete';
-    $access = 'none';
-    $usesGroupModel = (int)($user['permission_model_version'] ?? 1) >= 2
-        || !empty($user['groups']);
-    $reportChildren = ['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
-    $isReportChild = in_array($code, $reportChildren, true);
-    if ($code === 'cm.baocao') {
-        $best = 'none';
-        foreach ($reportChildren as $childCode) {
-            $childLevel = cds_feature_access_for_user($user, $childCode);
-            if (cds_permission_rank($childLevel) > cds_permission_rank($best)) $best = $childLevel;
-        }
-        return $best;
-    }
-    if (!$usesGroupModel) {
-        $legacyPerms = is_array($user['perms']??null)?$user['perms']:[];
-        if (in_array($code, $legacyPerms, true) || ($isReportChild && in_array('cm.baocao', $legacyPerms, true))) $access = 'view';
-        $moduleLevel = $user['modules']['chuyenmon'] ?? 'none';
-        if (cds_permission_rank($moduleLevel) > cds_permission_rank($access)) $access = $moduleLevel;
-    }
-
-    $groups = cds_default_chuyenmon_groups();
-    $savedGroups = load_json(dirname(BASE_PATH) . '/data/permission_groups.json', []);
-    if (is_array($savedGroups)) {
-        foreach ($savedGroups as $key => $group) {
-            if (!is_array($group)) continue;
-            $groups[$key] = is_array($group['access'] ?? null) ? $group['access'] : [];
-        }
-    }
-    foreach ((array)($user['groups'] ?? []) as $groupKey) {
-        $groupAccess = $groups[$groupKey] ?? [];
-        $level = $groupAccess[$code] ?? 'none';
-        if ($isReportChild && !array_key_exists($code, $groupAccess)) {
-            // Nhóm cũ chưa tách quyền: kế thừa một lần từ mã Báo cáo gộp.
-            $level = $groupAccess['cm.baocao'] ?? 'none';
-        }
-        if (cds_permission_rank($level) > cds_permission_rank($access)) $access = $level;
-    }
-
-    // Tương thích tài khoản mô hình cũ. Tài khoản phân quyền v2 trở lên phải
-    // tuân thủ chính xác nhóm và quyền cá nhân do quản trị cấu hình.
-    if ($code === 'cm.baocao.dugio' && !$usesGroupModel) {
-        $teacherRoles = array_merge([(string)($user['role'] ?? '')], (array)($user['groups'] ?? []));
-        if (array_intersect($teacherRoles, ['gv','gvcn']) && cds_permission_rank($access) < cds_permission_rank('view')) $access = 'view';
-    }
-
-    $override = $user['permission_overrides'][$code] ?? 'inherit';
-    if (in_array($override, ['none','view','edit','delete'], true)) $access = $override;
-    return $access;
+    return cds_cm_feature_access_for_user((array)$user, (string)$code, dirname(BASE_PATH) . '/data');
 }
 
 function cds_can_feature_for_user($user, $code, $level = 'view') {

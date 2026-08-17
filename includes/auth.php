@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/json_store.php';
+require_once __DIR__ . '/session_user.php';
+require_once __DIR__ . '/chuyenmon_permission_runtime.php';
+require_once __DIR__ . '/drive_action_registry.php';
 
 /* Kho Google Drive: OAuth cho Drive của tôi, giữ tương thích Service Account cũ. */
 if (!defined('CDS_DRIVE_SETTINGS')) define('CDS_DRIVE_SETTINGS', DATA_PATH.'/google_drive_settings.json');
@@ -10,10 +14,10 @@ function cds_drive_settings(): array {$raw=is_file(CDS_DRIVE_SETTINGS)?json_deco
 function cds_drive_save_settings(array $settings): bool {return false!==file_put_contents(CDS_DRIVE_SETTINGS,json_encode($settings,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX);}
 function cds_drive_page_action(?string $uri=null): string {$path=parse_url($uri??($_SERVER['REQUEST_URI']??($_SERVER['SCRIPT_NAME']??'')),PHP_URL_PATH)?:'';$path='/'.ltrim($path,'/');$query=[];parse_str((string)parse_url($uri??($_SERVER['REQUEST_URI']??''),PHP_URL_QUERY),$raw);foreach(['tab','view','mode'] as $key)if(isset($raw[$key])&&preg_match('/^[a-zA-Z0-9_-]+$/',(string)$raw[$key]))$query[$key]=(string)$raw[$key];return 'page:'.$path.($query?'?'.http_build_query($query):'');}
 function cds_drive_type_for_action(string $action,string $fallback): string {$settings=cds_drive_settings();$mapped=trim((string)($settings['bindings'][$action]??''));return $mapped!==''&&isset($settings['types'][$mapped])?$mapped:$fallback;}
-function cds_drive_register_action(string $action,string $label=''): void {if(!str_starts_with($action,'page:'))return;$rows=is_file(CDS_DRIVE_ACTIONS)?json_decode((string)file_get_contents(CDS_DRIVE_ACTIONS),true):[];$rows=is_array($rows)?$rows:[];$rows[$action]=['label'=>$label!==''?$label:ucwords(str_replace(['-','_','.php','/'],' ',substr($action,5))),'last_seen'=>date('c')];file_put_contents(CDS_DRIVE_ACTIONS,json_encode($rows,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX);}
+function cds_drive_register_action(string $action,string $label=''): void {$label=$label!==''?$label:ucwords(str_replace(['-','_','.php','/'],' ',substr($action,5)));cds_drive_action_register_shared(CDS_DRIVE_ACTIONS,$action,$label);}
 function cds_drive_action_catalog(): array {$builtins=['page:/vanban.php'=>['label'=>'Văn bản','default_type'=>'documents'],'page:/chuyenmon/kehoach.php'=>['label'=>'Chuyên môn · Kế hoạch','default_type'=>'plans'],'page:/chuyenmon/kehoach.php?tab=vanban'=>['label'=>'Chuyên môn · Kế hoạch giáo dục','default_type'=>'education_plans'],'page:/hoclieu.php?tab=resources'=>['label'=>'Học liệu và thi · Học liệu','default_type'=>'learning_resources'],'page:/hoclieu.php?tab=exams'=>['label'=>'Học liệu và thi · Kiểm tra và thi','default_type'=>'exam_bank'],'page:/chuyenmon/baocao.php'=>['label'=>'Chuyên môn · Báo cáo','default_type'=>'plans'],'page:/chuyenmon/phieudugio.php'=>['label'=>'Chuyên môn · Phiếu dự giờ','default_type'=>'observations'],'page:/noitru.php?tab=duty_report'=>['label'=>'Nội trú · Biên bản trực','default_type'=>'duty_reports'],'page:/noitru.php?tab=meals'=>['label'=>'Nội trú · Báo ăn theo lớp','default_type'=>'meal_reports'],'page:/noitru.php?tab=meal_summary'=>['label'=>'Nội trú · Tổng hợp bữa ăn','default_type'=>'meal_reports'],'page:/noitru_assign.php?mode=rooms'=>['label'=>'Nội trú · Chia phòng','default_type'=>'room_meal_lists'],'page:/noitru_assign.php?mode=meals'=>['label'=>'Nội trú · Chia mâm','default_type'=>'room_meal_lists']];$seen=is_file(CDS_DRIVE_ACTIONS)?json_decode((string)file_get_contents(CDS_DRIVE_ACTIONS),true):[];$rows=$builtins;foreach(is_array($seen)?$seen:[] as $key=>$row)$rows[$key]=array_merge($rows[$key]??['default_type'=>''],is_array($row)?$row:[]);uasort($rows,fn($a,$b)=>strnatcasecmp((string)($a['label']??''),(string)($b['label']??'')));return $rows;}
 function cds_drive_history(): array {$rows=is_file(CDS_DRIVE_HISTORY)?json_decode((string)file_get_contents(CDS_DRIVE_HISTORY),true):[];return is_array($rows)?$rows:[];}
-function cds_drive_history_add(array $row): void {$rows=cds_drive_history();array_unshift($rows,array_merge(['at'=>date('c'),'by'=>$_SESSION['cds_user']['name']??'Hệ thống'],$row));file_put_contents(CDS_DRIVE_HISTORY,json_encode(array_slice($rows,0,1000),JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX);}
+function cds_drive_history_add(array $row): void {cds_json_prepend_bounded(CDS_DRIVE_HISTORY,array_merge(['at'=>date('c'),'by'=>$_SESSION['cds_user']['name']??'Hệ thống'],$row),1000);}
 function cds_drive_http(string $url,string $method='GET',array $headers=[],string $body=''): array {if(!function_exists('curl_init'))return ['ok'=>false,'status'=>0,'body'=>'','error'=>'Hosting chưa bật PHP cURL.'];$ch=curl_init($url);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CUSTOMREQUEST=>$method,CURLOPT_HTTPHEADER=>$headers,CURLOPT_TIMEOUT=>90,CURLOPT_CONNECTTIMEOUT=>15]);if($body!=='')curl_setopt($ch,CURLOPT_POSTFIELDS,$body);$response=curl_exec($ch);$error=curl_error($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);return ['ok'=>$response!==false&&$status>=200&&$status<300,'status'=>$status,'body'=>(string)$response,'error'=>$error];}
 function cds_drive_redirect_uri(): string {return 'https://'.($_SERVER['HTTP_HOST']??'cds.noitruxinman.edu.vn').BASE_URL.'admin.php?view=drive&oauth=callback';}
 function cds_drive_oauth_url(array $settings): string {$oauth=(array)($settings['oauth']??[]);$state=bin2hex(random_bytes(20));$_SESSION['cds_drive_oauth_state']=$state;return 'https://accounts.google.com/o/oauth2/v2/auth?'.http_build_query(['client_id'=>$oauth['client_id']??'','redirect_uri'=>cds_drive_redirect_uri(),'response_type'=>'code','scope'=>'https://www.googleapis.com/auth/drive','access_type'=>'offline','prompt'=>'consent','include_granted_scopes'=>'true','state'=>$state]);}
@@ -78,36 +82,11 @@ function cds_drive_csrf_token(): string {
 cds_drive_register_action(cds_drive_page_action());
 
 function load_json($file, $default = []) {
-    if (file_exists($file)) {
-        $data = json_decode(file_get_contents($file), true);
-        return is_array($data) ? $data : $default;
-    }
-    return $default;
+    return cds_json_load((string)$file, $default);
 }
 
 function save_json($file, $data) {
-    $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-    if ($json === false) return false;
-
-    $dir = dirname($file);
-    if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) return false;
-
-    // Ghi vào tệp tạm cùng thư mục rồi đổi tên để tránh tệp JSON bị dở dang
-    // khi hai người cùng lưu hoặc tiến trình bị ngắt giữa chừng.
-    $tmp = tempnam($dir, basename($file) . '.tmp.');
-    if ($tmp === false) return false;
-    $written = file_put_contents($tmp, $json, LOCK_EX);
-    if ($written === false || $written !== strlen($json)) {
-        @unlink($tmp);
-        return false;
-    }
-    @chmod($tmp, 0640);
-    if (!@rename($tmp, $file)) {
-        @unlink($tmp);
-        return false;
-    }
-    clearstatcache(true, $file);
-    return true;
+    return cds_json_save((string)$file, $data);
 }
 
 function init_users() {
@@ -139,21 +118,7 @@ function is_logged_in() { return !empty($_SESSION['cds_user']); }
 function current_user() { return $_SESSION['cds_user'] ?? null; }
 
 function session_user_from_record(array $u) {
-    $role = (string)($u['role'] ?? 'gv');
-    $groups = is_array($u['groups'] ?? null) ? $u['groups'] : [];
-    $classes = is_array($u['classes'] ?? null) ? $u['classes'] : [];
-    $homeroomClasses = is_array($u['homeroom_classes'] ?? null) ? $u['homeroom_classes'] : [];
-    if ((int)($u['permission_model_version'] ?? 1) < 2 && !$groups && $role === 'gvcn') $groups[] = 'gvcn';
-    // Giữ riêng lớp chủ nhiệm và lớp được giao thêm. allowed_classes() sẽ hợp
-    // nhất hai phạm vi, nhờ đó một người có thể vừa là GVCN vừa nhận nhiệm vụ
-    // ở các lớp khác mà quản trị đã chỉ định rõ.
-    return [
-        'id'=>$u['id']??'', 'username'=>$u['username']??'', 'name'=>$u['name']??($u['username']??''), 'role'=>$role,
-        'modules'=>is_array($u['modules']??null)?$u['modules']:[], 'perms'=>is_array($u['perms']??null)?$u['perms']:[],
-        'groups'=>$groups, 'permission_overrides'=>is_array($u['permission_overrides']??null)?$u['permission_overrides']:[],
-        'permission_model_version'=>(int)($u['permission_model_version']??1), 'classes'=>$classes,
-        'homeroom_classes'=>$homeroomClasses, 'teacher_name'=>$u['teacher_name']??'',
-    ];
+    return cds_session_user_from_record($u);
 }
 
 function refresh_current_user_session() {

@@ -32,9 +32,7 @@ function cm_education_load(string $file): array {
 }
 
 function cm_education_save(string $file, array $rows): bool {
-    $dir = dirname($file);
-    if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) return false;
-    return file_put_contents($file, json_encode(array_values($rows), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX) !== false;
+    return cds_json_save($file, array_values($rows));
 }
 
 function cm_education_file_url(string $path): string {

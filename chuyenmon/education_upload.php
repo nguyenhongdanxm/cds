@@ -6,7 +6,7 @@ header('Content-Type: application/json; charset=utf-8');
 function edu_json(bool $ok,string $message='',array $extra=[]): void {echo json_encode(array_merge(['ok'=>$ok,'message'=>$message],$extra),JSON_UNESCAPED_UNICODE);exit;}
 function edu_norm($value): string {$value=preg_replace('/\s+/u',' ',trim((string)$value));return function_exists('mb_strtolower')?mb_strtolower($value,'UTF-8'):strtolower($value);}
 function edu_grade($class): string {$class=trim((string)$class);if(preg_match('/(?:^|\D)(1[0-2]|[6-9])(?:\D|$)/u',$class,$m)||preg_match('/^(1[0-2]|[6-9])/u',$class,$m))return $m[1];return $class;}
-function edu_save(string $file,array $rows): bool {return file_put_contents($file,json_encode(array_values($rows),JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX)!==false;}
+function edu_save(string $file,array $rows): bool {return cds_json_save($file,array_values($rows));}
 function edu_category(array $settings): string {$key='education_plans';if(!empty($settings['types'][$key]['folder_id']))return $key;foreach((array)($settings['types']??[]) as $candidate=>$type)if(edu_norm($type['label']??'')===edu_norm('Kế hoạch giáo dục')&&!empty($type['folder_id']))return (string)$candidate;return $key;}
 function edu_context(): array {
     $user=cds_user()??[];$teacher=trim((string)($user['teacher_name']??$user['name']??''));$group=$teacher!==''?trim((string)get_teacher_group($teacher)):'';

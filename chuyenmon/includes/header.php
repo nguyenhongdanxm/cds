@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/cds_auth_gate.php';
 $current = basename($_SERVER['PHP_SELF'], '.php');
 $logged = is_logged_in();
 $active_ver = get_version(get_active_version_id());
@@ -13,6 +14,7 @@ $cmMenuCan = fn($permission) => cds_can_feature($permission, 'view');
 $cmDisabled = fn($permission) => $cmMenuCan($permission) ? '' : ' permission-disabled';
 $pccmCanOpen = $cmMenuCan('cm.tracuu') || $cmMenuCan('cm.pccm') || $cmMenuCan('cm.nhaplieu') || $cmMenuCan('cm.thongke');
 $reportCanOpen = $cmMenuCan('cm.baocao.dinhky') || $cmMenuCan('cm.baocao.tiendo') || $cmMenuCan('cm.baocao.dugio') || $cmMenuCan('cm.baocao.kythi');
+require_once __DIR__ . '/cds_manual_assignment_processor.php';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -86,6 +88,17 @@ body{background:#f0f4f8;font-family:'Segoe UI',system-ui,sans-serif;color:#21252
 </style>
 <style>.permission-disabled{display:none!important}</style></head>
 <body>
+<?php
+require_once __DIR__ . '/cds_manual_save_fix.php';
+require_once __DIR__ . '/cds_manual_delete_fix.php';
+require_once __DIR__ . '/cds_manual_table_fix.php';
+require_once __DIR__ . '/cds_manual_assignment.php';
+require_once __DIR__ . '/cds_fractional_periods.php';
+require_once __DIR__ . '/cds_teacher_compact.php';
+require_once __DIR__ . '/cds_ui_cleanup.php';
+require_once __DIR__ . '/cds_responsive_layout.php';
+require_once __DIR__ . '/cds_module_switcher.php';
+?>
 <nav class="navbar navbar-expand-lg navbar-dark mb-4">
 <div class="container">
 <a class="navbar-brand fw-bold" href="<?= BASE_URL ?>index.php"><i class="bi bi-journal-bookmark-fill"></i> Chuyên môn</a>
