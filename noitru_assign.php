@@ -13,7 +13,7 @@ $namesKey=$mode==='rooms'?'room_names':'meal_names';
 $capacityKey=$mode==='rooms'?'room_capacities':'meal_capacities';
 $data=noitru_assignments_data();
 $boarders=noitru_assignment_apply(noitru_boarders_live());
-$boarders=array_values(array_filter($boarders,static fn($s)=>function_exists('can_class')?can_class($s['class_name']??''):true));
+// Quyền Sửa Chia phòng/Chia mâm là ủy quyền quản lý toàn trường.
 $knownGroups=array_fill_keys($data[$namesKey]??[],true);
 foreach($boarders as $student){$effectiveGroup=trim((string)($student[$field]??''));if($effectiveGroup!=='')$knownGroups[$effectiveGroup]=true;}
 $user=current_user();$by=(string)($user['name']??$user['username']??'');
@@ -139,7 +139,7 @@ if(($_SERVER['REQUEST_METHOD']??'')==='POST'){
 }
 
 $data=noitru_assignments_data();$boarders=noitru_assignment_apply(noitru_boarders_live());
-$boarders=array_values(array_filter($boarders,static fn($s)=>function_exists('can_class')?can_class($s['class_name']??''):true));
+// Quyền Sửa Chia phòng/Chia mâm là ủy quyền quản lý toàn trường.
 $names=$data[$namesKey]??[];$capacities=$data[$capacityKey]??[];$grouped=[];$unassigned=[];$classes=[];
 foreach($boarders as $student){$classes[(string)($student['class_name']??'')]=true;$name=trim((string)($student[$field]??''));if($name==='')$unassigned[]=$student;else$grouped[$name][]=$student;}
 // Phòng/mâm đã có sẵn trong hồ sơ CSDL cũng phải xuất hiện ở khu vực sửa/xóa.
