@@ -91,6 +91,27 @@ function vb_number_symbol(string $book, int $number): string {
     return str_pad((string)$number, 2, '0', STR_PAD_LEFT) . ($book === 'decision' ? '/QĐ-PTDTNT' : '/PTDTNT');
 }
 
+/**
+ * Gợi ý số kế tiếp và giữ nguyên phần ký hiệu của số gần nhất trong cùng sổ.
+ * Ví dụ: 66/QĐ-NTXM → 67/QĐ-NTXM.
+ */
+function vb_next_symbol(string $book, int $year): string {
+    $next = vb_next_number($book, $year);
+    $latestNumber = -1;
+    $suffix = '';
+    foreach (vb_rows(VANBAN_NUMBERS_FILE) as $row) {
+        if (($row['book'] ?? '') !== $book || (int)($row['year'] ?? 0) !== $year) continue;
+        $number = (int)($row['number'] ?? 0);
+        if ($number < $latestNumber) continue;
+        if (preg_match('/^\\s*\\d+(.*)$/u', (string)($row['symbol'] ?? ''), $match)) {
+            $latestNumber = $number;
+            $suffix = (string)($match[1] ?? '');
+        }
+    }
+    if ($suffix === '') return vb_number_symbol($book, $next);
+    return str_pad((string)$next, 2, '0', STR_PAD_LEFT) . $suffix;
+}
+
 function vb_find_number(string $id): ?array {
     foreach (vb_rows(VANBAN_NUMBERS_FILE) as $row) if (($row['id'] ?? '') === $id) return $row;
     return null;
