@@ -100,7 +100,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $requiredLevel = substr($action, -7) === '_delete' || $action === 'duty_month_clear' ? 'delete' : 'edit';
         require_perm_level($actionPerms[$action], $requiredLevel);
     }
-    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
+    // Quyền Sửa/Xóa Lịch trực đã là ủy quyền quản lý nghiệp vụ toàn trường.
+    // Không dùng phạm vi lớp của GVCN để phủ định quyền bổ sung này; các chức
+    // năng theo lớp và các nghiệp vụ nội trú khác vẫn giữ chốt phạm vi riêng.
+    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','meal_fill_missing','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
         noitru_require_global_scope();
     }
     if (in_array($action, ['rice_settings','rice_in','rice_issue','rice_delete'], true)) {
