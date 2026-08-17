@@ -9,7 +9,7 @@
 if (!isset($current)) return;
 
 $cmLayoutLogged = isset($logged) ? (bool)$logged : false;
-$cmLayoutTab = (string)($tab_q ?? ($_GET['tab'] ?? ''));
+$cmLayoutTab = $current === 'danhgia' ? (string)($_GET['view'] ?? 'overview') : (string)($tab_q ?? ($_GET['tab'] ?? ''));
 $cmLayoutCan = static function (string $permission) use ($cmLayoutLogged): bool {
     if (!$cmLayoutLogged) return in_array($permission, ['cm.tracuu'], true);
     return function_exists('cds_can_feature') ? cds_can_feature($permission, 'view') : true;
@@ -21,14 +21,13 @@ $cmLayoutActive = static function (array $pages, ?string $tab = null) use ($curr
 
 $cmPccmActive = in_array($current, ['tracuu','tongquan','them','danhsach','doicheo','rasoat','sua','ketqua','giaovien','monhoc','lop','kiemnhiem','xuat_bang','thongke'], true);
 $cmPlanActive = $current === 'kehoach' || ($current === 'baocao' && in_array($cmLayoutTab,['dinhky','tiendo'],true));
-$cmReportActive = in_array($current,['dugio','kiemtrahoso'],true);
+$cmReportActive = in_array($current,['dugio','kiemtrahoso','danhgia'],true);
 
 $cmNavGroups = [
     ['label'=>'Tổng quan','items'=>[
         ['permission'=>'cm.dashboard','pages'=>['index'],'href'=>'index.php','icon'=>'bi-house-door','label'=>'Tổng quan & công việc'],
         ['permission'=>'cm.tracuu','pages'=>['tracuu'],'href'=>'tracuu.php','icon'=>'bi-search','label'=>'Tra cứu phân công'],
         ['permission'=>'cm.tracuu','pages'=>['ketqua'],'href'=>'ketqua.php','icon'=>'bi-folder2-open','label'=>'Kết quả phiên bản'],
-        ['permission'=>'cm.baocao.dugio','pages'=>[],'href'=>'../danhgia.php?view=profile','icon'=>'bi-person-vcard','label'=>'Hồ sơ chuyên môn'],
     ]],
     ['label'=>'Phân công – Danh mục','items'=>[
         ['permission'=>'cm.pccm','pages'=>['tongquan'],'href'=>'tongquan.php','icon'=>'bi-grid','label'=>'Tổng quan PCCM'],
@@ -51,8 +50,8 @@ $cmNavGroups = [
     ['label'=>'Theo dõi – Đánh giá','items'=>[
         ['permission'=>'cm.baocao.dugio','pages'=>['dugio'],'href'=>'dugio.php','icon'=>'bi-eye','label'=>'Dự giờ'],
         ['permission'=>'cm.baocao.kythi','pages'=>['kiemtrahoso'],'href'=>'kiemtrahoso.php','icon'=>'bi-folder-check','label'=>'Kiểm tra'],
-        ['permission'=>'cm.baocao.dugio','pages'=>[],'href'=>'../danhgia.php?view=profile','icon'=>'bi-person-lines-fill','label'=>'Hồ sơ đánh giá'],
-        ['permission'=>'cm.baocao.dugio','pages'=>[],'href'=>'../danhgia.php?view=overview','icon'=>'bi-bar-chart-line','label'=>'Tổng hợp đánh giá'],
+        ['permission'=>'cm.baocao.dugio','pages'=>['danhgia'],'tab'=>'profile','href'=>'danhgia.php?view=profile','icon'=>'bi-person-lines-fill','label'=>'Hồ sơ đánh giá'],
+        ['permission'=>'cm.baocao.dugio','pages'=>['danhgia'],'tab'=>'overview','href'=>'danhgia.php?view=overview','icon'=>'bi-bar-chart-line','label'=>'Tổng hợp đánh giá'],
     ]],
 ];
 
@@ -161,7 +160,7 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
 
 <nav class="cm-mobile-bottom" aria-label="Menu Chuyên môn trên điện thoại">
   <a class="<?= $current==='index'?'active':'' ?> <?= !$cmLayoutCan('cm.dashboard')?'disabled':'' ?>" href="<?= BASE_URL ?>index.php"><i class="bi bi-house-door"></i><span>Trang chủ</span></a>
-  <a href="/danhgia.php?view=profile"><i class="bi bi-person-vcard"></i><span>Hồ sơ</span></a>
+  <a href="/chuyenmon/danhgia.php?view=profile"><i class="bi bi-person-vcard"></i><span>Hồ sơ</span></a>
   <a class="<?= $cmPccmActive?'active':'' ?> <?= !$cmLayoutCan('cm.pccm')&&!$cmLayoutCan('cm.tracuu')?'disabled':'' ?>" href="<?= BASE_URL ?>tongquan.php"><i class="bi bi-clipboard-check"></i><span>PCCM</span></a>
   <a class="<?= $current==='dugio'?'active':'' ?> <?= !$cmLayoutCan('cm.baocao.dugio')?'disabled':'' ?>" href="<?= BASE_URL ?>dugio.php"><i class="bi bi-eye"></i><span>Dự giờ</span></a>
   <button class="<?= $cmReportActive?'active':'' ?>" type="button" data-bs-toggle="offcanvas" data-bs-target="#cmMobileMore" aria-controls="cmMobileMore"><i class="bi bi-grid"></i><span>Thêm</span></button>
