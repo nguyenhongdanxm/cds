@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/csdl_store.php';
 
 if (!defined('VANBAN_POLLS_FILE')) define('VANBAN_POLLS_FILE', DATA_PATH . '/vanban_polls.json');
 if (!defined('VANBAN_SURVEYS_FILE')) define('VANBAN_SURVEYS_FILE', DATA_PATH . '/vanban_surveys.json');
@@ -10,6 +11,27 @@ function vb_engagement_file(string $kind): string {
 
 function vb_user_key(array $user): string {
     return (string)($user['id'] ?? $user['username'] ?? '');
+}
+
+function vb_engagement_group_labels(): array {
+    return ['bgh'=>'Ban giám hiệu','qlnt'=>'Quản lý nội trú','vanthu'=>'Văn thư','ketoan'=>'Kế toán','doandoi'=>'Đoàn – Đội','thuvien_thietbi'=>'Thư viện – Thiết bị','totruong'=>'Quản lý tổ chuyên môn','gvcn'=>'Giáo viên chủ nhiệm','gv'=>'Giáo viên'];
+}
+
+function vb_engagement_user_groups(array $user): array {
+    $groups=is_array($user['groups']??null)?$user['groups']:[];
+    foreach(['to_chuyen_mon','pccm_group','department'] as $key)if(trim((string)($user[$key]??''))!=='')$groups[]=trim((string)$user[$key]);
+    static $teacherGroups=null;
+    if($teacherGroups===null){$teacherGroups=[];foreach(csdl_teachers_all() as $teacher){$name=vb_norm((string)($teacher['name']??''));$group=trim((string)($teacher['to_chuyen_mon']??$teacher['pccm_group']??''));if($name!==''&&$group!=='')$teacherGroups[$name]=$group;}}
+    $teacherName=vb_norm((string)($user['teacher_name']??$user['name']??''));
+    if($teacherName!==''&&!empty($teacherGroups[$teacherName]))$groups[]=$teacherGroups[$teacherName];
+    return array_values(array_unique(array_filter(array_map('strval',$groups))));
+}
+
+function vb_engagement_can_participate(array $row,array $user): bool {
+    $mode=(string)($row['audience_mode']??'all');
+    if($mode==='all'||$mode==='')return true;
+    if($mode==='users')return in_array(vb_user_key($user),(array)($row['audience_user_ids']??[]),true);
+    return (bool)array_intersect(vb_engagement_user_groups($user),(array)($row['audience_groups']??[]));
 }
 
 function vb_engagement_actions(): array {
@@ -27,11 +49,19 @@ function vb_engagement_process(string $action, array $user, bool $canManage): vo
         $title = vb_clean((string)($_POST['title'] ?? ''), 300);
         if ($title === '') throw new RuntimeException('Hãy nhập tiêu đề.');
         $rows = vb_rows(vb_engagement_file($kind));
+        $audienceMode=(string)($_POST['audience_mode']??'all');
+        if(!in_array($audienceMode,['all','groups','users'],true))$audienceMode='all';
+        $audienceGroups=array_values(array_unique(array_filter(array_map(fn($v)=>vb_clean((string)$v,100),(array)($_POST['audience_groups']??[])))));
+        $audienceUsers=array_values(array_unique(array_filter(array_map(fn($v)=>vb_clean((string)$v,100),(array)($_POST['audience_user_ids']??[])))));
+        if($audienceMode==='groups'&&!$audienceGroups)throw new RuntimeException('Hãy chọn ít nhất một tổ hoặc nhóm được tham gia.');
+        if($audienceMode==='users'&&!$audienceUsers)throw new RuntimeException('Hãy chọn ít nhất một tài khoản được tham gia.');
         $record = [
             'id'=>vb_id($kind), 'kind'=>$kind, 'title'=>$title,
             'description'=>vb_clean((string)($_POST['description'] ?? ''), 2000),
             'ends_at'=>vb_date((string)($_POST['ends_at'] ?? '')), 'status'=>'active',
             'show_on_dashboard'=>!empty($_POST['show_on_dashboard']),
+            'audience_mode'=>$audienceMode,'audience_groups'=>$audienceMode==='groups'?$audienceGroups:[],
+            'audience_user_ids'=>$audienceMode==='users'?$audienceUsers:[],
             'responses'=>[], 'created_by'=>$user['name'] ?? '', 'created_by_id'=>$userKey, 'created_at'=>date('c')
         ];
         if ($kind === 'poll') {
@@ -61,6 +91,7 @@ function vb_engagement_process(string $action, array $user, bool $canManage): vo
             $found=true;
             if(($row['status']??'active')!=='active') throw new RuntimeException('Nội dung này đã đóng.');
             if(!empty($row['ends_at'])&&$row['ends_at']<date('Y-m-d')) throw new RuntimeException('Nội dung này đã hết hạn.');
+            if(!vb_engagement_can_participate($row,$user))throw new RuntimeException('Tài khoản của bạn không thuộc phạm vi được tham gia nội dung này.');
             $responses=is_array($row['responses']??null)?$row['responses']:[];
             if(isset($responses[$userKey])) throw new RuntimeException('Tài khoản của bạn đã tham gia nội dung này.');
             if($kind==='poll'){
@@ -126,6 +157,16 @@ function vb_survey_counts(array $row,int $question): array {
     $counts=array_fill(0,count($row['questions'][$question]['options']??[]),0);
     foreach((array)($row['responses']??[]) as $response){$answer=(int)($response['answers'][$question]??-1);if(isset($counts[$answer]))$counts[$answer]++;}
     return $counts;
+}
+
+function vb_engagement_people_for_option(array $row,string $kind,int $option,int $question=0): array {
+    $people=[];
+    foreach((array)($row['responses']??[]) as $account=>$response){
+        $answer=$kind==='poll'?(int)($response['answer']??-1):(int)($response['answers'][$question]??-1);
+        if($answer===$option)$people[]=['account'=>(string)$account,'name'=>(string)($response['name']??$account),'at'=>(string)($response['at']??'')];
+    }
+    usort($people,fn($a,$b)=>strnatcasecmp($a['name'],$b['name']));
+    return $people;
 }
 
 function vb_engagement_state(array $row): array {
