@@ -22,7 +22,7 @@ if (!isset($nt_sec)) {
 }
 
 $ntItems = [
-    'overview'   => [BASE_URL . 'noitru.php?tab=overview',       'bi-grid-1x2-fill',    'Tổng quan',   'nt.tongquan'],
+    'overview'   => [BASE_URL . 'noitru.php?tab=overview',       'bi-grid-1x2-fill',    'TỔNG QUAN',   'nt.tongquan'],
     'boarders'   => [BASE_URL . 'noitru_list.php',               'bi-people-fill',      'Danh sách',   'nt.danhsach'],
     'exits'      => [BASE_URL . 'noitru.php?tab=exits',          'bi-door-open-fill',   'Ra/vào KTX',  'nt.ravao'],
     'meals'      => [BASE_URL . 'noitru.php?tab=meals',          'bi-cup-hot-fill',     'Báo ăn',      'nt.baoan'],
@@ -31,9 +31,9 @@ $ntItems = [
     'attendance' => [BASE_URL . 'noitru_attendance.php',         'bi-clipboard2-check-fill','Điểm danh','nt.diemdanh'],
     'duty'       => [BASE_URL . 'noitru.php?tab=duty',           'bi-calendar2-week-fill','Lịch trực',  'nt.lichtruc'],
     'duty_report'=> [BASE_URL . 'noitru.php?tab=duty_report',    'bi-file-earmark-text-fill','Biên bản trực','nt.lichtruc'],
-    'health'     => [BASE_URL . 'noitru.php?tab=health',         'bi-heart-pulse-fill', 'Y tế',         'nt.yte'],
+    'health'     => [BASE_URL . 'noitru.php?tab=health',         'bi-heart-pulse-fill', 'Y TẾ',         'nt.yte'],
     'menu'       => [BASE_URL . 'noitru.php?tab=menu',           'bi-journal-text',     'Thực đơn',    'nt.thucdon'],
-    'stats'      => [BASE_URL . 'noitru.php?tab=stats',          'bi-bar-chart-fill',   'Thống kê',    'nt.thongke'],
+    'stats'      => [BASE_URL . 'noitru.php?tab=stats',          'bi-bar-chart-fill',   'THỐNG KÊ',    'nt.thongke'],
 ];
 $ntItems = array_filter($ntItems, fn($item) => can_perm($item[3] ?? ''));
 require_once __DIR__.'/module_switcher.php';
@@ -81,7 +81,7 @@ $ntInGroup = function ($group) use ($ntGroups, $nt_sec) {
 </aside>
 
 <nav class="nt-bottom-nav" aria-label="Điều hướng Nội trú trên điện thoại">
-  <?php if (isset($ntItems['overview'])): ?><a href="<?= e($ntItems['overview'][0]) ?>" class="<?= $nt_sec==='overview'?'active':'' ?>"><i class="bi bi-grid-1x2-fill"></i><span>Tổng quan</span></a><?php endif; ?>
+  <?php if (isset($ntItems['overview'])): ?><a href="<?= e($ntItems['overview'][0]) ?>" class="<?= $nt_sec==='overview'?'active':'' ?>"><i class="bi bi-grid-1x2-fill"></i><span>TỔNG QUAN</span></a><?php endif; ?>
   <?php if (isset($ntItems['boarders'])): ?><a href="<?= e($ntItems['boarders'][0]) ?>" class="<?= $nt_sec==='boarders'?'active':'' ?>"><i class="bi bi-people-fill"></i><span>Danh sách</span></a><?php endif; ?>
   <button type="button" class="<?= $ntInGroup('boarding')?'active':'' ?>" data-nt-sheet="boarding"><i class="bi bi-building-fill"></i><span>Nội trú</span></button>
   <button type="button" class="<?= $ntInGroup('meals')?'active':'' ?>" data-nt-sheet="meals"><i class="bi bi-basket2-fill"></i><span>Bữa ăn</span></button>
