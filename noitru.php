@@ -100,10 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $requiredLevel = substr($action, -7) === '_delete' || $action === 'duty_month_clear' ? 'delete' : 'edit';
         require_perm_level($actionPerms[$action], $requiredLevel);
     }
-    // Quyền Sửa/Xóa Lịch trực đã là ủy quyền quản lý nghiệp vụ toàn trường.
-    // Không dùng phạm vi lớp của GVCN để phủ định quyền bổ sung này; các chức
-    // năng theo lớp và các nghiệp vụ nội trú khác vẫn giữ chốt phạm vi riêng.
-    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','meal_fill_missing','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
+    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
         noitru_require_global_scope();
     }
     if (in_array($action, ['rice_settings','rice_in','rice_issue','rice_delete'], true)) {
@@ -418,17 +415,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($action === 'duty_report_save') {
         $reportDate = trim($_POST['date'] ?? date('Y-m-d'));
+        $defaultReportText = fn($key) => trim((string)($_POST[$key] ?? '')) ?: 'Không có';
         $saved = noitru_duty_report_save([
             'date'=>$reportDate,
             'location'=>$_POST['location'] ?? 'Pà Vầy Sủ',
             'shift_label'=>$_POST['shift_label'] ?? '',
-            'discipline'=>$_POST['discipline'] ?? '',
-            'hygiene'=>$_POST['hygiene'] ?? '',
-            'safety'=>$_POST['safety'] ?? '',
-            'health'=>$_POST['health'] ?? '',
-            'incidents'=>$_POST['incidents'] ?? '',
-            'assessment'=>$_POST['assessment'] ?? '',
-            'handover'=>$_POST['handover'] ?? '',
+            'discipline'=>$defaultReportText('discipline'),
+            'hygiene'=>'', 'safety'=>'', 'health'=>'',
+            'incidents'=>$defaultReportText('incidents'),
+            'assessment'=>$defaultReportText('assessment'),
+            'handover'=>$defaultReportText('handover'),
             'updated_by'=>$user['name'] ?? '',
         ]);
         flash($saved ? 'Đã lưu nội dung biên bản trực.' : 'Không lưu được biên bản trực.', $saved ? 'success' : 'danger');
@@ -1114,7 +1110,7 @@ body{background:#f8f0f4}
 .badge-room{background:#fce8f0;color:#a61e5c}
 .badge-meal{background:#e8f5e9;color:#2e7d32}
 <?php if (!$canEditCurrent): ?>
-form[method="post"]{display:none!important}
+form[method="post"]:not(#dutyReportForm){display:none!important}
 <?php endif; ?>
 </style>
 </head>
@@ -1847,6 +1843,7 @@ form[method="post"]{display:none!important}
 document.getElementById('saveDutyDrive')?.addEventListener('click',async function(){
   const button=this,old=button.innerHTML,paper=document.querySelector('.duty-report-paper');
   if(!paper)return;
+  if(typeof window.prepareDutyReportPreview==='function')window.prepareDutyReportPreview();
   const doc=document.implementation.createHTMLDocument('Biên bản trực nội trú');
   const meta=doc.createElement('meta');meta.setAttribute('charset','utf-8');doc.head.append(meta);
   document.querySelectorAll('style').forEach(function(source){const style=doc.createElement('style');style.textContent=source.textContent;doc.head.append(style)});
