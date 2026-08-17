@@ -3,7 +3,8 @@
 $dutySection = $_GET['section'] ?? 'calendar';
 $dutySections = ['calendar','assign','manage','stats','settings'];
 if (!in_array($dutySection, $dutySections, true)) $dutySection = 'calendar';
-$canManageDuty = $canEditCurrent && allowed_classes() === null;
+// Lịch trực là nghiệp vụ toàn trường: quyền Sửa là chốt quản lý đầy đủ.
+$canManageDuty = $canEditCurrent;
 if (!$canManageDuty && !in_array($dutySection, ['calendar','stats'], true)) $dutySection = 'calendar';
 
 $dutyMonth = trim($_GET['month'] ?? date('Y-m'));
