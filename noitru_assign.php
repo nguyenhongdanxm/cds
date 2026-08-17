@@ -5,9 +5,8 @@ require_once __DIR__ . '/includes/noitru_assignment_store.php';
 require_once __DIR__ . '/includes/noitru_room_excel_import.php';
 
 require_login();
-require_perm_level('nt.danhsach','edit');
-
 $mode=(($_GET['mode']??$_POST['mode']??'rooms')==='meals')?'meals':'rooms';
+require_perm_level($mode==='rooms'?'nt.chiaphong':'nt.chiamam','edit');
 $label=$mode==='rooms'?'phòng':'mâm';
 $field=$mode==='rooms'?'room_ktx':'meal_group';
 $namesKey=$mode==='rooms'?'room_names':'meal_names';
