@@ -1,22 +1,31 @@
 <?php
 if (defined('CDS_MODULE_SWITCHER_RENDERED') || !function_exists('is_logged_in') || !is_logged_in()) return;
 define('CDS_MODULE_SWITCHER_RENDERED', true);
+if (!defined('URL_TIN_TUC')) define('URL_TIN_TUC', 'https://noitruxinman.edu.vn');
+if (!defined('URL_CHUYEN_MON')) define('URL_CHUYEN_MON', '/chuyenmon/');
+if (!defined('URL_CSDL')) define('URL_CSDL', '/csdl.php');
+if (!defined('URL_NOITRU')) define('URL_NOITRU', '/noitru.php');
 require_once __DIR__ . '/modules.php';
-$switchUser = current_user();
+$switchUser = function_exists('current_user') ? current_user() : (function_exists('cds_user') ? cds_user() : ($_SESSION['cds_user'] ?? null));
+if (!$switchUser) return;
 $switchIsAdmin = ($switchUser['role'] ?? '') === 'admin';
+$switchRootUrl = '/';
+$switchRoutes = ['chuyenmon'=>'/chuyenmon/','vanban'=>'/vanban.php','thuvien'=>'/thuvien.php','csdl'=>'/csdl.php','hoclieu'=>'/hoclieu.php','noitru'=>'/noitru.php','thidua'=>'/thidua.php'];
 $switchModules = [];
 foreach (get_ecosystem_modules() as $module) {
     $id = (string)($module['id'] ?? '');
     if (($module['status'] ?? '') === 'soon') continue;
-    if (($module['status'] ?? '') === 'link' || $switchIsAdmin || can_module($id, 'view')) $switchModules[] = $module;
+    if (isset($switchRoutes[$id])) $module['url'] = $switchRoutes[$id];
+    $canView = function_exists('can_module') ? can_module($id, 'view') : true;
+    if (($module['status'] ?? '') === 'link' || $switchIsAdmin || $canView) $switchModules[] = $module;
 }
 $switchCurrentUrl = (string)($_SERVER['REQUEST_URI'] ?? '');
 $switchRequestPath = (string)parse_url($switchCurrentUrl, PHP_URL_PATH);
 $switchCurrentPath = basename($switchRequestPath);
 $switchAdminLinks = $switchIsAdmin ? [
-    ['title'=>'Tài khoản và phân quyền','subtitle'=>'Quản lý người dùng, nhóm quyền','icon'=>'bi-people','url'=>BASE_URL.'users.php','color'=>'#7c3aed'],
-    ['title'=>'Kho Google Drive','subtitle'=>'Kết nối và gán nơi lưu tệp','icon'=>'bi-google','url'=>BASE_URL.'admin.php?view=drive','color'=>'#0f9d58'],
-    ['title'=>'Nhật ký hoạt động','subtitle'=>'Theo dõi thao tác trong hệ thống','icon'=>'bi-activity','url'=>BASE_URL.'activity.php','color'=>'#475569'],
+    ['title'=>'Tài khoản và phân quyền','subtitle'=>'Quản lý người dùng, nhóm quyền','icon'=>'bi-people','url'=>$switchRootUrl.'users.php','color'=>'#7c3aed'],
+    ['title'=>'Kho Google Drive','subtitle'=>'Kết nối và gán nơi lưu tệp','icon'=>'bi-google','url'=>$switchRootUrl.'admin.php?view=drive','color'=>'#0f9d58'],
+    ['title'=>'Nhật ký hoạt động','subtitle'=>'Theo dõi thao tác trong hệ thống','icon'=>'bi-activity','url'=>$switchRootUrl.'activity.php','color'=>'#475569'],
 ] : [];
 ?>
 <style>
@@ -35,7 +44,7 @@ $switchAdminLinks = $switchIsAdmin ? [
     <div class="cds-launcher-body">
       <section class="cds-launcher-section recent-section"><div class="cds-launcher-section-title"><span>Trang vừa mở</span><button type="button" data-clear-recent style="border:0;background:none;color:#64748b;font-size:11px;cursor:pointer">Xóa lịch sử</button></div><div class="cds-launcher-grid cds-recent-grid" data-cds-recent></div><div class="cds-launcher-empty">Các trang vừa truy cập sẽ xuất hiện ở đây.</div></section>
       <section class="cds-launcher-section"><div class="cds-launcher-section-title"><span>Hệ sinh thái CDS</span><span><?=count($switchModules)+1?> mục</span></div><div class="cds-launcher-grid" data-cds-links>
-        <a class="cds-launcher-link <?=$switchCurrentPath==='admin.php'&&!isset($_GET['view'])?'active':''?>" href="<?=e(BASE_URL.'admin.php')?>" style="--cds-color:#2563eb" data-search="tổng quan trang chủ hệ sinh thái dashboard"><i class="bi bi-speedometer2"></i><span><strong>Tổng quan</strong><small>Trang điều hành hệ sinh thái</small></span><?php if($switchCurrentPath==='admin.php'&&!isset($_GET['view'])):?><em class="cds-launcher-current"></em><?php endif;?></a>
+        <a class="cds-launcher-link <?=$switchCurrentPath==='admin.php'&&!isset($_GET['view'])?'active':''?>" href="<?=e($switchRootUrl.'admin.php')?>" style="--cds-color:#2563eb" data-search="tổng quan trang chủ hệ sinh thái dashboard"><i class="bi bi-speedometer2"></i><span><strong>Tổng quan</strong><small>Trang điều hành hệ sinh thái</small></span><?php if($switchCurrentPath==='admin.php'&&!isset($_GET['view'])):?><em class="cds-launcher-current"></em><?php endif;?></a>
         <?php foreach($switchModules as $module):$moduleUrlPath=(string)parse_url($module['url']??'',PHP_URL_PATH);$modulePath=basename($moduleUrlPath);$active=$switchCurrentPath===$modulePath||($moduleUrlPath!=='/'&&str_ends_with($moduleUrlPath,'/')&&str_starts_with($switchRequestPath,$moduleUrlPath));?><a class="cds-launcher-link <?=$active?'active':''?>" href="<?=e($module['url'])?>" style="--cds-color:<?=e($module['color']??'#2563eb')?>" data-search="<?=e(($module['title']??'').' '.($module['subtitle']??'').' '.($module['id']??''))?>" <?=!empty($module['external'])?'target="_blank" rel="noopener"':''?>><i class="bi <?=e($module['icon']??'bi-grid')?>"></i><span><strong><?=e($module['title']??'')?></strong><small><?=e($module['subtitle']??'')?></small></span><?php if($active):?><em class="cds-launcher-current"></em><?php endif;?></a><?php endforeach;?>
       </div></section>
       <?php if($switchAdminLinks):?><section class="cds-launcher-section"><div class="cds-launcher-section-title"><span>Quản trị hệ thống</span></div><div class="cds-launcher-grid" data-cds-links><?php foreach($switchAdminLinks as $link):?><a class="cds-launcher-link" href="<?=e($link['url'])?>" style="--cds-color:<?=e($link['color'])?>" data-search="<?=e($link['title'].' '.$link['subtitle'])?>"><i class="bi <?=e($link['icon'])?>"></i><span><strong><?=e($link['title'])?></strong><small><?=e($link['subtitle'])?></small></span></a><?php endforeach;?></div></section><?php endif;?>
