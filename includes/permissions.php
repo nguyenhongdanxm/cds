@@ -49,6 +49,8 @@ function permission_features_catalog() {
         // Nội trú
         'nt.tongquan' => ['module' => 'noitru', 'label' => 'Tổng quan nội trú', 'group' => 'Nội trú'],
         'nt.danhsach' => ['module' => 'noitru', 'label' => 'Danh sách nội trú', 'group' => 'Nội trú'],
+        'nt.chiaphong' => ['module' => 'noitru', 'label' => 'Chia phòng nội trú', 'group' => 'Nội trú'],
+        'nt.chiamam'   => ['module' => 'noitru', 'label' => 'Chia mâm / nhóm ăn', 'group' => 'Nội trú'],
         'nt.diemdanh' => ['module' => 'noitru', 'label' => 'Điểm danh', 'group' => 'Nội trú'],
         'nt.diemdanh.quantri' => ['module' => 'noitru', 'label' => 'Quản trị điểm danh (cài buổi · sửa/xóa lịch sử)', 'group' => 'Nội trú'],
         'nt.baoan'    => ['module' => 'noitru', 'label' => 'Báo ăn theo lớp', 'group' => 'Bữa ăn'],
@@ -239,6 +241,14 @@ function permission_groups_all() {
         if ($version < 8 && $groupKey === 'ketoan') {
             if (level_rank($group['access']['nt.baoan'] ?? 'none') < level_rank('delete')) $group['access']['nt.baoan'] = 'delete';
         }
+        if ($version < 11) {
+            // Trước khi tách quyền, Chia phòng và Chia mâm dùng chung quyền
+            // Sửa Danh sách nội trú. Kế thừa đúng một lần để không làm mất
+            // quyền đang có; sau khi lưu có thể điều chỉnh hai quyền độc lập.
+            $assignmentLevel = $group['access']['nt.danhsach'] ?? 'none';
+            if (!isset($group['access']['nt.chiaphong'])) $group['access']['nt.chiaphong'] = $assignmentLevel;
+            if (!isset($group['access']['nt.chiamam'])) $group['access']['nt.chiamam'] = $assignmentLevel;
+        }
         if ($version < 10) {
             $legacyLibrary = $group['access']['hl.thuvien'] ?? 'none';
             $legacyEquipment = $group['access']['hl.thietbi'] ?? 'none';
@@ -299,7 +309,7 @@ function permission_groups_save(array $groups) {
             $level = $group['access'][$code] ?? 'none';
             $access[$code] = in_array($level, ['none','view','edit','delete'], true) ? $level : 'none';
         }
-        $clean[$key] = ['version' => 10, 'label' => $label !== '' ? $label : $key, 'access' => $access];
+        $clean[$key] = ['version' => 11, 'label' => $label !== '' ? $label : $key, 'access' => $access];
     }
     if (!$clean || !save_json(permission_groups_file(), $clean)) return false;
     $check = load_json(permission_groups_file(), []);
@@ -404,7 +414,7 @@ function can_perm_level($perm, $level = 'view') {
 /** Role mẫu → modules + perms mặc định */
 function permission_role_presets() {
     $allCm = ['cm.dashboard','cm.tracuu','cm.pccm','cm.nhaplieu','cm.thongke','cm.kehoach','cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
-    $allNt = ['nt.tongquan','nt.danhsach','nt.diemdanh','nt.diemdanh.quantri','nt.baoan','nt.buaan.tonghop','nt.gao','nt.ravao','nt.yte','nt.lichtruc','nt.thucdon','nt.thongke'];
+    $allNt = ['nt.tongquan','nt.danhsach','nt.chiaphong','nt.chiamam','nt.diemdanh','nt.diemdanh.quantri','nt.baoan','nt.buaan.tonghop','nt.gao','nt.ravao','nt.yte','nt.lichtruc','nt.thucdon','nt.thongke'];
     $allCs = ['csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','csdl.export','csdl.year'];
 
     return [
