@@ -19,7 +19,7 @@ function get_ecosystem_modules() {
         [
             'id' => 'vanban', 'num' => 3,
             'title' => 'Văn bản',
-            'subtitle' => 'Văn thư nội bộ · lấy số · hồ sơ lưu trữ',
+            'subtitle' => 'Văn thư nội bộ · lấy số · văn bản mẫu',
             'icon' => 'bi-file-earmark-text', 'color' => '#6f42c1',
             'status' => 'live', 'url' => BASE_URL . 'vanban.php', 'external' => false,
         ],
