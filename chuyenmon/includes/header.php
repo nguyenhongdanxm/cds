@@ -9,7 +9,7 @@ $tab_q = $_GET['tab'] ?? '';
 $pccm_pages = ['tracuu','tongquan','them','danhsach','doicheo','rasoat','sua','ketqua','giaovien','monhoc','lop','kiemnhiem','xuat_bang','thongke'];
 $pccm_active = in_array($current, $pccm_pages, true);
 $kh_pages = ['kehoach'];
-$bc_pages = ['baocao','dugio','kiemtrahoso'];
+$bc_pages = ['baocao','dugio','kiemtrahoso','danhgia'];
 $cmMenuCan = fn($permission) => cds_can_feature($permission, 'view');
 $cmDisabled = fn($permission) => $cmMenuCan($permission) ? '' : ' permission-disabled';
 $pccmCanOpen = $cmMenuCan('cm.tracuu') || $cmMenuCan('cm.pccm') || $cmMenuCan('cm.nhaplieu') || $cmMenuCan('cm.thongke');
@@ -159,8 +159,8 @@ require_once __DIR__ . '/cds_module_switcher.php';
     <li><a class="dropdown-item <?= $current==='dugio'?'active':'' ?><?= $cmDisabled('cm.baocao.dugio') ?>" href="<?= BASE_URL ?>dugio.php" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>>Dự giờ</a></li>
     <li><a class="dropdown-item <?= $current==='kiemtrahoso'?'active':'' ?><?= $cmDisabled('cm.baocao.kythi') ?>" href="<?= BASE_URL ?>kiemtrahoso.php" <?= !$cmMenuCan('cm.baocao.kythi')?'aria-disabled="true" tabindex="-1"':'' ?>>Kiểm tra</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><a class="dropdown-item <?= $cmDisabled('cm.baocao.dugio') ?>" href="/danhgia.php?view=profile" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-person-vcard me-1"></i> Hồ sơ đánh giá</a></li>
-    <li><a class="dropdown-item <?= $cmDisabled('cm.baocao.dugio') ?>" href="/danhgia.php?view=overview" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-bar-chart-line me-1"></i> Tổng hợp đánh giá</a></li>
+    <li><a class="dropdown-item <?= $cmDisabled('cm.baocao.dugio') ?>" href="<?=BASE_URL?>danhgia.php?view=profile" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-person-vcard me-1"></i> Hồ sơ đánh giá</a></li>
+    <li><a class="dropdown-item <?= $cmDisabled('cm.baocao.dugio') ?>" href="<?=BASE_URL?>danhgia.php?view=overview" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-bar-chart-line me-1"></i> Tổng hợp đánh giá</a></li>
   </ul>
 </li>
 
