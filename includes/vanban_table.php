@@ -7,7 +7,7 @@
     <?php else: foreach ($shown as $row): $fileUrl=vb_file_url((string)($row['file_path']??'')); ?>
       <tr>
         <td><strong><?=e($row['symbol']??'')?></strong><div class="sub"><?=e($row['field']??'')?> <?=!empty($row['dashboard_visible'])?'· 📌 Thông báo Tổng quan':''?></div></td>
-        <td class="document-title-cell"><a class="title doc-title-link" title="<?=e($row['title']??'')?>" target="_blank" rel="noopener" href="<?=e($fileUrl)?>"><?=e($row['title']??'')?></a><div class="sub"><?=e($row['signer']??'')?></div></td>
+        <td class="document-title-cell" data-full-title="<?=e($row['title']??'')?>"><a class="title doc-title-link" target="_blank" rel="noopener" href="<?=e($fileUrl)?>"><?=e($row['title']??'')?></a><div class="sub"><?=e($row['signer']??'')?></div></td>
         <td><span class="pill"><?=e($row['type']??'')?></span></td><td><?=vb_fmt_date((string)($row['issued_date']??''))?></td>
         <td><?=e($row['issuer']??'')?><div class="sub"><?=e($row['issuer_level']??'')?></div></td>
         <?php if($tab==='documents'&&$canManage):?><td class="action-column"><div class="row-actions"><button type="button" class="btn btn-outline edit-document" data-record="<?=e(json_encode($row,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))?>"><i class="bi bi-pencil"></i> Sửa</button><form method="post" onsubmit="return confirm('Xóa nội dung văn bản này? Tệp trên Drive vẫn được giữ.');"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="delete_document"><input type="hidden" name="return_tab" value="documents"><input type="hidden" name="id" value="<?=e($row['id']??'')?>"><button class="btn btn-danger" type="submit"><i class="bi bi-trash"></i></button></form></div></td><?php endif;?>
