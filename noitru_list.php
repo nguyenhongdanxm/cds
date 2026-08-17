@@ -96,10 +96,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') ==
       </div>
     </div>
     <div class="d-flex flex-wrap gap-2 justify-content-end">
-      <?php if (can_edit_perm('nt.danhsach')): ?>
-        <?php if ($view === 'rooms'): ?><a class="btn btn-sm btn-primary" href="<?= BASE_URL ?>noitru_assign.php?mode=rooms"><i class="bi bi-door-open"></i> Chia phòng</a><?php endif; ?>
-        <?php if ($view === 'meals'): ?><a class="btn btn-sm btn-warning" href="<?= BASE_URL ?>noitru_assign.php?mode=meals"><i class="bi bi-diagram-3"></i> Chia mâm</a><?php endif; ?>
-      <?php endif; ?>
+      <?php if ($view === 'rooms' && can_edit_perm('nt.chiaphong')): ?><a class="btn btn-sm btn-primary" href="<?= BASE_URL ?>noitru_assign.php?mode=rooms"><i class="bi bi-door-open"></i> Chia phòng</a><?php endif; ?>
+      <?php if ($view === 'meals' && can_edit_perm('nt.chiamam')): ?><a class="btn btn-sm btn-warning" href="<?= BASE_URL ?>noitru_assign.php?mode=meals"><i class="bi bi-diagram-3"></i> Chia mâm</a><?php endif; ?>
       <?php if (can_edit_perm('nt.danhsach') && allowed_classes() === null): ?>
       <form method="post" class="d-inline">
         <input type="hidden" name="action" value="sync_boarders">
