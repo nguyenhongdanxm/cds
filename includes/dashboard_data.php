@@ -466,6 +466,12 @@ function cds_dashboard_notice_tasks(array $user, int $limit = 0): array {
         $row['_dashboard_end'] = $schedule['end'];
         $row['_dashboard_state'] = $schedule['state'];
         $row['_dashboard_nearest'] = $schedule['end'] ?: ($schedule['state'] === 'Sắp diễn ra' ? $schedule['start'] : '9999-12-31');
+        $recordId=trim((string)($row['id']??''));
+        $section=cds_dashboard_lower($row['section']??'');
+        if($recordId!==''&&($section==='kh_thongbao'||str_contains($section,'thongbao'))){
+            $cmUrl=defined('URL_CHUYEN_MON')?URL_CHUYEN_MON:'/chuyenmon/';
+            $row['url']=$cmUrl.'kehoach.php?tab=thongbao&notice='.rawurlencode($recordId);
+        }
         $rows[] = $row;
     }
     foreach ($feed['tasks'] as $row) {
