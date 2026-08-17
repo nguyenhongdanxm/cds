@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pushResult = cds_push_publish(
                 (string)$savedRecord['title'],
                 trim((string)$savedRecord['content']) !== '' ? mb_strimwidth(strip_tags((string)$savedRecord['content']), 0, 180, '…', 'UTF-8') : 'Có thông báo chuyên môn mới.',
-                '/chuyenmon/kehoach.php?tab=thongbao',
+                '/chuyenmon/kehoach.php?tab=thongbao&notice=' . rawurlencode($recordId),
                 ['source_id'=>cds_push_dashboard_source_id($dashboardItem),'audience'=>['all'],'expires_at'=>(string)$savedRecord['due_date']]
             );
             if (empty($pushResult['saved'])) flash('Đã lưu thông báo chuyên môn nhưng chưa tạo được thông báo chuông. Hãy kiểm tra quyền ghi thư mục cds_private.', 'warning');
@@ -95,6 +95,10 @@ $items = cm_docs_by_section($section);
 $articleView = null;
 if ($tab === 'chitieu' && !empty($_GET['article'])) {
     foreach ($items as $candidate) if (($candidate['id'] ?? '') === (string)$_GET['article']) { $articleView = $candidate; break; }
+}
+$noticeView = null;
+if ($tab === 'thongbao' && !empty($_GET['notice'])) {
+    foreach ($items as $candidate) if (($candidate['id'] ?? '') === (string)$_GET['notice']) { $noticeView = $candidate; break; }
 }
 function cm_article_body($html) {
     $html = trim((string) $html);
@@ -347,5 +351,8 @@ function viewDoc(it){
   document.getElementById('viewLinks').innerHTML=links||'<span class="text-muted">Không có file/link</span>';
   new bootstrap.Modal(document.getElementById('viewModal')).show();
 }
+<?php if($noticeView): ?>
+document.addEventListener('DOMContentLoaded',function(){viewDoc(<?=json_encode($noticeView,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>)});
+<?php endif; ?>
 </script>
 <?php require_once 'includes/footer.php'; ?>
