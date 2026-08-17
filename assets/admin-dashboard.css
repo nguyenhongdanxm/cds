@@ -65,3 +65,4 @@
 .push-toast.error{background:#b42335}
 .push-toast.error::before{content:"!"}
 @media(max-width:680px){.notification-menu{top:61px;max-height:calc(100dvh - 70px)}.notification-list{max-height:none}.push-setup{margin:8px 8px 2px;padding:10px}.push-setup-actions{display:flex;grid-column:auto}.push-setup button{width:auto}.push-setup>p{grid-column:auto}.push-toast{right:8px;bottom:68px;left:8px;max-width:none}}
+.app-header .module-picker{display:none!important}
