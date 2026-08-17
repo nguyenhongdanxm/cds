@@ -10,7 +10,7 @@ define('DEFAULT_USER_PASSWORD', 'Ntxm@2026');
 
 function user_group_presets() {
     $allCm = ['cm.dashboard','cm.tracuu','cm.pccm','cm.nhaplieu','cm.thongke','cm.kehoach','cm.baocao'];
-    $allNt = ['nt.tongquan','nt.danhsach','nt.diemdanh','nt.baoan','nt.buaan.tonghop','nt.gao','nt.ravao','nt.yte','nt.lichtruc','nt.thucdon','nt.thongke'];
+    $allNt = ['nt.tongquan','nt.danhsach','nt.chiaphong','nt.chiamam','nt.diemdanh','nt.baoan','nt.buaan.tonghop','nt.gao','nt.ravao','nt.yte','nt.lichtruc','nt.thucdon','nt.thongke'];
 
     return [
         'bgh' => [
