@@ -429,6 +429,8 @@ function cds_dashboard_document_notices(): array {
     foreach ([['poll', VANBAN_POLLS_FILE, 'Bình chọn'], ['survey', VANBAN_SURVEYS_FILE, 'Khảo sát']] as [$kind, $file, $label]) {
         foreach (vb_rows($file) as $round) {
             if (empty($round['show_on_dashboard']) || ($round['status'] ?? 'active') !== 'active') continue;
+            $viewer=current_user()??[];
+            if(($viewer['role']??'')!=='admin'&&!vb_engagement_can_participate($round,$viewer))continue;
             $end = trim((string)($round['ends_at'] ?? ''));
             if ($end === '' || $end < date('Y-m-d')) continue;
             $days = (int)floor((strtotime($end . ' 23:59:59') - $now) / 86400);
