@@ -62,9 +62,12 @@ if [ -z "$PHP_BIN" ]; then
   exit 1
 fi
 
-while IFS= read -r -d '' file; do
+# cPanel có thể chạy deployment trong môi trường không gắn /dev/fd.
+# Dùng pipeline thay cho process substitution để vẫn kiểm tra tuần tự và
+# giữ nguyên cơ chế dừng deploy ngay khi một tệp PHP sai cú pháp.
+find "$ROOT/chuyenmon" -type f -name '*.php' -print | while IFS= read -r file; do
   "$PHP_BIN" -l "$file" >/dev/null
-done < <(find "$ROOT/chuyenmon" -type f -name '*.php' -print0)
+done
 
 for file in \
   "$ROOT/includes/auth.php" \
