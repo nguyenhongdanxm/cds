@@ -24,6 +24,7 @@ $nav_extra = [
 .cds-nav .dropdown-item.active,.cds-nav .dropdown-item:active{background:#e8f0fe;color:#1a56a8}
 .cds-nav .dropdown-item .bi{width:1.25rem;display:inline-block}
 .cds-nav .nav-mod-soon{opacity:.55}
+.cds-nav .cds-legacy-module-menu{display:none!important}
 body > nav.navbar-dark:not(.cds-nav){display:none!important}
 </style>
 <nav class="navbar navbar-expand-lg navbar-dark cds-nav mb-4">
@@ -37,7 +38,7 @@ body > nav.navbar-dark:not(.cds-nav){display:none!important}
     </button>
     <div class="collapse navbar-collapse" id="cdsTopNav">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
-        <li class="nav-item dropdown">
+        <li class="nav-item dropdown cds-legacy-module-menu">
           <a class="nav-link dropdown-toggle text-white fw-semibold" href="#" id="cdsModulesDrop" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-grid-3x3-gap"></i> Chuyển module
           </a>

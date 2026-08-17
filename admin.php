@@ -118,6 +118,7 @@ $pushUnread = cds_push_unread_count($user);
   <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260813-3" rel="stylesheet">
 </head>
 <body>
+<?php require_once __DIR__ . '/includes/module_switcher.php'; ?>
 <header class="app-header">
   <a class="school-brand" href="<?= e(BASE_URL) ?>">
     <span class="school-mark"><i class="bi bi-mortarboard-fill"></i></span>
@@ -242,7 +243,7 @@ $pushUnread = cds_push_unread_count($user);
   const clock=document.getElementById('liveClock');
   function tick(){clock.textContent=new Intl.DateTimeFormat('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date())}
   tick();setInterval(tick,1000);
-  document.getElementById('mobileModules')?.addEventListener('click',function(){document.querySelector('.module-picker').open=true;document.querySelector('.module-picker summary').focus()});
+  document.getElementById('mobileModules')?.addEventListener('click',function(){document.querySelector('#cdsNavigationLauncher [data-cds-open]')?.click()});
   document.querySelectorAll('[data-feed-page-button]').forEach(function(button){button.addEventListener('click',function(){
     const page=button.dataset.feedPageButton;
     document.querySelectorAll('[data-feed-item]').forEach(function(item){item.classList.toggle('feed-page-hidden',item.dataset.feedPage!==page)});
