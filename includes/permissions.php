@@ -64,7 +64,7 @@ function permission_features_catalog() {
         'vb.xem'      => ['module' => 'vanban', 'label' => 'Xem văn bản và biểu mẫu', 'group' => 'Văn bản'],
         'vb.quanly'   => ['module' => 'vanban', 'label' => 'Thêm · sửa · phát hành văn bản', 'group' => 'Văn bản'],
         'vb.layso'    => ['module' => 'vanban', 'label' => 'Lấy số · phát hành văn bản', 'group' => 'Văn bản'],
-        'vb.hosoluutru'=> ['module' => 'vanban', 'label' => 'Quản lý hồ sơ lưu trữ', 'group' => 'Văn bản'],
+        'vb.hosoluutru'=> ['module' => 'vanban', 'label' => 'Quản lý văn bản mẫu', 'group' => 'Văn bản'],
         'vb.tuongtac' => ['module' => 'vanban', 'label' => 'Tạo bình chọn · khảo sát · xử lý góp ý', 'group' => 'Văn bản'],
 
         // Thi đua — quyền đến từng menu con

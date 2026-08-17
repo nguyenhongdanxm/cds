@@ -425,6 +425,24 @@ function cds_dashboard_document_notices(): array {
             '_dashboard_badge_class'=>$badgeClass, '_dashboard_assignees'=>[],
         ];
     }
+    require_once __DIR__ . '/vanban_engagement.php';
+    foreach ([['poll', VANBAN_POLLS_FILE, 'Bình chọn'], ['survey', VANBAN_SURVEYS_FILE, 'Khảo sát']] as [$kind, $file, $label]) {
+        foreach (vb_rows($file) as $round) {
+            if (empty($round['show_on_dashboard']) || ($round['status'] ?? 'active') !== 'active') continue;
+            $end = trim((string)($round['ends_at'] ?? ''));
+            if ($end === '' || $end < date('Y-m-d')) continue;
+            $days = (int)floor((strtotime($end . ' 23:59:59') - $now) / 86400);
+            $rows[] = [
+                'id'=>(string)($round['id'] ?? ''), 'kind'=>'notice',
+                'title'=>(string)($round['title'] ?? $label),
+                'url'=>BASE_URL . 'vanban.php?tab=engagement&engagement_tab=' . ($kind === 'poll' ? 'polls' : 'surveys'),
+                '_dashboard_detail'=>$label . ' · ' . vb_response_count($round) . ' lượt tham gia',
+                '_dashboard_start'=>substr((string)($round['created_at'] ?? ''), 0, 10), '_dashboard_end'=>$end,
+                '_dashboard_nearest'=>$end, '_dashboard_state'=>$days <= 3 ? 'Sắp hết hạn' : 'Đang diễn ra',
+                '_dashboard_badge_class'=>$days <= 3 ? 'expiring' : 'active', '_dashboard_assignees'=>[],
+            ];
+        }
+    }
     return $rows;
 }
 

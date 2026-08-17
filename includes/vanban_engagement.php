@@ -31,6 +31,7 @@ function vb_engagement_process(string $action, array $user, bool $canManage): vo
             'id'=>vb_id($kind), 'kind'=>$kind, 'title'=>$title,
             'description'=>vb_clean((string)($_POST['description'] ?? ''), 2000),
             'ends_at'=>vb_date((string)($_POST['ends_at'] ?? '')), 'status'=>'active',
+            'show_on_dashboard'=>!empty($_POST['show_on_dashboard']),
             'responses'=>[], 'created_by'=>$user['name'] ?? '', 'created_by_id'=>$userKey, 'created_at'=>date('c')
         ];
         if ($kind === 'poll') {
@@ -125,4 +126,14 @@ function vb_survey_counts(array $row,int $question): array {
     $counts=array_fill(0,count($row['questions'][$question]['options']??[]),0);
     foreach((array)($row['responses']??[]) as $response){$answer=(int)($response['answers'][$question]??-1);if(isset($counts[$answer]))$counts[$answer]++;}
     return $counts;
+}
+
+function vb_engagement_state(array $row): array {
+    $today = date('Y-m-d');
+    $end = trim((string)($row['ends_at'] ?? ''));
+    if (($row['status'] ?? 'active') !== 'active' || ($end !== '' && $end < $today)) return ['Đã hết hạn','danger'];
+    if ($end !== '' && $end <= date('Y-m-d', strtotime('+3 days'))) return ['Sắp hết hạn','warning'];
+    $created = substr((string)($row['created_at'] ?? ''), 0, 10);
+    if ($created !== '' && $created >= date('Y-m-d', strtotime('-3 days'))) return ['Mới','success'];
+    return ['Còn hạn','success'];
 }
