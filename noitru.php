@@ -68,6 +68,27 @@ function noitru_require_global_scope() {
     exit;
 }
 
+/** Người có quyền sửa lịch trực hoặc chính người được phân công trong ngày được nhập biên bản. */
+function noitru_can_edit_duty_report(string $date): bool {
+    if (can_edit_perm('nt.lichtruc')) return true;
+    $user = current_user() ?? [];
+    $teacherName = trim((string)($user['teacher_name'] ?? $user['name'] ?? ''));
+    if ($teacherName === '') return false;
+    $normalize = static function (string $value): string {
+        $value = preg_replace('/\s+/u', ' ', trim($value)) ?? trim($value);
+        return function_exists('mb_strtolower') ? mb_strtolower($value, 'UTF-8') : strtolower($value);
+    };
+    $wanted = $normalize($teacherName);
+    foreach (noitru_duty_all() as $row) {
+        if (($row['date'] ?? '') === $date && $normalize((string)($row['teacher_name'] ?? '')) === $wanted) return true;
+    }
+    $manager = noitru_duty_manager_for_date($date) ?? [];
+    foreach ((array)($manager['teacher_names'] ?? []) as $name) {
+        if ($normalize((string)$name) === $wanted) return true;
+    }
+    return false;
+}
+
 /* Danh sách → trang 4 tab riêng */
 if ($tab === 'boarders') {
     header('Location: ' . BASE_URL . 'noitru_list.php');
@@ -96,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'menu_template_save'=>'nt.thucdon', 'menu_apply_template'=>'nt.thucdon', 'menu_copy_week'=>'nt.thucdon',
         'rice_settings'=>'nt.gao', 'rice_in'=>'nt.gao', 'rice_issue'=>'nt.gao', 'rice_delete'=>'nt.gao',
     ];
-    if (isset($actionPerms[$action])) {
+    if (isset($actionPerms[$action]) && !($action === 'duty_report_save' && noitru_can_edit_duty_report((string)($_POST['date'] ?? '')))) {
         $requiredLevel = substr($action, -7) === '_delete' || $action === 'duty_month_clear' ? 'delete' : 'edit';
         require_perm_level($actionPerms[$action], $requiredLevel);
     }
@@ -835,7 +856,9 @@ $tabs = [
     'stats' => ['Thống kê', 'bi-bar-chart', BASE_URL . 'noitru.php?tab=stats'],
 ];
 $tabs = array_filter($tabs, fn($info, $key) => can_perm($tabPerms[$key] ?? ''), ARRAY_FILTER_USE_BOTH);
-$canEditCurrent = can_edit_perm($tabPerms[$tab] ?? '');
+$canEditCurrent = $tab === 'duty_report'
+    ? noitru_can_edit_duty_report((string)($_GET['date'] ?? date('Y-m-d')))
+    : can_edit_perm($tabPerms[$tab] ?? '');
 $canDeleteCurrent = can_delete_perm($tabPerms[$tab] ?? '');
 
 if (in_array($tab, ['meals','meal_summary'], true) && in_array($_GET['export'] ?? '', ['month_breakfast','month_lunch_dinner'], true)) {

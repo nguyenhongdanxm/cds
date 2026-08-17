@@ -51,7 +51,8 @@ foreach (noitru_att_all() as $row) {
 }
 $shiftLabels = ['the_duc_sang'=>'Thể dục sáng','sang'=>'Sáng','trua'=>'Trưa','chieu'=>'Chiều','toi'=>'Tối','hoc_toi'=>'Học tối','dot_xuat'=>'Đột xuất'];
 $statusLabels = ['absent'=>'Vắng','late'=>'Muộn','excused'=>'Vắng có phép'];
-$location = (string)($report['location'] ?? 'Pà Vầy Sủ');
+$location = trim((string)($report['location'] ?? ''));
+if ($location === '' || in_array($location, ['Pà Vầy Sủ', 'Xã Pà Vầy Sủ'], true)) $location = 'Phòng trực nội trú';
 $shiftLabel = (string)($report['shift_label'] ?? ($startTime . ' ngày ' . date('d/m/Y',strtotime($reportDate)) . ' đến ' . $endTime . ' ngày ' . date('d/m/Y',strtotime($nextDate))));
 $field = fn($key) => (string)($report[$key] ?? '');
 $oldParts = array_values(array_filter(array_map('trim', [$field('discipline'),$field('hygiene'),$field('safety'),$field('health')]), fn($value)=>$value!==''));
@@ -71,8 +72,8 @@ $disciplineText = implode("\n", array_values(array_unique($oldParts)));
   <input type="hidden" name="action" value="duty_report_save"><input type="hidden" name="date" value="<?= e($reportDate) ?>"><input type="hidden" name="location" value="<?= e($location) ?>"><input type="hidden" name="shift_label" value="<?= e($shiftLabel) ?>">
   <div class="duty-report-actions"><button class="btn btn-outline-info" type="button" id="toggleDutyPreview"><i class="bi bi-eye"></i> Xem trước</button><button class="btn btn-info text-white" <?= !$canEditCurrent?'disabled':'' ?>><i class="bi bi-floppy"></i> Lưu biên bản</button><button class="btn btn-outline-primary" type="button" onclick="printDutyReport()"><i class="bi bi-printer"></i> In / Xuất PDF</button><button class="btn btn-success" type="button" id="saveDutyDrive" data-csrf="<?=e(cds_drive_csrf_token())?>" data-source="<?=e(cds_drive_page_action())?>" data-filename="bien-ban-truc-<?=e($reportDate)?>.html"><i class="bi bi-google"></i> Lưu Drive</button></div>
   <div class="duty-report-preview-wrap"><article class="duty-report-paper">
-    <div class="report-national"><div><p class="report-agency">SỞ GD&amp;ĐT TUYÊN QUANG</p><p>TRƯỜNG PTDT NỘI TRÚ<br>THCS&amp;THPT XÍN MẦN</p></div><div><p>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p><p><span class="underline">Độc lập - Tự do - Hạnh phúc</span></p></div></div>
-    <div class="report-place"><?= e($location) ?>, ngày <?= (int)date('d',strtotime($reportDate)) ?> tháng <?= (int)date('m',strtotime($reportDate)) ?> năm <?= e(date('Y',strtotime($reportDate))) ?></div>
+    <div class="report-national"><div><p class="report-agency">SỞ GD&amp;ĐT TUYÊN QUANG</p><p>TRƯỜNG PTDT NỘI TRÚ<br><span class="underline">THCS&amp;THPT XÍN MẦN</span></p></div><div><p>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p><p><span class="underline">Độc lập - Tự do - Hạnh phúc</span></p></div></div>
+    <div class="report-place">Pà Vầy Sủ, ngày <?= (int)date('d',strtotime($reportDate)) ?> tháng <?= (int)date('m',strtotime($reportDate)) ?> năm <?= e(date('Y',strtotime($reportDate))) ?></div>
     <h1>BIÊN BẢN TRỰC NỘI TRÚ HẰNG NGÀY</h1><div class="report-year">Năm học <?= e($yearLabel) ?></div>
     <div class="report-section"><span class="report-section-title">1. Thời gian và địa điểm:</span> <?= e($shiftLabel) ?>, tại <?= e($location) ?>.</div>
     <div class="report-section"><span class="report-section-title">2. Thành phần trực:</span> <?= e(implode(', ',$participants)) ?: '<span class="report-empty">Chưa có dữ liệu phân công ngày trực</span>' ?></div>
