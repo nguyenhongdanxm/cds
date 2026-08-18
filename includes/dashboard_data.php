@@ -526,8 +526,22 @@ function cds_dashboard_scope_data(array $user): array {
     }
     $leave=[];$td=load_json(DATA_PATH.'/thidua.json',['records'=>[]]);$today=date('Y-m-d');$until=date('Y-m-d',strtotime('+21 days'));
     foreach($td['records']??[] as $row){if(($row['type']??'')!=='teacher_attendance')continue;$from=$row['from_date']??$row['date']??'';$to=$row['to_date']??$from;if($to<$today||$from>$until)continue;$leave[]=['name'=>$row['person_name']??'','from'=>$from,'to'=>$to,'reason'=>trim(($row['reason']??'').(!empty($row['reason_detail'])?' · '.$row['reason_detail']:'')),'permission'=>$row['permission']??''];}
+
+    /* Lịch dạy thay đã duyệt hiển thị cùng khối Nhân sự – Lịch nghỉ giáo viên. */
+    $tkbFile=(defined('PCCM_DATA_PATH')?rtrim(PCCM_DATA_PATH,'/\\'):dirname(__DIR__).'/chuyenmon/data').'/timetable_substitutions.json';
+    $tkbRows=load_json($tkbFile,[]);
+    foreach(is_array($tkbRows)?$tkbRows:[] as $row){
+        if(($row['status']??'')!=='approved')continue;
+        $date=trim((string)($row['date']??''));if($date===''||$date<$today||$date>$until)continue;
+        $absent=trim((string)($row['absent_teacher']??''));$sub=trim((string)($row['substitute_teacher']??''));
+        $session=trim((string)($row['session']??''));$period=trim((string)($row['period']??''));$class=trim((string)($row['class']??''));$subject=trim((string)($row['subject']??''));
+        $detail='Dạy thay: '.$sub;
+        $slot=trim($session.($period!==''?' tiết '.$period:''));if($slot!=='')$detail.=' · '.$slot;if($class!=='')$detail.=' · lớp '.$class;if($subject!=='')$detail.=' · '.$subject;
+        $leave[]=['name'=>$absent!==''?$absent:'Lịch dạy thay','from'=>$date,'to'=>$date,'reason'=>$detail,'permission'=>'Đã duyệt'];
+    }
+
     usort($leave,fn($a,$b)=>strcmp($a['from'],$b['from']) ?: strcmp($a['name'],$b['name']));
-    return ['csdl'=>['teachers'=>cds_dashboard_gender_stats($activeTeachers),'students'=>cds_dashboard_gender_stats($scopeStudents),'classes'=>count($scopeClasses)],'noitru'=>$noitru,'leave'=>array_slice($leave,0,6)];
+    return ['csdl'=>['teachers'=>cds_dashboard_gender_stats($activeTeachers),'students'=>cds_dashboard_gender_stats($scopeStudents),'classes'=>count($scopeClasses)],'noitru'=>$noitru,'leave'=>array_slice($leave,0,8)];
 }
 
 function cds_dashboard_quick_actions(array $user): array {
