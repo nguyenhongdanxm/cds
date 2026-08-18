@@ -128,7 +128,7 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
 }
 </style>
 
-<style>.cm-sidebar-link.disabled,.cm-mobile-bottom a.disabled,.cm-mobile-link.disabled{display:none!important}</style><aside class="cm-desktop-sidebar" aria-label="Điều hướng Chuyên môn">
+<style>.cm-sidebar-link.disabled,.cm-mobile-bottom .disabled,.cm-mobile-link.disabled{display:none!important}</style><aside class="cm-desktop-sidebar" aria-label="Điều hướng Chuyên môn">
   <a class="cm-sidebar-brand" href="<?= BASE_URL ?>index.php">
     <span class="cm-logo"><i class="bi bi-journal-bookmark-fill"></i></span>
     <span><strong>Chuyên môn</strong><small>Cổng dữ liệu số CDS</small></span>
@@ -159,18 +159,20 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
 </aside>
 
 <nav class="cm-mobile-bottom" aria-label="Menu Chuyên môn trên điện thoại">
-  <a class="<?= $current==='index'?'active':'' ?> <?= !$cmLayoutCan('cm.dashboard')?'disabled':'' ?>" href="<?= BASE_URL ?>index.php"><i class="bi bi-house-door"></i><span>Trang chủ</span></a>
-  <a href="/chuyenmon/danhgia.php?view=profile"><i class="bi bi-person-vcard"></i><span>Hồ sơ</span></a>
-  <a class="<?= $cmPccmActive?'active':'' ?> <?= !$cmLayoutCan('cm.pccm')&&!$cmLayoutCan('cm.tracuu')?'disabled':'' ?>" href="<?= BASE_URL ?>tongquan.php"><i class="bi bi-clipboard-check"></i><span>PCCM</span></a>
-  <a class="<?= $current==='dugio'?'active':'' ?> <?= !$cmLayoutCan('cm.baocao.dugio')?'disabled':'' ?>" href="<?= BASE_URL ?>dugio.php"><i class="bi bi-eye"></i><span>Dự giờ</span></a>
-  <button class="<?= $cmReportActive?'active':'' ?>" type="button" data-bs-toggle="offcanvas" data-bs-target="#cmMobileMore" aria-controls="cmMobileMore"><i class="bi bi-grid"></i><span>Thêm</span></button>
+  <?php foreach ($cmVisibleNavGroups as $groupIndex=>$group):
+    $groupAllowed = false;
+    foreach ($group['items'] as $item) { if ($cmLayoutCan($item['permission'])) { $groupAllowed = true; break; } }
+  ?>
+    <button class="<?= $group['open']?'active':'' ?> <?= !$groupAllowed?'disabled':'' ?>" type="button" data-cm-mobile-parent="<?= (int)$groupIndex ?>" data-cm-mobile-label="<?= e($group['label']) ?>" data-bs-toggle="offcanvas" data-bs-target="#cmMobileMore" aria-controls="cmMobileMore"><i class="bi <?= e($group['icon']) ?>"></i><span><?= e($group['label']) ?></span></button>
+  <?php endforeach; ?>
+  <a href="/"><i class="bi bi-grid-3x3-gap-fill"></i><span>Hệ sinh thái</span></a>
 </nav>
 
 <div class="offcanvas offcanvas-bottom cm-mobile-more" tabindex="-1" id="cmMobileMore" aria-labelledby="cmMobileMoreLabel" style="height:min(82vh,720px);border-radius:22px 22px 0 0">
-  <div class="offcanvas-header"><div><h5 class="offcanvas-title" id="cmMobileMoreLabel"><i class="bi bi-journal-bookmark-fill me-2"></i>Chuyên môn</h5><div class="small text-white-50">Chọn chức năng cần sử dụng</div></div><button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button></div>
+  <div class="offcanvas-header"><div><h5 class="offcanvas-title" id="cmMobileMoreLabel"><i class="bi bi-journal-bookmark-fill me-2"></i><span data-cm-mobile-title>Chuyên môn</span></h5><div class="small text-white-50">Chọn chức năng cần sử dụng</div></div><button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button></div>
   <div class="offcanvas-body">
-    <?php foreach ($cmVisibleNavGroups as $group): ?>
-      <section class="cm-mobile-group">
+    <?php foreach ($cmVisibleNavGroups as $groupIndex=>$group): ?>
+      <section class="cm-mobile-group" data-cm-mobile-group="<?= (int)$groupIndex ?>" hidden>
         <h6 class="cm-mobile-group-title"><?= e($group['label']) ?></h6>
         <div class="cm-mobile-grid">
           <?php foreach ($group['items'] as $item):
@@ -197,6 +199,13 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
         var keep=other===group&&open;other.classList.toggle('open',keep);
         var toggle=other.querySelector(':scope>.cm-sidebar-group-toggle');if(toggle)toggle.setAttribute('aria-expanded',keep?'true':'false');
       });
+    });
+  });
+  document.querySelectorAll('[data-cm-mobile-parent]').forEach(function(button){
+    button.addEventListener('click',function(){
+      var wanted=button.getAttribute('data-cm-mobile-parent');
+      document.querySelectorAll('[data-cm-mobile-group]').forEach(function(section){section.hidden=section.getAttribute('data-cm-mobile-group')!==wanted});
+      var title=document.querySelector('[data-cm-mobile-title]');if(title)title.textContent=button.getAttribute('data-cm-mobile-label')||'Chuyên môn';
     });
   });
 })();
