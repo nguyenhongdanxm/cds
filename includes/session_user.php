@@ -20,6 +20,13 @@ if (!function_exists('cds_session_user_from_record')) {
             'classes' => is_array($record['classes'] ?? null) ? $record['classes'] : [],
             'homeroom_classes' => is_array($record['homeroom_classes'] ?? null) ? $record['homeroom_classes'] : [],
             'teacher_name' => $record['teacher_name'] ?? '',
+            'teacher_id' => $record['teacher_id'] ?? '',
+            'phone' => $record['phone'] ?? '',
+            'email' => $record['email'] ?? '',
+            'dob' => $record['dob'] ?? '',
+            'gender' => $record['gender'] ?? '',
+            'hometown' => $record['hometown'] ?? '',
+            'address' => $record['address'] ?? '',
         ];
     }
 }
