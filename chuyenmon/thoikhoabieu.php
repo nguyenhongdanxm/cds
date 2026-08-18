@@ -4,9 +4,10 @@ require_once __DIR__.'/includes/functions.php';
 require_once __DIR__.'/includes/timetable_store.php';
 $user=cds_user();
 if(!$user){$next=$_SERVER['REQUEST_URI']??(BASE_URL.'thoikhoabieu.php');header('Location: /login.php?next='.urlencode($next));exit;}
-if(!cds_can_feature('cm.tracuu','view')){http_response_code(403);exit('Bạn chưa có quyền xem Thời khóa biểu.');}
-$canSub=cds_can_feature('cm.pccm','edit');
-$canSettings=cds_can_feature('cm.nhaplieu','edit');
+if(!cds_can_feature('cm.tracuu','view')&&(($user['role']??'')!=='admin')){http_response_code(403);exit('Bạn chưa có quyền xem Thời khóa biểu.');}
+$isAdmin=(($user['role']??'')==='admin');
+$canSub=$isAdmin||cds_can_feature('cm.pccm','edit');
+$canSettings=$isAdmin||cds_can_feature('cm.nhaplieu','edit');
 $tab=(string)($_GET['tab']??'lookup');if(!in_array($tab,['lookup','substitution','settings'],true))$tab='lookup';if($tab==='substitution'&&!$canSub)$tab='lookup';if($tab==='settings'&&!$canSettings)$tab='lookup';
 if(empty($_SESSION['tkb_csrf']))$_SESSION['tkb_csrf']=bin2hex(random_bytes(24));$csrf=(string)$_SESSION['tkb_csrf'];
 $teachers=array_values(array_filter(array_map('strval',(array)load_json(TEACHERS_FILE,[]))));sort($teachers,SORT_NATURAL|SORT_FLAG_CASE);
