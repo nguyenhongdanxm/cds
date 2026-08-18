@@ -27,12 +27,12 @@ $cmNavGroups = [
     ['label'=>'Tổng quan','items'=>[
         ['permission'=>'cm.dashboard','pages'=>['index'],'href'=>'index.php','icon'=>'bi-house-door','label'=>'Tổng quan & công việc'],
         ['permission'=>'cm.tracuu','pages'=>['tracuu'],'href'=>'tracuu.php','icon'=>'bi-search','label'=>'Tra cứu phân công'],
-        ['permission'=>'cm.tracuu','pages'=>['ketqua'],'href'=>'ketqua.php','icon'=>'bi-folder2-open','label'=>'Kết quả phiên bản'],
     ]],
     ['label'=>'Phân công – Danh mục','items'=>[
         ['permission'=>'cm.pccm','pages'=>['tongquan'],'href'=>'tongquan.php','icon'=>'bi-grid','label'=>'Tổng quan PCCM'],
         ['permission'=>'cm.pccm','pages'=>['them','doicheo','rasoat','sua'],'href'=>'them.php','icon'=>'bi-pencil-square','label'=>'Phân công'],
         ['permission'=>'cm.pccm','pages'=>['danhsach'],'href'=>'danhsach.php','icon'=>'bi-list-ul','label'=>'Danh sách'],
+        ['permission'=>'cm.tracuu','pages'=>['ketqua'],'href'=>'ketqua.php','icon'=>'bi-folder2-open','label'=>'Kết quả phiên bản'],
         ['permission'=>'cm.nhaplieu','pages'=>['giaovien'],'href'=>'giaovien.php','icon'=>'bi-person-badge','label'=>'Giáo viên'],
         ['permission'=>'cm.nhaplieu','pages'=>['monhoc'],'href'=>'monhoc.php','icon'=>'bi-journal-text','label'=>'Môn học & số tiết'],
         ['permission'=>'cm.nhaplieu','pages'=>['lop'],'href'=>'lop.php','icon'=>'bi-people','label'=>'Lớp'],
