@@ -86,8 +86,8 @@ function cm_education_redirect(string $appendix = 'I'): void {
     header('Location: ' . $redirect);
     exit;
 }
-function cm_education_requirement_key($teacher, $subject, $grade, $appendix): string {
-    return cm_education_norm($teacher) . '|' . cm_education_norm($subject) . '|' . cm_education_norm($grade) . '|' . strtoupper(trim((string)$appendix));
+function cm_education_requirement_key($subject, $grade, $appendix): string {
+    return cm_education_norm($subject) . '|' . cm_education_norm($grade) . '|' . strtoupper(trim((string)$appendix));
 }
 function cm_education_stat_add(array &$buckets, string $name, bool $submitted, bool $approved): void {
     $name = trim($name) !== '' ? trim($name) : 'Chưa xác định';
@@ -207,31 +207,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $educationVisibleRows = array_values(array_filter($educationRows, fn($row)=>cm_education_is_visible($row,$educationIsAdmin,$educationIsLeader,$educationTeacher,$educationGroup)));
 
-/* Thống kê dự kiến phải nộp = mỗi cặp Giáo viên + Môn + Khối trong PCCM x 3 phụ lục. */
+/*
+ * Thống kê theo Môn + Khối + Phụ lục.
+ * Dù nhiều giáo viên cùng dạy một môn ở cùng khối, mỗi phụ lục chỉ cần 1 bản.
+ */
 $educationSubmittedMap = [];
-foreach ($educationVisibleRows as $row) {
-    $key = cm_education_requirement_key($row['teacher'] ?? '', $row['subject'] ?? '', $row['grade'] ?? '', $row['appendix'] ?? '');
-    if (!isset($educationSubmittedMap[$key])) $educationSubmittedMap[$key] = ['submitted'=>true,'approved'=>!empty($row['approved_at'])];
-    elseif (!empty($row['approved_at'])) $educationSubmittedMap[$key]['approved'] = true;
+foreach ($educationRows as $row) {
+    $subject = trim((string)($row['subject'] ?? ''));
+    $grade = cm_education_grade($row['grade'] ?? '');
+    $appendix = strtoupper(trim((string)($row['appendix'] ?? '')));
+    if ($subject === '' || $grade === '' || !in_array($appendix, ['I','II','III'], true)) continue;
+    $key = cm_education_requirement_key($subject, $grade, $appendix);
+    if (!isset($educationSubmittedMap[$key])) {
+        $educationSubmittedMap[$key] = ['submitted'=>true,'approved'=>!empty($row['approved_at'])];
+    } elseif (!empty($row['approved_at'])) {
+        $educationSubmittedMap[$key]['approved'] = true;
+    }
 }
-$educationRequirements = [];
+
+$educationSubjectGrades = [];
 foreach (get_assignments() as $assignment) {
     $teacher = trim((string)($assignment['teacher'] ?? ''));
     $subject = trim((string)($assignment['subject'] ?? ''));
     $grade = cm_education_grade($assignment['class'] ?? '');
     if ($teacher === '' || $subject === '' || $grade === '') continue;
     $group = trim((string)get_teacher_group($teacher));
+
     if (!$educationIsAdmin) {
         if ($educationIsLeader) {
             if ($educationGroup === '' || cm_education_norm($group) !== cm_education_norm($educationGroup)) continue;
-        } elseif (cm_education_norm($teacher) !== cm_education_norm($educationTeacher)) continue;
+        } elseif (cm_education_norm($teacher) !== cm_education_norm($educationTeacher)) {
+            continue;
+        }
     }
-    $base = cm_education_norm($teacher).'|'.cm_education_norm($subject).'|'.cm_education_norm($grade);
+
+    $baseKey = cm_education_norm($subject) . '|' . cm_education_norm($grade);
+    if (!isset($educationSubjectGrades[$baseKey])) {
+        $educationSubjectGrades[$baseKey] = [
+            'subject'=>$subject,
+            'grade'=>$grade,
+            'teachers'=>[],
+            'groups'=>[],
+        ];
+    }
+    $educationSubjectGrades[$baseKey]['teachers'][$teacher] = $teacher;
+    if ($group !== '') $educationSubjectGrades[$baseKey]['groups'][$group] = $group;
+}
+
+$educationRequirements = [];
+foreach ($educationSubjectGrades as $base) {
+    $teachers = array_values($base['teachers']);
+    $groups = array_values($base['groups']);
+    natcasesort($teachers);
+    natcasesort($groups);
+    $teachers = array_values($teachers);
+    $groups = array_values($groups);
     foreach (['I','II','III'] as $appendix) {
-        $key = $base.'|'.$appendix;
-        $educationRequirements[$key] = ['teacher'=>$teacher,'group'=>$group,'subject'=>$subject,'grade'=>$grade,'appendix'=>$appendix];
+        $key = cm_education_requirement_key($base['subject'], $base['grade'], $appendix);
+        $educationRequirements[$key] = [
+            'subject'=>$base['subject'],
+            'grade'=>$base['grade'],
+            'appendix'=>$appendix,
+            'teachers'=>$teachers,
+            'groups'=>$groups,
+        ];
     }
 }
+
 $educationStats = ['required'=>count($educationRequirements),'submitted'=>0,'approved'=>0,'missing'=>0];
 $educationStatsByGroup = $educationStatsBySubject = $educationStatsByGrade = [];
 $educationMissingRows = [];
@@ -240,16 +282,23 @@ foreach ($educationRequirements as $key=>$requirement) {
     $approved = !empty($educationSubmittedMap[$key]['approved']);
     if ($submitted) $educationStats['submitted']++;
     if ($approved) $educationStats['approved']++;
-    if (!$submitted) { $educationStats['missing']++; $educationMissingRows[] = $requirement; }
-    cm_education_stat_add($educationStatsByGroup, $requirement['group'], $submitted, $approved);
+    if (!$submitted) {
+        $educationStats['missing']++;
+        $educationMissingRows[] = $requirement;
+    }
+
     cm_education_stat_add($educationStatsBySubject, $requirement['subject'], $submitted, $approved);
     cm_education_stat_add($educationStatsByGrade, 'Khối '.$requirement['grade'], $submitted, $approved);
+    $groupsForStat = $requirement['groups'] ?: ['Chưa xác định'];
+    foreach ($groupsForStat as $groupName) {
+        cm_education_stat_add($educationStatsByGroup, $groupName, $submitted, $approved);
+    }
 }
 foreach ([$educationStatsByGroup, $educationStatsBySubject, $educationStatsByGrade] as &$statsBucket) {
     uasort($statsBucket, fn($a,$b)=>($b['missing'] <=> $a['missing']) ?: strnatcasecmp($a['name'],$b['name']));
 }
 unset($statsBucket);
-usort($educationMissingRows, fn($a,$b)=>strnatcasecmp($a['group'].'|'.$a['subject'].'|'.$a['grade'].'|'.$a['teacher'].'|'.$a['appendix'], $b['group'].'|'.$b['subject'].'|'.$b['grade'].'|'.$b['teacher'].'|'.$b['appendix']));
+usort($educationMissingRows, fn($a,$b)=>strnatcasecmp($a['subject'].'|'.$a['grade'].'|'.$a['appendix'], $b['subject'].'|'.$b['grade'].'|'.$b['appendix']));
 
 $educationAppendix = in_array($_GET['appendix'] ?? '', ['I','II','III'], true) ? (string)$_GET['appendix'] : 'I';
 $educationFilterAppendix = trim((string)($_GET['appendix_filter'] ?? ''));
@@ -304,10 +353,10 @@ require __DIR__.'/header.php';
 ?>
 <style>
 .education-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem}.education-tabs .nav-link{min-width:130px;text-align:center}.education-filter{display:grid;grid-template-columns:2fr repeat(5,minmax(120px,1fr)) auto;gap:.65rem;align-items:end}.education-table{min-width:1240px}.education-table td{vertical-align:middle}.education-table th a{color:inherit;text-decoration:none;white-space:nowrap}.education-table th a:hover{color:var(--bs-primary)}.education-appendix{display:inline-flex;align-items:center;justify-content:center;min-width:76px;padding:.28rem .55rem;border-radius:999px;background:#e8f1fb;color:#164f7b;font-size:.78rem;font-weight:800}.education-status{display:inline-flex;align-items:center;gap:.3rem;padding:.28rem .58rem;border-radius:999px;font-size:.78rem;font-weight:700}.education-status.pending{background:#fff3cd;color:#664d03}.education-status.approved{background:#d1e7dd;color:#0f5132}.education-meta{font-size:.78rem;line-height:1.45;color:#64748b}.education-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem}.education-form-grid .wide{grid-column:1/-1}
-.education-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}.education-stat{border:1px solid #dbe6ef;border-radius:14px;background:#fff;padding:1rem}.education-stat .value{font-size:1.65rem;font-weight:800;line-height:1}.education-stat small{color:#64748b}.education-stat.missing .value{color:#dc3545}.education-stat.approved .value{color:#198754}.education-stat.submitted .value{color:#0d6efd}.education-stat.required .value{color:#334155}.education-stat-tables{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.education-stat-table{max-height:320px;overflow:auto}.education-stat-table table{font-size:.82rem}.education-stat-table th,.education-stat-table td{white-space:nowrap}.education-missing-table{max-height:360px;overflow:auto}.education-progress-mini{height:5px;background:#e9ecef;border-radius:999px;overflow:hidden;margin-top:.3rem}.education-progress-mini span{display:block;height:100%;background:#198754}
+.education-stat-toggle{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:1rem}.education-stat-toggle .btn{font-weight:700}.education-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}.education-stat{border:1px solid #dbe6ef;border-radius:14px;background:#fff;padding:1rem}.education-stat .value{font-size:1.65rem;font-weight:800;line-height:1}.education-stat small{color:#64748b}.education-stat.missing .value{color:#dc3545}.education-stat.approved .value{color:#198754}.education-stat.submitted .value{color:#0d6efd}.education-stat.required .value{color:#334155}.education-stat-tables{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.education-stat-table{max-height:320px;overflow:auto}.education-stat-table table{font-size:.82rem}.education-stat-table th,.education-stat-table td{white-space:nowrap}.education-missing-table{max-height:360px;overflow:auto}.education-progress-mini{height:5px;background:#e9ecef;border-radius:999px;overflow:hidden;margin-top:.3rem}.education-progress-mini span{display:block;height:100%;background:#198754}.education-teacher-list{font-size:.78rem;color:#64748b;line-height:1.35}
 @media(max-width:1200px){.education-filter{grid-template-columns:1fr 1fr 1fr}.education-filter .search{grid-column:1/-1}.education-stat-tables{grid-template-columns:1fr}.education-stats{grid-template-columns:1fr 1fr}}
 @media(max-width:900px){.education-filter{grid-template-columns:1fr 1fr}.education-form-grid{grid-template-columns:1fr}.education-toolbar{align-items:flex-start;flex-direction:column}}
-@media(max-width:575px){.education-filter{grid-template-columns:1fr}.education-filter .search{grid-column:auto}.education-stats{grid-template-columns:1fr 1fr}.education-stat{padding:.75rem}.education-stat .value{font-size:1.35rem}}
+@media(max-width:575px){.education-filter{grid-template-columns:1fr}.education-filter .search{grid-column:auto}.education-stats{grid-template-columns:1fr 1fr}.education-stat{padding:.75rem}.education-stat .value{font-size:1.35rem}.education-stat-toggle{align-items:stretch;flex-direction:column}}
 </style>
 
 <div class="education-toolbar">
@@ -316,26 +365,41 @@ require __DIR__.'/header.php';
 </div>
 <?php if($educationTeacher===''):?><div class="alert alert-warning">Tài khoản chưa liên kết với giáo viên. Quản trị cần cập nhật trường <strong>Giáo viên liên kết</strong>.</div><?php elseif($educationGroup===''):?><div class="alert alert-warning">Chưa xác định được tổ chuyên môn của <strong><?=e($educationTeacher)?></strong>.</div><?php elseif(!$educationAssignments):?><div class="alert alert-info">Không tìm thấy môn/khối được phân công cho <strong><?=e($educationTeacher)?></strong>.</div><?php endif;?>
 
-<div class="card mb-3">
-  <div class="card-header d-flex align-items-center justify-content-between gap-2"><strong><i class="bi bi-bar-chart-line me-1"></i> Thống kê tiến độ nộp Kế hoạch giáo dục</strong><small class="text-muted"><?= $educationIsAdmin ? 'Toàn trường' : ($educationIsLeader ? 'Tổ '.e($educationGroup) : 'Cá nhân') ?></small></div>
-  <div class="card-body">
+<div class="education-stat-toggle">
+  <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#educationStatistics" aria-expanded="false" aria-controls="educationStatistics">
+    <i class="bi bi-bar-chart-line me-1"></i> Xem thống kê Kế hoạch giáo dục
+    <?php if($educationStats['missing']): ?><span class="badge text-bg-danger ms-1"><?= (int)$educationStats['missing'] ?> thiếu</span><?php endif; ?>
+    <i class="bi bi-chevron-down ms-1"></i>
+  </button>
+  <small class="text-muted"><?= $educationIsAdmin ? 'Phạm vi: Toàn trường' : ($educationIsLeader ? 'Phạm vi: Tổ '.e($educationGroup) : 'Phạm vi: Các môn/khối được phân công') ?></small>
+</div>
+
+<div class="collapse mb-3" id="educationStatistics">
+  <div class="card"><div class="card-body">
+    <div class="alert alert-light border small mb-3"><i class="bi bi-info-circle me-1"></i> Mỗi <strong>Môn + Khối + Phụ lục</strong> chỉ cần 01 bản. Nếu nhiều giáo viên cùng dạy một môn ở cùng khối, chỉ cần một người nộp là được tính đã có.</div>
     <div class="education-stats mb-3">
-      <div class="education-stat required"><small>Dự kiến phải nộp</small><div class="value mt-1"><?= (int)$educationStats['required'] ?></div><small>PCCM × 3 phụ lục</small></div>
-      <div class="education-stat submitted"><small>Đã nộp</small><div class="value mt-1"><?= (int)$educationStats['submitted'] ?></div><small><?= $educationStats['required'] ? round($educationStats['submitted']*100/$educationStats['required']) : 0 ?>% yêu cầu</small></div>
-      <div class="education-stat approved"><small>Đã duyệt</small><div class="value mt-1"><?= (int)$educationStats['approved'] ?></div><small><?= $educationStats['submitted'] ? round($educationStats['approved']*100/$educationStats['submitted']) : 0 ?>% đã nộp</small></div>
+      <div class="education-stat required"><small>Dự kiến phải có</small><div class="value mt-1"><?= (int)$educationStats['required'] ?></div><small>Môn × Khối × 3 phụ lục</small></div>
+      <div class="education-stat submitted"><small>Đã có</small><div class="value mt-1"><?= (int)$educationStats['submitted'] ?></div><small><?= $educationStats['required'] ? round($educationStats['submitted']*100/$educationStats['required']) : 0 ?>% yêu cầu</small></div>
+      <div class="education-stat approved"><small>Đã duyệt</small><div class="value mt-1"><?= (int)$educationStats['approved'] ?></div><small><?= $educationStats['submitted'] ? round($educationStats['approved']*100/$educationStats['submitted']) : 0 ?>% đã có</small></div>
       <div class="education-stat missing"><small>Còn thiếu</small><div class="value mt-1"><?= (int)$educationStats['missing'] ?></div><small>Chưa có văn bản</small></div>
     </div>
 
     <div class="education-stat-tables">
       <?php foreach ([['Theo tổ',$educationStatsByGroup],['Theo môn',$educationStatsBySubject],['Theo khối',$educationStatsByGrade]] as [$title,$bucket]): ?>
-      <div class="border rounded-3 overflow-hidden"><div class="px-3 py-2 bg-light fw-semibold"><?= e($title) ?></div><div class="education-stat-table"><table class="table table-sm table-hover mb-0"><thead class="table-light"><tr><th>Đơn vị</th><th class="text-center">Cần</th><th class="text-center">Nộp</th><th class="text-center">Duyệt</th><th class="text-center text-danger">Thiếu</th></tr></thead><tbody>
+      <div class="border rounded-3 overflow-hidden"><div class="px-3 py-2 bg-light fw-semibold"><?= e($title) ?></div><div class="education-stat-table"><table class="table table-sm table-hover mb-0"><thead class="table-light"><tr><th>Đơn vị</th><th class="text-center">Cần</th><th class="text-center">Có</th><th class="text-center">Duyệt</th><th class="text-center text-danger">Thiếu</th></tr></thead><tbody>
       <?php if(!$bucket): ?><tr><td colspan="5" class="text-center text-muted py-3">Chưa có dữ liệu.</td></tr><?php else: foreach($bucket as $stat): $pct=$stat['required']?round($stat['submitted']*100/$stat['required']):0; ?><tr><td><strong><?= e($stat['name']) ?></strong><div class="education-progress-mini"><span style="width:<?= min(100,$pct) ?>%"></span></div></td><td class="text-center"><?= (int)$stat['required'] ?></td><td class="text-center"><?= (int)$stat['submitted'] ?></td><td class="text-center text-success"><?= (int)$stat['approved'] ?></td><td class="text-center <?= $stat['missing'] ? 'text-danger fw-bold' : 'text-muted' ?>"><?= (int)$stat['missing'] ?></td></tr><?php endforeach; endif; ?>
       </tbody></table></div></div>
       <?php endforeach; ?>
     </div>
 
-    <details class="mt-3" <?= $educationStats['missing'] ? '' : 'open' ?>><summary class="fw-semibold text-danger" style="cursor:pointer"><i class="bi bi-exclamation-circle me-1"></i> Chi tiết kế hoạch còn thiếu (<?= (int)$educationStats['missing'] ?>)</summary><div class="education-missing-table border rounded mt-2"><table class="table table-sm table-hover mb-0"><thead class="table-light"><tr><th>Giáo viên</th><th>Tổ</th><th>Môn</th><th>Khối</th><th>Phụ lục</th></tr></thead><tbody><?php if(!$educationMissingRows): ?><tr><td colspan="5" class="text-center text-success py-3"><i class="bi bi-check-circle me-1"></i> Đã nộp đủ theo phân công hiện tại.</td></tr><?php else: foreach($educationMissingRows as $missing): ?><tr><td><?= e($missing['teacher']) ?></td><td><?= e($missing['group']) ?></td><td><?= e($missing['subject']) ?></td><td><?= e($missing['grade']) ?></td><td><span class="education-appendix">Phụ lục <?= e($missing['appendix']) ?></span></td></tr><?php endforeach; endif; ?></tbody></table></div></details>
-  </div>
+    <div class="mt-3">
+      <div class="fw-semibold text-danger mb-2"><i class="bi bi-exclamation-circle me-1"></i> Chi tiết còn thiếu (<?= (int)$educationStats['missing'] ?>)</div>
+      <div class="education-missing-table border rounded"><table class="table table-sm table-hover mb-0"><thead class="table-light"><tr><th>Môn</th><th>Khối</th><th>Phụ lục</th><th>Giáo viên được phân công</th><th>Tổ</th></tr></thead><tbody>
+      <?php if(!$educationMissingRows): ?><tr><td colspan="5" class="text-center text-success py-3"><i class="bi bi-check-circle me-1"></i> Đã đủ kế hoạch theo môn và khối.</td></tr>
+      <?php else: foreach($educationMissingRows as $missing): ?><tr><td><strong><?= e($missing['subject']) ?></strong></td><td><?= e($missing['grade']) ?></td><td><span class="education-appendix">Phụ lục <?= e($missing['appendix']) ?></span></td><td><div class="education-teacher-list"><?= e(implode(', ', $missing['teachers'])) ?></div></td><td><?= e(implode(', ', $missing['groups'])) ?></td></tr><?php endforeach; endif; ?>
+      </tbody></table></div>
+    </div>
+  </div></div>
 </div>
 
 <ul class="nav nav-pills education-tabs gap-2 mb-3"><li class="nav-item"><a class="nav-link <?=$educationFilterAppendix===''?'active':''?>" href="<?=BASE_URL?>kehoach.php?tab=vanban&appendix=<?=e($educationAppendix)?>&appendix_filter=">Tất cả phụ lục</a></li><?php foreach(['I','II','III'] as $appendix):?><li class="nav-item"><a class="nav-link <?=$educationFilterAppendix===$appendix?'active':''?>" href="<?=BASE_URL?>kehoach.php?tab=vanban&appendix=<?=$appendix?>&appendix_filter=<?=$appendix?>">Phụ lục <?=$appendix?></a></li><?php endforeach;?></ul>
