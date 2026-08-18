@@ -34,7 +34,7 @@ function tkb_xlsx_rows(string $path): array {
     $zip=new ZipArchive(); if($zip->open($path)!==true)return ['ok'=>false,'message'=>'Không mở được file Excel.'];
     $shared=[];$sharedXml=$zip->getFromName('xl/sharedStrings.xml');
     if($sharedXml!==false){$xml=@simplexml_load_string($sharedXml);if($xml)foreach($xml->si as $si){$text='';if(isset($si->t))$text=(string)$si->t;else foreach($si->r as $run)$text.=(string)$run->t;$shared[]=$text;}}
-    $sheetName='xl/worksheets/sheet1.xml';$sheetXml=$zip->getFromName($sheetName);
+    $sheetXml=$zip->getFromName('xl/worksheets/sheet1.xml');
     if($sheetXml===false){for($i=0;$i<$zip->numFiles;$i++){ $name=$zip->getNameIndex($i); if(preg_match('~^xl/worksheets/sheet\d+\.xml$~',$name)){$sheetXml=$zip->getFromName($name);break;}}}
     $zip->close(); if($sheetXml===false)return ['ok'=>false,'message'=>'Không tìm thấy bảng tính trong Excel.'];
     $xml=@simplexml_load_string($sheetXml); if(!$xml)return ['ok'=>false,'message'=>'File Excel không đọc được cấu trúc bảng tính.'];
@@ -64,7 +64,6 @@ function tkb_aliases(array $week,string $field): array {$out=[];foreach((array)(
 
 function tkb_import_week(string $path,string $label,string $startDate,array $teachers,array $classes,string $by=''): array {
     $parsed=tkb_parse_xlsx($path);if(empty($parsed['ok']))return $parsed;$mapping=tkb_mapping();
-    foreach(tkb_aliases($parsed,'teacher_raw') as $alias){} // giữ tương thích, alias được tính bên dưới
     $teacherAliases=[];$classAliases=[];foreach($parsed['slots'] as $slot){if(trim((string)$slot['teacher_raw'])!=='')$teacherAliases[$slot['teacher_raw']]=true;$classAliases[$slot['class_raw']]=true;}
     foreach(array_keys($teacherAliases) as $alias)if(empty($mapping['teachers'][$alias])){$auto=tkb_teacher_auto_map($alias,$teachers);if($auto!=='')$mapping['teachers'][$alias]=$auto;}
     foreach(array_keys($classAliases) as $alias)if(empty($mapping['classes'][$alias])){$auto=tkb_class_auto_map($alias,$classes);if($auto!=='')$mapping['classes'][$alias]=$auto;}
@@ -72,7 +71,12 @@ function tkb_import_week(string $path,string $label,string $startDate,array $tea
     $weeks=tkb_weeks();foreach($weeks as &$w)$w['active']=false;unset($w);$id='tkb_'.date('YmdHis');$week=['id'=>$id,'label'=>$label?:('Tuần '.date('W')),'start_date'=>$startDate,'end_date'=>date('Y-m-d',strtotime($startDate.' +5 days')),'active'=>true,'uploaded_at'=>date('c'),'uploaded_by'=>$by,'slots'=>$parsed['slots']];$weeks[]=$week;tkb_save(TKB_WEEKS_FILE,$weeks);return ['ok'=>true,'week'=>$week,'teacher_aliases'=>array_keys($teacherAliases),'class_aliases'=>array_keys($classAliases)];
 }
 
-function tkb_save_mapping(array $teacherMap,array $classMap): bool { $mapping=tkb_mapping();foreach($teacherMap as $raw=>$value){$raw=trim((string)$raw);$value=trim((string)$value);if($raw!==''){$value===''?unset($mapping['teachers'][$raw]):$mapping['teachers'][$raw]=$value;}}foreach($classMap as $raw=>$value){$raw=trim((string)$raw);$value=trim((string)$value);if($raw!==''){$value===''?unset($mapping['classes'][$raw]):$mapping['classes'][$raw]=$value;}}return tkb_save(TKB_MAPPING_FILE,$mapping); }
+function tkb_save_mapping(array $teacherMap,array $classMap): bool {
+    $mapping=tkb_mapping();
+    foreach($teacherMap as $raw=>$value){$raw=trim((string)$raw);$value=trim((string)$value);if($raw==='')continue;if($value==='')unset($mapping['teachers'][$raw]);else $mapping['teachers'][$raw]=$value;}
+    foreach($classMap as $raw=>$value){$raw=trim((string)$raw);$value=trim((string)$value);if($raw==='')continue;if($value==='')unset($mapping['classes'][$raw]);else $mapping['classes'][$raw]=$value;}
+    return tkb_save(TKB_MAPPING_FILE,$mapping);
+}
 function tkb_substitutions(): array {$rows=tkb_load(TKB_SUBSTITUTIONS_FILE,[]);return is_array($rows)?$rows:[];}
 function tkb_slot_key(array $slot): string {return implode('|',[(string)($slot['day']??''),(string)($slot['session']??''),(string)($slot['period']??''),(string)($slot['class_raw']??'')]);}
 function tkb_teacher_busy(array $week,string $teacher,int $day,string $session,int $period,string $date=''): bool {foreach(tkb_resolved_slots($week) as $slot)if(($slot['teacher']??'')===$teacher&&(int)$slot['day']===$day&&(string)$slot['session']===$session&&(int)$slot['period']===$period)return true;if($date!=='')foreach(tkb_substitutions() as $row)if(($row['date']??'')===$date&&($row['substitute_teacher']??'')===$teacher&&($row['session']??'')===$session&&(int)($row['period']??0)===$period)return true;return false;}
