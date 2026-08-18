@@ -60,3 +60,44 @@ function get_ecosystem_modules() {
         ],
     ];
 }
+
+/*
+ * Tổng quan: gom các dòng dạy thay cùng ngày/người nghỉ thành một dòng duy nhất.
+ * Không thay đổi dữ liệu nguồn; chỉ tối giản cách trình bày trong khối Nhân sự.
+ */
+if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'admin.php' && (string)($_GET['view'] ?? '') === '') {
+    ob_start(static function (string $html): string {
+        $script = <<<'HTML'
+<script id="cds-dashboard-substitution-compact">
+(function(){
+  var list=document.querySelector('.leave-panel .leave-list');
+  if(!list)return;
+  var rows=Array.from(list.children).filter(function(el){return el.querySelector('time')&&el.querySelector('p strong');});
+  var groups={};
+  rows.forEach(function(row){
+    var day=(row.querySelector('time strong')||{}).textContent||'';
+    var month=((row.querySelector('time span')||{}).textContent||'').replace(/\D+/g,'');
+    var name=((row.querySelector('p strong')||{}).textContent||'').trim();
+    var small=row.querySelector('p small');
+    var text=small?(small.textContent||'').trim():'';
+    var key=day+'|'+month+'|'+name;
+    if(!groups[key])groups[key]={row:row,day:day,month:month,name:name,hasSub:false};
+    if(/^Dạy thay\s*:/i.test(text)||text==='Dạy thay')groups[key].hasSub=true;
+    if(groups[key].row!==row)row.remove();
+  });
+  Object.keys(groups).forEach(function(key){
+    var g=groups[key]; if(!g.hasSub)return;
+    var small=g.row.querySelector('p small'); if(!small)return;
+    var now=new Date(),year=now.getFullYear(),m=parseInt(g.month||'0',10),d=parseInt(g.day||'0',10);
+    var candidate=new Date(year,m-1,d); var today=new Date(year,now.getMonth(),now.getDate());
+    if(candidate<today&&Math.round((today-candidate)/86400000)>30)year++;
+    var date=String(year)+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    var href='/chuyenmon/thoikhoabieu.php?tab=substitution&date='+encodeURIComponent(date)+'&absent_teacher='+encodeURIComponent(g.name);
+    small.innerHTML='<a href="'+href+'" style="font-weight:700;text-decoration:none">Dạy thay <i class="bi bi-arrow-right-short"></i></a>';
+  });
+})();
+</script>
+HTML;
+        return str_replace('</body>', $script . '</body>', $html);
+    });
+}
