@@ -3,10 +3,12 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/modules.php';
 require_once __DIR__ . '/includes/dashboard_data.php';
 require_once __DIR__ . '/includes/push_notifications.php';
+require_once __DIR__ . '/includes/account_profile.php';
 require_login();
 
 $user = current_user();
 $isAdmin = ($user['role'] ?? '') === 'admin';
+if (($_GET['view'] ?? '') === 'profile') { require __DIR__ . '/includes/account_profile_view.php'; exit; }
 if(isset($_GET['drive_file'])){$driveId=(string)$_GET['drive_file'];$etag='"'.sha1($driveId).'"';header('Cache-Control: private, max-age=300');header('ETag: '.$etag);if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag){http_response_code(304);exit;}$file=cds_drive_download($driveId);if(empty($file['ok'])){http_response_code((int)($file['status']??404));exit;}header('Content-Type: '.$file['mime']);header('Content-Length: '.strlen($file['body']));header("Content-Disposition: inline; filename*=UTF-8''".rawurlencode($file['name']));echo $file['body'];exit;}
 if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['drive_api'])){
     header('Content-Type: application/json; charset=utf-8');
@@ -154,7 +156,7 @@ $pushUnread = cds_push_unread_count($user);
     </details>
     <details class="user-picker">
       <summary><span class="avatar"><?= e($avatarUpper) ?></span><span class="user-copy"><strong><?= e($user['name'] ?? '') ?></strong><small><?= e($scopeText) ?></small></span><i class="bi bi-chevron-down"></i></summary>
-      <div class="user-menu"><?php if ($isAdmin): ?><a href="users.php"><i class="bi bi-person-gear"></i>Tài khoản và quyền</a><a href="admin.php?view=drive"><i class="bi bi-google"></i>Kho Google Drive</a><?php endif; ?><a href="logout.php" class="logout"><i class="bi bi-box-arrow-right"></i>Đăng xuất</a></div>
+      <div class="user-menu"><a href="admin.php?view=profile"><i class="bi bi-person-vcard"></i>Thông tin cá nhân</a><?php if ($isAdmin): ?><a href="users.php"><i class="bi bi-person-gear"></i>Tài khoản và quyền</a><a href="admin.php?view=drive"><i class="bi bi-google"></i>Kho Google Drive</a><?php endif; ?><a href="logout.php" class="logout"><i class="bi bi-box-arrow-right"></i>Đăng xuất</a></div>
     </details>
   </div>
 </header>
