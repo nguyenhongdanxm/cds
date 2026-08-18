@@ -27,6 +27,7 @@ $cmNavGroups = [
     ['label'=>'Tổng quan','items'=>[
         ['permission'=>'cm.dashboard','pages'=>['index'],'href'=>'index.php','icon'=>'bi-house-door','label'=>'Tổng quan & công việc'],
         ['permission'=>'cm.tracuu','pages'=>['tracuu'],'href'=>'tracuu.php','icon'=>'bi-search','label'=>'Tra cứu phân công'],
+        ['permission'=>'cm.tracuu','pages'=>['thoikhoabieu'],'href'=>'thoikhoabieu.php','icon'=>'bi-calendar3','label'=>'Thời khóa biểu'],
     ]],
     ['label'=>'Phân công – Danh mục','items'=>[
         ['permission'=>'cm.pccm','pages'=>['tongquan'],'href'=>'tongquan.php','icon'=>'bi-grid','label'=>'Tổng quan PCCM'],
