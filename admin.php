@@ -201,6 +201,24 @@ $pushUnread = cds_push_unread_count($user);
           $endDate = $item['_dashboard_end'] ?? '';
           $state = $item['_dashboard_state'] ?? 'Đang diễn ra';
           $badgeClass = $item['_dashboard_badge_class'] ?? ($state === 'Sắp diễn ra' ? 'upcoming' : 'active');
+          $deadlineLabel = $state;
+          $deadlineClass = $badgeClass;
+          $deadlineTimestamp = $nearestDate !== '' ? strtotime((string)$nearestDate) : false;
+          if ($deadlineTimestamp !== false && !str_starts_with((string)$nearestDate, '9999-')) {
+              $todayTimestamp = strtotime(date('Y-m-d'));
+              $targetTimestamp = strtotime(date('Y-m-d', $deadlineTimestamp));
+              $daysRemaining = (int)round(($targetTimestamp - $todayTimestamp) / 86400);
+              if ($daysRemaining < 0) {
+                  $deadlineLabel = 'Quá hạn ' . abs($daysRemaining) . ' ngày';
+                  $deadlineClass = 'overdue';
+              } elseif ($daysRemaining === 0) {
+                  $deadlineLabel = 'Hôm nay';
+                  $deadlineClass = 'due-today';
+              } else {
+                  $deadlineLabel = 'Còn ' . $daysRemaining . ' ngày';
+                  $deadlineClass = $daysRemaining <= 3 ? 'urgent' : ($daysRemaining <= 7 ? 'warning' : ($daysRemaining <= 30 ? 'notice-time' : 'future'));
+              }
+          }
           $assigneeText = implode(', ', array_slice($item['_dashboard_assignees'] ?? [], 0, 3));
           $kind = in_array(($item['kind'] ?? ''), ['notice','task','salary','seniority'], true) ? $item['kind'] : 'task';
           $icons = ['notice'=>'bi-megaphone-fill','task'=>'bi-check2-square','salary'=>'bi-cash-coin','seniority'=>'bi-award-fill'];
@@ -212,7 +230,7 @@ $pushUnread = cds_push_unread_count($user);
               <strong><?= e($title) ?></strong>
               <small><?= e($detail) ?><?php if ($nearestDate): ?> · <i class="bi bi-calendar-event"></i> <?= $endDate ? 'Hạn ' : '' ?><?= e(date(str_contains((string)$nearestDate, ':') ? 'd/m/Y H:i' : 'd/m/Y', strtotime($nearestDate))) ?><?php endif; ?></small>
             </span>
-            <span class="schedule-pill <?= e($badgeClass) ?>"><?= e($state) ?></span>
+            <span class="schedule-pill <?= e($deadlineClass) ?>" title="<?= e($state) ?>"><?= e($deadlineLabel) ?></span>
           <?php if ($url): ?></a><?php else: ?></div><?php endif; ?>
         <?php endforeach; ?>
         <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có nội dung sắp tới</strong><span>Thông báo chuyên môn chung, công việc được giao và mốc nhân sự cá nhân sẽ xuất hiện tại đây.</span></div><?php endif; ?>
