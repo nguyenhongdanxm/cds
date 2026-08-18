@@ -4,6 +4,7 @@
  */
 require_once 'includes/auth.php';
 require_once 'includes/user_sync.php';
+require_once 'includes/account_profile.php';
 require_admin();
 
 $modCatalog = permission_modules_catalog();
@@ -32,6 +33,16 @@ $syncReport = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $users = get_users();
+
+    if ($action === 'admin_reset_password') {
+        if (!cds_account_csrf_valid((string)($_POST['csrf'] ?? ''))) {
+            flash('Phiên làm việc không hợp lệ, vui lòng thử lại.', 'danger');
+        } else {
+            $result = cds_account_admin_reset_password((string)($_POST['id'] ?? ''), (string)($_POST['new_password'] ?? ''), (string)($_POST['confirm_password'] ?? ''));
+            flash($result['message'], !empty($result['ok']) ? 'success' : 'danger');
+        }
+        header('Location: users.php'); exit;
+    }
 
     if ($action === 'save_group') {
         $groupKey = trim($_POST['group_key'] ?? '');
@@ -726,6 +737,10 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                 </td>
                 <?php endforeach; ?>
                 <td class="text-nowrap text-center">
+                  <button type="button" class="btn btn-sm btn-outline-warning" title="Đặt lại mật khẩu"
+                          onclick='openPasswordReset(<?=json_encode((string)($u['id']??''),JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_TAG|JSON_HEX_QUOT)?>,<?=json_encode((string)($u['name']??$u['username']??''),JSON_UNESCAPED_UNICODE|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_TAG|JSON_HEX_QUOT)?>)'>
+                    <i class="bi bi-key"></i>
+                  </button>
                   <button type="button" class="btn btn-sm btn-outline-primary"
                           onclick='editUser(<?= json_encode(user_for_edit($u), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_TAG | JSON_HEX_QUOT) ?>)'>
                     <i class="bi bi-sliders"></i>
@@ -830,6 +845,19 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
         </form>
       </div>
     </div>
+  </div>
+
+  <div class="modal fade" id="passwordResetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow">
+      <form method="post" id="passwordResetForm">
+        <input type="hidden" name="action" value="admin_reset_password">
+        <input type="hidden" name="csrf" value="<?=e(cds_account_csrf_token())?>">
+        <input type="hidden" name="id" id="resetPasswordUserId">
+        <div class="modal-header"><div><h5 class="modal-title"><i class="bi bi-key text-warning"></i> Đặt lại mật khẩu</h5><div class="small text-muted" id="resetPasswordUserName"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body"><div class="alert alert-warning small">Mật khẩu mới có ít nhất 8 ký tự. Quản trị không thể xem lại mật khẩu sau khi lưu.</div><label class="form-label">Mật khẩu mới</label><div class="input-group mb-3"><input type="text" class="form-control" name="new_password" id="adminNewPassword" minlength="8" required autocomplete="new-password"><button type="button" class="btn btn-outline-secondary" onclick="generateAdminPassword()"><i class="bi bi-stars"></i> Tạo nhanh</button></div><label class="form-label">Nhập lại mật khẩu</label><input type="text" class="form-control" name="confirm_password" id="adminConfirmPassword" minlength="8" required autocomplete="new-password"></div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button><button class="btn btn-warning"><i class="bi bi-shield-check"></i> Lưu mật khẩu mới</button></div>
+      </form>
+    </div></div>
   </div>
 
   <div class="row g-3">
@@ -1141,6 +1169,20 @@ function editUser(u){
   document.querySelectorAll('.homeroom-cb').forEach(function(cb){cb.checked=homeroom.indexOf(cb.value)>=0;});
   bootstrap.Collapse.getOrCreateInstance(document.getElementById('userEditor')).show();
   setTimeout(function(){document.getElementById('userEditor').scrollIntoView({behavior:'smooth',block:'start'});},150);
+}
+function openPasswordReset(id,name){
+  document.getElementById('resetPasswordUserId').value=id;
+  document.getElementById('resetPasswordUserName').textContent=name;
+  document.getElementById('adminNewPassword').value='';
+  document.getElementById('adminConfirmPassword').value='';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('passwordResetModal')).show();
+}
+function generateAdminPassword(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#';
+  const bytes=new Uint32Array(12);crypto.getRandomValues(bytes);
+  const password=Array.from(bytes,n=>chars[n%chars.length]).join('');
+  document.getElementById('adminNewPassword').value=password;
+  document.getElementById('adminConfirmPassword').value=password;
 }
 resetForm();
 document.getElementById('bulkPermissionForm').addEventListener('submit',function(event){
