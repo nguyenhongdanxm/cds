@@ -14,10 +14,18 @@ function cds_school_week_date_valid($value): bool {
     return $date && $date->format('Y-m-d') === $value;
 }
 
+/**
+ * Luôn ưu tiên kho CSDL gốc `/data/school_years.json` của CDS.
+ * Chuyên môn có DATA_PATH riêng nên tuyệt đối không dựa vào DATA_PATH ở đây.
+ */
 function cds_school_year_rows(): array {
     if (function_exists('csdl_years_all')) return (array)csdl_years_all();
     if (defined('CSDL_YEARS') && function_exists('load_json')) return (array)load_json(CSDL_YEARS, []);
-    if (defined('DATA_PATH') && function_exists('load_json')) return (array)load_json(DATA_PATH . '/school_years.json', []);
+    $rootFile = dirname(__DIR__) . '/data/school_years.json';
+    if (is_file($rootFile) && is_readable($rootFile)) {
+        $decoded = json_decode((string)file_get_contents($rootFile), true);
+        return is_array($decoded) ? $decoded : [];
+    }
     return [];
 }
 
@@ -62,7 +70,6 @@ function cds_school_week_calendar($year = null): array {
         if (!cds_school_week_date_valid($preStart)) continue;
         $preDate = new DateTimeImmutable($preStart);
         $preEnd = $preDate->modify('+6 days')->format('Y-m-d');
-        // Tuần học trước phải kết thúc trước ngày bắt đầu Tuần 1 chính thức.
         if ($preEnd >= $start) continue;
         $weeks[] = [
             'key'=>$key,
