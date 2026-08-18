@@ -140,5 +140,43 @@ if ($cdsScriptName === 'thoikhoabieu.php' && (string)($_GET['tab'] ?? 'lookup') 
 })();
 </script>
 <?php endif; ?>
+<?php if ($cdsScriptName === 'thoikhoabieu.php' && (string)($_GET['tab'] ?? 'lookup') === 'substitution'): ?>
+<script>
+(function(){
+  var endpoint='<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>tkb_substitution_manage.php';
+  fetch(endpoint,{credentials:'same-origin'})
+    .then(function(r){if(!r.ok)throw new Error('forbidden');return r.json();})
+    .then(function(data){if(!data.ok||!Array.isArray(data.rows))return;render(data);})
+    .catch(function(){});
+
+  function render(data){
+    var host=document.querySelector('.container')||document.querySelector('main')||document.body;
+    var section=document.createElement('section');
+    section.className='tkb-card p-3 mt-3 mb-3';
+    section.innerHTML='<div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-2"><div><h5 class="mb-1"><i class="bi bi-trash3 me-1"></i> Quản lý lịch dạy thay</h5><div class="small text-muted">Chọn một hoặc nhiều lịch để xóa. Xóa tại đây sẽ đồng thời gỡ dấu dạy thay trên TKB và Tổng quan.</div></div><button type="button" class="btn btn-sm btn-danger" id="tkbBulkDelete"><i class="bi bi-trash"></i> Xóa đã chọn</button></div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th style="width:36px"><input type="checkbox" id="tkbSelectAll"></th><th>Ngày</th><th>GV nghỉ</th><th>Tiết/Lớp</th><th>GV thay</th><th>Trạng thái</th></tr></thead><tbody id="tkbManageBody"></tbody></table></div>';
+    host.appendChild(section);
+    var body=section.querySelector('#tkbManageBody');
+    if(!data.rows.length){body.innerHTML='<tr><td colspan="6" class="text-center text-muted py-3">Chưa có lịch dạy thay.</td></tr>';section.querySelector('#tkbBulkDelete').disabled=true;return;}
+    data.rows.forEach(function(r){
+      var tr=document.createElement('tr');
+      var status=r.status==='approved'?'Đã duyệt':(r.status==='rejected'?'Từ chối':'Chờ duyệt');
+      tr.innerHTML='<td><input class="form-check-input tkb-sub-check" type="checkbox" value="'+esc(r.id)+'"></td><td>'+esc(vnDate(r.date))+'</td><td><strong>'+esc(r.absent_teacher)+'</strong></td><td>'+esc((r.session||'')+' '+(r.period||'')+' · '+(r.class||'')+' · '+(r.subject||''))+'</td><td>'+esc(r.substitute_teacher)+'</td><td>'+esc(status)+'</td>';
+      body.appendChild(tr);
+    });
+    section.querySelector('#tkbSelectAll').addEventListener('change',function(){var checked=this.checked;section.querySelectorAll('.tkb-sub-check').forEach(function(c){c.checked=checked;});});
+    section.querySelector('#tkbBulkDelete').addEventListener('click',function(){
+      var ids=Array.from(section.querySelectorAll('.tkb-sub-check:checked')).map(function(c){return c.value;});
+      if(!ids.length){alert('Hãy chọn ít nhất một lịch dạy thay.');return;}
+      if(!confirm('Xóa '+ids.length+' lịch dạy thay đã chọn?\n\nCác hiển thị liên quan trên TKB và Tổng quan cũng sẽ được gỡ.'))return;
+      var bodyData=new URLSearchParams();bodyData.set('action','delete_many');bodyData.set('csrf',data.csrf);ids.forEach(function(id){bodyData.append('ids[]',id);});
+      fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:bodyData.toString()})
+       .then(function(r){return r.json();}).then(function(result){alert(result.message||'Đã xử lý.');if(result.ok)location.reload();}).catch(function(){alert('Không xóa được lịch dạy thay.');});
+    });
+  }
+  function vnDate(v){if(!v)return'';var p=v.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:v;}
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>
