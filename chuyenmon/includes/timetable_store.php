@@ -79,5 +79,29 @@ function tkb_save_mapping(array $teacherMap,array $classMap): bool {
 }
 function tkb_substitutions(): array {$rows=tkb_load(TKB_SUBSTITUTIONS_FILE,[]);return is_array($rows)?$rows:[];}
 function tkb_slot_key(array $slot): string {return implode('|',[(string)($slot['day']??''),(string)($slot['session']??''),(string)($slot['period']??''),(string)($slot['class_raw']??'')]);}
+function tkb_week_slot_date(array $week,int $day): string {return date('Y-m-d',strtotime((string)($week['start_date']??date('Y-m-d')).' +'.max(0,$day-2).' days'));}
+function tkb_week_substitutions(array $week): array {$out=[];foreach(tkb_substitutions() as $row)if(($row['week_id']??'')===($week['id']??''))$out[]=$row;return $out;}
+function tkb_substitution_for_slot(array $week,array $slot): ?array {$date=tkb_week_slot_date($week,(int)($slot['day']??2));$key=tkb_slot_key($slot);foreach(tkb_substitutions() as $row)if(($row['week_id']??'')===($week['id']??'')&&($row['date']??'')===$date&&($row['slot_key']??'')===$key)return $row;return null;}
 function tkb_teacher_busy(array $week,string $teacher,int $day,string $session,int $period,string $date=''): bool {foreach(tkb_resolved_slots($week) as $slot)if(($slot['teacher']??'')===$teacher&&(int)$slot['day']===$day&&(string)$slot['session']===$session&&(int)$slot['period']===$period)return true;if($date!=='')foreach(tkb_substitutions() as $row)if(($row['date']??'')===$date&&($row['substitute_teacher']??'')===$teacher&&($row['session']??'')===$session&&(int)($row['period']??0)===$period)return true;return false;}
-function tkb_save_substitution(array $row): bool {$rows=tkb_substitutions();$key=($row['date']??'').'|'.($row['slot_key']??'');$found=false;foreach($rows as &$old){if((($old['date']??'').'|'.($old['slot_key']??''))===$key){$old=array_merge($old,$row);$found=true;break;}}unset($old);if(!$found)$rows[]=$row;return tkb_save(TKB_SUBSTITUTIONS_FILE,$rows);}
+function tkb_save_substitution(array $row): bool {$rows=tkb_substitutions();$key=($row['date']??'').'|'.($row['slot_key']??'');$found=false;foreach($rows as &$old){if((($old['date']??'').'|'.($old['slot_key']??''))===$key){$row['id']=$old['id']??($row['id']??'');$old=array_merge($old,$row);$found=true;break;}}unset($old);if(!$found)$rows[]=$row;return tkb_save(TKB_SUBSTITUTIONS_FILE,$rows);}
+
+/** Đánh giá mức phù hợp của giáo viên khi xếp dạy thay. */
+function tkb_subject_related(string $a,string $b): bool {
+    $ka=tkb_key($a);$kb=tkb_key($b);if($ka===''||$kb==='')return false;if($ka===$kb)return true;
+    foreach([['khtn','sinhhoc'],['khtn','hoahoc'],['khtn','vatli'],['khtn','ly'],['lsdl','lichsu'],['lsdl','diali'],['nghethuat','amnhac'],['nghethuat','mythuat']] as $pair){if((str_contains($ka,$pair[0])&&str_contains($kb,$pair[1]))||(str_contains($kb,$pair[0])&&str_contains($ka,$pair[1])))return true;}
+    return false;
+}
+function tkb_teacher_fit(string $teacher,array $target,array $week,string $date=''): array {
+    $class=(string)($target['class']?:($target['class_raw']??''));$subject=(string)($target['subject']??'');$grade=function_exists('get_grade')?get_grade($class):preg_replace('/[^0-9]/','',$class);
+    $sameClass=false;$sameGrade=false;$sameSubject=false;
+    if(function_exists('get_assignments'))foreach(get_assignments() as $a){if(($a['teacher']??'')!==$teacher)continue;$aClass=(string)($a['class']??'');$aSubject=(string)($a['subject']??'');if($aClass!==''&&tkb_key($aClass)===tkb_key($class))$sameClass=true;$aGrade=function_exists('get_grade')?get_grade($aClass):preg_replace('/[^0-9]/','',$aClass);if($grade!==''&&$aGrade===$grade)$sameGrade=true;if(tkb_subject_related($aSubject,$subject))$sameSubject=true;}
+    if(function_exists('get_teacher_chuyen_mon'))foreach((array)get_teacher_chuyen_mon($teacher) as $spec)if(tkb_subject_related((string)$spec,$subject)){$sameSubject=true;break;}
+    $busy=tkb_teacher_busy($week,$teacher,(int)($target['day']??0),(string)($target['session']??''),(int)($target['period']??0),$date);
+    $score=($sameSubject?100:0)+($sameClass?30:0)+($sameGrade?10:0);
+    $labels=[];if($sameSubject)$labels[]='Cùng chuyên môn';if($sameClass)$labels[]='Đã dạy lớp này';elseif($sameGrade)$labels[]='Cùng khối';
+    return ['teacher'=>$teacher,'busy'=>$busy,'score'=>$score,'same_subject'=>$sameSubject,'same_class'=>$sameClass,'same_grade'=>$sameGrade,'labels'=>$labels];
+}
+function tkb_substitute_candidates(array $teachers,array $target,array $week,string $date,string $absentTeacher=''): array {
+    $rows=[];foreach($teachers as $teacher){$teacher=trim((string)$teacher);if($teacher===''||$teacher===$absentTeacher)continue;$rows[]=tkb_teacher_fit($teacher,$target,$week,$date);}
+    usort($rows,function($a,$b){if($a['busy']!==$b['busy'])return $a['busy']?1:-1;if($a['score']!==$b['score'])return $b['score']<=>$a['score'];return strcasecmp($a['teacher'],$b['teacher']);});return $rows;
+}
