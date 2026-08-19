@@ -1,8 +1,13 @@
 document.addEventListener('DOMContentLoaded',function(){
   var importForm=Array.from(document.querySelectorAll('form')).find(function(f){var a=f.querySelector('input[name="action"]');return a&&a.value==='import_rooms_excel';});
   if(!importForm)return;
-  var endpoint=(document.querySelector('base')?document.querySelector('base').href:'/')+'noitru_assign_enhanced.php';
-  if(!/^https?:/i.test(endpoint))endpoint='/noitru_assign_enhanced.php';
+  var base=(document.querySelector('base')?document.querySelector('base').href:'/');
+  var endpoint=base+'noitru_assign_enhanced.php';if(!/^https?:/i.test(endpoint))endpoint='/noitru_assign_enhanced.php';
+  var templateEndpoint=base+'noitru_room_template.php';if(!/^https?:/i.test(templateEndpoint))templateEndpoint='/noitru_room_template.php';
+  var oldTemplate=Array.from(document.querySelectorAll('a')).find(function(a){return /download_template=rooms/.test(a.getAttribute('href')||'');});
+  if(oldTemplate){
+    var group=document.createElement('div');group.className='btn-group';group.innerHTML='<button type="button" class="btn btn-sm btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-file-earmark-excel"></i> Tải mẫu Excel</button><ul class="dropdown-menu dropdown-menu-end"><li><a class="dropdown-item" href="'+templateEndpoint+'?data=0"><i class="bi bi-file-earmark"></i> Mẫu trống</a></li><li><a class="dropdown-item" href="'+templateEndpoint+'?data=1"><i class="bi bi-people"></i> Mẫu có dữ liệu học sinh</a></li></ul>';oldTemplate.replaceWith(group);
+  }
   importForm.addEventListener('submit',function(e){
     e.preventDefault();e.stopImmediatePropagation();clearBox();
     if(!confirm('Kiểm tra và nhập kết quả chia phòng từ file Excel?'))return;
