@@ -27,3 +27,4 @@ document.addEventListener('DOMContentLoaded',function(){
   }
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}function ea(v){return esc(v).replace(/`/g,'&#096;');}
 });
+(function(){['assets/noitru_room_compact.js?v=20260819-2','assets/noitru_room_roles.js?v=20260819-2'].forEach(function(src){var s=document.createElement('script');s.src=(location.pathname.indexOf('/noitru_assign.php')>=0?'':location.origin+'/')+src;if(src.charAt(0)!=='/'&&location.pathname.indexOf('/noitru_assign.php')>=0)s.src=src;document.head.appendChild(s);});})();
