@@ -114,3 +114,52 @@ document.addEventListener('click',function(e){
   if(group){var key=group.dataset.ntGroup, panel=document.querySelector('[data-nt-children="'+key+'"]'), open=!group.classList.contains('open');group.classList.toggle('open',open);group.setAttribute('aria-expanded',open?'true':'false');if(panel)panel.classList.toggle('open',open);}
 });
 </script>
+<?php if ($ntPage === 'noitru_assign.php' && (($_GET['mode'] ?? $_POST['mode'] ?? 'rooms') === 'rooms')): ?>
+<style>
+.nt-import-errors{border:1px solid #fecaca;background:#fff7f7;border-radius:12px;padding:.8rem;margin:.75rem 0 1rem}.nt-import-errors h6{color:#b91c1c}.nt-import-errors table{font-size:.8rem}.nt-import-errors thead th{background:#fee2e2;color:#7f1d1d;white-space:nowrap}.nt-import-errors td{vertical-align:top}.nt-import-errors .err-text{color:#991b1b;font-weight:600}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var endpoint='<?= e(BASE_URL . 'noitru_assign_enhanced.php') ?>';
+  var forms=Array.from(document.querySelectorAll('form'));
+  var createForm=forms.find(function(f){var a=f.querySelector('input[name="action"]');return a&&a.value==='create_groups';});
+  var importForm=forms.find(function(f){var a=f.querySelector('input[name="action"]');return a&&a.value==='import_rooms_excel';});
+
+  if(createForm){
+    createForm.addEventListener('submit',function(e){
+      e.preventDefault();
+      var fd=new FormData(createForm);fd.set('action','create_groups_append');
+      var btn=createForm.querySelector('button[type="submit"],button:not([type])');if(btn){btn.disabled=true;btn.dataset.oldText=btn.innerHTML;btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> Đang thêm...';}
+      fetch(endpoint,{method:'POST',credentials:'same-origin',body:fd}).then(function(r){return r.json();}).then(function(data){alert(data.message||'Đã xử lý.');if(data.ok)location.reload();else if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.oldText||'Tạo danh sách';}}).catch(function(){alert('Không tạo được danh sách phòng.');if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.oldText||'Tạo danh sách';}});
+    });
+  }
+
+  if(importForm){
+    importForm.addEventListener('submit',function(e){
+      e.preventDefault();
+      clearErrors();
+      if(!confirm('Kiểm tra và nhập kết quả chia phòng từ file Excel?'))return;
+      var fd=new FormData(importForm);fd.set('action','import_rooms_excel_detailed');
+      var btn=importForm.querySelector('button[type="submit"],button:not([type])');if(btn){btn.disabled=true;btn.dataset.oldText=btn.innerHTML;btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> Đang kiểm tra...';}
+      fetch(endpoint,{method:'POST',credentials:'same-origin',body:fd}).then(function(r){return r.json();}).then(function(data){
+        if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.oldText||'Kiểm tra và nhập';}
+        if(data.ok){alert(data.message||'Đã nhập dữ liệu.');location.reload();return;}
+        renderErrors(data.message||'File Excel có lỗi.',Array.isArray(data.errors)?data.errors:[]);
+      }).catch(function(){if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.oldText||'Kiểm tra và nhập';}renderErrors('Không xử lý được file Excel.',[{error:'Lỗi kết nối hoặc máy chủ không xử lý được file.'}]);});
+    });
+  }
+
+  function clearErrors(){var old=document.getElementById('ntRoomImportErrors');if(old)old.remove();}
+  function renderErrors(message,errors){
+    clearErrors();
+    var card=importForm?importForm.closest('.assign-card'):null;if(!card)return;
+    var box=document.createElement('div');box.id='ntRoomImportErrors';box.className='nt-import-errors';
+    var rows=errors.map(function(x){return '<tr><td>'+esc(x.row||'—')+'</td><td>'+esc(x.student||'—')+'</td><td>'+esc(x.class||'—')+'</td><td>'+esc(x.room||'—')+'</td><td class="err-text">'+esc(x.error||'Lỗi không xác định')+'</td></tr>';}).join('');
+    box.innerHTML='<div class="d-flex justify-content-between gap-2 align-items-start mb-2"><div><h6 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill"></i> Excel có lỗi – chưa lưu dữ liệu</h6><div class="small text-danger">'+esc(message)+'</div></div><button type="button" class="btn-close" aria-label="Đóng"></button></div><div class="table-responsive"><table class="table table-sm table-bordered mb-0"><thead><tr><th>Dòng Excel</th><th>Học sinh</th><th>Lớp</th><th>Phòng</th><th>Lỗi cụ thể</th></tr></thead><tbody>'+(rows||'<tr><td colspan="5">Không có chi tiết lỗi.</td></tr>')+'</tbody></table></div>';
+    box.querySelector('.btn-close').onclick=function(){box.remove();};
+    card.insertAdjacentElement('afterend',box);box.scrollIntoView({behavior:'smooth',block:'center'});
+  }
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}
+});
+</script>
+<?php endif; ?>
