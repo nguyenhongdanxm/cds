@@ -101,5 +101,8 @@ document.addEventListener('click',function(e){var trigger=e.target.closest('[dat
 document.addEventListener('DOMContentLoaded',function(){var endpoint='<?= e(BASE_URL . 'noitru_assign_enhanced.php') ?>',forms=Array.from(document.querySelectorAll('form')),createForm=forms.find(function(f){var a=f.querySelector('input[name="action"]');return a&&a.value==='create_groups';}),importForm=forms.find(function(f){var a=f.querySelector('input[name="action"]');return a&&a.value==='import_rooms_excel';});if(createForm){createForm.addEventListener('submit',function(e){e.preventDefault();var fd=new FormData(createForm);fd.set('action','create_groups_append');var btn=createForm.querySelector('button[type="submit"],button:not([type])');if(btn){btn.disabled=true;btn.dataset.oldText=btn.innerHTML;btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> Đang thêm...';}fetch(endpoint,{method:'POST',credentials:'same-origin',body:fd}).then(function(r){return r.json();}).then(function(data){alert(data.message||'Đã xử lý.');if(data.ok)location.reload();else if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.oldText||'Tạo danh sách';}}).catch(function(){alert('Không tạo được danh sách phòng.');if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.oldText||'Tạo danh sách';}});});}}
 });
 </script>
-<script src="<?= e(BASE_URL . 'assets/noitru_assign_resolve.js?v=20260819-1') ?>"></script>
+<script src="<?= e(BASE_URL . 'assets/noitru_assign_resolve.js?v=20260819-3') ?>"></script>
+<?php endif; ?>
+<?php if ($ntPage === 'noitru_list.php' && (($_GET['view'] ?? '') === 'rooms') && trim((string)($_GET['room'] ?? '')) !== ''): ?>
+<script src="<?= e(BASE_URL . 'assets/noitru_room_list_roles.js?v=20260819-1') ?>"></script>
 <?php endif; ?>
