@@ -116,7 +116,7 @@ document.addEventListener('click',function(e){
 </script>
 <?php if ($ntPage === 'noitru_assign.php' && (($_GET['mode'] ?? $_POST['mode'] ?? 'rooms') === 'rooms')): ?>
 <style>
-.nt-import-errors{border:1px solid #fecaca;background:#fff7f7;border-radius:12px;padding:.8rem;margin:.75rem 0 1rem}.nt-import-errors h6{color:#b91c1c}.nt-import-errors table{font-size:.8rem}.nt-import-errors thead th{background:#fee2e2;color:#7f1d1d;white-space:nowrap}.nt-import-errors td{vertical-align:top}.nt-import-errors .err-text{color:#991b1b;font-weight:600}
+.nt-import-errors{border:1px solid #fecaca;background:#fff7f7;border-radius:12px;padding:.8rem;margin:.75rem 0 1rem}.nt-import-errors h6{color:#b91c1c}.nt-import-errors table{font-size:.78rem;min-width:1220px}.nt-import-errors thead th{background:#fee2e2;color:#7f1d1d;white-space:nowrap}.nt-import-errors td{vertical-align:top}.nt-import-errors .err-text{color:#991b1b;font-weight:600;min-width:220px}.nt-import-errors .excel-cell{background:#fff}.nt-import-errors .db-cell{background:#ecfdf5;color:#166534}.nt-import-errors .diff-cell{background:#fff7ed!important;color:#9a3412;font-weight:700}.nt-import-errors .copy-cell{white-space:nowrap}.nt-import-errors .copy-mini{padding:.1rem .32rem;font-size:.68rem}
 </style>
 <script>
 document.addEventListener('DOMContentLoaded',function(){
@@ -136,8 +136,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
   if(importForm){
     importForm.addEventListener('submit',function(e){
-      e.preventDefault();
-      clearErrors();
+      e.preventDefault();clearErrors();
       if(!confirm('Kiểm tra và nhập kết quả chia phòng từ file Excel?'))return;
       var fd=new FormData(importForm);fd.set('action','import_rooms_excel_detailed');
       var btn=importForm.querySelector('button[type="submit"],button:not([type])');if(btn){btn.disabled=true;btn.dataset.oldText=btn.innerHTML;btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> Đang kiểm tra...';}
@@ -150,16 +149,37 @@ document.addEventListener('DOMContentLoaded',function(){
   }
 
   function clearErrors(){var old=document.getElementById('ntRoomImportErrors');if(old)old.remove();}
+  function isDiff(x,field){return Array.isArray(x.different_fields)&&x.different_fields.indexOf(field)>=0;}
+  function copyBtn(value,label){if(!value)return '';return '<button type="button" class="btn btn-outline-success copy-mini" data-copy="'+escAttr(value)+'" title="Copy '+escAttr(label)+'"><i class="bi bi-copy"></i></button>';}
   function renderErrors(message,errors){
-    clearErrors();
-    var card=importForm?importForm.closest('.assign-card'):null;if(!card)return;
+    clearErrors();var card=importForm?importForm.closest('.assign-card'):null;if(!card)return;
     var box=document.createElement('div');box.id='ntRoomImportErrors';box.className='nt-import-errors';
-    var rows=errors.map(function(x){return '<tr><td>'+esc(x.row||'—')+'</td><td>'+esc(x.student||'—')+'</td><td>'+esc(x.class||'—')+'</td><td>'+esc(x.room||'—')+'</td><td class="err-text">'+esc(x.error||'Lỗi không xác định')+'</td></tr>';}).join('');
-    box.innerHTML='<div class="d-flex justify-content-between gap-2 align-items-start mb-2"><div><h6 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill"></i> Excel có lỗi – chưa lưu dữ liệu</h6><div class="small text-danger">'+esc(message)+'</div></div><button type="button" class="btn-close" aria-label="Đóng"></button></div><div class="table-responsive"><table class="table table-sm table-bordered mb-0"><thead><tr><th>Dòng Excel</th><th>Học sinh</th><th>Lớp</th><th>Phòng</th><th>Lỗi cụ thể</th></tr></thead><tbody>'+(rows||'<tr><td colspan="5">Không có chi tiết lỗi.</td></tr>')+'</tbody></table></div>';
+    var rows=errors.map(function(x){
+      var ex=x.excel||{},db=x.database||{};
+      var dbText=[db.name,db.class,db.dob,db.gender].filter(Boolean).join(' · ')||'Không xác định duy nhất';
+      return '<tr>'+
+        '<td>'+esc(x.row||'—')+'</td>'+
+        '<td class="excel-cell">'+esc(ex.stt||'—')+'</td>'+
+        '<td class="excel-cell '+(isDiff(x,'Họ và tên')?'diff-cell':'')+'">'+esc(ex.name||x.student||'—')+'</td>'+
+        '<td class="excel-cell '+(isDiff(x,'Lớp')?'diff-cell':'')+'">'+esc(ex.class||'—')+'</td>'+
+        '<td class="excel-cell '+(isDiff(x,'Ngày sinh')?'diff-cell':'')+'">'+esc(ex.dob||'—')+'</td>'+
+        '<td class="excel-cell '+(isDiff(x,'Giới tính')?'diff-cell':'')+'">'+esc(ex.gender||'—')+'</td>'+
+        '<td class="excel-cell">'+esc(ex.room||x.room||'—')+'</td>'+
+        '<td class="excel-cell">'+esc(ex.note||'')+'</td>'+
+        '<td class="db-cell"><strong>'+esc(dbText)+'</strong><div class="mt-1 d-flex gap-1 flex-wrap">'+copyBtn(db.name,'họ tên')+copyBtn(db.class,'lớp')+copyBtn(db.dob,'ngày sinh')+copyBtn(db.gender,'giới tính')+'</div></td>'+
+        '<td class="err-text">'+esc(x.error||'Lỗi không xác định')+(Array.isArray(x.different_fields)&&x.different_fields.length?'<div class="small mt-1">Khác: '+esc(x.different_fields.join(', '))+'</div>':'')+'</td>'+
+        '<td class="copy-cell">'+(x.corrected_tsv?'<button type="button" class="btn btn-sm btn-success" data-copy="'+escAttr(x.corrected_tsv)+'"><i class="bi bi-copy"></i> Copy dòng đúng</button>':'—')+'</td>'+
+      '</tr>';
+    }).join('');
+    box.innerHTML='<div class="d-flex justify-content-between gap-2 align-items-start mb-2"><div><h6 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill"></i> Excel có lỗi – chưa lưu dữ liệu</h6><div class="small text-danger">'+esc(message)+'</div><div class="small text-muted mt-1">Ô màu cam là dữ liệu khác CSDL. Cột xanh là dữ liệu đúng trong CSDL. Nút “Copy dòng đúng” sao chép 7 cột theo đúng thứ tự mẫu Excel để dán trực tiếp.</div></div><button type="button" class="btn-close" aria-label="Đóng"></button></div><div class="table-responsive"><table class="table table-sm table-bordered mb-0"><thead><tr><th>Dòng Excel</th><th>STT</th><th>Họ và tên</th><th>Lớp</th><th>Ngày sinh</th><th>Giới tính</th><th>Phòng KTX</th><th>Ghi chú</th><th>Dữ liệu đúng trong CSDL</th><th>Lỗi/khác biệt</th><th>Copy sửa Excel</th></tr></thead><tbody>'+(rows||'<tr><td colspan="11">Không có chi tiết lỗi.</td></tr>')+'</tbody></table></div>';
     box.querySelector('.btn-close').onclick=function(){box.remove();};
+    box.querySelectorAll('[data-copy]').forEach(function(btn){btn.addEventListener('click',function(){copyText(btn.dataset.copy||'',btn);});});
     card.insertAdjacentElement('afterend',box);box.scrollIntoView({behavior:'smooth',block:'center'});
   }
+  function copyText(text,btn){if(!text)return;var done=function(){var old=btn.innerHTML;btn.innerHTML='<i class="bi bi-check2"></i> Đã copy';setTimeout(function(){btn.innerHTML=old;},1200);};if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(text).then(done).catch(function(){fallbackCopy(text);done();});}else{fallbackCopy(text);done();}}
+  function fallbackCopy(text){var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}ta.remove();}
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}
+  function escAttr(v){return esc(v).replace(/`/g,'&#096;');}
 });
 </script>
 <?php endif; ?>
