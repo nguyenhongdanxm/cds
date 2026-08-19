@@ -119,6 +119,32 @@ body.cm-body>footer{
   font-size:.78rem;
 }
 
+/* TKB: phân biệt rõ khối sáng/chiều và căn thẳng hàng tiết. */
+body.cm-body .tkb-matrix tbody tr:nth-child(1) td,
+body.cm-body .tkb-matrix tbody tr:nth-child(1) .period-no,
+body.cm-body .tkb-matrix tbody tr:nth-child(3) td,
+body.cm-body .tkb-matrix tbody tr:nth-child(3) .period-no{background:#fff7cf!important}
+body.cm-body .tkb-matrix tbody tr:nth-child(2) td,
+body.cm-body .tkb-matrix tbody tr:nth-child(2) .period-no,
+body.cm-body .tkb-matrix tbody tr:nth-child(4) td,
+body.cm-body .tkb-matrix tbody tr:nth-child(4) .period-no{background:#fffbe8!important}
+body.cm-body .tkb-matrix tbody tr:nth-child(5) td,
+body.cm-body .tkb-matrix tbody tr:nth-child(5) .period-no,
+body.cm-body .tkb-matrix tbody tr:nth-child(7) td,
+body.cm-body .tkb-matrix tbody tr:nth-child(7) .period-no{background:#e4f8e9!important}
+body.cm-body .tkb-matrix tbody tr:nth-child(6) td,
+body.cm-body .tkb-matrix tbody tr:nth-child(6) .period-no,
+body.cm-body .tkb-matrix tbody tr:nth-child(8) td,
+body.cm-body .tkb-matrix tbody tr:nth-child(8) .period-no{background:#f1fbf3!important}
+body.cm-body .tkb-matrix tbody tr:nth-child(1) .session-name{background:#ffefad!important;color:#7b5a00!important}
+body.cm-body .tkb-matrix tbody tr:nth-child(5) .session-name{background:#ccefd5!important;color:#176b34!important}
+body.cm-body .tkb-matrix tbody tr:nth-child(4)>*{border-bottom-width:2px!important;border-bottom-color:#718096!important}
+body.cm-body .tkb-matrix tbody tr:nth-child(n+1):nth-child(-n+8){height:42px}
+body.cm-body .tkb-matrix .period-no,
+body.cm-body .tkb-matrix tbody td{height:42px;min-height:42px;padding:.12rem .2rem;vertical-align:middle!important}
+body.cm-body .tkb-matrix .period-no{font-weight:800;text-align:center;line-height:1}
+body.cm-body .tkb-matrix .tkb-cell-item{display:flex;min-height:36px;flex-direction:column;align-items:center;justify-content:center}
+
 @media(max-width:991.98px){
   body.cm-body{font-size:14px}
   body.cm-body>.container{width:100%;max-width:none;padding:.75rem .65rem 1.25rem!important}
@@ -142,6 +168,9 @@ body.cm-body>footer{
   body.cm-body .modal-dialog{margin:.45rem}
   body.cm-body .modal-content{border-radius:17px}
   body.cm-body .table-responsive{border-radius:11px}
+  body.cm-body .tkb-matrix .period-no,
+  body.cm-body .tkb-matrix tbody td{height:38px;min-height:38px}
+  body.cm-body .tkb-matrix .tkb-cell-item{min-height:32px}
 }
 
 @media print{
