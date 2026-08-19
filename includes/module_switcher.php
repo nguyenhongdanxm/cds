@@ -61,3 +61,6 @@ $switchCurrentPath = basename($switchRequestPath);
   openButton.addEventListener('click',function(e){e.stopPropagation();box.classList.contains('open')?close():open()});box.querySelectorAll('[data-cds-close]').forEach(function(el){el.addEventListener('click',close)});search.addEventListener('input',function(){filter(search.value)});document.addEventListener('keydown',function(e){if(e.key==='Escape')close();if(e.altKey&&String(e.key).toLowerCase()==='m'){e.preventDefault();box.classList.contains('open')?close():open()}});
 })();
 </script>
+<?php if ($switchCurrentPath === 'thuvien.php'): ?>
+<script src="<?=e(BASE_URL.'assets/thuvien_book_enhancements.js?v=20260819-1')?>"></script>
+<?php endif; ?>
