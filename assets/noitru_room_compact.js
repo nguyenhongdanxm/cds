@@ -1,0 +1,12 @@
+document.addEventListener('DOMContentLoaded',function(){
+ if(!/mode=rooms/.test(location.search))return;
+ var headings=[].slice.call(document.querySelectorAll('h6')).filter(function(h){return /3\.\s*Danh sách phòng và sức chứa/i.test(h.textContent||'');});if(!headings.length)return;
+ var card=headings[0].closest('.assign-card');if(!card)return;
+ var head=headings[0].parentElement;var btn=document.createElement('button');btn.type='button';btn.className='btn btn-sm btn-outline-primary';btn.innerHTML='<i class="bi bi-chevron-down"></i> Mở danh sách phòng và sức chứa';
+ if(head){head.appendChild(btn);}var children=[].slice.call(card.children);children.forEach(function(el){if(el!==head)el.style.display='none';});
+ btn.addEventListener('click',function(){var open=children.some(function(el){return el!==head&&el.style.display!=='none';});children.forEach(function(el){if(el!==head)el.style.display=open?'none':'';});btn.innerHTML=open?'<i class="bi bi-chevron-down"></i> Mở danh sách phòng và sức chứa':'<i class="bi bi-chevron-up"></i> Ẩn danh sách phòng và sức chứa';});
+ card.querySelectorAll('form.group-row').forEach(function(form){var save=form.querySelector('button[value="update_group"]');if(save)save.style.display='none';var gender=form.querySelector('select[name="room_gender"]');var cap=form.querySelector('input[name="group_capacity"]');var old=form.querySelector('input[name="old_name"]');if(!gender||!old)return;var status=document.createElement('span');status.className='small text-muted';status.style.minWidth='58px';status.textContent='';gender.parentNode.insertBefore(status,gender.nextSibling);
+  function quickSave(){status.textContent='Đang lưu…';var fd=new FormData();fd.append('room',old.value);fd.append('gender',gender.value);fd.append('capacity',cap?cap.value:'1');fetch('noitru_room_quick_save.php',{method:'POST',body:fd,credentials:'same-origin'}).then(function(r){return r.json();}).then(function(x){status.textContent=x.ok?'✓ Đã lưu':'Lỗi';setTimeout(function(){if(x.ok)status.textContent='';},1600);}).catch(function(){status.textContent='Lỗi';});}
+  gender.addEventListener('change',quickSave);if(cap){var timer;cap.addEventListener('change',quickSave);cap.addEventListener('input',function(){clearTimeout(timer);timer=setTimeout(quickSave,700);});}
+ });
+});
