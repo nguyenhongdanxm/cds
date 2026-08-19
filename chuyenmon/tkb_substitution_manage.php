@@ -6,51 +6,42 @@ header('Content-Type: application/json; charset=utf-8');
 $user = cds_user();
 if (!$user) { http_response_code(401); echo json_encode(['ok'=>false,'message'=>'Chưa đăng nhập.'], JSON_UNESCAPED_UNICODE); exit; }
 $isAdmin = (($user['role'] ?? '') === 'admin');
-$canManage = $isAdmin || cds_can_feature('cm.pccm','delete') || cds_can_feature('cm.pccm','edit');
-if (!$canManage) { http_response_code(403); echo json_encode(['ok'=>false,'message'=>'Bạn chưa có quyền quản lý lịch dạy thay.'], JSON_UNESCAPED_UNICODE); exit; }
+$canApprove = $isAdmin || cds_can_feature('cm.pccm','edit');
+$canDelete = $isAdmin || cds_can_feature('cm.pccm','delete') || cds_can_feature('cm.pccm','edit');
+if (!$canApprove && !$canDelete) { http_response_code(403); echo json_encode(['ok'=>false,'message'=>'Bạn chưa có quyền quản lý lịch dạy thay.'], JSON_UNESCAPED_UNICODE); exit; }
 
 if (empty($_SESSION['tkb_sub_manage_csrf'])) $_SESSION['tkb_sub_manage_csrf'] = bin2hex(random_bytes(24));
 $csrf = (string)$_SESSION['tkb_sub_manage_csrf'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $rows = tkb_substitutions();
-    usort($rows, static function($a,$b){
-        $dateCmp = strcmp((string)($b['date']??''),(string)($a['date']??''));
-        if ($dateCmp !== 0) return $dateCmp;
-        $sessionCmp = strcmp((string)($a['session']??''),(string)($b['session']??''));
-        if ($sessionCmp !== 0) return $sessionCmp;
-        return ((int)($a['period']??0)) <=> ((int)($b['period']??0));
-    });
-    $out=[];
-    foreach($rows as $row){
-        $out[]=[
-            'id'=>(string)($row['id']??''),
-            'date'=>(string)($row['date']??''),
-            'session'=>(string)($row['session']??''),
-            'period'=>(int)($row['period']??0),
-            'class'=>(string)($row['class']??''),
-            'subject'=>(string)($row['subject']??''),
-            'absent_teacher'=>(string)($row['absent_teacher']??''),
-            'substitute_teacher'=>(string)($row['substitute_teacher']??''),
-            'status'=>(string)($row['status']??'approved'),
-        ];
-    }
-    echo json_encode(['ok'=>true,'csrf'=>$csrf,'rows'=>$out], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); exit;
+    $scope=(string)($_GET['scope']??'week');
+    $date=(string)($_GET['date']??date('Y-m-d'));
+    if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$date))$date=date('Y-m-d');
+    if($scope==='today'){$from=$to=$date;}else{$dow=(int)date('N',strtotime($date));$from=date('Y-m-d',strtotime($date.' -'.($dow-1).' days'));$to=date('Y-m-d',strtotime($from.' +6 days'));}
+    $rows = array_values(array_filter(tkb_substitutions(),static fn($r)=>(string)($r['date']??'')>=$from && (string)($r['date']??'')<=$to));
+    usort($rows, static function($a,$b){$dateCmp=strcmp((string)($a['date']??''),(string)($b['date']??''));if($dateCmp!==0)return$dateCmp;$sessionCmp=strcmp((string)($a['session']??''),(string)($b['session']??''));if($sessionCmp!==0)return$sessionCmp;return((int)($a['period']??0))<=>((int)($b['period']??0));});
+    $out=[];foreach($rows as $row){$out[]=['id'=>(string)($row['id']??''),'date'=>(string)($row['date']??''),'session'=>(string)($row['session']??''),'period'=>(int)($row['period']??0),'class'=>(string)($row['class']??''),'subject'=>(string)($row['subject']??''),'absent_teacher'=>(string)($row['absent_teacher']??''),'substitute_teacher'=>(string)($row['substitute_teacher']??''),'status'=>(string)($row['status']??'approved')];}
+    echo json_encode(['ok'=>true,'csrf'=>$csrf,'rows'=>$out,'scope'=>$scope,'from'=>$from,'to'=>$to,'can_approve'=>$canApprove,'can_delete'=>$canDelete], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['ok'=>false]); exit; }
 if (!hash_equals($csrf,(string)($_POST['csrf']??''))) { http_response_code(403); echo json_encode(['ok'=>false,'message'=>'Phiên làm việc không hợp lệ.'], JSON_UNESCAPED_UNICODE); exit; }
 $action=(string)($_POST['action']??'');
-if ($action !== 'delete_many') { http_response_code(400); echo json_encode(['ok'=>false,'message'=>'Thao tác không hợp lệ.'], JSON_UNESCAPED_UNICODE); exit; }
 
-$ids=array_values(array_unique(array_filter(array_map('strval',(array)($_POST['ids']??[])))));
-if(!$ids){ echo json_encode(['ok'=>false,'message'=>'Chưa chọn lịch dạy thay cần xóa.'], JSON_UNESCAPED_UNICODE); exit; }
-$idMap=array_fill_keys($ids,true);
-$rows=tkb_substitutions();
-$before=count($rows);
-$rows=array_values(array_filter($rows, static fn($row)=>!isset($idMap[(string)($row['id']??'')])));
-$deleted=$before-count($rows);
-if($deleted<=0){ echo json_encode(['ok'=>false,'message'=>'Không tìm thấy lịch đã chọn.'], JSON_UNESCAPED_UNICODE); exit; }
-if(!tkb_save(TKB_SUBSTITUTIONS_FILE,$rows)){ http_response_code(500); echo json_encode(['ok'=>false,'message'=>'Không lưu được dữ liệu sau khi xóa.'], JSON_UNESCAPED_UNICODE); exit; }
+if($action==='approve_many'){
+    if(!$canApprove){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Bạn chưa có quyền duyệt.'],JSON_UNESCAPED_UNICODE);exit;}
+    $ids=array_values(array_unique(array_filter(array_map('strval',(array)($_POST['ids']??[])))));if(!$ids){echo json_encode(['ok'=>false,'message'=>'Chưa chọn lịch cần duyệt.'],JSON_UNESCAPED_UNICODE);exit;}
+    $map=array_fill_keys($ids,true);$rows=tkb_substitutions();$count=0;foreach($rows as &$row)if(isset($map[(string)($row['id']??'')])){$row['status']='approved';$row['approved_at']=date('c');$row['approved_by']=(string)($user['name']??'');$row['updated_at']=date('c');$count++;}unset($row);
+    if($count&&tkb_save(TKB_SUBSTITUTIONS_FILE,$rows)){echo json_encode(['ok'=>true,'approved'=>$count,'message'=>'Đã duyệt '.$count.' lịch dạy thay.'],JSON_UNESCAPED_UNICODE);exit;}echo json_encode(['ok'=>false,'message'=>'Không duyệt được lịch đã chọn.'],JSON_UNESCAPED_UNICODE);exit;
+}
 
-echo json_encode(['ok'=>true,'deleted'=>$deleted,'message'=>'Đã xóa '.$deleted.' lịch dạy thay. Các hiển thị liên quan trên TKB và Tổng quan cũng được gỡ theo.'], JSON_UNESCAPED_UNICODE);
+if ($action === 'delete_many') {
+    if(!$canDelete){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Bạn chưa có quyền xóa.'],JSON_UNESCAPED_UNICODE);exit;}
+    $ids=array_values(array_unique(array_filter(array_map('strval',(array)($_POST['ids']??[])))));if(!$ids){echo json_encode(['ok'=>false,'message'=>'Chưa chọn lịch dạy thay cần xóa.'],JSON_UNESCAPED_UNICODE);exit;}
+    $idMap=array_fill_keys($ids,true);$rows=tkb_substitutions();$before=count($rows);$rows=array_values(array_filter($rows,static fn($row)=>!isset($idMap[(string)($row['id']??'')])));$deleted=$before-count($rows);
+    if($deleted<=0){echo json_encode(['ok'=>false,'message'=>'Không tìm thấy lịch đã chọn.'],JSON_UNESCAPED_UNICODE);exit;}
+    if(!tkb_save(TKB_SUBSTITUTIONS_FILE,$rows)){http_response_code(500);echo json_encode(['ok'=>false,'message'=>'Không lưu được dữ liệu sau khi xóa.'],JSON_UNESCAPED_UNICODE);exit;}
+    echo json_encode(['ok'=>true,'deleted'=>$deleted,'message'=>'Đã xóa '.$deleted.' lịch dạy thay. Các hiển thị liên quan trên TKB và Tổng quan cũng được gỡ theo.'],JSON_UNESCAPED_UNICODE);exit;
+}
+
+http_response_code(400);echo json_encode(['ok'=>false,'message'=>'Thao tác không hợp lệ.'],JSON_UNESCAPED_UNICODE);
