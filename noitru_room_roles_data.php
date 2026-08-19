@@ -1,0 +1,7 @@
+<?php
+require_once __DIR__.'/includes/config.php';require_once __DIR__.'/includes/auth.php';require_once __DIR__.'/includes/noitru_assignment_store.php';
+require_login();require_perm_level('nt.chiaphong','edit');header('Content-Type: application/json; charset=utf-8');
+$data=noitru_assignments_data();$rooms=[];foreach(noitru_assignment_apply(noitru_boarders_live()) as $s){$r=trim((string)($s['room_ktx']??''));if($r==='')continue;$rooms[$r][]=['id'=>(string)($s['id']??''),'name'=>(string)($s['name']??''),'class_name'=>(string)($s['class_name']??'')];}
+foreach((array)($data['room_names']??[]) as $r)if(!isset($rooms[$r]))$rooms[$r]=[];uksort($rooms,'strnatcasecmp');$out=[];$leaders=(array)($data['room_leaders']??[]);$assigned=(array)($data['room_teachers']??[]);
+foreach($rooms as $name=>$students){$lr=(array)($leaders[$name]??[]);$tr=(array)($assigned[$name]??[]);$out[]=['name'=>$name,'students'=>$students,'leader_id'=>(string)($lr['leader_id']??''),'deputy_id'=>(string)($lr['deputy_id']??''),'teacher_id'=>(string)($tr['teacher_id']??'')];}
+$teachers=[];foreach(csdl_teachers_all() as $t)if(($t['active']??true)!==false&&trim((string)($t['name']??''))!=='')$teachers[]=['id'=>(string)($t['id']??''),'name'=>(string)$t['name']];usort($teachers,static fn($a,$b)=>csdl_compare_person_names($a['name'],$b['name']));echo json_encode(['ok'=>true,'rooms'=>$out,'teachers'=>$teachers],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
