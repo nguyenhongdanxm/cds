@@ -29,3 +29,9 @@ function lib_excel_import_books(array $parsed,array &$books,bool $updateTitleDup
     foreach($parsed['items']??[] as $item){$barcode=preg_replace('/\D/','',(string)$item['barcode']);$code=lib_excel_norm_header($item['code']);$title=lib_excel_norm_header($item['title']);if($title!==''&&isset($byTitle[$title])&&!$updateTitleDuplicates){$duplicateSkipped++;continue;}$index=$barcode!==''?($byBarcode[$barcode]??null):null;if($index===null&&$code!=='')$index=$byCode[$code]??null;if($index===null&&$title!==''&&isset($byTitle[$title]))$index=$byTitle[$title];$row=$item;unset($row['row']);$row['price']=round(max(0,(float)($row['price']??0))/100)*100;$row['updated_at']=$now;if($index!==null){$old=$books[$index];$row['id']=$old['id'];$row['created_at']=$old['created_at']??$now;$row['quantity']=(int)($old['quantity']??0)+(int)$row['quantity'];foreach($row as $key=>$value)if($value===''&&isset($old[$key]))$row[$key]=$old[$key];$books[$index]=$row;$updated++;}else{$row['id']='book_'.bin2hex(random_bytes(7));$row['created_at']=$now;$books[]=$row;$new=count($books)-1;if($barcode!=='')$byBarcode[$barcode]=$new;if($code!=='')$byCode[$code]=$new;if($title!=='')$byTitle[$title]=$new;$added++;}}
     return ['added'=>$added,'updated'=>$updated,'duplicate_skipped'=>$duplicateSkipped,'skipped'=>count($parsed['errors']??[]),'errors'=>$parsed['errors']??[]];
 }
+
+// thuvien.php luôn include file này. Nạp UI xóa nhiều phiếu mượn bằng defer;
+// script tự kiểm tra tab=library_loans và chỉ hoạt động khi hàng có quyền xóa.
+if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'thuvien.php') {
+    echo '<script defer src="'.e(BASE_URL.'assets/library_loan_bulk_delete.js?v=20260819-1').'"></script>';
+}
