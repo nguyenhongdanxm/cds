@@ -33,39 +33,99 @@ function nt_assign_error_detail(string $message): array {
     return $detail;
 }
 
-/** Bổ sung lớp từ dòng Excel/CSDL để bảng lỗi không hiện "—" khi đã nhận diện được học sinh. */
+function nt_assign_vn_date($value): string {
+    $iso=nt_room_excel_date($value);
+    if(preg_match('/^(\d{4})-(\d{2})-(\d{2})$/',$iso,$m))return $m[3].'/'.$m[2].'/'.$m[1];
+    return trim((string)$value);
+}
+
+/**
+ * Bổ sung đầy đủ dữ liệu Excel và dữ liệu CSDL tương ứng để người dùng
+ * có thể nhìn/copy trực tiếp khi sửa file nguồn.
+ */
 function nt_assign_enrich_error_details(array $details,array $parsed,array $students): array {
     $excelRows=[];
     foreach((array)($parsed['rooms']??[]) as $room=>$rows){
         foreach((array)$rows as $row){
             $key=(string)$room.'|'.(string)($row['row']??'');
-            $excelRows[$key]=$row;
+            $excelRows[$key]=$row+['room'=>$room];
         }
     }
-    $byName=[];
+
+    $byName=[];$byNameClass=[];
     foreach($students as $student){
         $nameKey=nt_room_excel_norm($student['name']??'');
-        if($nameKey!=='')$byName[$nameKey][]=$student;
+        $classKey=nt_room_excel_norm($student['class_name']??'');
+        if($nameKey!==''){
+            $byName[$nameKey][]=$student;
+            $byNameClass[$nameKey.'|'.$classKey][]=$student;
+        }
     }
+
     foreach($details as &$detail){
         $rowKey=(string)($detail['room']??'').'|'.(string)($detail['row']??'');
         $excel=$excelRows[$rowKey]??null;
-        if($excel){
-            if(trim((string)($detail['student']??''))==='')$detail['student']=trim((string)($excel['name']??''));
-            if(trim((string)($detail['class']??''))==='')$detail['class']=trim((string)($excel['class']??''));
+
+        $excelName=trim((string)($excel['name']??$detail['student']??''));
+        $excelClass=trim((string)($excel['class']??$detail['class']??''));
+        $excelDob=trim((string)($excel['dob']??''));
+        $excelGender=trim((string)($excel['gender']??''));
+        $excelRoom=trim((string)($excel['room']??$detail['room']??''));
+        $excelNote=trim((string)($excel['note']??''));
+        $rowNumber=(int)($detail['row']??0);
+
+        $candidates=[];
+        if($excelName!==''){
+            $nameKey=nt_room_excel_norm($excelName);
+            $classKey=nt_room_excel_norm($excelClass);
+            if($excelClass!==''&&isset($byNameClass[$nameKey.'|'.$classKey]))$candidates=$byNameClass[$nameKey.'|'.$classKey];
+            if(!$candidates)$candidates=$byName[$nameKey]??[];
         }
-        $studentName=trim((string)($detail['student']??''));
-        if($studentName==='')continue;
-        $candidates=$byName[nt_room_excel_norm($studentName)]??[];
-        $excelDob=$excel?nt_room_excel_date($excel['dob']??''):'';
         if(count($candidates)>1&&$excelDob!==''){
-            $dobMatches=array_values(array_filter($candidates,static fn($s)=>nt_room_excel_date($s['dob']??'')===$excelDob));
+            $dobMatches=array_values(array_filter($candidates,static fn($s)=>nt_room_excel_date($s['dob']??'')===nt_room_excel_date($excelDob)));
             if(count($dobMatches)===1)$candidates=$dobMatches;
         }
-        if(count($candidates)===1){
-            $dbClass=trim((string)($candidates[0]['class_name']??''));
-            if($dbClass!=='')$detail['class']=$dbClass;
+
+        $db=null;
+        if(count($candidates)===1)$db=$candidates[0];
+
+        $detail['student']=$excelName;
+        $detail['class']=$db?trim((string)($db['class_name']??'')):$excelClass;
+        $detail['excel']=[
+            'stt'=>$rowNumber>1?$rowNumber-1:'',
+            'name'=>$excelName,
+            'class'=>$excelClass,
+            'dob'=>nt_assign_vn_date($excelDob),
+            'gender'=>$excelGender,
+            'room'=>$excelRoom,
+            'note'=>$excelNote,
+        ];
+        $detail['database']=$db?[
+            'name'=>trim((string)($db['name']??'')),
+            'class'=>trim((string)($db['class_name']??'')),
+            'dob'=>nt_assign_vn_date($db['dob']??''),
+            'gender'=>noitru_assignment_gender($db),
+        ]:[
+            'name'=>'','class'=>'','dob'=>'','gender'=>''
+        ];
+
+        $diff=[];
+        if($db){
+            if(nt_room_excel_norm($excelName)!==nt_room_excel_norm($db['name']??''))$diff[]='Họ và tên';
+            if(nt_room_excel_norm($excelClass)!==nt_room_excel_norm($db['class_name']??''))$diff[]='Lớp';
+            if($excelDob!==''&&nt_room_excel_date($excelDob)!==nt_room_excel_date($db['dob']??''))$diff[]='Ngày sinh';
+            if($excelGender!==''&&nt_room_excel_norm($excelGender)!==nt_room_excel_norm(noitru_assignment_gender($db)))$diff[]='Giới tính';
         }
+        $detail['different_fields']=$diff;
+        $detail['corrected_tsv']=implode("\t",[
+            (string)($detail['excel']['stt']??''),
+            (string)($db['name']??$excelName),
+            (string)($db['class_name']??$excelClass),
+            (string)($db?nt_assign_vn_date($db['dob']??''):$detail['excel']['dob']),
+            (string)($db?noitru_assignment_gender($db):$excelGender),
+            $excelRoom,
+            $excelNote,
+        ]);
     }
     unset($detail);
     return $details;
@@ -77,30 +137,22 @@ $data=noitru_assignments_data();
 
 if($action==='create_groups_append'){
     $count=max(1,min(200,(int)($_POST['group_count']??1)));
-    $prefix=(string)($_POST['prefix']??'');
-    $prefix=trim($prefix);
+    $prefix=trim((string)($_POST['prefix']??''));
     if($prefix==='')$prefix='Phòng';
-    $separator=preg_match('/\s$/u',(string)($_POST['prefix']??''))?' ':' ';
-    $base=rtrim($prefix).$separator;
+    $base=rtrim($prefix).' ';
     $capacity=max(1,min(100,(int)($_POST['default_capacity']??8)));
     $gender=(string)($_POST['default_room_gender']??'Linh hoạt');
     if(!in_array($gender,['Xen kẽ','Nam','Nữ','Linh hoạt'],true))$gender='Linh hoạt';
 
     $existing=array_values(array_unique(array_filter(array_map('strval',(array)($data['room_names']??[])))));
-    $used=array_fill_keys($existing,true);
-    $max=0;
-    foreach($existing as $name){
-        if(preg_match('/^'.preg_quote($base,'/').'(\d+)$/u',$name,$m))$max=max($max,(int)$m[1]);
-    }
+    $used=array_fill_keys($existing,true);$max=0;
+    foreach($existing as $name)if(preg_match('/^'.preg_quote($base,'/').'(\d+)$/u',$name,$m))$max=max($max,(int)$m[1]);
     $added=[];$number=$max+1;
     while(count($added)<$count){
         $name=$base.$number++;
         if(isset($used[$name]))continue;
-        $used[$name]=true;$added[]=$name;
-        $data['room_names'][]=$name;
-        $data['room_capacities'][$name]=$capacity;
-        $i=count($added)-1;
-        $data['room_genders'][$name]=$gender==='Xen kẽ'?($i%2===0?'Nam':'Nữ'):($gender==='Linh hoạt'?'Linh hoạt':$gender);
+        $used[$name]=true;$added[]=$name;$data['room_names'][]=$name;$data['room_capacities'][$name]=$capacity;
+        $i=count($added)-1;$data['room_genders'][$name]=$gender==='Xen kẽ'?($i%2===0?'Nam':'Nữ'):($gender==='Linh hoạt'?'Linh hoạt':$gender);
     }
     $data['history'][]=['mode'=>'rooms','action'=>'create_groups_append','by'=>$by,'at'=>date('c'),'count'=>count($added),'names'=>$added];
     noitru_assignments_save($data,$by);
@@ -111,19 +163,18 @@ if($action==='import_rooms_excel_detailed'){
     if(!isset($_FILES['room_excel'])||($_FILES['room_excel']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK){
         nt_assign_json(['ok'=>false,'message'=>'Hãy chọn file Excel XLSX hợp lệ.','errors'=>[['row'=>'','student'=>'','class'=>'','room'=>'','error'=>'Không nhận được file Excel hoặc quá trình tải file bị lỗi.']]]);
     }
-    $upload=$_FILES['room_excel'];
-    $extension=mb_strtolower(pathinfo((string)($upload['name']??''),PATHINFO_EXTENSION),'UTF-8');
-    $size=(int)($upload['size']??0);
+    $upload=$_FILES['room_excel'];$extension=mb_strtolower(pathinfo((string)($upload['name']??''),PATHINFO_EXTENSION),'UTF-8');$size=(int)($upload['size']??0);
     if($extension!=='xlsx')nt_assign_json(['ok'=>false,'message'=>'Chỉ chấp nhận file .xlsx.','errors'=>[['row'=>'','student'=>'','class'=>'','room'=>'','error'=>'Định dạng file không phải XLSX.']]]);
     if($size<=0||$size>10*1024*1024)nt_assign_json(['ok'=>false,'message'=>'File Excel không hợp lệ.','errors'=>[['row'=>'','student'=>'','class'=>'','room'=>'','error'=>'Dung lượng file phải từ 1 byte đến 10 MB.']]]);
 
     $parsed=nt_room_excel_parse((string)$upload['tmp_name']);
+    $boarders=noitru_assignment_apply(noitru_boarders_live());
     if(empty($parsed['ok'])){
         $details=array_map('nt_assign_error_detail',(array)($parsed['errors']??['File không hợp lệ.']));
+        $details=nt_assign_enrich_error_details($details,$parsed,$boarders);
         nt_assign_json(['ok'=>false,'message'=>'File Excel có lỗi dữ liệu. Chưa có dữ liệu nào được lưu.','errors'=>$details]);
     }
 
-    $boarders=noitru_assignment_apply(noitru_boarders_live());
     $replaceAll=(($_POST['import_scope']??'merge')==='replace_all');
     $result=nt_room_excel_match_and_apply($parsed,$boarders,$data,$replaceAll);
     if(empty($result['ok'])){
