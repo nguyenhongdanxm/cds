@@ -33,6 +33,44 @@ function nt_assign_error_detail(string $message): array {
     return $detail;
 }
 
+/** Bổ sung lớp từ dòng Excel/CSDL để bảng lỗi không hiện "—" khi đã nhận diện được học sinh. */
+function nt_assign_enrich_error_details(array $details,array $parsed,array $students): array {
+    $excelRows=[];
+    foreach((array)($parsed['rooms']??[]) as $room=>$rows){
+        foreach((array)$rows as $row){
+            $key=(string)$room.'|'.(string)($row['row']??'');
+            $excelRows[$key]=$row;
+        }
+    }
+    $byName=[];
+    foreach($students as $student){
+        $nameKey=nt_room_excel_norm($student['name']??'');
+        if($nameKey!=='')$byName[$nameKey][]=$student;
+    }
+    foreach($details as &$detail){
+        $rowKey=(string)($detail['room']??'').'|'.(string)($detail['row']??'');
+        $excel=$excelRows[$rowKey]??null;
+        if($excel){
+            if(trim((string)($detail['student']??''))==='')$detail['student']=trim((string)($excel['name']??''));
+            if(trim((string)($detail['class']??''))==='')$detail['class']=trim((string)($excel['class']??''));
+        }
+        $studentName=trim((string)($detail['student']??''));
+        if($studentName==='')continue;
+        $candidates=$byName[nt_room_excel_norm($studentName)]??[];
+        $excelDob=$excel?nt_room_excel_date($excel['dob']??''):'';
+        if(count($candidates)>1&&$excelDob!==''){
+            $dobMatches=array_values(array_filter($candidates,static fn($s)=>nt_room_excel_date($s['dob']??'')===$excelDob));
+            if(count($dobMatches)===1)$candidates=$dobMatches;
+        }
+        if(count($candidates)===1){
+            $dbClass=trim((string)($candidates[0]['class_name']??''));
+            if($dbClass!=='')$detail['class']=$dbClass;
+        }
+    }
+    unset($detail);
+    return $details;
+}
+
 if(($_SERVER['REQUEST_METHOD']??'')!=='POST') nt_assign_json(['ok'=>false,'message'=>'Phương thức không hợp lệ.'],405);
 $action=(string)($_POST['action']??'');
 $data=noitru_assignments_data();
@@ -90,6 +128,7 @@ if($action==='import_rooms_excel_detailed'){
     $result=nt_room_excel_match_and_apply($parsed,$boarders,$data,$replaceAll);
     if(empty($result['ok'])){
         $details=array_map('nt_assign_error_detail',(array)($result['errors']??[]));
+        $details=nt_assign_enrich_error_details($details,$parsed,$boarders);
         nt_assign_json(['ok'=>false,'message'=>'Không thể nhập vì có dòng không khớp CSDL. Chưa có dữ liệu nào được lưu.','errors'=>$details]);
     }
 
