@@ -102,6 +102,7 @@ document.addEventListener('DOMContentLoaded',function(){var endpoint='<?= e(BASE
 });
 </script>
 <script src="<?= e(BASE_URL . 'assets/noitru_assign_resolve.js?v=20260819-3') ?>"></script>
+<script src="<?= e(BASE_URL . 'assets/noitru_room_compact.js?v=20260819-4') ?>"></script>
 <?php endif; ?>
 <?php if ($ntPage === 'noitru_list.php' && (($_GET['view'] ?? '') === 'rooms') && trim((string)($_GET['room'] ?? '')) !== ''): ?>
 <script src="<?= e(BASE_URL . 'assets/noitru_room_list_roles.js?v=20260819-1') ?>"></script>
