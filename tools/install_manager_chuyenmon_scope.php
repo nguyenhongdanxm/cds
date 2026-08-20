@@ -23,26 +23,12 @@ $runtime = $root . '/includes/chuyenmon_permission_runtime.php';
 patch_one($runtime, [[
     "function cds_cm_feature_access_for_user(array \$user, string \$code, string \$rootDataPath): string {\n    if ((\$user['role'] ?? '') === 'admin') return 'delete';",
     "function cds_cm_feature_access_for_user(array \$user, string \$code, string \$rootDataPath): string {\n    if ((\$user['role'] ?? '') === 'admin') return 'delete';\n    if ((\$user['role'] ?? '') === 'manager' || in_array('manager', (array)(\$user['groups'] ?? []), true)) return 'edit';"
-]], 'CDS_MANAGER_CHUYENMON_SCOPE_V1');
+]], 'CDS_MANAGER_CHUYENMON_SCOPE_V2');
 
 $plans = $root . '/chuyenmon/includes/education_plans.php';
-patch_one($plans, [
-    [
-        "\$educationIsAdmin = \$educationRole === 'admin';\n\$educationIsLeader = \$educationRole === 'totruong' || in_array('totruong', \$educationGroups, true);",
-        "\$educationIsAdmin = \$educationRole === 'admin';\n\$educationIsManager = \$educationRole === 'manager' || in_array('manager', \$educationGroups, true);\n\$educationCanViewAll = \$educationIsAdmin || \$educationIsManager;\n\$educationCanApproveAll = \$educationIsAdmin || \$educationIsManager;\n\$educationIsLeader = \$educationRole === 'totruong' || in_array('totruong', \$educationGroups, true);"
-    ],
-    [
-        "\$educationVisibleRows = array_values(array_filter(\$educationRows, fn(\$row)=>cm_education_is_visible(\$row,\$educationIsAdmin,\$educationIsLeader,\$educationTeacher,\$educationGroup)));",
-        "\$educationVisibleRows = array_values(array_filter(\$educationRows, fn(\$row)=>cm_education_is_visible(\$row,\$educationCanViewAll,\$educationIsLeader,\$educationTeacher,\$educationGroup)));"
-    ],
-    [
-        "if (!\$educationIsAdmin && !\$educationIsLeader) { http_response_code(403); exit('Chỉ TTCM hoặc quản trị được duyệt.'); }",
-        "if (!\$educationCanApproveAll && !\$educationIsLeader) { http_response_code(403); exit('Chỉ TTCM hoặc quản trị được duyệt.'); }"
-    ],
-    [
-        "if (!\$educationIsAdmin && (\$educationGroup === '' || cm_education_norm(\$row['teacher_group'] ?? '') !== cm_education_norm(\$educationGroup))) { http_response_code(403); exit('TTCM chỉ được duyệt kế hoạch trong tổ của mình.'); }",
-        "if (!\$educationCanApproveAll && (\$educationGroup === '' || cm_education_norm(\$row['teacher_group'] ?? '') !== cm_education_norm(\$educationGroup))) { http_response_code(403); exit('TTCM chỉ được duyệt kế hoạch trong tổ của mình.'); }"
-    ]
-], 'CDS_MANAGER_EDUCATION_PLAN_SCOPE_V1');
+patch_one($plans, [[
+    "\$educationIsAdmin = \$educationRole === 'admin';\n\$educationIsLeader = \$educationRole === 'totruong' || in_array('totruong', \$educationGroups, true);",
+    "// Quản trị viên là quản trị nội dung trong phân hệ Kế hoạch giáo dục.\n// Không đồng nghĩa Admin hệ thống: users.php và cấu hình lõi vẫn chỉ dành cho role admin.\n\$educationIsAdmin = \$educationRole === 'admin' || \$educationRole === 'manager' || in_array('manager', \$educationGroups, true);\n\$educationIsLeader = \$educationRole === 'totruong' || in_array('totruong', \$educationGroups, true);"
+]], 'CDS_MANAGER_EDUCATION_PLAN_SCOPE_V2');
 
 echo "MANAGER_CHUYENMON_SCOPE_OK\n";
