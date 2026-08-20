@@ -54,13 +54,21 @@ for source in "${!mirrored[@]}"; do
 done
 
 PHP_BIN=""
-for candidate in /usr/local/bin/php /usr/bin/php; do
-  if [ -x "$candidate" ]; then PHP_BIN="$candidate"; break; fi
+# Ưu tiên PHP ea-php mới nhất của cPanel. /usr/local/bin/php trên máy chủ
+# có thể vẫn là PHP 5.6 dù website đang chạy PHP 8.x.
+for candidate in /opt/cpanel/ea-php*/root/usr/bin/php; do
+  if [ -x "$candidate" ]; then PHP_BIN="$candidate"; fi
 done
+if [ -z "$PHP_BIN" ]; then
+  for candidate in /usr/bin/php /usr/local/bin/php; do
+    if [ -x "$candidate" ]; then PHP_BIN="$candidate"; break; fi
+  done
+fi
 if [ -z "$PHP_BIN" ]; then
   echo "Không tìm thấy PHP CLI để kiểm tra cú pháp." >&2
   exit 1
 fi
+echo "Kiểm tra bằng: $($PHP_BIN -v | head -n 1)"
 
 # cPanel có thể chạy deployment trong môi trường không gắn /dev/fd.
 # Dùng pipeline thay cho process substitution để vẫn kiểm tra tuần tự và
