@@ -450,7 +450,8 @@ function cds_dashboard_document_notices(): array {
 
 function cds_dashboard_notice_tasks(array $user, int $limit = 0): array {
     $feed = cds_dashboard_feed_data();
-    $rows = array_merge(cds_dashboard_staff_milestones($user), cds_dashboard_document_notices());
+    require_once __DIR__ . '/timetable_store.php';
+    $rows = array_merge(cds_dashboard_staff_milestones($user), cds_dashboard_document_notices(), can_module('chuyenmon','view') ? tt_dashboard_notices() : []);
     $identityLower = cds_dashboard_user_identities($user);
     foreach ($feed['notices'] as $row) {
         if (($row['_dashboard_module'] ?? '') !== 'chuyenmon' || !cds_dashboard_feed_visible($row)) continue;
@@ -551,5 +552,6 @@ function cds_dashboard_quick_actions(array $user): array {
     $add('td.teacher_attendance','thidua.php?section=teacher_attendance','Chấm công','bi-calendar-check','#ca8a04');
     $add('cm.baocao.dugio','danhgia.php?view=profile','Hồ sơ đánh giá','bi-person-vcard','#315b8a');
     $add('cm.dashboard',defined('URL_CHUYEN_MON') ? URL_CHUYEN_MON : 'chuyenmon/','Chuyên môn','bi-journal-bookmark-fill','#168652');
+    if (can_module('chuyenmon', 'view')) $items[] = ['url'=>'thoikhoabieu.php','label'=>'Thời khóa biểu','icon'=>'bi-calendar3','color'=>'#2563eb'];
     return $items;
 }

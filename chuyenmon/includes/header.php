@@ -164,6 +164,12 @@ require_once __DIR__ . '/cds_module_switcher.php';
   </ul>
 </li>
 
+<li class="nav-item">
+  <a class="nav-link <?= $current==='thoikhoabieu'?'active':'' ?>" href="<?= BASE_URL ?>thoikhoabieu.php">
+    <i class="bi bi-calendar3"></i> Thời khóa biểu
+  </a>
+</li>
+
 <?php else: ?>
 <li class="nav-item"><a class="nav-link <?= $current=='tracuu'?'active':'' ?>" href="<?= BASE_URL ?>tracuu.php"><i class="bi bi-search"></i> Tra cứu phân công</a></li>
 <li class="nav-item"><a class="nav-link <?= $current=='ketqua'?'active':'' ?>" href="<?= BASE_URL ?>ketqua.php"><i class="bi bi-folder2-open"></i> Kết quả</a></li>
