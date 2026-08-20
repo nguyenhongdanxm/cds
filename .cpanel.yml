@@ -5,6 +5,7 @@ deployment:
     - /bin/bash tools/verify_chuyenmon_source.sh "$PWD"
     - /bin/cp -R assets $DEPLOYPATH
     - /bin/cp -R includes $DEPLOYPATH
+    - /usr/local/bin/php tools/install_manager_permission_group.php "$DEPLOYPATH/includes/permissions.php"
     - /bin/cp -R chuyenmon $DEPLOYPATH
     - /bin/sed -i 's|chuyenmon-unified.css?v=20260817-1|chuyenmon-unified.css?v=20260820-3|g' $DEPLOYPATH/chuyenmon/includes/header.php
     - /bin/bash tools/install_student_photo.sh $DEPLOYPATH
