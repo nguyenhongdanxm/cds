@@ -32,6 +32,7 @@ function cm_observation_observer_display(array $record): string {
 }
 function cm_observation_teacher_id($name): string {
     foreach(load_json(dirname(__DIR__).'/data/teachers.json',[]) as $teacher) {
+        if (!is_array($teacher)) continue;
         if(cm_observation_norm($teacher['name']??'')===cm_observation_norm($name)) return (string)($teacher['id']??'');
     }
     return '';
@@ -39,6 +40,8 @@ function cm_observation_teacher_id($name): string {
 function cm_observation_school_year(): array {
     $file = dirname(__DIR__) . '/data/school_years.json';
     $years = load_json($file, []);
+    if (!is_array($years)) $years = [];
+    $years = array_values(array_filter($years, 'is_array'));
     foreach ($years as $year) if (!empty($year['is_current'])) return $year;
     return $years[0] ?? ['id'=>'default','label'=>date('Y').'–'.(date('Y')+1),'start'=>date('Y').'-09-01','end'=>(date('Y')+1).'-05-31'];
 }
@@ -76,6 +79,7 @@ foreach ($weeks as $number=>$week) if ($today >= $week['start'] && $today <= $we
 
 $assignments = [];
 foreach (get_assignments() as $assignment) {
+    if (!is_array($assignment)) continue;
     if (cm_observation_norm($assignment['teacher'] ?? '') !== cm_observation_norm($teacherName)) continue;
     $subject = trim((string)($assignment['subject'] ?? ''));
     $class = trim((string)($assignment['class'] ?? ''));
@@ -95,6 +99,9 @@ foreach ($allTeachers as $name) {
 $dataFile = DATA_PATH . '/observations.json';
 $records = load_json($dataFile, []);
 if (!is_array($records)) $records = [];
+// Dữ liệu từ các phiên bản cũ có thể còn dòng rỗng hoặc sai kiểu.
+// Chuẩn hóa trước khi gọi các hàm khai báo kiểu array để tránh lỗi HTTP 500.
+$records = array_values(array_filter($records, 'is_array'));
 // Luôn tính lại xếp loại từ điểm để dữ liệu cũ tuân theo thang dự giờ hiện hành.
 foreach ($records as &$record) {
     cm_observation_form_recalculate($record);

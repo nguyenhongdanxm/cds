@@ -12,10 +12,25 @@ required=(
   chuyenmon/includes/subject_meta.php
   chuyenmon/index.php
   chuyenmon/tracuu.php
+  chuyenmon/tongquan.php
   chuyenmon/them.php
   chuyenmon/danhsach.php
+  chuyenmon/ketqua.php
+  chuyenmon/thongke.php
+  chuyenmon/giaovien.php
+  chuyenmon/monhoc.php
+  chuyenmon/lop.php
+  chuyenmon/kiemnhiem.php
+  chuyenmon/xuat_bang.php
   chuyenmon/kehoach.php
   chuyenmon/baocao.php
+  chuyenmon/dugio.php
+  chuyenmon/phieudugio.php
+  chuyenmon/kiemtrahoso.php
+  chuyenmon/danhgia.php
+  chuyenmon/thoikhoabieu.php
+  chuyenmon/includes/observation_form.php
+  chuyenmon/includes/timetable_store.php
   includes/json_store.php
   includes/session_user.php
   includes/chuyenmon_permission_runtime.php

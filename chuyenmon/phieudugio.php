@@ -9,7 +9,7 @@ function obs_form_names(array $record): array { $rows=$record['observers']??$rec
 
 $user=cds_user()??[];$isAdmin=($user['role']??'')==='admin';$isLeader=($user['role']??'')==='totruong'||in_array('totruong',(array)($user['groups']??[]),true);
 $teacherName=trim((string)($user['teacher_name']??$user['name']??''));
-$dataFile=DATA_PATH.'/observations.json';$records=load_json($dataFile,[]);if(!is_array($records))$records=[];
+$dataFile=DATA_PATH.'/observations.json';$records=load_json($dataFile,[]);if(!is_array($records))$records=[];$records=array_values(array_filter($records,'is_array'));
 $id=trim((string)($_GET['id']??$_POST['id']??''));$recordIndex=null;
 foreach($records as $index=>$row)if((string)($row['id']??'')===$id){$recordIndex=$index;break;}
 if($recordIndex===null){http_response_code(404);exit('Không tìm thấy tiết dự giờ.');}
