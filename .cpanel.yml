@@ -2,6 +2,3 @@
 deployment:
   tasks:
     - /bin/cp deploy_probe.txt /home/capnachi/cds.noitruxinman.edu.vn/deploy_probe.txt
-    - /bin/cp -R assets /home/capnachi/cds.noitruxinman.edu.vn/
-    - /bin/cp -R includes /home/capnachi/cds.noitruxinman.edu.vn/
-    - /bin/cp -R chuyenmon /home/capnachi/cds.noitruxinman.edu.vn/
