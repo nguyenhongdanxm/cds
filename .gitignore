@@ -2,4 +2,6 @@
 /includes/database.conf
 /.env
 /.env.*
+/error_log
+**/error_log
 
