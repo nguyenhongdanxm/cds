@@ -39,11 +39,17 @@
     ctx.textAlign='left';ctx.fillStyle='#64748b';ctx.font='16px Arial';ctx.fillText('Ghi chú: “Chưa báo” = lớp chưa gửi báo ăn của bữa đó; “Nghỉ” = bữa ăn được đặt trạng thái nghỉ.',margin,y+34);ctx.textAlign='right';ctx.fillText('Xuất lúc '+new Date().toLocaleString('vi-VN'),W-margin,y+34);return canvas;
   }
 
-  window.openMealQuantityExport=function(){
-    var data=window.ntMealQuantityData,date=parseDateFromPage();
-    if(!data||!data.rows){alert('Chưa có dữ liệu số lượng để tạo ảnh. Hãy tải lại trang.');return;}
+  function showQuantity(data,date){
     var canvas=buildCanvas(data);if(typeof mealDayExport!=='undefined'){mealDayExport.type='quantity';mealDayExport.canvas=canvas;mealDayExport.filename='so-luong-an-theo-lop-'+date+'.png';}
     var title=document.getElementById('mealDayExportTitle'),preview=document.getElementById('mealDayExportPreview'),modal=document.getElementById('mealDayExportModal');if(title)title.innerHTML='<i class="bi bi-table me-2"></i>Ảnh số lượng ăn theo lớp';if(preview)preview.src=canvas.toDataURL('image/png');if(modal&&window.bootstrap)bootstrap.Modal.getOrCreateInstance(modal).show();
+  }
+
+  window.openMealQuantityExport=function(){
+    var date=parseDateFromPage();if(!date){alert('Không xác định được ngày cần xuất.');return;}
+    fetch((window.BASE_URL||'/')+'noitru_meal_quantity_data.php?date='+encodeURIComponent(date),{credentials:'same-origin',cache:'no-store'})
+      .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+      .then(function(data){if(!data||!data.ok)throw new Error((data&&data.message)||'Không lấy được dữ liệu');showQuantity(data,date);})
+      .catch(function(err){alert('Không tạo được ảnh số lượng: '+err.message);});
   };
   document.addEventListener('DOMContentLoaded',function(){var summaryBtn=document.querySelector('button[onclick="openMealDayExport(\'summary\')"]');if(!summaryBtn)return;var li=summaryBtn.closest('li');if(!li||document.getElementById('mealQuantityExportItem'))return;var newLi=document.createElement('li');newLi.id='mealQuantityExportItem';newLi.innerHTML='<button class="dropdown-item" type="button" onclick="openMealQuantityExport()"><i class="bi bi-table text-primary me-2"></i>Ảnh số lượng</button>';li.insertAdjacentElement('afterend',newLi);});
 })();
