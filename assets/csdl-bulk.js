@@ -67,3 +67,67 @@ document.addEventListener('change', function (e) {
     if (m) csdlUpdateCount(m[1]);
   }
 });
+
+/* Tab Lớp/khối: đổi Định mức thành Sĩ số và đếm học sinh đang học theo lớp. */
+async function csdlRenderCurrentClassSizes() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('tab') !== 'classes') return;
+
+  var table = document.querySelector('table.table-full');
+  if (!table) return;
+
+  var headers = Array.from(table.querySelectorAll('thead th'));
+  var sizeIndex = headers.findIndex(function (th) {
+    return th.textContent.trim().toLowerCase() === 'định mức';
+  });
+  if (sizeIndex < 0) return;
+
+  headers[sizeIndex].textContent = 'Sĩ số';
+  headers[sizeIndex].title = 'Số học sinh đang học hiện tại của lớp';
+
+  try {
+    var url = (window.CSDL_BASE || '') + 'csdl.php?tab=students&status=active';
+    var response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+
+    var html = await response.text();
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var studentTable = doc.querySelector('table.table-full');
+    if (!studentTable) throw new Error('Không đọc được bảng học sinh');
+
+    var studentHeaders = Array.from(studentTable.querySelectorAll('thead th'));
+    var classIndex = studentHeaders.findIndex(function (th) {
+      return th.textContent.trim().toLowerCase() === 'lớp';
+    });
+    if (classIndex < 0) throw new Error('Không tìm thấy cột lớp');
+
+    var counts = Object.create(null);
+    studentTable.querySelectorAll('tbody tr').forEach(function (tr) {
+      var cells = tr.querySelectorAll('td');
+      if (!cells.length || !cells[classIndex]) return;
+      var className = cells[classIndex].textContent.trim();
+      if (!className || className === '—') return;
+      counts[className] = (counts[className] || 0) + 1;
+    });
+
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      var cells = tr.querySelectorAll('td');
+      if (!cells.length || !cells[2] || !cells[sizeIndex]) return;
+      var className = cells[2].textContent.trim();
+      cells[sizeIndex].textContent = String(counts[className] || 0);
+      cells[sizeIndex].title = 'Số học sinh đang học hiện tại';
+      cells[sizeIndex].style.fontWeight = '700';
+    });
+  } catch (err) {
+    console.error('Không thể tải sĩ số lớp:', err);
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      var cells = tr.querySelectorAll('td');
+      if (cells[sizeIndex]) {
+        cells[sizeIndex].textContent = '—';
+        cells[sizeIndex].title = 'Không tải được sĩ số hiện tại';
+      }
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', csdlRenderCurrentClassSizes);
