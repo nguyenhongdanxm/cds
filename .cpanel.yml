@@ -1,4 +1,8 @@
 ---
 deployment:
   tasks:
-    - /bin/cp deploy_probe.txt /home/capnachi/cds.noitruxinman.edu.vn/deploy_probe.txt
+    - /bin/cp -R assets /home/capnachi/cds.noitruxinman.edu.vn/
+    - /bin/cp -R includes /home/capnachi/cds.noitruxinman.edu.vn/
+    - /bin/cp -R chuyenmon /home/capnachi/cds.noitruxinman.edu.vn/
+    - /bin/cp activity.php admin.php hoclieu.php hoclieu_file.php chuyenmon.php csdl.php csdl_preweeks.php csdl_export.php csdl_student_cards.php danhgia.php dashboard_settings.php database_admin.php index.php login.php logout.php noitru.php noitru_attendance.php noitru_list.php noitru_assign.php noitru_assign_enhanced.php noitru_assign_sync.php noitru_room_template.php noitru_room_roles.php noitru_room_roles_data.php noitru_room_quick_save.php push_api.php student_card_students.php student_photo.php student_verify.php thoikhoabieu.php thuvien.php thuvien_book_supplement.php thuvien_bienban.php thietbi_phieu.php thidua.php thidua_baiviet.php users.php vanban.php /home/capnachi/cds.noitruxinman.edu.vn/
+    - /bin/cp manifest.webmanifest sw.js /home/capnachi/cds.noitruxinman.edu.vn/
