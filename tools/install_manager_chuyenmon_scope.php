@@ -19,16 +19,27 @@ function patch_one(string $file, array $replacements, string $marker): void {
     if ($code !== 0) { fwrite(STDERR, implode("\n", $out)."\n"); exit(6); }
 }
 
+// Runtime quyền Chuyên môn hiện đã có manager trực tiếp trong source chính.
+// Chỉ vá các bản cũ để giữ tương thích với hosting chưa nhận source mới.
 $runtime = $root . '/includes/chuyenmon_permission_runtime.php';
-patch_one($runtime, [[
-    "function cds_cm_feature_access_for_user(array \$user, string \$code, string \$rootDataPath): string {\n    if ((\$user['role'] ?? '') === 'admin') return 'delete';",
-    "function cds_cm_feature_access_for_user(array \$user, string \$code, string \$rootDataPath): string {\n    if ((\$user['role'] ?? '') === 'admin') return 'delete';\n    if ((\$user['role'] ?? '') === 'manager' || in_array('manager', (array)(\$user['groups'] ?? []), true)) return 'edit';"
-]], 'CDS_MANAGER_CHUYENMON_SCOPE_V2');
+$runtimeSrc = is_file($runtime) ? (string)file_get_contents($runtime) : '';
+if ($runtimeSrc === '') { fwrite(STDERR, "Không tìm thấy $runtime\n"); exit(2); }
+if (strpos($runtimeSrc, "if ($role === 'manager' || in_array('manager', $userGroups, true)) return 'edit';") === false
+    && strpos($runtimeSrc, "if (($user['role'] ?? '') === 'manager' || in_array('manager', (array)($user['groups'] ?? []), true)) return 'edit';") === false) {
+    patch_one($runtime, [[
+        "function cds_cm_feature_access_for_user(array \$user, string \$code, string \$rootDataPath): string {\n    if ((\$user['role'] ?? '') === 'admin') return 'delete';",
+        "function cds_cm_feature_access_for_user(array \$user, string \$code, string \$rootDataPath): string {\n    if ((\$user['role'] ?? '') === 'admin') return 'delete';\n    if ((\$user['role'] ?? '') === 'manager' || in_array('manager', (array)(\$user['groups'] ?? []), true)) return 'edit';"
+    ]], 'CDS_MANAGER_CHUYENMON_SCOPE_V2');
+}
 
 $plans = $root . '/chuyenmon/includes/education_plans.php';
-patch_one($plans, [[
-    "\$educationIsAdmin = \$educationRole === 'admin';\n\$educationIsLeader = \$educationRole === 'totruong' || in_array('totruong', \$educationGroups, true);",
-    "// Quản trị viên là quản trị nội dung trong phân hệ Kế hoạch giáo dục.\n// Không đồng nghĩa Admin hệ thống: users.php và cấu hình lõi vẫn chỉ dành cho role admin.\n\$educationIsAdmin = \$educationRole === 'admin' || \$educationRole === 'manager' || in_array('manager', \$educationGroups, true);\n\$educationIsLeader = \$educationRole === 'totruong' || in_array('totruong', \$educationGroups, true);"
-]], 'CDS_MANAGER_EDUCATION_PLAN_SCOPE_V2');
+$planSrc = is_file($plans) ? (string)file_get_contents($plans) : '';
+if ($planSrc === '') { fwrite(STDERR, "Không tìm thấy $plans\n"); exit(2); }
+if (strpos($planSrc, "in_array('manager', $educationGroups, true)") === false) {
+    patch_one($plans, [[
+        "\$educationIsAdmin = \$educationRole === 'admin';\n\$educationIsLeader = \$educationRole === 'totruong' || in_array('totruong', \$educationGroups, true);",
+        "// Quản trị viên là quản trị nội dung trong phân hệ Kế hoạch giáo dục.\n// Không đồng nghĩa Admin hệ thống: users.php và cấu hình lõi vẫn chỉ dành cho role admin.\n\$educationIsAdmin = \$educationRole === 'admin' || \$educationRole === 'manager' || in_array('manager', \$educationGroups, true);\n\$educationIsLeader = \$educationRole === 'totruong' || in_array('totruong', \$educationGroups, true);"
+    ]], 'CDS_MANAGER_EDUCATION_PLAN_SCOPE_V2');
+}
 
 echo "MANAGER_CHUYENMON_SCOPE_OK\n";
