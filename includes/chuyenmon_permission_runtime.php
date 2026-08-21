@@ -17,9 +17,7 @@ function cds_cm_permission_codes(): array {
 }
 
 function cds_cm_default_group_access(): array {
-    $manager = array_fill_keys(cds_cm_permission_codes(), 'edit');
     return [
-        'manager' => $manager,
         'bgh' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.thongke'=>'view','cm.kehoach'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view','cm.pccm'=>'edit','cm.nhaplieu'=>'edit'],
         'totruong' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.thongke'=>'view','cm.kehoach'=>'view','cm.baocao.dinhky'=>'view','cm.baocao.tiendo'=>'view','cm.baocao.dugio'=>'view','cm.baocao.kythi'=>'view','cm.pccm'=>'edit'],
         'gvcn' => ['cm.dashboard'=>'view','cm.tracuu'=>'view','cm.baocao.tiendo'=>'edit','cm.baocao.dugio'=>'view'],
@@ -36,14 +34,7 @@ function cds_cm_load_array_file(string $file): array {
 }
 
 function cds_cm_feature_access_for_user(array $user, string $code, string $rootDataPath): string {
-    $role = (string)($user['role'] ?? '');
-    $userGroups = (array)($user['groups'] ?? []);
-
-    if ($role === 'admin') return 'delete';
-    // Quản trị viên là quyền hệ thống cấp dưới Admin: luôn được xem/tạo/sửa
-    // toàn bộ chức năng Chuyên môn, không phụ thuộc permission_groups.json.
-    if ($role === 'manager' || in_array('manager', $userGroups, true)) return 'edit';
-
+    if (($user['role'] ?? '') === 'admin') return 'delete';
     $reports = ['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
     if ($code === 'cm.baocao') {
         $best = 'none';
@@ -55,7 +46,7 @@ function cds_cm_feature_access_for_user(array $user, string $code, string $rootD
     }
 
     $access = 'none';
-    $usesGroups = (int)($user['permission_model_version'] ?? 1) >= 2 || !empty($userGroups);
+    $usesGroups = (int)($user['permission_model_version'] ?? 1) >= 2 || !empty($user['groups']);
     $isReport = in_array($code, $reports, true);
     if (!$usesGroups) {
         $legacy = is_array($user['perms'] ?? null) ? $user['perms'] : [];
@@ -68,8 +59,10 @@ function cds_cm_feature_access_for_user(array $user, string $code, string $rootD
     foreach (cds_cm_load_array_file(rtrim($rootDataPath, '/') . '/permission_groups.json') as $key => $group) {
         if (is_array($group)) $groups[$key] = is_array($group['access'] ?? null) ? $group['access'] : [];
     }
-    if ((int)($user['permission_model_version'] ?? 1) < 2 && !$userGroups && isset($groups[$role])) {
-        $userGroups[] = $role;
+    $userGroups = (array)($user['groups'] ?? []);
+    $roleGroup = (string)($user['role'] ?? '');
+    if ((int)($user['permission_model_version'] ?? 1) < 2 && !$userGroups && isset($groups[$roleGroup])) {
+        $userGroups[] = $roleGroup;
     }
     foreach ($userGroups as $groupKey) {
         $groupAccess = $groups[$groupKey] ?? [];
@@ -79,7 +72,7 @@ function cds_cm_feature_access_for_user(array $user, string $code, string $rootD
     }
 
     if ($code === 'cm.baocao.dugio' && !$usesGroups) {
-        $roles = array_merge([$role], $userGroups);
+        $roles = array_merge([(string)($user['role'] ?? '')], (array)($user['groups'] ?? []));
         if (array_intersect($roles, ['gv','gvcn']) && cds_cm_permission_rank($access) < cds_cm_permission_rank('view')) $access = 'view';
     }
     $override = (string)($user['permission_overrides'][$code] ?? 'inherit');
