@@ -17,7 +17,6 @@ echo "CDS_DEPLOY_2/6: sao chép tài nguyên và thư viện dùng chung"
 /usr/bin/timeout 30 /bin/cp -R "$SOURCE_ROOT/assets" "$DEPLOY_ROOT"
 /usr/bin/timeout 30 /bin/cp -R "$SOURCE_ROOT/includes" "$DEPLOY_ROOT"
 
-echo "CDS_DEPLOY_3/6: cập nhật nhóm quyền quản trị viên"
 PHP_BIN=""
 for candidate in /opt/cpanel/ea-php*/root/usr/bin/php; do
   if [ -x "$candidate" ]; then PHP_BIN="$candidate"; fi
@@ -29,11 +28,12 @@ if [ -z "$PHP_BIN" ]; then
 fi
 if [ -z "$PHP_BIN" ]; then echo "CDS_DEPLOY_ERROR: không tìm thấy PHP CLI." >&2; exit 3; fi
 echo "CDS_DEPLOY_PHP: $($PHP_BIN -v | head -n 1)"
-/usr/bin/timeout 30 "$PHP_BIN" "$SOURCE_ROOT/tools/install_manager_permission_group.php" "$DEPLOY_ROOT/includes/permissions.php"
+
+echo "CDS_DEPLOY_3/6: dọn cấu hình nhóm Quản trị viên thử nghiệm"
+/usr/bin/timeout 30 "$PHP_BIN" "$SOURCE_ROOT/tools/remove_manager_permission_group.php" "$DEPLOY_ROOT"
 
 echo "CDS_DEPLOY_4/6: sao chép phân hệ Chuyên môn"
 /usr/bin/timeout 30 /bin/cp -R "$SOURCE_ROOT/chuyenmon" "$DEPLOY_ROOT"
-/usr/bin/timeout 30 "$PHP_BIN" "$SOURCE_ROOT/tools/install_manager_chuyenmon_scope.php" "$DEPLOY_ROOT"
 /bin/sed -i 's|chuyenmon-unified.css?v=20260817-1|chuyenmon-unified.css?v=20260820-3|g' "$DEPLOY_ROOT/chuyenmon/includes/header.php"
 
 echo "CDS_DEPLOY_5/6: tích hợp ảnh học sinh"
