@@ -23,7 +23,6 @@ $teachers = csdl_teachers_all();
 $classes = csdl_classes_all();
 $students = csdl_students_all();
 
-// Tôn trọng phạm vi lớp của tài khoản đang đăng nhập.
 $allowedClassNames = allowed_classes();
 if ($allowedClassNames !== null) {
     $allowedClassIds = [];
@@ -43,9 +42,7 @@ $filterStatus = static function(array $rows) use ($status): array {
 };
 $ft = $filterStatus($teachers);
 $fs = $filterStatus($students);
-if ($team !== '') {
-    $ft = array_values(array_filter($ft, fn($r) => trim((string)($r['to_chuyen_mon'] ?? ($r['pccm_group'] ?? ''))) === $team));
-}
+if ($team !== '') $ft = array_values(array_filter($ft, fn($r) => trim((string)($r['to_chuyen_mon'] ?? ($r['pccm_group'] ?? ''))) === $team));
 if ($grade !== '') {
     $fs = array_values(array_filter($fs, function($r) use ($classById, $grade) {
         $c = $classById[(string)($r['class_id'] ?? '')] ?? [];
@@ -54,27 +51,60 @@ if ($grade !== '') {
 }
 if ($classId !== '') $fs = array_values(array_filter($fs, fn($r) => (string)($r['class_id'] ?? '') === $classId));
 
-function sx_xml($v): string { return htmlspecialchars((string)$v, ENT_QUOTES | ENT_XML1, 'UTF-8'); }
-function sx_col_name(int $n): string { $s=''; while($n>0){$n--; $s=chr(65+($n%26)).$s; $n=intdiv($n,26);} return $s; }
+function sx_xml($v): string {
+    $v = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u', '', (string)$v) ?? (string)$v;
+    return htmlspecialchars($v, ENT_QUOTES | ENT_XML1, 'UTF-8');
+}
+function sx_col_name(int $n): string {
+    $s=''; while($n>0){$n--; $s=chr(65+($n%26)).$s; $n=intdiv($n,26);} return $s;
+}
 function sx_cell($value, int $row, int $col, int $style=0): string {
-    $ref=sx_col_name($col).$row; $styleAttr=$style ? ' s="'.$style.'"' : '';
-    if (is_int($value) || is_float($value)) return '<c r="'.$ref.'"'.$styleAttr.' t="n"><v>'.$value.'</v></c>';
+    $ref=sx_col_name($col).$row;
+    $styleAttr=$style ? ' s="'.$style.'"' : '';
+    if ((is_int($value) || is_float($value)) && !is_bool($value)) {
+        return '<c r="'.$ref.'"'.$styleAttr.'><v>'.sx_xml($value).'</v></c>';
+    }
     return '<c r="'.$ref.'"'.$styleAttr.' t="inlineStr"><is><t xml:space="preserve">'.sx_xml($value).'</t></is></c>';
 }
 function sx_sheet(array $headers, array $rows, array $widths=[]): string {
+    $lastRow = max(1, count($rows) + 1);
+    $lastCol = sx_col_name(max(1, count($headers)));
+    $dimension = 'A1:'.$lastCol.$lastRow;
     $cols='';
-    foreach($headers as $i=>$h){$w=$widths[$i]??18;$cols.='<col min="'.($i+1).'" max="'.($i+1).'" width="'.$w.'" customWidth="1"/>';}
-    $xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>'.$cols.'</cols><sheetData>';
-    $r=1; $xml.='<row r="1" ht="26" customHeight="1">';
-    foreach($headers as $i=>$h)$xml.=sx_cell($h,$r,$i+1,1); $xml.='</row>';
-    foreach($rows as $row){$r++;$xml.='<row r="'.$r.'">';foreach(array_values($row) as $i=>$v)$xml.=sx_cell($v,$r,$i+1,0);$xml.='</row>';}
-    $lastCol=sx_col_name(max(1,count($headers)));$xml.='</sheetData><autoFilter ref="A1:'.$lastCol.'1"/><freezePanes/><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews></worksheet>';
+    foreach($headers as $i=>$h){
+        $w=max(6,min(60,(float)($widths[$i]??18)));
+        $cols.='<col min="'.($i+1).'" max="'.($i+1).'" width="'.$w.'" customWidth="1"/>';
+    }
+    $xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    $xml.='<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">';
+    $xml.='<dimension ref="'.$dimension.'"/>';
+    $xml.='<sheetViews><sheetView tabSelected="0" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>';
+    $xml.='<sheetFormatPr defaultRowHeight="15"/>';
+    $xml.='<cols>'.$cols.'</cols><sheetData>';
+    $xml.='<row r="1" ht="26" customHeight="1">';
+    foreach($headers as $i=>$h) $xml.=sx_cell($h,1,$i+1,1);
+    $xml.='</row>';
+    $r=1;
+    foreach($rows as $row){
+        $r++; $xml.='<row r="'.$r.'">';
+        foreach(array_values($row) as $i=>$v) $xml.=sx_cell($v,$r,$i+1,0);
+        $xml.='</row>';
+    }
+    $xml.='</sheetData>';
+    $xml.='<autoFilter ref="A1:'.$lastCol.$lastRow.'"/>';
+    $xml.='<pageMargins left="0.3" right="0.3" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>';
+    $xml.='</worksheet>';
     return $xml;
 }
 function sx_sheet_name(string $name, array &$used): string {
     $name=preg_replace('/[\\\/\?\*\[\]:]+/u',' ',trim($name)) ?: 'Sheet';
     $name=function_exists('mb_substr')?mb_substr($name,0,31,'UTF-8'):substr($name,0,31);
-    $base=$name;$n=2;while(isset($used[$name])){$suffix=' '.$n++;$limit=31-strlen($suffix);$name=(function_exists('mb_substr')?mb_substr($base,0,$limit,'UTF-8'):substr($base,0,$limit)).$suffix;}$used[$name]=true;return $name;
+    $base=$name;$n=2;
+    while(isset($used[$name])){
+        $suffix=' '.$n++; $limit=31-strlen($suffix);
+        $name=(function_exists('mb_substr')?mb_substr($base,0,$limit,'UTF-8'):substr($base,0,$limit)).$suffix;
+    }
+    $used[$name]=true; return $name;
 }
 
 $sheets=[]; $used=[];
@@ -102,39 +132,71 @@ if ($scope !== 'students') {
     $sheets[]=['name'=>sx_sheet_name('Chi tiết giáo viên',$used),'headers'=>['STT','Mã GV','Họ và tên','CCCD','Giới tính','Ngày sinh','SĐT','Email','Dân tộc','Quê quán','Địa chỉ','Cấp dạy','Chuyên môn','Tổ chuyên môn','Chức vụ','Kiêm nhiệm','Ngày vào ngành','Hạng','Bậc','Hệ số','Đang công tác','Ghi chú'],'rows'=>$rows,'widths'=>[7,12,26,18,10,13,15,24,12,24,28,12,20,20,20,28,14,10,10,10,14,28]];
 
     $teamCount=[];$specialtyCount=[];$genderCount=[];
-    foreach($ft as $t){$tm=trim((string)($t['to_chuyen_mon']??($t['pccm_group']??'')))?:'Chưa xếp tổ';$sp=trim((string)($t['specialty']??''))?:'Chưa cập nhật';$g=trim((string)($t['gender']??''))?:'Chưa cập nhật';$teamCount[$tm]=($teamCount[$tm]??0)+1;$specialtyCount[$sp]=($specialtyCount[$sp]??0)+1;$genderCount[$g]=($genderCount[$g]??0)+1;}
-    ksort($teamCount,SORT_NATURAL);ksort($specialtyCount,SORT_NATURAL);ksort($genderCount,SORT_NATURAL);
-    $summary=[];foreach($teamCount as $k=>$v)$summary[]=['Tổ chuyên môn',$k,$v];foreach($specialtyCount as $k=>$v)$summary[]=['Chuyên môn',$k,$v];foreach($genderCount as $k=>$v)$summary[]=['Giới tính',$k,$v];
+    foreach($ft as $t){
+        $tm=trim((string)($t['to_chuyen_mon']??($t['pccm_group']??'')))?:'Chưa xếp tổ';
+        $sp=trim((string)($t['specialty']??''))?:'Chưa cập nhật';
+        $g=trim((string)($t['gender']??''))?:'Chưa cập nhật';
+        $teamCount[$tm]=($teamCount[$tm]??0)+1; $specialtyCount[$sp]=($specialtyCount[$sp]??0)+1; $genderCount[$g]=($genderCount[$g]??0)+1;
+    }
+    ksort($teamCount,SORT_NATURAL); ksort($specialtyCount,SORT_NATURAL); ksort($genderCount,SORT_NATURAL);
+    $summary=[];
+    foreach($teamCount as $k=>$v)$summary[]=['Tổ chuyên môn',$k,$v];
+    foreach($specialtyCount as $k=>$v)$summary[]=['Chuyên môn',$k,$v];
+    foreach($genderCount as $k=>$v)$summary[]=['Giới tính',$k,$v];
     $sheets[]=['name'=>sx_sheet_name('Thống kê giáo viên',$used),'headers'=>['Nhóm','Giá trị','Số lượng'],'rows'=>$summary,'widths'=>[22,32,12]];
 }
 
 if ($scope !== 'teachers') {
     $rows=[];$classStats=[];
     foreach($fs as $i=>$s){
-        $flat=csdl_io_student_flat($s,$classes);$cn=$flat['class_name']??'';$cid=(string)($s['class_id']??'');$c=$classById[$cid]??[];$gr=$c['grade']??'';
+        $flat=csdl_io_student_flat($s,$classes);
+        $cn=$flat['class_name']??''; $cid=(string)($s['class_id']??''); $c=$classById[$cid]??[]; $gr=$c['grade']??'';
         $rows[]=[$i+1,$flat['code']??'',$flat['name']??'',$flat['cccd']??'',$cn,$gr,$flat['gender']??'',$flat['dob']??'',$flat['ethnicity']??'',$flat['hometown']??'',$flat['address']??'',$flat['phone']??'',$flat['parent_name']??'',$flat['parent_phone']??'',$flat['boarder']??'',$flat['room_ktx']??'',$flat['meal_group']??'',$flat['active']??'',$flat['note']??''];
-        $key=$cn!==''?$cn:'Chưa xếp lớp';if(!isset($classStats[$key]))$classStats[$key]=['grade'=>$gr,'total'=>0,'male'=>0,'female'=>0,'boarder'=>0];$classStats[$key]['total']++;$g=trim((string)($s['gender']??''));if($g==='Nam')$classStats[$key]['male']++;elseif(in_array($g,['Nữ','Nu','nu'],true))$classStats[$key]['female']++;if(!empty($s['boarder']))$classStats[$key]['boarder']++;
+        $key=$cn!==''?$cn:'Chưa xếp lớp';
+        if(!isset($classStats[$key]))$classStats[$key]=['grade'=>$gr,'total'=>0,'male'=>0,'female'=>0,'boarder'=>0];
+        $classStats[$key]['total']++;
+        $g=trim((string)($s['gender']??''));
+        if($g==='Nam')$classStats[$key]['male']++; elseif(in_array($g,['Nữ','Nu','nu'],true))$classStats[$key]['female']++;
+        if(!empty($s['boarder']))$classStats[$key]['boarder']++;
     }
     $sheets[]=['name'=>sx_sheet_name('Chi tiết học sinh',$used),'headers'=>['STT','Mã HS','Họ và tên','CCCD','Lớp','Khối','Giới tính','Ngày sinh','Dân tộc','Quê quán','Địa chỉ','SĐT HS','Họ tên PH','SĐT PH','Nội trú','Phòng KTX','Nhóm ăn','Đang học','Ghi chú'],'rows'=>$rows,'widths'=>[7,12,26,18,10,8,10,13,12,24,28,15,24,15,10,14,12,12,28]];
-    uksort($classStats,'strnatcasecmp');$classRows=[];foreach($classStats as $cn=>$x)$classRows[]=[$x['grade'],$cn,$x['total'],$x['male'],$x['female'],$x['boarder']];
+    uksort($classStats,'strnatcasecmp');
+    $classRows=[]; foreach($classStats as $cn=>$x)$classRows[]=[$x['grade'],$cn,$x['total'],$x['male'],$x['female'],$x['boarder']];
     $sheets[]=['name'=>sx_sheet_name('Theo lớp',$used),'headers'=>['Khối','Lớp','Sĩ số','Nam','Nữ','Nội trú'],'rows'=>$classRows,'widths'=>[10,12,12,10,10,12]];
 }
 
 $tmp=tempnam(sys_get_temp_dir(),'csdl_xlsx_');
 $zip=new ZipArchive();
-if($zip->open($tmp,ZipArchive::CREATE|ZipArchive::OVERWRITE)!==true)exit('Không tạo được file XLSX tạm.');
-$sheetEntries='';$rels='';$contentOverrides='';
-foreach($sheets as $i=>$sheet){$n=$i+1;$zip->addFromString('xl/worksheets/sheet'.$n.'.xml',sx_sheet($sheet['headers'],$sheet['rows'],$sheet['widths']??[]));$sheetEntries.='<sheet name="'.sx_xml($sheet['name']).'" sheetId="'.$n.'" r:id="rId'.$n.'"/>';$rels.='<Relationship Id="rId'.$n.'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'.$n.'.xml"/>';$contentOverrides.='<Override PartName="/xl/worksheets/sheet'.$n.'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';}
-$styleRid=count($sheets)+1;$rels.='<Relationship Id="rId'.$styleRid.'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>';
-$zip->addFromString('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'.$contentOverrides.'</Types>');
-$zip->addFromString('_rels/.rels','<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
-$zip->addFromString('xl/workbook.xml','<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'.$sheetEntries.'</sheets></workbook>');
-$zip->addFromString('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'.$rels.'</Relationships>');
-$zip->addFromString('xl/styles.xml','<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F4E79"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf></cellXfs></styleSheet>');
+if($zip->open($tmp,ZipArchive::CREATE|ZipArchive::OVERWRITE)!==true) exit('Không tạo được file XLSX tạm.');
+
+$sheetEntries=''; $rels=''; $contentOverrides='';
+foreach($sheets as $i=>$sheet){
+    $n=$i+1;
+    $zip->addFromString('xl/worksheets/sheet'.$n.'.xml',sx_sheet($sheet['headers'],$sheet['rows'],$sheet['widths']??[]));
+    $sheetEntries.='<sheet name="'.sx_xml($sheet['name']).'" sheetId="'.$n.'" r:id="rId'.$n.'"/>';
+    $rels.='<Relationship Id="rId'.$n.'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'.$n.'.xml"/>';
+    $contentOverrides.='<Override PartName="/xl/worksheets/sheet'.$n.'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+}
+$styleRid=count($sheets)+1;
+$rels.='<Relationship Id="rId'.$styleRid.'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>';
+
+$zip->addFromString('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'.$contentOverrides.'</Types>');
+$zip->addFromString('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>');
+$zip->addFromString('xl/workbook.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><fileVersion appName="xl"/><workbookPr/><bookViews><workbookView xWindow="0" yWindow="0" windowWidth="24000" windowHeight="12000"/></bookViews><sheets>'.$sheetEntries.'</sheets><calcPr calcId="191029"/></workbook>');
+$zip->addFromString('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'.$rels.'</Relationships>');
+$zip->addFromString('xl/styles.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="10"/><name val="Arial"/><family val="2"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/><family val="2"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F4E79"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>');
+$created=gmdate('Y-m-d\TH:i:s\Z');
+$zip->addFromString('docProps/core.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>CDS</dc:creator><cp:lastModifiedBy>CDS</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">'.$created.'</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">'.$created.'</dcterms:modified></cp:coreProperties>');
+$zip->addFromString('docProps/app.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>CDS</Application><DocSecurity>0</DocSecurity><ScaleCrop>false</ScaleCrop><Company></Company><LinksUpToDate>false</LinksUpToDate><SharedDoc>false</SharedDoc><HyperlinksChanged>false</HyperlinksChanged><AppVersion>1.0</AppVersion></Properties>');
 $zip->close();
+
+clearstatcache(true,$tmp);
 $filename='thong-ke-gv-hs-'.date('Ymd-His').'.xlsx';
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 header('Content-Disposition: attachment; filename="'.$filename.'"');
 header('Content-Length: '.filesize($tmp));
-header('Cache-Control: no-store');
-readfile($tmp);@unlink($tmp);exit;
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Pragma: public');
+readfile($tmp);
+@unlink($tmp);
+exit;
