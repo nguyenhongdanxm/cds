@@ -38,6 +38,28 @@ function vb_engagement_actions(): array {
     return ['engagement_create','engagement_submit','engagement_status','engagement_delete','feedback_create','feedback_reply'];
 }
 
+function vb_engagement_classes(): array {
+    $names=[];
+    foreach(csdl_classes_all() as $row){$name=trim((string)($row['name']??''));if($name!=='')$names[$name]=true;}
+    $names=array_keys($names);usort($names,'csdl_compare_class_names');return $names;
+}
+
+function vb_engagement_allowed_classes(array $user,bool $canManage=false): array {
+    $all=vb_engagement_classes();if($canManage)return $all;
+    $assigned=array_values(array_unique(array_filter(array_map('strval',(array)($user['homeroom_classes']??[])))));
+    $teacherId=trim((string)($user['teacher_id']??''));$teacherName=vb_norm((string)($user['teacher_name']??$user['name']??''));
+    if($teacherId===''&&$teacherName!=='')foreach(csdl_teachers_all() as $teacher)if(vb_norm((string)($teacher['name']??''))===$teacherName){$teacherId=(string)($teacher['id']??'');break;}
+    if($teacherId!=='')foreach(csdl_classes_all() as $class)if((string)($class['homeroom_teacher_id']??'')===$teacherId)$assigned[]=(string)($class['name']??'');
+    $assigned=array_values(array_unique(array_filter($assigned)));if($assigned)return array_values(array_intersect($all,$assigned));
+    return in_array('gvcn',vb_engagement_user_groups($user),true)?[]:$all;
+}
+
+function vb_form_fields_from_post(): array {
+    $labels=(array)($_POST['field_label']??[]);$types=(array)($_POST['field_type']??[]);$options=(array)($_POST['field_options']??[]);$required=(array)($_POST['field_required']??[]);$fields=[];
+    foreach($labels as $index=>$label){$label=vb_clean((string)$label,220);$type=(string)($types[$index]??'text');if($label===''||!in_array($type,['number','text','select','radio','checkbox'],true))continue;$opts=array_values(array_unique(array_filter(array_map(fn($v)=>vb_clean($v,120),preg_split('/[,;\n]+/u',(string)($options[$index]??''))))));if(in_array($type,['select','radio','checkbox'],true)&&!$opts)throw new RuntimeException('Trường “'.$label.'” cần có danh sách lựa chọn.');$fields[]=['id'=>'f'.(count($fields)+1),'label'=>$label,'type'=>$type,'options'=>$opts,'required'=>isset($required[$index])];}
+    if(!$fields)throw new RuntimeException('Biểu mẫu cần ít nhất một trường nhập liệu.');return $fields;
+}
+
 function vb_engagement_process(string $action, array $user, bool $canManage): void {
     $userKey = vb_user_key($user);
     if ($userKey === '') throw new RuntimeException('Không xác định được tài khoản tham gia.');
@@ -69,6 +91,10 @@ function vb_engagement_process(string $action, array $user, bool $canManage): vo
             if (count($options) < 2) throw new RuntimeException('Bình chọn cần ít nhất 2 phương án.');
             $record['options']=$options;
         } else {
+            $surveyMode=(string)($_POST['survey_mode']??'choice');
+            if($surveyMode==='form'){
+                $record['survey_mode']='form';$record['fields']=vb_form_fields_from_post();$record['require_class']=true;
+            }else{
             $questions=[];
             foreach (preg_split('/\R/u',(string)($_POST['questions']??'')) as $line) {
                 $parts=array_values(array_filter(array_map(fn($v)=>vb_clean($v,250),explode('|',$line)),fn($v)=>$v!==''));
@@ -76,6 +102,8 @@ function vb_engagement_process(string $action, array $user, bool $canManage): vo
             }
             if (!$questions) throw new RuntimeException('Mỗi câu khảo sát nhập theo mẫu: Câu hỏi | Lựa chọn 1 | Lựa chọn 2.');
             $record['questions']=$questions;
+            $record['survey_mode']='choice';
+            }
         }
         $rows[]=$record;
         if (!vb_save_rows(vb_engagement_file($kind),$rows)) throw new RuntimeException('Không lưu được nội dung.');
@@ -98,6 +126,17 @@ function vb_engagement_process(string $action, array $user, bool $canManage): vo
                 $answer=(int)($_POST['answer']??-1);
                 if(!isset($row['options'][$answer])) throw new RuntimeException('Hãy chọn một phương án.');
                 $responses[$userKey]=['answer'=>$answer,'name'=>$user['name']??'','at'=>date('c')];
+            }elseif(($row['survey_mode']??'choice')==='form'){
+                $className=vb_clean((string)($_POST['class_name']??''),80);$allowed=vb_engagement_allowed_classes($user,$canManage);
+                if($className===''||!in_array($className,$allowed,true))throw new RuntimeException('Hãy chọn đúng lớp được phân công.');
+                $posted=(array)($_POST['form_value']??[]);$values=[];
+                foreach((array)($row['fields']??[]) as $field){$fid=(string)($field['id']??'');$type=(string)($field['type']??'text');$raw=$posted[$fid]??($type==='checkbox'?[]:'');
+                    if($type==='number'){$raw=str_replace(',','.',trim((string)$raw));if($raw!==''&&!is_numeric($raw))throw new RuntimeException('Trường “'.($field['label']??'').'” phải là số.');$value=$raw===''?'':(float)$raw;}
+                    elseif($type==='checkbox'){$value=array_values(array_intersect(array_map('strval',(array)$raw),(array)($field['options']??[])));}
+                    else{$value=vb_clean((string)$raw,500);if(in_array($type,['select','radio'],true)&&$value!==''&&!in_array($value,(array)($field['options']??[]),true))$value='';}
+                    $empty=is_array($value)?!$value:$value==='';if(!empty($field['required'])&&$empty)throw new RuntimeException('Hãy nhập trường “'.($field['label']??'').'”.');$values[$fid]=$value;
+                }
+                $responses[$userKey]=['class_name'=>$className,'values'=>$values,'name'=>$user['name']??'','at'=>date('c')];
             }else{
                 $answers=[];foreach((array)($_POST['answer']??[]) as $question=>$answer){$q=(int)$question;$a=(int)$answer;if(isset($row['questions'][$q]['options'][$a]))$answers[$q]=$a;}
                 if(count($answers)!==count($row['questions']??[])) throw new RuntimeException('Hãy trả lời đầy đủ các câu hỏi.');
@@ -157,6 +196,15 @@ function vb_survey_counts(array $row,int $question): array {
     $counts=array_fill(0,count($row['questions'][$question]['options']??[]),0);
     foreach((array)($row['responses']??[]) as $response){$answer=(int)($response['answers'][$question]??-1);if(isset($counts[$answer]))$counts[$answer]++;}
     return $counts;
+}
+
+function vb_form_summary(array $row): array {
+    $classes=[];$totals=[];
+    foreach((array)($row['fields']??[]) as $field)if(($field['type']??'')==='number')$totals[(string)$field['id']]=0.0;
+    foreach((array)($row['responses']??[]) as $response){if(!is_array($response))continue;$class=trim((string)($response['class_name']??''))?:'Chưa xác định';if(!isset($classes[$class]))$classes[$class]=['count'=>0,'values'=>[]];$classes[$class]['count']++;
+        foreach((array)($row['fields']??[]) as $field){$id=(string)($field['id']??'');$value=$response['values'][$id]??'';if(($field['type']??'')==='number'){$number=is_numeric($value)?(float)$value:0;$classes[$class]['values'][$id]=($classes[$class]['values'][$id]??0)+$number;$totals[$id]=($totals[$id]??0)+$number;}else{$display=is_array($value)?implode(', ',$value):(string)$value;if($display!=='')$classes[$class]['values'][$id][]=$display;}}
+    }
+    uksort($classes,'csdl_compare_class_names');return ['classes'=>$classes,'totals'=>$totals];
 }
 
 function vb_engagement_people_for_option(array $row,string $kind,int $option,int $question=0): array {

@@ -47,8 +47,7 @@ function vb_archive_types(): array {
     return ['Biểu mẫu','Giấy đi đường','Thanh toán tàu xe','Hóa đơn/chứng từ','Mẫu biên bản','Mẫu báo cáo','Hồ sơ hành chính','Khác'];
 }
 
-function vb_upload(string $field, string $type, array $extra = []): string {
-    $upload = $_FILES[$field] ?? null;
+function vb_upload_item(array $upload, string $type, array $extra = []): string {
     if (!$upload || ($upload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) return '';
     if (($upload['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) throw new RuntimeException('Tệp tải lên không hợp lệ.');
     if ((int)($upload['size'] ?? 0) > 25 * 1024 * 1024) throw new RuntimeException('Tệp vượt quá 25 MB.');
@@ -72,6 +71,45 @@ function vb_upload(string $field, string $type, array $extra = []): string {
     $name = date('YmdHis') . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
     if (!move_uploaded_file($tmp, $dir . '/' . $name)) throw new RuntimeException('Không lưu được tệp trên máy chủ.');
     return 'data/uploads/vanban/' . $name;
+}
+
+function vb_upload(string $field, string $type, array $extra = []): string {
+    $upload = $_FILES[$field] ?? null;
+    return is_array($upload) ? vb_upload_item($upload, $type, $extra) : '';
+}
+
+/** Nhận nhiều ô file cùng tên document_files[]; mỗi tệp được lưu độc lập. */
+function vb_upload_many(string $field, string $type, array $extra = []): array {
+    $source = $_FILES[$field] ?? null;
+    if (!is_array($source) || !is_array($source['name'] ?? null)) return [];
+    $paths = [];
+    foreach ($source['name'] as $index => $name) {
+        $upload = [
+            'name'=>$name,
+            'type'=>$source['type'][$index] ?? '',
+            'tmp_name'=>$source['tmp_name'][$index] ?? '',
+            'error'=>$source['error'][$index] ?? UPLOAD_ERR_NO_FILE,
+            'size'=>$source['size'][$index] ?? 0,
+        ];
+        if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) continue;
+        $path = vb_upload_item($upload, $type, $extra);
+        if ($path !== '') $paths[] = ['path'=>$path, 'name'=>vb_clean((string)$name, 240)];
+    }
+    return $paths;
+}
+
+function vb_document_attachments(array $row): array {
+    $items = [];
+    foreach ((array)($row['attachments'] ?? []) as $item) {
+        if (is_string($item)) $item = ['path'=>$item, 'name'=>basename($item)];
+        if (!is_array($item) || trim((string)($item['path'] ?? '')) === '') continue;
+        $items[] = ['path'=>(string)$item['path'], 'name'=>(string)($item['name'] ?? basename((string)$item['path']))];
+    }
+    $legacy = trim((string)($row['file_path'] ?? ''));
+    if ($legacy !== '' && !array_filter($items, fn($item)=>$item['path']===$legacy)) {
+        array_unshift($items, ['path'=>$legacy, 'name'=>(string)($row['file_name'] ?? basename($legacy))]);
+    }
+    return array_values($items);
 }
 
 function vb_file_url(string $path): string {
