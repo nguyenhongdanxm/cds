@@ -23,7 +23,7 @@ if (!isset($nt_sec)) {
 
 $ntItems = [
     'overview'   => [BASE_URL . 'noitru.php?tab=overview',       'bi-grid-1x2-fill',    'TỔNG QUAN',   'nt.tongquan'],
-    'boarders'   => [BASE_URL . 'noitru_list.php',               'bi-people-fill',      'Danh sách',   'nt.danhsach'],
+    'boarders'   => [BASE_URL . 'noitru_list.php',               'bi-people-fill',      'DANH SÁCH',   'nt.danhsach'],
     'exits'      => [BASE_URL . 'noitru.php?tab=exits',          'bi-door-open-fill',   'Ra/vào KTX',  'nt.ravao'],
     'meals'      => [BASE_URL . 'noitru.php?tab=meals',          'bi-cup-hot-fill',     'Báo ăn',      'nt.baoan'],
     'meal_summary'=> [BASE_URL . 'noitru.php?tab=meal_summary',   'bi-clipboard-data-fill','Tổng hợp',   'nt.buaan.tonghop'],
@@ -79,7 +79,7 @@ $ntInGroup = function ($group) use ($ntGroups, $nt_sec) { return in_array($nt_se
 </aside>
 <nav class="nt-bottom-nav" aria-label="Điều hướng Nội trú trên điện thoại">
   <?php if (isset($ntItems['overview'])): ?><a href="<?= e($ntItems['overview'][0]) ?>" class="<?= $nt_sec==='overview'?'active':'' ?>"><i class="bi bi-grid-1x2-fill"></i><span>TỔNG QUAN</span></a><?php endif; ?>
-  <?php if (isset($ntItems['boarders'])): ?><a href="<?= e($ntItems['boarders'][0]) ?>" class="<?= $nt_sec==='boarders'?'active':'' ?>"><i class="bi bi-people-fill"></i><span>Danh sách</span></a><?php endif; ?>
+  <?php if (isset($ntItems['boarders'])): ?><a href="<?= e($ntItems['boarders'][0]) ?>" class="<?= $nt_sec==='boarders'?'active':'' ?>"><i class="bi bi-people-fill"></i><span>DANH SÁCH</span></a><?php endif; ?>
   <button type="button" class="<?= $ntInGroup('boarding')?'active':'' ?>" data-nt-sheet="boarding"><i class="bi bi-building-fill"></i><span>Nội trú</span></button>
   <button type="button" class="<?= $ntInGroup('meals')?'active':'' ?>" data-nt-sheet="meals"><i class="bi bi-basket2-fill"></i><span>Bữa ăn</span></button>
   <?php if (isset($ntItems['health'])): ?><a href="<?= e($ntItems['health'][0]) ?>" class="<?= $nt_sec==='health'?'active':'' ?>"><i class="bi bi-heart-pulse-fill"></i><span>Y tế</span></a><?php endif; ?>
