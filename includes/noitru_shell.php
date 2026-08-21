@@ -107,3 +107,7 @@ document.addEventListener('DOMContentLoaded',function(){var endpoint='<?= e(BASE
 <?php if ($ntPage === 'noitru_list.php' && (($_GET['view'] ?? '') === 'rooms') && trim((string)($_GET['room'] ?? '')) !== ''): ?>
 <script src="<?= e(BASE_URL . 'assets/noitru_room_list_roles.js?v=20260819-1') ?>"></script>
 <?php endif; ?>
+<?php if ($ntPage === 'noitru.php' && $ntTab === 'meal_summary'): ?>
+<script>window.BASE_URL=<?= json_encode(BASE_URL, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) ?>;</script>
+<script src="<?= e(BASE_URL . 'assets/noitru_meal_quantity_image.js?v=20260821-1') ?>"></script>
+<?php endif; ?>
