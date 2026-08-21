@@ -30,7 +30,9 @@ if [ -z "$PHP_BIN" ]; then echo "CDS_DEPLOY_ERROR: không tìm thấy PHP CLI." 
 echo "CDS_DEPLOY_PHP: $($PHP_BIN -v | head -n 1)"
 
 echo "CDS_DEPLOY_3/6: dọn cấu hình nhóm Quản trị viên thử nghiệm"
-/usr/bin/timeout 30 "$PHP_BIN" "$SOURCE_ROOT/tools/remove_manager_permission_group.php" "$DEPLOY_ROOT"
+if ! /usr/bin/timeout 30 "$PHP_BIN" "$SOURCE_ROOT/tools/remove_manager_permission_group.php" "$DEPLOY_ROOT"; then
+  echo "CDS_DEPLOY_WARNING: chưa dọn được nhóm Quản trị viên, nhưng tiếp tục deploy." >&2
+fi
 
 echo "CDS_DEPLOY_4/6: sao chép phân hệ Chuyên môn"
 /usr/bin/timeout 30 /bin/cp -R "$SOURCE_ROOT/chuyenmon" "$DEPLOY_ROOT"
