@@ -119,32 +119,32 @@ body.cm-body>footer{
   font-size:.78rem;
 }
 
-/* TKB: phân biệt rõ khối sáng/chiều và căn thẳng hàng tiết. */
+/* TKB: tô toàn bộ khối sáng/chiều theo từng hàng, tăng độ rõ của lớp. */
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(1)>td,
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(1)>th.period-no,
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(3)>td,
-body.cm-body table.tkb-matrix>tbody>tr:nth-child(3)>th.period-no{background:#fff2ad!important;background-color:#fff2ad!important}
+body.cm-body table.tkb-matrix>tbody>tr:nth-child(3)>th.period-no{background:#fffdf0!important;background-color:#fffdf0!important}
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(2)>td,
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(2)>th.period-no,
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(4)>td,
-body.cm-body table.tkb-matrix>tbody>tr:nth-child(4)>th.period-no{background:#fff9d9!important;background-color:#fff9d9!important}
+body.cm-body table.tkb-matrix>tbody>tr:nth-child(4)>th.period-no{background:#fff6cc!important;background-color:#fff6cc!important}
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(5)>td,
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(5)>th.period-no,
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(7)>td,
-body.cm-body table.tkb-matrix>tbody>tr:nth-child(7)>th.period-no{background:#d9f5df!important;background-color:#d9f5df!important}
+body.cm-body table.tkb-matrix>tbody>tr:nth-child(7)>th.period-no{background:#f3fcf5!important;background-color:#f3fcf5!important}
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(6)>td,
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(6)>th.period-no,
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(8)>td,
-body.cm-body table.tkb-matrix>tbody>tr:nth-child(8)>th.period-no{background:#edf9f0!important;background-color:#edf9f0!important}
-body.cm-body table.tkb-matrix>tbody>tr:nth-child(1)>th.session-name{background:#ffe78f!important;background-color:#ffe78f!important;color:#735300!important}
-body.cm-body table.tkb-matrix>tbody>tr:nth-child(5)>th.session-name{background:#bfe9ca!important;background-color:#bfe9ca!important;color:#176b34!important}
+body.cm-body table.tkb-matrix>tbody>tr:nth-child(8)>th.period-no{background:#dcf5e3!important;background-color:#dcf5e3!important}
+body.cm-body table.tkb-matrix>tbody>tr:nth-child(1)>th.session-name{background:#fff0ad!important;background-color:#fff0ad!important;color:#735300!important}
+body.cm-body table.tkb-matrix>tbody>tr:nth-child(5)>th.session-name{background:#ccefd5!important;background-color:#ccefd5!important;color:#176b34!important}
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(4)>*{border-bottom-width:2px!important;border-bottom-color:#64748b!important}
 body.cm-body table.tkb-matrix>tbody>tr:nth-child(n+1):nth-child(-n+8){height:42px}
 body.cm-body table.tkb-matrix .period-no,
 body.cm-body table.tkb-matrix tbody td{height:42px;min-height:42px;padding:.12rem .2rem;vertical-align:middle!important}
-body.cm-body table.tkb-matrix .period-no{font-weight:800;text-align:center;line-height:1}
+body.cm-body table.tkb-matrix .period-no{font-weight:850;text-align:center;line-height:1;font-size:1rem!important;color:#172033!important}
 body.cm-body table.tkb-matrix .tkb-cell-item{display:flex;min-height:36px;flex-direction:column;align-items:center;justify-content:center}
-body.cm-body table.tkb-matrix .tkb-class-mini{font-size:.88em!important;line-height:1.1!important;font-weight:800!important;color:#52606d!important;margin-top:.12rem!important}
+body.cm-body table.tkb-matrix .tkb-class-mini{font-size:.92em!important;line-height:1.12!important;font-weight:850!important;color:#435366!important;margin-top:.14rem!important}
 
 @media(max-width:991.98px){
   body.cm-body{font-size:14px}
@@ -171,8 +171,9 @@ body.cm-body table.tkb-matrix .tkb-class-mini{font-size:.88em!important;line-hei
   body.cm-body .table-responsive{border-radius:11px}
   body.cm-body table.tkb-matrix .period-no,
   body.cm-body table.tkb-matrix tbody td{height:38px;min-height:38px}
+  body.cm-body table.tkb-matrix .period-no{font-size:.95rem!important}
   body.cm-body table.tkb-matrix .tkb-cell-item{min-height:32px}
-  body.cm-body table.tkb-matrix .tkb-class-mini{font-size:.92em!important}
+  body.cm-body table.tkb-matrix .tkb-class-mini{font-size:.96em!important}
 }
 
 @media print{
