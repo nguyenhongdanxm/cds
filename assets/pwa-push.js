@@ -11,6 +11,10 @@
   const isiOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
   function showGuide(platform){const panel=$('#pushSetup');if(!panel)return;state.guidePlatform=platform;panel.querySelectorAll('[data-guide-platform]').forEach(button=>{const active=button.dataset.guidePlatform===platform;button.classList.toggle('active',active);button.setAttribute('aria-selected',active?'true':'false')});panel.querySelectorAll('[data-guide-panel]').forEach(guide=>guide.hidden=guide.dataset.guidePanel!==platform)}
   function toast(message,error){let el=$('#pushToast');if(!el){el=document.createElement('div');el.id='pushToast';el.className='push-toast';el.setAttribute('role','status');el.setAttribute('aria-live','polite');document.body.appendChild(el)}el.textContent=message;el.classList.toggle('error',!!error);el.classList.add('show');clearTimeout(el._hideTimer);el._hideTimer=setTimeout(()=>el.classList.remove('show'),3800)}
+  async function injectNoticeMenu(){
+    const menu=document.querySelector('.user-picker .user-menu');if(!menu||menu.querySelector('[data-notice-manager]'))return;
+    try{const response=await fetch('/notices.php?capability=1',{credentials:'same-origin',cache:'no-store'});const data=await response.json();if(!data.can_manage)return;const link=document.createElement('a');link.href='/notices.php';link.dataset.noticeManager='1';link.innerHTML='<i class="bi bi-megaphone-fill"></i>Quản lý thông báo';const logout=menu.querySelector('.logout');if(logout)menu.insertBefore(link,logout);else menu.appendChild(link)}catch(error){}
+  }
   async function refresh(){
     try{state.status=await api({},'GET');state.currentSubscription=state.registration?await state.registration.pushManager.getSubscription():null;const badge=$('[data-push-unread]');if(badge){badge.textContent=state.status.unread||0;badge.hidden=!state.status.unread}renderPanel()}catch(error){}
   }
@@ -40,6 +44,7 @@
   async function install(){if(state.deferredInstall){state.deferredInstall.prompt();const choice=await state.deferredInstall.userChoice;state.deferredInstall=null;renderPanel();toast(choice.outcome==='accepted'?'Đã cài CDS vào màn hình chính.':'Bạn có thể cài CDS sau trong menu trình duyệt.',choice.outcome!=='accepted');return}if(isiOS())toast('Trong Safari, chọn Chia sẻ → Thêm vào Màn hình chính.');else toast('Chọn Cài đặt ứng dụng hoặc Thêm vào màn hình chính trong menu trình duyệt.')}
   window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();state.deferredInstall=event;renderPanel()});
   document.addEventListener('DOMContentLoaded',async()=>{
+    injectNoticeMenu();
     if(!('serviceWorker'in navigator))return;
     try{state.registration=await navigator.serviceWorker.register('/sw.js',{scope:'/'});await navigator.serviceWorker.ready;await refresh()}catch(error){console.error(error)}
     $('#pushSetup')?.addEventListener('click',async event=>{const button=event.target.closest('button');if(!button)return;if(button.matches('[data-guide-platform]')){showGuide(button.dataset.guidePlatform);return}button.disabled=true;try{if(button.matches('[data-pwa-install]'))await install();if(button.matches('[data-push-enable]'))await subscribe();if(button.matches('[data-push-test]')){const result=await api({action:'test'});toast(result.message)}if(button.matches('[data-push-disable]'))await unsubscribe()}catch(error){toast(error.message,true)}finally{button.disabled=false}});
