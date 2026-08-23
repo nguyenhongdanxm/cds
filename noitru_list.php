@@ -15,7 +15,6 @@ $page_title = 'Danh sách nội trú';
 $tab = 'boarders';
 $nt_sec = 'boarders';
 
-// --- Load dữ liệu ---
 if (function_exists('noitru_boarders_live')) {
     $boarders = noitru_boarders_live();
 } elseif (function_exists('noitru_get_boarders_live')) {
@@ -46,6 +45,31 @@ if (!function_exists('nt_list_url')) {
             'room'  => $_GET['room'] ?? '',
             'meal'  => $_GET['meal'] ?? '',
         ];
+
+        /*
+         * Khi người dùng bấm tab / “Tất cả lớp-phòng-mâm”, không được giữ lại
+         * bộ lọc chi tiết của màn hình trước. Chỉ giữ khóa chi tiết được truyền
+         * rõ ràng trong chính URL mới.
+         */
+        if (array_key_exists('view', $p)) {
+            $target = (string)$p['view'];
+            $b['q'] = '';
+            $b['class'] = '';
+            $b['room'] = '';
+            $b['meal'] = '';
+            if ($target === 'students') {
+                foreach (['q','class','room','meal'] as $key) {
+                    if (array_key_exists($key, $p)) $b[$key] = (string)($p[$key] ?? '');
+                }
+            } elseif ($target === 'classes' && array_key_exists('class', $p)) {
+                $b['class'] = (string)($p['class'] ?? '');
+            } elseif ($target === 'rooms' && array_key_exists('room', $p)) {
+                $b['room'] = (string)($p['room'] ?? '');
+            } elseif ($target === 'meals' && array_key_exists('meal', $p)) {
+                $b['meal'] = (string)($p['meal'] ?? '');
+            }
+        }
+
         $x = array_filter(array_merge($b, $p), fn($v) => $v !== null && $v !== '');
         return BASE_URL . 'noitru_list.php' . ($x ? ('?' . http_build_query($x)) : '');
     }
@@ -69,7 +93,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') ==
     ])));
     exit;
 }
-
 ?>
 <!doctype html>
 <html lang="vi">
@@ -110,7 +133,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') ==
   </div>
 
   <?php if (function_exists('show_flash')) show_flash(); ?>
-
   <?php
   if (is_file(__DIR__ . '/includes/noitru_tab_boarders.php')) {
       require __DIR__ . '/includes/noitru_tab_boarders.php';
