@@ -3,6 +3,12 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/push_notifications.php';
 require_login();
 
+if(!function_exists('mb_strimwidth')){
+    function mb_strimwidth($string,$start,$width,$trimMarker='',$encoding=null){
+        $string=(string)$string;$slice=substr($string,(int)$start,(int)$width);return strlen($string)>(int)$width?$slice.$trimMarker:$slice;
+    }
+}
+
 $user=current_user();
 $isAdmin=($user['role']??'')==='admin';
 $noticeModules=['chuyenmon','vanban','noitru','thuvien','thidua','csdl'];
