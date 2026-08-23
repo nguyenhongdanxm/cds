@@ -100,4 +100,5 @@ if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'admin.php' && (string
 HTML;
         return str_replace('</body>', $script . '</body>', $html);
     });
+    require_once __DIR__ . '/admin_dashboard_compact.php';
 }
