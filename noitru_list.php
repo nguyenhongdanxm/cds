@@ -46,11 +46,6 @@ if (!function_exists('nt_list_url')) {
             'meal'  => $_GET['meal'] ?? '',
         ];
 
-        /*
-         * Khi người dùng bấm tab / “Tất cả lớp-phòng-mâm”, không được giữ lại
-         * bộ lọc chi tiết của màn hình trước. Chỉ giữ khóa chi tiết được truyền
-         * rõ ràng trong chính URL mới.
-         */
         if (array_key_exists('view', $p)) {
             $target = (string)$p['view'];
             $b['q'] = '';
@@ -133,6 +128,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') ==
   </div>
 
   <?php if (function_exists('show_flash')) show_flash(); ?>
+  <?php if ($view === 'rooms' && can_perm_level('nt.chiaphong', 'edit') && is_file(__DIR__ . '/includes/noitru_room_roles_panel.php')) require __DIR__ . '/includes/noitru_room_roles_panel.php'; ?>
   <?php
   if (is_file(__DIR__ . '/includes/noitru_tab_boarders.php')) {
       require __DIR__ . '/includes/noitru_tab_boarders.php';
