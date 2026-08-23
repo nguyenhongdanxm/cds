@@ -51,13 +51,13 @@ if($approved){
    ntxc_json(true,'THÔNG TIN NÀY ĐÃ SỬ DỤNG: Học sinh đã được ghi nhận đủ RA và VÀO KTX. Đơn này đã hết tác dụng.',array_merge($common,['state'=>'used','can_confirm'=>false]));
   }
   if($now<$from){
-   $delta=$from-$now;
-   ntxc_json(true,'CẢNH BÁO: Quét thẻ SỚM HƠN thời gian được đăng ký '.$deltaText=ntxc_fmt_delta($delta).'. Hãy kiểm tra kỹ trước khi xác nhận.',array_merge($common,['state'=>'approved_early','can_confirm'=>true,'time_delta_seconds'=>-$delta,'time_delta_text'=>ntxc_fmt_delta($delta)]));
+   $delta=$from-$now;$deltaText=ntxc_fmt_delta($delta);
+   ntxc_json(true,'CẢNH BÁO: Quét thẻ SỚM HƠN thời gian được đăng ký '.$deltaText.'. Hãy kiểm tra kỹ trước khi xác nhận.',array_merge($common,['state'=>'approved_early','can_confirm'=>true,'time_delta_seconds'=>-$delta,'time_delta_text'=>$deltaText]));
   }
   if($now>$to){
-   $delta=$now-$to;
+   $delta=$now-$to;$deltaText=ntxc_fmt_delta($delta);
    $phase=!empty($r['actual_exit_at'])?'Học sinh đang trở vào MUỘN hơn thời gian đăng ký ':'Thời điểm quét MUỘN hơn thời gian hiệu lực của đơn ';
-   ntxc_json(true,'CẢNH BÁO: '.$phase.ntxc_fmt_delta($delta).'. Hãy kiểm tra kỹ trước khi xác nhận.',array_merge($common,['state'=>'approved_late','can_confirm'=>true,'time_delta_seconds'=>$delta,'time_delta_text'=>ntxc_fmt_delta($delta)]));
+   ntxc_json(true,'CẢNH BÁO: '.$phase.$deltaText.'. Hãy kiểm tra kỹ trước khi xác nhận.',array_merge($common,['state'=>'approved_late','can_confirm'=>true,'time_delta_seconds'=>$delta,'time_delta_text'=>$deltaText]));
   }
   ntxc_json(true,'Học sinh có đơn đã được duyệt và đang trong đúng khoảng thời gian đăng ký.',array_merge($common,['state'=>'approved','can_confirm'=>true]));
  }
