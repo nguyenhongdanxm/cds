@@ -8,6 +8,10 @@ require_once __DIR__ . '/includes/auth.php';
 require_login();
 require_perm('nt.ravao');
 
+if (($_GET['view'] ?? '') === 'check') {
+    header('Location: ' . BASE_URL . 'noitru_exit_check.php');
+    exit;
+}
 if (!isset($_GET['view'])) $_GET['view'] = 'register';
 
 ob_start();
@@ -42,7 +46,6 @@ function successProgress(message){bar.classList.remove('progress-bar-animated');
 function managerUrlFrom(responseUrl, fallbackView){try{const u=new URL(responseUrl,location.href);const q=u.searchParams.toString();return 'noitru_exit_manager.php'+(q?'?'+q:'?view='+(fallbackView||'register'));}catch(_){return 'noitru_exit_manager.php?view='+(fallbackView||'register')}}
 function postBusinessForm(form, fallbackView, afterUpload, successMessage=''){const xhr=new XMLHttpRequest(),fd=new FormData(form);xhr.open('POST',location.href,true);xhr.onload=()=>{if(afterUpload){progress(96,'Đã tải file lên Drive. Đang lưu đăng ký…')}if(successMessage)sessionStorage.setItem('ntxExitFlash',successMessage);const target=managerUrlFrom(xhr.responseURL,fallbackView);setTimeout(()=>{location.href=target},afterUpload?700:0)};xhr.onerror=()=>{if(afterUpload)failProgress('Mất kết nối khi lưu đăng ký. File đã có thể được tải lên Drive; hãy thử lưu lại phiếu.');else showToast('Không kết nối được máy chủ.',false)};xhr.send(fd)}
 
-/* Form đăng ký: upload file riêng để có % thật, chỉ lưu phiếu sau khi Drive trả File ID. */
 const saveInput=document.querySelector('form input[name="action"][value="save_request"]');
 if(saveInput){const form=saveInput.closest('form'),file=form.querySelector('input[type="file"][name="attachment"]'),old=form.querySelector('input[name="old_attachment"]'),isEdit=!!form.querySelector('input[name="id"]')?.value;
  form.addEventListener('submit',function(ev){
@@ -60,10 +63,11 @@ if(saveInput){const form=saveInput.closest('form'),file=form.querySelector('inpu
  });
 }
 
-/* Giữ các thao tác POST khác ở màn hình manager thay vì rơi về trang lõi. */
 document.querySelectorAll('form').forEach(form=>{if(form===saveInput?.closest('form'))return;form.addEventListener('submit',function(ev){if(form.dataset.ntxNative==='1')return;const action=form.querySelector('[name="action"]')?.value||'';if(!action)return;if(!form.reportValidity()){ev.preventDefault();return;}ev.preventDefault();postBusinessForm(form,new URLSearchParams(location.search).get('view')||'history',false,'')})});
 
-/* Cài đặt: hiển thị trạng thái và chủ động tạo/kiểm tra thư mục Drive. */
+/* Đổi toàn bộ link xem đơn Drive sang trang công khai không cần đăng nhập. */
+document.querySelectorAll('a[href*="admin.php?drive_file="]').forEach(a=>{try{const u=new URL(a.href,location.href),id=u.searchParams.get('drive_file');if(id)a.href='public_ktx_exit_file.php?id='+encodeURIComponent(id)}catch(_){}});
+
 if(new URLSearchParams(location.search).get('view')==='settings'){
  const section=document.querySelector('main section.card');
  if(section){const card=document.createElement('div');card.className='ntx-drive-card';card.innerHTML='<div class="d-flex flex-wrap align-items-center gap-2"><div class="flex-grow-1"><strong><i class="bi bi-google me-1"></i> Google Drive – Đơn xin ra vào KTX</strong><div id="ntxDriveState" class="small text-muted mt-1">Đang kiểm tra kết nối và thư mục…</div></div><button type="button" id="ntxPrepareDrive" class="btn btn-outline-primary btn-sm"><i class="bi bi-folder-plus"></i> Kiểm tra / Tạo thư mục</button><a id="ntxOpenFolder" class="btn btn-outline-success btn-sm d-none" target="_blank" rel="noopener"><i class="bi bi-folder2-open"></i> Mở thư mục Drive</a></div>';section.parentNode.insertBefore(card,section);const state=card.querySelector('#ntxDriveState'),prep=card.querySelector('#ntxPrepareDrive'),open=card.querySelector('#ntxOpenFolder');
