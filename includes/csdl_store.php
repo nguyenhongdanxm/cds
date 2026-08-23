@@ -5,6 +5,7 @@
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/database_shadow.php';
 require_once __DIR__ . '/database_read_verify.php';
+require_once __DIR__ . '/school_week_calendar.php';
 
 define('CSDL_TEACHERS', DATA_PATH . '/teachers.json');
 define('CSDL_CLASSES', DATA_PATH . '/classes.json');
@@ -132,6 +133,11 @@ function csdl_date_valid($value) {
  * Mỗi module dùng hàm này thay vì tự tính "monday this week".
  */
 function csdl_year_weeks($year = null) {
+    // Một nguồn tuần duy nhất cho toàn hệ sinh thái. Hàm lịch dùng chung bao
+    // gồm cả Tuần học trước 1/2 và các tuần chính khóa đã điều chỉnh trong CSDL.
+    if (function_exists('cds_school_week_calendar')) {
+        return cds_school_week_calendar($year);
+    }
     if (is_string($year)) $year = csdl_year_find($year);
     if (!is_array($year)) $year = csdl_year_current();
     if (!$year) return [];
@@ -164,6 +170,18 @@ function csdl_year_weeks($year = null) {
     return $weeks;
 }
 
+/** Tên tuần kèm đúng khoảng thời gian để các module hiển thị thống nhất. */
+function csdl_week_display($week) {
+    if (!is_array($week)) return '';
+    $label = trim((string)($week['label'] ?? '')) ?: 'Tuần';
+    $start = (string)($week['start'] ?? '');
+    $end = (string)($week['end'] ?? '');
+    if (csdl_date_valid($start) && csdl_date_valid($end)) {
+        return $label . ' · ' . date('d/m/Y', strtotime($start)) . ' – ' . date('d/m/Y', strtotime($end));
+    }
+    return $label;
+}
+
 function csdl_year_week_adjust($yearId, $weekNumber, $newStart) {
     $weekNumber = (int)$weekNumber;
     if ($weekNumber < 1 || !csdl_date_valid($newStart)) {
@@ -173,7 +191,11 @@ function csdl_year_week_adjust($yearId, $weekNumber, $newStart) {
     $years = csdl_years_all();
     foreach ($years as &$year) {
         if (($year['id'] ?? '') !== $yearId) continue;
-        $weeks = csdl_year_weeks($year);
+        // Chỉ điều chỉnh các tuần chính khóa; Tuần học trước 1/2 có biểu mẫu
+        // cấu hình riêng và không được làm thay đổi số Tuần 1, 2, 3...
+        $weeks = array_values(array_filter(csdl_year_weeks($year), static function ($week) {
+            return empty($week['is_pre']);
+        }));
         if (!$weeks || $weekNumber > count($weeks)) {
             unset($year);
             return ['ok' => false, 'message' => 'Không tìm thấy tuần trong năm học.'];
