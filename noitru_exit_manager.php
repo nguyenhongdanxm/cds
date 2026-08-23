@@ -8,6 +8,9 @@ require_once __DIR__ . '/includes/auth.php';
 require_login();
 require_perm('nt.ravao');
 
+$currentUser = current_user() ?? [];
+$isManagerAdmin = (($currentUser['role'] ?? '') === 'admin');
+
 if (($_GET['view'] ?? '') === 'check') {
     header('Location: ' . BASE_URL . 'noitru_exit_check.php');
     exit;
@@ -17,6 +20,14 @@ if (!isset($_GET['view'])) $_GET['view'] = 'register';
 ob_start();
 require __DIR__ . '/noitru_exit.php';
 $html = ob_get_clean();
+
+$adminExitIds = [];
+if ($isManagerAdmin && (($_GET['view'] ?? 'register') === 'register')) {
+    foreach (array_reverse(noitru_exits_all()) as $exitRow) {
+        $adminExitIds[] = (string)($exitRow['id'] ?? '');
+    }
+}
+$adminExitIdsJson = json_encode($adminExitIds, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]';
 
 $enhancement = <<<'HTML'
 <style>
@@ -37,6 +48,7 @@ $enhancement = <<<'HTML'
 (function(){
 const overlay=document.getElementById('ntxUploadOverlay'),bar=document.getElementById('ntxUploadBar'),status=document.getElementById('ntxUploadStatus'),title=document.getElementById('ntxUploadTitle'),toast=document.getElementById('ntxToast');
 const API='noitru_exit_drive_api.php';
+const adminExitIds=__ADMIN_EXIT_IDS__;
 function showToast(message,ok=true){toast.className='ntx-toast show '+(ok?'ok':'bad');toast.innerHTML=(ok?'<i class="bi bi-check-circle-fill text-success me-2"></i>':'<i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>')+message;setTimeout(()=>toast.classList.remove('show'),6000)}
 const storedFlash=sessionStorage.getItem('ntxExitFlash');if(storedFlash){sessionStorage.removeItem('ntxExitFlash');setTimeout(()=>showToast(storedFlash,true),180)}
 function progress(p,text){p=Math.max(3,Math.min(100,Math.round(p)));bar.style.width=p+'%';bar.textContent=p+'%';if(text)status.textContent=text}
@@ -63,7 +75,25 @@ if(saveInput){const form=saveInput.closest('form'),file=form.querySelector('inpu
  });
 }
 
-document.querySelectorAll('form').forEach(form=>{if(form===saveInput?.closest('form'))return;form.addEventListener('submit',function(ev){if(form.dataset.ntxNative==='1')return;const action=form.querySelector('[name="action"]')?.value||'';if(!action)return;if(!form.reportValidity()){ev.preventDefault();return;}ev.preventDefault();postBusinessForm(form,new URLSearchParams(location.search).get('view')||'history',false,'')})});
+/* Quản trị được xóa mọi đơn, kể cả Đã duyệt/Từ chối. Backend đã cho phép admin xóa; đây là phần bổ sung nút giao diện. */
+if(adminExitIds.length){
+ const cards=Array.from(document.querySelectorAll('section.card'));
+ const tracking=cards.find(card=>(card.querySelector('.card-header')?.textContent||'').includes('Đơn đang theo dõi'));
+ if(tracking){
+   const rows=Array.from(tracking.querySelectorAll('tbody tr')).filter(tr=>tr.querySelectorAll('td').length>=5);
+   rows.forEach((tr,index)=>{
+     const id=adminExitIds[index]||''; if(!id)return;
+     const cell=tr.querySelector('td:last-child'); if(!cell)return;
+     const existing=Array.from(cell.querySelectorAll('form input[name="action"]')).some(i=>i.value==='delete_request');
+     if(existing)return;
+     const form=document.createElement('form');form.method='post';form.className='d-inline ms-1';form.innerHTML='<input type="hidden" name="action" value="delete_request"><input type="hidden" name="id" value="'+String(id).replace(/"/g,'&quot;')+'"><button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa đơn"><i class="bi bi-trash"></i></button>';
+     form.addEventListener('submit',function(ev){if(!confirm('Xóa vĩnh viễn đơn này? Thao tác không thể hoàn tác.')){ev.preventDefault();return;}ev.preventDefault();postBusinessForm(form,'register',false,'Đã xóa đơn.');});
+     cell.appendChild(form);
+   });
+ }
+}
+
+document.querySelectorAll('form').forEach(form=>{if(form===saveInput?.closest('form'))return;if(form.dataset.ntxBound==='1')return;form.dataset.ntxBound='1';form.addEventListener('submit',function(ev){if(form.dataset.ntxNative==='1')return;const action=form.querySelector('[name="action"]')?.value||'';if(!action)return;if(!form.reportValidity()){ev.preventDefault();return;}ev.preventDefault();postBusinessForm(form,new URLSearchParams(location.search).get('view')||'history',false,'')})});
 
 /* Đổi toàn bộ link xem đơn Drive sang trang công khai không cần đăng nhập. */
 document.querySelectorAll('a[href*="admin.php?drive_file="]').forEach(a=>{try{const u=new URL(a.href,location.href),id=u.searchParams.get('drive_file');if(id)a.href='public_ktx_exit_file.php?id='+encodeURIComponent(id)}catch(_){}});
@@ -79,6 +109,8 @@ if(new URLSearchParams(location.search).get('view')==='settings'){
 })();
 </script>
 HTML;
+
+$enhancement = str_replace('__ADMIN_EXIT_IDS__', $adminExitIdsJson, $enhancement);
 
 if (stripos($html, '</body>') !== false) {
     $html = preg_replace('~</body>~i', $enhancement . '</body>', $html, 1);
