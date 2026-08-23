@@ -3,6 +3,63 @@
 if (!defined('CM_DOCS_FILE')) define('CM_DOCS_FILE', DATA_PATH . '/cm_docs.json');
 if (!defined('CM_UPLOAD_DIR')) define('CM_UPLOAD_DIR', DATA_PATH . '/uploads');
 
+/*
+ * Thông báo chuyên môn dùng chung kho Google Drive "Kế hoạch và báo cáo".
+ * Xử lý sớm tại đây để không bị binding theo URL ghi đè sang một loại kho chưa cấu hình,
+ * đồng thời trả lỗi thân thiện thay vì để request rơi vào HTTP 500.
+ */
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
+    && (string)($_POST['action'] ?? '') === 'save'
+    && (string)($_GET['tab'] ?? '') === 'thongbao'
+    && isset($_FILES['file'])
+    && (int)($_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+    $upload = $_FILES['file'];
+    $uploadError = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($uploadError !== UPLOAD_ERR_OK) {
+        $messages = [
+            UPLOAD_ERR_INI_SIZE => 'Tệp vượt quá giới hạn upload_max_filesize của máy chủ.',
+            UPLOAD_ERR_FORM_SIZE => 'Tệp vượt quá dung lượng cho phép của biểu mẫu.',
+            UPLOAD_ERR_PARTIAL => 'Tệp chỉ được tải lên một phần. Vui lòng thử lại.',
+            UPLOAD_ERR_NO_TMP_DIR => 'Máy chủ thiếu thư mục tạm để nhận tệp.',
+            UPLOAD_ERR_CANT_WRITE => 'Máy chủ không ghi được tệp tạm.',
+            UPLOAD_ERR_EXTENSION => 'PHP đã dừng quá trình tải tệp bởi một extension.',
+        ];
+        if (function_exists('flash')) flash($messages[$uploadError] ?? ('Không tải được tệp. Mã lỗi: ' . $uploadError), 'danger');
+        header('Location: ' . BASE_URL . 'kehoach.php?tab=thongbao');
+        exit;
+    }
+
+    if (function_exists('cds_drive_settings') && function_exists('cds_drive_upload_bytes')) {
+        $settings = cds_drive_settings();
+        $plansFolder = trim((string)($settings['types']['plans']['folder_id'] ?? ''));
+        if (!empty($settings['enabled']) && $plansFolder !== '') {
+            $tmp = (string)($upload['tmp_name'] ?? '');
+            $bytes = $tmp !== '' ? @file_get_contents($tmp) : false;
+            if ($bytes === false) {
+                if (function_exists('flash')) flash('Không đọc được tệp tạm để tải lên Google Drive.', 'danger');
+                header('Location: ' . BASE_URL . 'kehoach.php?tab=thongbao');
+                exit;
+            }
+            $mime = function_exists('mime_content_type') ? (mime_content_type($tmp) ?: 'application/octet-stream') : 'application/octet-stream';
+            $result = cds_drive_upload_bytes(
+                $bytes,
+                basename((string)($upload['name'] ?? 'file')),
+                $mime,
+                'plans'
+            );
+            if (empty($result['ok'])) {
+                if (function_exists('flash')) flash('Không tải được tệp thông báo lên Google Drive: ' . (string)($result['message'] ?? 'Lỗi không xác định.'), 'danger');
+                header('Location: ' . BASE_URL . 'kehoach.php?tab=thongbao');
+                exit;
+            }
+            // kehoach.php giữ file_path cũ khi helper phía sau không nhận tệp mới.
+            $_POST['file_path'] = (string)($result['path'] ?? '');
+            $_FILES['file']['error'] = UPLOAD_ERR_NO_FILE;
+            $_FILES['file']['tmp_name'] = '';
+        }
+    }
+}
+
 function cm_docs_all() {
     if (!is_dir(CM_UPLOAD_DIR)) @mkdir(CM_UPLOAD_DIR, 0755, true);
     return load_json(CM_DOCS_FILE, []);
