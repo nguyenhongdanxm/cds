@@ -98,6 +98,23 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') ==
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="<?= BASE_URL ?>includes/noitru_layout.css?v=20260731-4" rel="stylesheet">
+  <?php if (in_array($view, ['rooms','meals'], true)): ?>
+  <style>
+    .nt-compact-card .card-body{padding:.62rem .78rem!important;min-height:0!important}
+    .nt-compact-head{display:flex;align-items:center;justify-content:center;gap:.38rem;min-height:28px;line-height:1.15;white-space:nowrap}
+    .nt-compact-head i{font-size:1rem!important;margin:0!important}
+    .nt-compact-name{font-size:.98rem;font-weight:700;color:#1f2937}
+    .nt-compact-count{font-size:.76rem;color:#64748b;font-weight:500}
+    .nt-compact-card .nt-room-card-meta{margin-top:.38rem!important;padding-top:.34rem!important;font-size:.69rem!important;line-height:1.32!important}
+    @media(max-width:700px){
+      .nt-compact-card .card-body{padding:.52rem .6rem!important}
+      .nt-compact-head{gap:.28rem}
+      .nt-compact-name{font-size:.92rem}
+      .nt-compact-count{font-size:.69rem}
+      .nt-compact-card .nt-room-card-meta{font-size:.64rem!important}
+    }
+  </style>
+  <?php endif; ?>
 </head>
 <body class="nt-body">
 <?php require __DIR__ . '/includes/noitru_shell.php'; ?>
@@ -138,5 +155,35 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') ==
   ?>
 </div></main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<?php if (in_array($view, ['rooms','meals'], true) && (($view==='rooms' && $room==='') || ($view==='meals' && $meal===''))): ?>
+<script>
+(function(){
+  const mode = <?= json_encode($view, JSON_UNESCAPED_UNICODE) ?>;
+  const key = mode === 'rooms' ? 'room' : 'meal';
+  document.querySelectorAll('a[href*="view='+mode+'"][href*="'+key+'="]').forEach(function(a){
+    const body = a.querySelector('.card-body');
+    if(!body || body.dataset.compactDone==='1') return;
+    const icon = body.querySelector(':scope > i');
+    const title = body.querySelector(':scope > .fw-bold');
+    const count = body.querySelector(':scope > .text-muted.small');
+    if(!icon || !title || !count) return;
+    const head=document.createElement('div');
+    head.className='nt-compact-head';
+    icon.classList.remove('fs-4');
+    title.classList.remove('mt-1');
+    title.classList.add('nt-compact-name');
+    const countText=(count.textContent||'').trim().replace(/\s*học sinh\s*/i,'');
+    count.textContent='(' + countText + ' HS)';
+    count.classList.remove('text-muted','small');
+    count.classList.add('nt-compact-count');
+    head.append(icon,title,count);
+    body.insertBefore(head,body.firstChild);
+    body.classList.remove('text-center','py-3');
+    body.closest('.card')?.classList.add('nt-compact-card');
+    body.dataset.compactDone='1';
+  });
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>
