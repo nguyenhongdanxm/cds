@@ -109,17 +109,97 @@ require_once __DIR__ . '/cds_module_switcher.php';
 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
 <div class="collapse navbar-collapse" id="nav">
 <ul class="navbar-nav me-auto">
+
 <?php if ($logged): ?>
-<li class="nav-item"><a class="nav-link <?= $current==='index'?'active':'' ?><?= $cmDisabled('cm.dashboard') ?>" href="<?= BASE_URL ?>index.php" <?= !$cmMenuCan('cm.dashboard')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-house-door"></i> Trang chủ</a></li>
-<li class="nav-item dropdown"><a class="nav-link dropdown-toggle <?= $pccm_active?'active':'' ?><?= !$pccmCanOpen?' permission-disabled':'' ?>" href="#" data-bs-toggle="dropdown" <?= !$pccmCanOpen?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-clipboard-check"></i> PCCM</a><ul class="dropdown-menu"><li><a class="dropdown-item <?= $current==='tracuu'?'active':'' ?><?= $cmDisabled('cm.tracuu') ?>" href="<?= BASE_URL ?>tracuu.php">Tra cứu phân công</a></li><li><a class="dropdown-item <?= $current==='tongquan'?'active':'' ?><?= $cmDisabled('cm.pccm') ?>" href="<?= BASE_URL ?>tongquan.php">Tổng quan</a></li><li><a class="dropdown-item <?= in_array($current,['them','doicheo','rasoat','sua'],true)?'active':'' ?><?= $cmDisabled('cm.pccm') ?>" href="<?= BASE_URL ?>them.php">Phân công</a></li><li><a class="dropdown-item <?= $current==='danhsach'?'active':'' ?><?= $cmDisabled('cm.pccm') ?>" href="<?= BASE_URL ?>danhsach.php">Danh sách</a></li><li><a class="dropdown-item <?= $current==='ketqua'?'active':'' ?><?= $cmDisabled('cm.tracuu') ?>" href="<?= BASE_URL ?>ketqua.php">Kết quả</a></li><li><a class="dropdown-item <?= $current==='thongke'?'active':'' ?><?= $cmDisabled('cm.thongke') ?>" href="<?= BASE_URL ?>thongke.php">Thống kê PCCM</a></li></ul></li>
-<li class="nav-item dropdown"><a class="nav-link dropdown-toggle <?= in_array($current,$kh_pages,true)?'active':'' ?><?= $cmDisabled('cm.kehoach') ?>" href="#" data-bs-toggle="dropdown"><i class="bi bi-calendar2-week"></i> Kế hoạch</a><ul class="dropdown-menu"><li><a class="dropdown-item <?= ($current==='kehoach' && ($tab_q===''||$tab_q==='vanban'))?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=vanban">Kế hoạch giáo dục</a></li><li><a class="dropdown-item <?= ($current==='kehoach' && $tab_q==='thongbao')?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=thongbao">Thông báo</a></li><li><a class="dropdown-item <?= ($current==='kehoach' && $tab_q==='chitieu')?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=chitieu">Chỉ tiêu</a></li></ul></li>
-<li class="nav-item dropdown"><a class="nav-link dropdown-toggle <?= in_array($current,$bc_pages,true)?'active':'' ?><?= !$reportCanOpen?' permission-disabled':'' ?>" href="#" data-bs-toggle="dropdown"><i class="bi bi-clipboard2-check"></i> Theo dõi – Đánh giá</a><ul class="dropdown-menu"><li><a class="dropdown-item" href="<?= BASE_URL ?>baocao.php?tab=dinhky">Báo cáo định kỳ</a></li><li><a class="dropdown-item" href="<?= BASE_URL ?>baocao.php?tab=tiendo">Tiến độ chương trình</a></li><li><a class="dropdown-item" href="<?= BASE_URL ?>dugio.php">Dự giờ</a></li><li><a class="dropdown-item" href="<?= BASE_URL ?>kiemtrahoso.php">Kiểm tra</a></li></ul></li>
-<li class="nav-item"><a class="nav-link <?= $current==='thoikhoabieu'?'active':'' ?>" href="<?= BASE_URL ?>thoikhoabieu.php"><i class="bi bi-calendar3"></i> Thời khóa biểu</a></li>
-<?php else: ?><li class="nav-item"><a class="nav-link <?= $current=='tracuu'?'active':'' ?>" href="<?= BASE_URL ?>tracuu.php"><i class="bi bi-search"></i> Tra cứu phân công</a></li><li class="nav-item"><a class="nav-link <?= $current=='ketqua'?'active':'' ?>" href="<?= BASE_URL ?>ketqua.php"><i class="bi bi-folder2-open"></i> Kết quả</a></li><?php endif; ?>
+
+<li class="nav-item">
+  <a class="nav-link <?= $current==='index'?'active':'' ?><?= $cmDisabled('cm.dashboard') ?>" href="<?= BASE_URL ?>index.php" <?= !$cmMenuCan('cm.dashboard')?'aria-disabled="true" tabindex="-1"':'' ?>>
+    <i class="bi bi-house-door"></i> Trang chủ
+  </a>
+</li>
+
+<li class="nav-item dropdown">
+  <a class="nav-link dropdown-toggle <?= $pccm_active?'active':'' ?><?= !$pccmCanOpen?' permission-disabled':'' ?>" href="#" data-bs-toggle="dropdown" <?= !$pccmCanOpen?'aria-disabled="true" tabindex="-1"':'' ?>>
+    <i class="bi bi-clipboard-check"></i> PCCM
+  </a>
+  <ul class="dropdown-menu">
+    <li><a class="dropdown-item <?= $current==='tracuu'?'active':'' ?><?= $cmDisabled('cm.tracuu') ?>" href="<?= BASE_URL ?>tracuu.php" <?= !$cmMenuCan('cm.tracuu')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-search me-1"></i> Tra cứu phân công</a></li>
+    <li><a class="dropdown-item <?= $current==='tongquan'?'active':'' ?><?= $cmDisabled('cm.pccm') ?>" href="<?= BASE_URL ?>tongquan.php" <?= !$cmMenuCan('cm.pccm')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-grid me-1"></i> Tổng quan</a></li>
+    <li><a class="dropdown-item <?= in_array($current,['them','doicheo','rasoat','sua'],true)?'active':'' ?><?= $cmDisabled('cm.pccm') ?>" href="<?= BASE_URL ?>them.php" <?= !$cmMenuCan('cm.pccm')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-pencil-square me-1"></i> Phân công</a></li>
+    <li><a class="dropdown-item <?= $current==='danhsach'?'active':'' ?><?= $cmDisabled('cm.pccm') ?>" href="<?= BASE_URL ?>danhsach.php" <?= !$cmMenuCan('cm.pccm')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-list-ul me-1"></i> Danh sách</a></li>
+    <li><a class="dropdown-item <?= $current==='ketqua'?'active':'' ?><?= $cmDisabled('cm.tracuu') ?>" href="<?= BASE_URL ?>ketqua.php" <?= !$cmMenuCan('cm.tracuu')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-folder2-open me-1"></i> Kết quả</a></li>
+    <li><a class="dropdown-item <?= $current==='thongke'?'active':'' ?><?= $cmDisabled('cm.thongke') ?>" href="<?= BASE_URL ?>thongke.php" <?= !$cmMenuCan('cm.thongke')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-bar-chart-line me-1"></i> Thống kê PCCM</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header">Nhập liệu</h6></li>
+    <li><a class="dropdown-item <?= $current==='giaovien'?'active':'' ?><?= $cmDisabled('cm.nhaplieu') ?>" href="<?= BASE_URL ?>giaovien.php" <?= !$cmMenuCan('cm.nhaplieu')?'aria-disabled="true" tabindex="-1"':'' ?>>Giáo viên</a></li>
+    <li><a class="dropdown-item <?= $current==='monhoc'?'active':'' ?><?= $cmDisabled('cm.nhaplieu') ?>" href="<?= BASE_URL ?>monhoc.php" <?= !$cmMenuCan('cm.nhaplieu')?'aria-disabled="true" tabindex="-1"':'' ?>>Môn học & số tiết</a></li>
+    <li><a class="dropdown-item <?= $current==='lop'?'active':'' ?><?= $cmDisabled('cm.nhaplieu') ?>" href="<?= BASE_URL ?>lop.php" <?= !$cmMenuCan('cm.nhaplieu')?'aria-disabled="true" tabindex="-1"':'' ?>>Lớp</a></li>
+    <li><a class="dropdown-item <?= $current==='kiemnhiem'?'active':'' ?><?= $cmDisabled('cm.nhaplieu') ?>" href="<?= BASE_URL ?>kiemnhiem.php" <?= !$cmMenuCan('cm.nhaplieu')?'aria-disabled="true" tabindex="-1"':'' ?>>Kiêm nhiệm & số tiết</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item <?= $current==='xuat_bang'?'active':'' ?><?= $cmDisabled('cm.thongke') ?>" href="<?= BASE_URL ?>xuat_bang.php" <?= !$cmMenuCan('cm.thongke')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-printer me-1"></i> Xuất bảng</a></li>
+  </ul>
+</li>
+
+<li class="nav-item dropdown">
+  <a class="nav-link dropdown-toggle <?= in_array($current,$kh_pages,true)?'active':'' ?><?= $cmDisabled('cm.kehoach') ?>" href="#" data-bs-toggle="dropdown" <?= !$cmMenuCan('cm.kehoach')?'aria-disabled="true" tabindex="-1"':'' ?>>
+    <i class="bi bi-calendar2-week"></i> Kế hoạch
+  </a>
+  <ul class="dropdown-menu">
+    <li><a class="dropdown-item <?= ($current==='kehoach' && ($tab_q===''||$tab_q==='vanban'))?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=vanban">Kế hoạch giáo dục</a></li>
+    <li><a class="dropdown-item <?= ($current==='kehoach' && $tab_q==='thongbao')?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=thongbao">Thông báo</a></li>
+    <li><a class="dropdown-item <?= ($current==='kehoach' && $tab_q==='chitieu')?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=chitieu">Chỉ tiêu</a></li>
+  </ul>
+</li>
+
+<li class="nav-item dropdown">
+  <a class="nav-link dropdown-toggle <?= in_array($current,$bc_pages,true)?'active':'' ?><?= !$reportCanOpen?' permission-disabled':'' ?>" href="#" data-bs-toggle="dropdown" <?= !$reportCanOpen?'aria-disabled="true" tabindex="-1"':'' ?>>
+    <i class="bi bi-clipboard2-check"></i> Theo dõi – Đánh giá
+  </a>
+  <ul class="dropdown-menu">
+    <li><a class="dropdown-item <?= ($current==='baocao' && ($tab_q===''||$tab_q==='dinhky'))?'active':'' ?><?= $cmDisabled('cm.baocao.dinhky') ?>" href="<?= BASE_URL ?>baocao.php?tab=dinhky" <?= !$cmMenuCan('cm.baocao.dinhky')?'aria-disabled="true" tabindex="-1"':'' ?>>Báo cáo định kỳ</a></li>
+    <li><a class="dropdown-item <?= ($current==='baocao' && $tab_q==='tiendo')?'active':'' ?><?= $cmDisabled('cm.baocao.tiendo') ?>" href="<?= BASE_URL ?>baocao.php?tab=tiendo" <?= !$cmMenuCan('cm.baocao.tiendo')?'aria-disabled="true" tabindex="-1"':'' ?>>Tiến độ chương trình</a></li>
+    <li><a class="dropdown-item <?= $current==='dugio'?'active':'' ?><?= $cmDisabled('cm.baocao.dugio') ?>" href="<?= BASE_URL ?>dugio.php" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>>Dự giờ</a></li>
+    <li><a class="dropdown-item <?= $current==='kiemtrahoso'?'active':'' ?><?= $cmDisabled('cm.baocao.kythi') ?>" href="<?= BASE_URL ?>kiemtrahoso.php" <?= !$cmMenuCan('cm.baocao.kythi')?'aria-disabled="true" tabindex="-1"':'' ?>>Kiểm tra</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item <?= $cmDisabled('cm.baocao.dugio') ?>" href="<?=BASE_URL?>danhgia.php?view=profile" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-person-vcard me-1"></i> Hồ sơ đánh giá</a></li>
+    <li><a class="dropdown-item <?= $cmDisabled('cm.baocao.dugio') ?>" href="<?=BASE_URL?>danhgia.php?view=overview" <?= !$cmMenuCan('cm.baocao.dugio')?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi bi-bar-chart-line me-1"></i> Tổng hợp đánh giá</a></li>
+  </ul>
+</li>
+
+<li class="nav-item">
+  <a class="nav-link <?= $current==='thoikhoabieu'?'active':'' ?>" href="<?= BASE_URL ?>thoikhoabieu.php">
+    <i class="bi bi-calendar3"></i> Thời khóa biểu
+  </a>
+</li>
+
+<?php else: ?>
+<li class="nav-item"><a class="nav-link <?= $current=='tracuu'?'active':'' ?>" href="<?= BASE_URL ?>tracuu.php"><i class="bi bi-search"></i> Tra cứu phân công</a></li>
+<li class="nav-item"><a class="nav-link <?= $current=='ketqua'?'active':'' ?>" href="<?= BASE_URL ?>ketqua.php"><i class="bi bi-folder2-open"></i> Kết quả</a></li>
+<?php endif; ?>
+
 </ul>
-<div class="d-flex flex-wrap gap-2 align-items-center"><a href="/" class="btn btn-outline-light btn-sm" title="Hệ sinh thái CDS"><i class="bi bi-house"></i></a><?php if ($logged): ?><a href="<?= BASE_URL ?>logout.php" class="btn btn-warning btn-sm text-dark fw-semibold"><i class="bi bi-box-arrow-right"></i> Đăng xuất</a><?php else: ?><a href="/login.php?next=<?= urlencode(BASE_URL . 'index.php') ?>" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-in-right"></i> Đăng nhập</a><?php endif; ?></div>
+
+<div class="d-flex flex-wrap gap-2 align-items-center">
+  <a href="/" class="btn btn-outline-light btn-sm" title="Hệ sinh thái CDS"><i class="bi bi-house"></i></a>
+  <?php if ($logged): ?>
+  <a href="<?= BASE_URL ?>logout.php" class="btn btn-warning btn-sm text-dark fw-semibold"><i class="bi bi-box-arrow-right"></i> Đăng xuất</a>
+  <?php else: ?>
+  <a href="/login.php?next=<?= urlencode(BASE_URL . 'index.php') ?>" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-in-right"></i> Đăng nhập</a>
+  <?php endif; ?>
+</div>
 </div></div></nav>
 <div class="container pb-5">
-<script>document.querySelectorAll('.cm-sidebar-link span,.cm-mobile-bottom span,.cm-mobile-more span').forEach(function(label){if ((label.textContent || '').trim() === 'Văn bản kế hoạch') label.textContent = 'Kế hoạch giáo dục';});</script>
+<script>
+document.querySelectorAll('.cm-sidebar-link span,.cm-mobile-bottom span,.cm-mobile-more span').forEach(function(label){
+  if ((label.textContent || '').trim() === 'Văn bản kế hoạch') label.textContent = 'Kế hoạch giáo dục';
+});
+</script>
 <?php show_flash(); ?>
-<?php if ($logged && $active_ver && in_array($current, ['them','danhsach','tongquan','sua','doicheo','rasoat'], true)): ?><div class="version-bar"><i class="bi bi-folder2-open"></i> Đang làm việc trên: <strong><?= e($active_ver['name']) ?></strong> (ngày <?= e($active_ver['date'] ?? '') ?>) · <a href="<?= BASE_URL ?>ketqua.php">Đổi phiên bản</a></div><?php endif; ?>
+<?php if ($logged && $active_ver && in_array($current, ['them','danhsach','tongquan','sua','doicheo','rasoat'], true)): ?>
+<div class="version-bar">
+    <i class="bi bi-folder2-open"></i>
+    Đang làm việc trên: <strong><?= e($active_ver['name']) ?></strong>
+    (ngày <?= e($active_ver['date'] ?? '') ?>)
+    · <a href="<?= BASE_URL ?>ketqua.php">Đổi phiên bản</a>
+</div>
+<?php endif; ?>
