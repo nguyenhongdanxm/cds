@@ -33,33 +33,35 @@ $enhancement = <<<'HTML'
 (function(){
 const overlay=document.getElementById('ntxUploadOverlay'),bar=document.getElementById('ntxUploadBar'),status=document.getElementById('ntxUploadStatus'),title=document.getElementById('ntxUploadTitle'),toast=document.getElementById('ntxToast');
 const API='noitru_exit_drive_api.php';
-function showToast(message,ok=true){toast.className='ntx-toast show '+(ok?'ok':'bad');toast.innerHTML=(ok?'<i class="bi bi-check-circle-fill text-success me-2"></i>':'<i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>')+message;setTimeout(()=>toast.classList.remove('show'),5000)}
+function showToast(message,ok=true){toast.className='ntx-toast show '+(ok?'ok':'bad');toast.innerHTML=(ok?'<i class="bi bi-check-circle-fill text-success me-2"></i>':'<i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>')+message;setTimeout(()=>toast.classList.remove('show'),6000)}
+const storedFlash=sessionStorage.getItem('ntxExitFlash');if(storedFlash){sessionStorage.removeItem('ntxExitFlash');setTimeout(()=>showToast(storedFlash,true),180)}
 function progress(p,text){p=Math.max(3,Math.min(100,Math.round(p)));bar.style.width=p+'%';bar.textContent=p+'%';if(text)status.textContent=text}
 function showProgress(){bar.className='progress-bar progress-bar-striped progress-bar-animated';title.textContent='Đang tải đơn lên Google Drive';progress(3,'Đang chuẩn bị file…');overlay.classList.add('show')}
 function failProgress(message){bar.classList.remove('progress-bar-animated');bar.classList.add('bg-danger');title.textContent='Tải đơn không thành công';status.textContent=message;setTimeout(()=>overlay.classList.remove('show'),2600);showToast(message,false)}
 function successProgress(message){bar.classList.remove('progress-bar-animated');bar.classList.add('bg-success');title.textContent='Đã tải đơn thành công';progress(100,message||'File đã nằm trong Google Drive.');}
 function managerUrlFrom(responseUrl, fallbackView){try{const u=new URL(responseUrl,location.href);const q=u.searchParams.toString();return 'noitru_exit_manager.php'+(q?'?'+q:'?view='+(fallbackView||'register'));}catch(_){return 'noitru_exit_manager.php?view='+(fallbackView||'register')}}
-function postBusinessForm(form, fallbackView, afterUpload){const xhr=new XMLHttpRequest(),fd=new FormData(form);xhr.open('POST',location.href,true);xhr.onload=()=>{if(afterUpload){progress(96,'Đã tải file lên Drive. Đang lưu đăng ký…')}const target=managerUrlFrom(xhr.responseURL,fallbackView);setTimeout(()=>{location.href=target},afterUpload?600:0)};xhr.onerror=()=>{if(afterUpload)failProgress('Mất kết nối khi lưu đăng ký. File đã có thể được tải lên Drive; hãy thử lưu lại phiếu.');else showToast('Không kết nối được máy chủ.',false)};xhr.send(fd)}
+function postBusinessForm(form, fallbackView, afterUpload, successMessage=''){const xhr=new XMLHttpRequest(),fd=new FormData(form);xhr.open('POST',location.href,true);xhr.onload=()=>{if(afterUpload){progress(96,'Đã tải file lên Drive. Đang lưu đăng ký…')}if(successMessage)sessionStorage.setItem('ntxExitFlash',successMessage);const target=managerUrlFrom(xhr.responseURL,fallbackView);setTimeout(()=>{location.href=target},afterUpload?700:0)};xhr.onerror=()=>{if(afterUpload)failProgress('Mất kết nối khi lưu đăng ký. File đã có thể được tải lên Drive; hãy thử lưu lại phiếu.');else showToast('Không kết nối được máy chủ.',false)};xhr.send(fd)}
 
 /* Form đăng ký: upload file riêng để có % thật, chỉ lưu phiếu sau khi Drive trả File ID. */
 const saveInput=document.querySelector('form input[name="action"][value="save_request"]');
-if(saveInput){const form=saveInput.closest('form'),file=form.querySelector('input[type="file"][name="attachment"]'),old=form.querySelector('input[name="old_attachment"]');
+if(saveInput){const form=saveInput.closest('form'),file=form.querySelector('input[type="file"][name="attachment"]'),old=form.querySelector('input[name="old_attachment"]'),isEdit=!!form.querySelector('input[name="id"]')?.value;
  form.addEventListener('submit',function(ev){
    if(form.dataset.ntxSubmitting==='1')return;
    if(!form.reportValidity()){ev.preventDefault();return;}
-   if(!file||!file.files||!file.files.length){ev.preventDefault();postBusinessForm(form,'register',false);return;}
+   const doneMessage=isEdit?'Đã cập nhật đơn xin thành công.':'Đăng ký thành công – đang chờ duyệt.';
+   if(!file||!file.files||!file.files.length){ev.preventDefault();postBusinessForm(form,'register',false,doneMessage);return;}
    ev.preventDefault();showProgress();
-   const fd=new FormData();fd.append('action','upload');fd.append('attachment',file.files[0]);
+   const selected=file.files[0],fd=new FormData();fd.append('action','upload');fd.append('attachment',selected);
    const xhr=new XMLHttpRequest();xhr.open('POST',API,true);
-   xhr.upload.onprogress=e=>{if(e.lengthComputable){const p=5+(e.loaded/e.total)*77;progress(p,'Đang gửi '+file.files[0].name+' lên máy chủ…')}};
+   xhr.upload.onprogress=e=>{if(e.lengthComputable){const p=5+(e.loaded/e.total)*77;progress(p,'Đang gửi '+selected.name+' lên máy chủ…')}};
    xhr.upload.onload=()=>progress(84,'Máy chủ đã nhận file. Đang chuyển vào Google Drive…');
-   xhr.onload=()=>{let d=null;try{d=JSON.parse(xhr.responseText)}catch(_){d=null}if(xhr.status<200||xhr.status>=300||!d||!d.ok){failProgress((d&&d.message)||('Upload lỗi HTTP '+xhr.status));return;}successProgress('Đã tải 100%: '+(d.name||file.files[0].name));if(old)old.value=d.path||'';file.value='';form.dataset.ntxSubmitting='1';setTimeout(()=>postBusinessForm(form,'register',true),500)};
+   xhr.onload=()=>{let d=null;try{d=JSON.parse(xhr.responseText)}catch(_){d=null}if(xhr.status<200||xhr.status>=300||!d||!d.ok){failProgress((d&&d.message)||('Upload lỗi HTTP '+xhr.status));return;}successProgress('Đã tải 100%: '+(d.name||selected.name));if(old)old.value=d.path||'';file.value='';form.dataset.ntxSubmitting='1';setTimeout(()=>postBusinessForm(form,'register',true,doneMessage),500)};
    xhr.onerror=()=>failProgress('Không kết nối được máy chủ khi tải file.');xhr.send(fd);
  });
 }
 
 /* Giữ các thao tác POST khác ở màn hình manager thay vì rơi về trang lõi. */
-document.querySelectorAll('form').forEach(form=>{if(form===saveInput?.closest('form'))return;form.addEventListener('submit',function(ev){if(form.dataset.ntxNative==='1')return;const action=form.querySelector('[name="action"]')?.value||'';if(!action)return;if(!form.reportValidity()){ev.preventDefault();return;}ev.preventDefault();postBusinessForm(form,new URLSearchParams(location.search).get('view')||'history',false)})});
+document.querySelectorAll('form').forEach(form=>{if(form===saveInput?.closest('form'))return;form.addEventListener('submit',function(ev){if(form.dataset.ntxNative==='1')return;const action=form.querySelector('[name="action"]')?.value||'';if(!action)return;if(!form.reportValidity()){ev.preventDefault();return;}ev.preventDefault();postBusinessForm(form,new URLSearchParams(location.search).get('view')||'history',false,'')})});
 
 /* Cài đặt: hiển thị trạng thái và chủ động tạo/kiểm tra thư mục Drive. */
 if(new URLSearchParams(location.search).get('view')==='settings'){
