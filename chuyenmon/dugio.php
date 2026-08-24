@@ -46,18 +46,10 @@ function cm_observation_school_year(): array {
     return $years[0] ?? ['id'=>'default','label'=>date('Y').'–'.(date('Y')+1),'start'=>date('Y').'-09-01','end'=>(date('Y')+1).'-05-31'];
 }
 function cm_observation_weeks(array $year): array {
-    $start = $year['start'] ?? ''; $end = $year['end'] ?? '';
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $start) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $end)) return [];
-    $saved = [];
-    foreach (($year['weeks'] ?? []) as $row) {
-        $number = (int)($row['number'] ?? 0);
-        if ($number > 0 && preg_match('/^\d{4}-\d{2}-\d{2}$/', $row['start'] ?? '')) $saved[$number] = $row['start'];
-    }
-    $weeks = []; $cursor = new DateTimeImmutable($start); $last = new DateTimeImmutable($end);
-    for ($number=1; $number<=60 && $cursor<=$last; $number++) {
-        if (isset($saved[$number])) $cursor = new DateTimeImmutable($saved[$number]);
-        $weeks[$number] = ['number'=>$number,'start'=>$cursor->format('Y-m-d'),'end'=>$cursor->modify('+6 days')->format('Y-m-d')];
-        $cursor = $cursor->modify('+7 days');
+    $weeks = [];
+    foreach (cds_school_week_calendar($year) as $week) {
+        $key = (string)($week['key'] ?? $week['number'] ?? '');
+        if ($key !== '') $weeks[$key] = $week;
     }
     return $weeks;
 }
@@ -73,9 +65,24 @@ $teacherName = trim((string)($user['teacher_name'] ?? $user['name'] ?? ''));
 $teacherGroup = $teacherName !== '' ? trim((string)get_teacher_group($teacherName)) : '';
 $year = cm_observation_school_year();
 $weeks = cm_observation_weeks($year);
+function cm_observation_week_text(array $week): string {
+    return trim((string)($week['label'] ?? 'Tuần'))
+        . ' (' . date('d/m/Y', strtotime($week['start']))
+        . '–' . date('d/m/Y', strtotime($week['end'])) . ')';
+}
+function cm_observation_record_week_text(array $record, array $weeks): string {
+    $key = (string)($record['week_key'] ?? $record['week_number'] ?? '');
+    if (isset($weeks[$key])) return cm_observation_week_text($weeks[$key]);
+    $start = (string)($record['week_start'] ?? '');
+    foreach ($weeks as $week) {
+        if (($week['start'] ?? '') === $start) return cm_observation_week_text($week);
+    }
+    $savedLabel = trim((string)($record['week_label'] ?? ''));
+    return $savedLabel !== '' ? $savedLabel : 'Tuần ' . (int)($record['week_number'] ?? 0);
+}
 $today = date('Y-m-d');
-$currentWeek = 1;
-foreach ($weeks as $number=>$week) if ($today >= $week['start'] && $today <= $week['end']) { $currentWeek = $number; break; }
+$currentWeek = (string)(array_key_first($weeks) ?? '1');
+foreach ($weeks as $key=>$week) if ($today >= $week['start'] && $today <= $week['end']) { $currentWeek = (string)$key; break; }
 
 $assignments = [];
 foreach (get_assignments() as $assignment) {
@@ -125,7 +132,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $subject = trim((string)($_POST['subject'] ?? '')); $class = trim((string)($_POST['class'] ?? ''));
         $allowedAssignment = false;
         foreach ($assignments as $assignment) if ($assignment['subject'] === $subject && $assignment['class'] === $class) { $allowedAssignment = true; break; }
-        $weekNumber = (int)($_POST['week_number'] ?? 0); $week = $weeks[$weekNumber] ?? null;
+        $weekKey = trim((string)($_POST['week_number'] ?? ''));
+        $week = $weeks[$weekKey] ?? null;
+        $weekNumber = (int)($week['number'] ?? 0);
         $date = trim((string)($_POST['date'] ?? ''));
         if (!$allowedAssignment || !$week || $date < $week['start'] || $date > $week['end']) {
             flash('Môn, lớp, tuần hoặc ngày không đúng dữ liệu PCCM.', 'danger'); header('Location: '.BASE_URL.'dugio.php'); exit;
@@ -137,11 +146,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($records as &$record) {
             if (($record['id'] ?? '') !== $id) continue;
             if (cm_observation_norm($record['teacher'] ?? '') !== cm_observation_norm($teacherName)) { http_response_code(403); exit('Không được sửa đăng ký của giáo viên khác.'); }
-            $record = array_merge($record, ['year_id'=>$year['id']??'','year_label'=>$year['label']??'','teacher_id'=>cm_observation_teacher_id($teacherName),'teacher'=>$teacherName,'teacher_group'=>$teacherGroup,'subject'=>$subject,'class'=>$class,'week_number'=>$weekNumber,'week_start'=>$week['start'],'week_end'=>$week['end'],'date'=>$date,'start_date'=>$date,'ppct_period'=>$ppct,'timetable_period'=>$timetable,'lesson_title'=>$lesson,'title'=>'Dự giờ: '.$lesson,'kind'=>'observation','updated_at'=>date('c')]);
+            $record = array_merge($record, ['year_id'=>$year['id']??'','year_label'=>$year['label']??'','teacher_id'=>cm_observation_teacher_id($teacherName),'teacher'=>$teacherName,'teacher_group'=>$teacherGroup,'subject'=>$subject,'class'=>$class,'week_key'=>$weekKey,'week_number'=>$weekNumber,'week_label'=>$week['label']??'','week_start'=>$week['start'],'week_end'=>$week['end'],'date'=>$date,'start_date'=>$date,'ppct_period'=>$ppct,'timetable_period'=>$timetable,'lesson_title'=>$lesson,'title'=>'Dự giờ: '.$lesson,'kind'=>'observation','updated_at'=>date('c')]);
             $found = true; break;
         }
         unset($record);
-        if (!$found) $records[] = ['id'=>'obs_'.bin2hex(random_bytes(8)),'year_id'=>$year['id']??'','year_label'=>$year['label']??'','teacher_id'=>cm_observation_teacher_id($teacherName),'teacher'=>$teacherName,'teacher_group'=>$teacherGroup,'subject'=>$subject,'class'=>$class,'week_number'=>$weekNumber,'week_start'=>$week['start'],'week_end'=>$week['end'],'date'=>$date,'start_date'=>$date,'ppct_period'=>$ppct,'timetable_period'=>$timetable,'lesson_title'=>$lesson,'title'=>'Dự giờ: '.$lesson,'kind'=>'observation','observer'=>'','observers'=>[],'observer_ids'=>[],'assignees'=>[],'score'=>'','rating'=>'','created_by'=>$user['id']??'','created_at'=>date('c'),'updated_at'=>date('c')];
+        if (!$found) $records[] = ['id'=>'obs_'.bin2hex(random_bytes(8)),'year_id'=>$year['id']??'','year_label'=>$year['label']??'','teacher_id'=>cm_observation_teacher_id($teacherName),'teacher'=>$teacherName,'teacher_group'=>$teacherGroup,'subject'=>$subject,'class'=>$class,'week_key'=>$weekKey,'week_number'=>$weekNumber,'week_label'=>$week['label']??'','week_start'=>$week['start'],'week_end'=>$week['end'],'date'=>$date,'start_date'=>$date,'ppct_period'=>$ppct,'timetable_period'=>$timetable,'lesson_title'=>$lesson,'title'=>'Dự giờ: '.$lesson,'kind'=>'observation','observer'=>'','observers'=>[],'observer_ids'=>[],'assignees'=>[],'score'=>'','rating'=>'','created_by'=>$user['id']??'','created_at'=>date('c'),'updated_at'=>date('c')];
         save_json($dataFile, array_values($records)); flash($found?'Đã cập nhật đăng ký dự giờ.':'Đã đăng ký tiết dự giờ.'); header('Location: '.BASE_URL.'dugio.php'); exit;
     }
     if ($action === 'observation_review') {
@@ -172,18 +181,24 @@ $visibleRecords = array_values(array_filter($records, $canSeeRecord));
 usort($visibleRecords, fn($a,$b)=>strcmp(($b['date']??'').'|'.($b['created_at']??''),($a['date']??'').'|'.($a['created_at']??'')));
 $view = ($_GET['view'] ?? '') === 'stats' && ($isAdmin || $isLeader) ? 'stats' : 'list';
 $filterGroup = trim((string)($_GET['group'] ?? '')); $filterSubject = trim((string)($_GET['subject'] ?? ''));
-$filterFromWeek = max(0, (int)($_GET['from_week'] ?? 0)); $filterToWeek = max(0, (int)($_GET['to_week'] ?? 0));
-if ($filterFromWeek && !isset($weeks[$filterFromWeek])) $filterFromWeek = 0;
-if ($filterToWeek && !isset($weeks[$filterToWeek])) $filterToWeek = 0;
-if ($filterFromWeek && $filterToWeek && $filterFromWeek > $filterToWeek) [$filterFromWeek,$filterToWeek] = [$filterToWeek,$filterFromWeek];
+$filterFromWeek = trim((string)($_GET['from_week'] ?? '')); $filterToWeek = trim((string)($_GET['to_week'] ?? ''));
+if ($filterFromWeek !== '' && !isset($weeks[$filterFromWeek])) $filterFromWeek = '';
+if ($filterToWeek !== '' && !isset($weeks[$filterToWeek])) $filterToWeek = '';
+$filterWeekFromDate = $filterFromWeek !== '' ? (string)$weeks[$filterFromWeek]['start'] : '';
+$filterWeekToDate = $filterToWeek !== '' ? (string)$weeks[$filterToWeek]['end'] : '';
+if ($filterWeekFromDate !== '' && $filterWeekToDate !== '' && $filterWeekFromDate > $filterWeekToDate) {
+    [$filterFromWeek, $filterToWeek] = [$filterToWeek, $filterFromWeek];
+    $filterWeekFromDate = (string)$weeks[$filterFromWeek]['start'];
+    $filterWeekToDate = (string)$weeks[$filterToWeek]['end'];
+}
 $filterFromDate = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['from_date'] ?? '') ? (string)$_GET['from_date'] : '';
 $filterToDate = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['to_date'] ?? '') ? (string)$_GET['to_date'] : '';
 if ($filterFromDate !== '' && $filterToDate !== '' && $filterFromDate > $filterToDate) [$filterFromDate,$filterToDate] = [$filterToDate,$filterFromDate];
-$statsRecords = array_values(array_filter($visibleRecords, function($record) use($filterGroup,$filterSubject,$filterFromWeek,$filterToWeek,$filterFromDate,$filterToDate){
-    $recordWeek = (int)($record['week_number'] ?? 0); $recordDate = (string)($record['date'] ?? '');
+$statsRecords = array_values(array_filter($visibleRecords, function($record) use($filterGroup,$filterSubject,$filterWeekFromDate,$filterWeekToDate,$filterFromDate,$filterToDate){
+    $recordDate = (string)($record['date'] ?? $record['week_start'] ?? '');
     return ($filterGroup==='' || ($record['teacher_group']??'')===$filterGroup)
         && ($filterSubject==='' || ($record['subject']??'')===$filterSubject)
-        && (!$filterFromWeek || $recordWeek >= $filterFromWeek) && (!$filterToWeek || $recordWeek <= $filterToWeek)
+        && ($filterWeekFromDate==='' || $recordDate >= $filterWeekFromDate) && ($filterWeekToDate==='' || $recordDate <= $filterWeekToDate)
         && ($filterFromDate==='' || $recordDate >= $filterFromDate) && ($filterToDate==='' || $recordDate <= $filterToDate);
 }));
 $filterGroups = array_values(array_unique(array_filter(array_column($visibleRecords,'teacher_group')))); sort($filterGroups,SORT_NATURAL|SORT_FLAG_CASE);
@@ -212,7 +227,7 @@ require_once 'includes/header.php';
 <div class="obs-form-grid"><div><label class="form-label fw-semibold">Họ tên giáo viên</label><input class="form-control" value="<?=e($teacherName)?>" disabled></div>
 <div><label class="form-label fw-semibold">Môn</label><select class="form-select" name="subject" id="obsSubject" required><option value="">Chọn môn</option><?php foreach($subjects as $subject):?><option value="<?=e($subject)?>"><?=e($subject)?></option><?php endforeach;?></select></div>
 <div><label class="form-label fw-semibold">Lớp</label><select class="form-select" name="class" id="obsClass" required><option value="">Chọn lớp</option><?php foreach($assignments as $assignment):?><option value="<?=e($assignment['class'])?>" data-subject="<?=e($assignment['subject'])?>"><?=e($assignment['class'])?></option><?php endforeach;?></select></div>
-<div><label class="form-label fw-semibold">Tuần</label><select class="form-select" name="week_number" id="obsWeek" required><?php foreach($weeks as $week):?><option value="<?=$week['number']?>" data-start="<?=e($week['start'])?>" data-end="<?=e($week['end'])?>" <?=$week['number']===$currentWeek?'selected':''?>>Tuần <?=$week['number']?> (<?=date('d/m',strtotime($week['start']))?>–<?=date('d/m',strtotime($week['end']))?>)</option><?php endforeach;?></select></div>
+<div><label class="form-label fw-semibold">Tuần (đồng bộ CSDL)</label><select class="form-select" name="week_number" id="obsWeek" required><?php foreach($weeks as $weekKey=>$week):?><option value="<?=e($weekKey)?>" data-start="<?=e($week['start'])?>" data-end="<?=e($week['end'])?>" <?=(string)$weekKey===$currentWeek?'selected':''?>><?=e(cm_observation_week_text($week))?></option><?php endforeach;?></select></div>
 <div><label class="form-label fw-semibold">Ngày</label><input class="form-control" type="date" name="date" id="obsDate" value="<?=e($today)?>" required></div>
 <div><label class="form-label fw-semibold">Tiết PPCT</label><input class="form-control" type="number" name="ppct_period" id="obsPpct" min="1" required></div>
 <div><label class="form-label fw-semibold">Tiết TKB</label><input class="form-control" type="number" name="timetable_period" id="obsTimetable" min="1" required></div>
@@ -222,7 +237,7 @@ require_once 'includes/header.php';
 
 <div class="card"><div class="card-header d-flex justify-content-between"><span>Danh sách dự giờ</span><span><?=count($visibleRecords)?> tiết</span></div><div class="table-responsive"><table class="table table-bordered table-hover mb-0 obs-table obs-register-table"><colgroup><col style="width:52px"><col style="width:185px"><col style="width:115px"><col style="width:72px"><col style="width:82px"><col style="width:105px"><col style="width:76px"><col style="width:72px"><col style="width:245px"><col style="width:245px"><col style="width:72px"><col style="width:95px"><col style="width:125px"></colgroup><thead><tr><th>STT</th><th>Họ tên giáo viên</th><th>Môn</th><th>Lớp</th><th>Tuần</th><th>Ngày</th><th>Tiết PPCT</th><th>Tiết TKB</th><th>Tên bài dạy</th><th>Người dự</th><th>Điểm</th><th>Xếp loại</th><th>Thao tác</th></tr></thead><tbody>
 <?php if(!$visibleRecords):?><tr><td colspan="13" class="text-center text-muted py-4">Chưa có đăng ký dự giờ.</td></tr><?php else:foreach($visibleRecords as $index=>$record):$rating=$record['rating']??'';$ratingClass=$rating==='Giỏi'?'good':($rating==='Khá'?'fair':($rating==='Trung bình'?'pass':'fail'));?><tr>
-<td><?=$index+1?></td><td><strong><?=e($record['teacher']??'')?></strong><small class="d-block text-muted"><?=e($record['teacher_group']??'')?></small></td><td><?=e($record['subject']??'')?></td><td><?=e($record['class']??'')?></td><td>Tuần <?=(int)($record['week_number']??0)?></td><td><?=!empty($record['date'])?date('d/m/Y',strtotime($record['date'])):'—'?></td><td class="text-center"><?=(int)($record['ppct_period']??0)?></td><td class="text-center"><?=(int)($record['timetable_period']??0)?></td><td><?=e($record['lesson_title']??'')?></td>
+<td><?=$index+1?></td><td><strong><?=e($record['teacher']??'')?></strong><small class="d-block text-muted"><?=e($record['teacher_group']??'')?></small></td><td><?=e($record['subject']??'')?></td><td><?=e($record['class']??'')?></td><td><?=e(cm_observation_record_week_text($record,$weeks))?></td><td><?=!empty($record['date'])?date('d/m/Y',strtotime($record['date'])):'—'?></td><td class="text-center"><?=(int)($record['ppct_period']??0)?></td><td class="text-center"><?=(int)($record['timetable_period']??0)?></td><td><?=e($record['lesson_title']??'')?></td>
 <?php if(($isAdmin||$isLeader)&&$canSeeRecord($record)): $selectedObservers=cm_observation_observers($record);?><td colspan="3"><form method="post" class="obs-review"><input type="hidden" name="action" value="observation_review"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="id" value="<?=e($record['id']??'')?>"><details class="obs-observer-picker"><summary><span class="obs-observer-summary"><?=$selectedObservers?e(count($selectedObservers).' người đã chọn'):'Chọn người dự'?></span></summary><div class="obs-observer-options"><?php foreach($teamTeachers as $name):?><label class="obs-observer-option"><input type="checkbox" name="observers[]" value="<?=e($name)?>" <?=in_array($name,$selectedObservers,true)?'checked':''?>><span class="obs-observer-name"><?=e($name)?></span></label><?php endforeach;?></div></details><button class="btn btn-sm btn-success" title="Lưu phân công"><i class="bi bi-check-lg"></i></button><small class="text-muted" style="grid-column:1/-1"><?=(int)($record['completed_forms']??0)?>/<?=(int)($record['assigned_forms']??count($selectedObservers))?> phiếu hoàn thành<?=$rating?' · Điểm TB '.e((string)$record['score']).' · '.e($rating):''?></small></form></td>
 <?php else: $observerNames=cm_observation_observers($record); $observerDisplay=cm_observation_observer_display($record);?><td class="obs-observer-display" title="<?=e(implode(', ',$observerNames))?>"><?=e($observerDisplay?:'—')?></td><td><?=($record['score']??'')!==''?e((string)$record['score']):'—'?></td><td><?=$rating?'<span class="obs-rating '.$ratingClass.'">'.e($rating).'</span>':'—'?></td><?php endif;?>
 <td class="text-nowrap"><?php if(cm_observation_observers($record)):?><a class="btn btn-sm btn-outline-success" href="<?=BASE_URL?>phieudugio.php?id=<?=urlencode((string)($record['id']??''))?>" title="Mở phiếu đánh giá"><i class="bi bi-clipboard-check"></i> Phiếu</a><?php endif;?><?php if(cm_observation_norm($record['teacher']??'')===cm_observation_norm($teacherName)):?><button class="btn btn-sm btn-outline-primary obs-edit" type="button" data-record="<?=e(base64_encode(json_encode($record,JSON_UNESCAPED_UNICODE)))?>"><i class="bi bi-pencil"></i></button><?php endif;?><?php if($isAdmin):?><form method="post" class="d-inline" onsubmit="return confirm('Xóa đăng ký dự giờ này?')"><input type="hidden" name="action" value="observation_delete"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="id" value="<?=e($record['id']??'')?>"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></form><?php endif;?></td></tr><?php endforeach;endif;?></tbody></table></div></div>
@@ -231,15 +246,15 @@ require_once 'includes/header.php';
 <form method="get" class="card mb-3"><input type="hidden" name="view" value="stats"><div class="card-body"><div class="row g-2 align-items-end">
 <div class="col-md-3"><label class="form-label fw-semibold">Tổ chuyên môn</label><select class="form-select" name="group" <?=$isLeader&&!$isAdmin?'disabled':''?>><option value="">Tất cả tổ</option><?php foreach($filterGroups as $group):?><option value="<?=e($group)?>" <?=$group===$filterGroup?'selected':''?>><?=e($group)?></option><?php endforeach;?></select><?php if($isLeader&&!$isAdmin):?><input type="hidden" name="group" value="<?=e($teacherGroup)?>"><?php endif;?></div>
 <div class="col-md-3"><label class="form-label fw-semibold">Môn</label><select class="form-select" name="subject"><option value="">Tất cả môn</option><?php foreach($filterSubjects as $subject):?><option value="<?=e($subject)?>" <?=$subject===$filterSubject?'selected':''?>><?=e($subject)?></option><?php endforeach;?></select></div>
-<div class="col-md-3"><label class="form-label fw-semibold">Từ tuần</label><select class="form-select" name="from_week"><option value="0">Đầu năm học</option><?php foreach($weeks as $week):?><option value="<?=$week['number']?>" <?=$week['number']===$filterFromWeek?'selected':''?>>Tuần <?=$week['number']?> (<?=date('d/m',strtotime($week['start']))?>)</option><?php endforeach;?></select></div>
-<div class="col-md-3"><label class="form-label fw-semibold">Đến tuần</label><select class="form-select" name="to_week"><option value="0">Cuối năm học</option><?php foreach($weeks as $week):?><option value="<?=$week['number']?>" <?=$week['number']===$filterToWeek?'selected':''?>>Tuần <?=$week['number']?> (<?=date('d/m',strtotime($week['end']))?>)</option><?php endforeach;?></select></div>
+<div class="col-md-3"><label class="form-label fw-semibold">Từ tuần</label><select class="form-select" name="from_week"><option value="">Đầu năm học</option><?php foreach($weeks as $weekKey=>$week):?><option value="<?=e($weekKey)?>" <?=(string)$weekKey===$filterFromWeek?'selected':''?>><?=e(cm_observation_week_text($week))?></option><?php endforeach;?></select></div>
+<div class="col-md-3"><label class="form-label fw-semibold">Đến tuần</label><select class="form-select" name="to_week"><option value="">Cuối năm học</option><?php foreach($weeks as $weekKey=>$week):?><option value="<?=e($weekKey)?>" <?=(string)$weekKey===$filterToWeek?'selected':''?>><?=e(cm_observation_week_text($week))?></option><?php endforeach;?></select></div>
 <div class="col-md-3"><label class="form-label fw-semibold">Từ ngày</label><input class="form-control" type="date" name="from_date" value="<?=e($filterFromDate)?>"></div>
 <div class="col-md-3"><label class="form-label fw-semibold">Đến ngày</label><input class="form-control" type="date" name="to_date" value="<?=e($filterToDate)?>"></div>
 <div class="col-md-6"><div class="obs-filter-actions"><button class="btn btn-primary"><i class="bi bi-funnel"></i> Áp dụng bộ lọc</button><a class="btn btn-outline-secondary" href="<?=BASE_URL?>dugio.php?view=stats"><i class="bi bi-arrow-counterclockwise"></i> Xóa bộ lọc</a></div><div class="obs-filter-note mt-2">Có thể lọc theo khoảng tuần, khoảng ngày hoặc kết hợp cả hai.</div></div>
 </div></div></form>
 <?php $ratedCount=count(array_filter($statsRecords,fn($r)=>($r['rating']??'')!==''));?><div class="obs-kpis"><div><strong><?=count($statsRecords)?></strong><span>Tổng tiết đăng ký</span></div><div><strong><?=$ratedCount?></strong><span>Đã đánh giá</span></div><?php foreach(['Giỏi','Khá','Trung bình','Không đạt'] as $label):?><div><strong><?=count(array_filter($statsRecords,fn($r)=>($r['rating']??'')===$label))?></strong><span><?=e($label)?></span></div><?php endforeach;?></div>
 <div class="card mb-3"><div class="card-header">Tổng hợp số tiết theo tổ và môn</div><div class="table-responsive"><table class="table table-bordered mb-0 obs-summary"><colgroup><col style="width:55px"><col style="width:220px"><col style="width:170px"><col style="width:100px"><col style="width:110px"><col style="width:75px"><col style="width:75px"><col style="width:105px"><col style="width:100px"></colgroup><thead><tr><th>STT</th><th>Tổ chuyên môn</th><th>Môn</th><th>Tổng số tiết</th><th>Đã đánh giá</th><th>Giỏi</th><th>Khá</th><th>Trung bình</th><th>Không đạt</th></tr></thead><tbody><?php if(!$summary):?><tr><td colspan="9" class="text-center text-muted py-4">Chưa có dữ liệu tổng hợp.</td></tr><?php else:foreach($summary as $i=>$row):?><tr><td><?=$i+1?></td><td><strong><?=e($row['group'])?></strong></td><td><?=e($row['subject'])?></td><td><?=$row['total']?></td><td><?=$row['rated']?></td><td><?=$row['Giỏi']?></td><td><?=$row['Khá']?></td><td><?=$row['Trung bình']?></td><td><?=$row['Không đạt']?></td></tr><?php endforeach;endif;?></tbody></table></div></div>
-<div class="card"><div class="card-header">Bảng kê chi tiết</div><div class="table-responsive"><table class="table table-bordered table-sm mb-0 obs-table obs-detail-table"><colgroup><col style="width:52px"><col style="width:185px"><col style="width:150px"><col style="width:115px"><col style="width:72px"><col style="width:82px"><col style="width:105px"><col style="width:76px"><col style="width:72px"><col style="width:245px"><col style="width:210px"><col style="width:72px"><col style="width:95px"></colgroup><thead><tr><th>STT</th><th>Họ tên giáo viên</th><th>Tổ</th><th>Môn</th><th>Lớp</th><th>Tuần</th><th>Ngày</th><th>Tiết PPCT</th><th>Tiết TKB</th><th>Tên bài dạy</th><th>Người dự</th><th>Điểm</th><th>Xếp loại</th></tr></thead><tbody><?php if(!$statsRecords):?><tr><td colspan="13" class="text-center text-muted py-4">Chưa có dữ liệu.</td></tr><?php else:foreach($statsRecords as $i=>$record): $observerNames=cm_observation_observers($record); $observerDisplay=cm_observation_observer_display($record);?><tr><td><?=$i+1?></td><td><?=e($record['teacher']??'')?></td><td><?=e($record['teacher_group']??'')?></td><td><?=e($record['subject']??'')?></td><td><?=e($record['class']??'')?></td><td>Tuần <?=(int)($record['week_number']??0)?></td><td><?=!empty($record['date'])?date('d/m/Y',strtotime($record['date'])):'—'?></td><td><?=(int)($record['ppct_period']??0)?></td><td><?=(int)($record['timetable_period']??0)?></td><td><?=e($record['lesson_title']??'')?></td><td class="obs-observer-display" title="<?=e(implode(', ',$observerNames))?>"><?=e($observerDisplay?:'—')?></td><td><?=e((string)($record['score']??''))?></td><td><?=e($record['rating']??'')?></td></tr><?php endforeach;endif;?></tbody></table></div></div>
+<div class="card"><div class="card-header">Bảng kê chi tiết</div><div class="table-responsive"><table class="table table-bordered table-sm mb-0 obs-table obs-detail-table"><colgroup><col style="width:52px"><col style="width:185px"><col style="width:150px"><col style="width:115px"><col style="width:72px"><col style="width:150px"><col style="width:105px"><col style="width:76px"><col style="width:72px"><col style="width:245px"><col style="width:210px"><col style="width:72px"><col style="width:95px"></colgroup><thead><tr><th>STT</th><th>Họ tên giáo viên</th><th>Tổ</th><th>Môn</th><th>Lớp</th><th>Tuần</th><th>Ngày</th><th>Tiết PPCT</th><th>Tiết TKB</th><th>Tên bài dạy</th><th>Người dự</th><th>Điểm</th><th>Xếp loại</th></tr></thead><tbody><?php if(!$statsRecords):?><tr><td colspan="13" class="text-center text-muted py-4">Chưa có dữ liệu.</td></tr><?php else:foreach($statsRecords as $i=>$record): $observerNames=cm_observation_observers($record); $observerDisplay=cm_observation_observer_display($record);?><tr><td><?=$i+1?></td><td><?=e($record['teacher']??'')?></td><td><?=e($record['teacher_group']??'')?></td><td><?=e($record['subject']??'')?></td><td><?=e($record['class']??'')?></td><td><?=e(cm_observation_record_week_text($record,$weeks))?></td><td><?=!empty($record['date'])?date('d/m/Y',strtotime($record['date'])):'—'?></td><td><?=(int)($record['ppct_period']??0)?></td><td><?=(int)($record['timetable_period']??0)?></td><td><?=e($record['lesson_title']??'')?></td><td class="obs-observer-display" title="<?=e(implode(', ',$observerNames))?>"><?=e($observerDisplay?:'—')?></td><td><?=e((string)($record['score']??''))?></td><td><?=e($record['rating']??'')?></td></tr><?php endforeach;endif;?></tbody></table></div></div>
 <?php endif;?>
 
 <script>
@@ -254,7 +269,7 @@ require_once 'includes/header.php';
     picker?.addEventListener('change',updateObserverSummary);updateObserverSummary();
     form.addEventListener('submit',function(event){if(!form.querySelector('input[name="observers[]"]:checked')){event.preventDefault();picker.open=true;alert('Vui lòng chọn ít nhất một người dự.')}});
   });
-  document.querySelectorAll('.obs-edit').forEach(function(button){button.addEventListener('click',function(){const record=JSON.parse(decodeURIComponent(escape(atob(button.dataset.record))));document.getElementById('obsId').value=record.id||'';subject.value=record.subject||'';filterClasses();classSelect.value=record.class||'';week.value=record.week_number||'';syncWeekDate();date.value=record.date||'';document.getElementById('obsPpct').value=record.ppct_period||'';document.getElementById('obsTimetable').value=record.timetable_period||'';document.getElementById('obsLesson').value=record.lesson_title||'';document.getElementById('observationForm').scrollIntoView({behavior:'smooth'})})});
+  document.querySelectorAll('.obs-edit').forEach(function(button){button.addEventListener('click',function(){const record=JSON.parse(decodeURIComponent(escape(atob(button.dataset.record))));document.getElementById('obsId').value=record.id||'';subject.value=record.subject||'';filterClasses();classSelect.value=record.class||'';week.value=record.week_key||String(record.week_number||'');syncWeekDate();date.value=record.date||'';document.getElementById('obsPpct').value=record.ppct_period||'';document.getElementById('obsTimetable').value=record.timetable_period||'';document.getElementById('obsLesson').value=record.lesson_title||'';document.getElementById('observationForm').scrollIntoView({behavior:'smooth'})})});
   document.getElementById('obsReset')?.addEventListener('click',function(){document.getElementById('observationForm').reset();document.getElementById('obsId').value='';filterClasses();syncWeekDate()});
 })();
 </script>

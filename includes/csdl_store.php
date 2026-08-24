@@ -228,10 +228,43 @@ function csdl_year_week_adjust($yearId, $weekNumber, $newStart) {
 function csdl_week_for_date($date = null, $year = null) {
     $date = $date ?: date('Y-m-d');
     if (!csdl_date_valid($date)) $date = date('Y-m-d');
-    foreach (csdl_year_weeks($year) as $week) {
+    foreach (csdl_shared_weeks($year) as $week) {
         if ($date >= $week['start'] && $date <= $week['end']) return $week;
     }
     return null;
+}
+
+/**
+ * Toàn bộ lịch tuần dùng chung, gồm cả Tuần học trước 1/2 và tuần chính khóa.
+ * Các module hiển thị/chọn tuần phải dùng hàm này. Hàm csdl_year_weeks()
+ * vẫn được giữ như tên tương thích cho các màn hình cũ.
+ */
+function csdl_shared_weeks($year = null) {
+    return function_exists('cds_school_week_calendar')
+        ? cds_school_week_calendar($year)
+        : csdl_year_weeks($year);
+}
+
+function csdl_week_by_key($key, $year = null) {
+    $key = trim((string)$key);
+    foreach (csdl_shared_weeks($year) as $week) {
+        if ((string)($week['key'] ?? $week['number'] ?? '') === $key) return $week;
+    }
+    return null;
+}
+
+/** Nhận khóa tuần, ngày bắt đầu hoặc một ngày bất kỳ thuộc tuần. */
+function csdl_week_resolve($value = null, $year = null) {
+    $value = trim((string)($value ?? ''));
+    if ($value !== '') {
+        $byKey = csdl_week_by_key($value, $year);
+        if ($byKey) return $byKey;
+        if (csdl_date_valid($value)) {
+            $byDate = csdl_week_for_date($value, $year);
+            if ($byDate) return $byDate;
+        }
+    }
+    return csdl_current_week(date('Y-m-d'));
 }
 
 function csdl_current_week($date = null) {

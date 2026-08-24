@@ -4,6 +4,7 @@ require_once dirname(__DIR__, 2) . '/includes/json_store.php';
 require_once dirname(__DIR__, 2) . '/includes/session_user.php';
 require_once dirname(__DIR__, 2) . '/includes/chuyenmon_permission_runtime.php';
 require_once dirname(__DIR__, 2) . '/includes/drive_action_registry.php';
+require_once dirname(__DIR__, 2) . '/includes/school_week_calendar.php';
 
 /* Google Drive storage cho module Chuyên môn. */
 if (!defined('CDS_DRIVE_SETTINGS')) define('CDS_DRIVE_SETTINGS', dirname(__DIR__,2) . '/data/google_drive_settings.json');
