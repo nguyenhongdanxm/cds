@@ -83,6 +83,23 @@ $birthdayUpcoming = [];
 foreach ($birthdayByRole['teacher']['tomorrow'] as $person) $birthdayUpcoming[] = 'đồng chí ' . $birthdayPersonName($person);
 foreach ($birthdayByRole['student']['tomorrow'] as $person) $birthdayUpcoming[] = 'em ' . $birthdayPersonName($person);
 $dashboard = cds_dashboard_scope_data($user);
+$adminAttendanceRecent = [];
+if (can_module('noitru', 'view')) {
+    $adminAllowedClasses = allowed_classes();
+    $adminBoarders = array_values(array_filter(noitru_boarders_live(), static function ($student) use ($adminAllowedClasses) {
+        return $adminAllowedClasses === null || in_array((string)($student['class_name'] ?? ''), $adminAllowedClasses, true);
+    }));
+    noitru_att_ensure_legacy_reports(count(noitru_boarders_live()));
+    $adminScopeStudentIds = $adminAllowedClasses === null ? null : array_column($adminBoarders, 'id');
+    $adminAttendanceRecent = noitru_att_recent_reports(3, $adminScopeStudentIds, count($adminBoarders));
+    if ($adminAttendanceRecent) {
+        $adminLatestAttendance = $adminAttendanceRecent[0];
+        $dashboard['noitru']['present'] = $adminLatestAttendance['present'];
+        $dashboard['noitru']['absent'] = $adminLatestAttendance['absent'] + $adminLatestAttendance['excused'];
+        $dashboard['noitru']['attendance_date'] = $adminLatestAttendance['date'];
+        $dashboard['noitru']['attendance_shift'] = $adminLatestAttendance['shift'];
+    }
+}
 $quickActions = cds_dashboard_quick_actions($user);
 $feedItems = cds_dashboard_notice_tasks($user);
 cds_push_sync_dashboard_feed($feedItems, $user);
@@ -117,7 +134,7 @@ $pushUnread = cds_push_unread_count($user);
   <link rel="manifest" href="<?= e(BASE_URL) ?>manifest.webmanifest">
   <link rel="apple-touch-icon" href="<?= e(BASE_URL) ?>assets/icons/cds-192.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260813-3" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260824-1" rel="stylesheet">
 </head>
 <body>
 <?php require_once __DIR__ . '/includes/module_switcher.php'; ?>
@@ -248,7 +265,7 @@ $pushUnread = cds_push_unread_count($user);
       <div class="panel-head"><div><span class="section-kicker">Nội trú</span><h2>Vận hành hôm nay</h2></div><a href="noitru.php?tab=overview">Xem chi tiết <i class="bi bi-arrow-right"></i></a></div>
       <div class="operation-grid">
         <article class="duty-box"><span class="op-icon"><i class="bi bi-calendar2-check"></i></span><div class="op-copy"><span>Lịch trực hiện tại</span><?php if($duty && $duty['people']): ?><strong><?= e(implode(', ',$duty['people'])) ?></strong><small><?= e($duty['start']) ?> – <?= e($duty['end']) ?> hôm sau · còn <?= $dutyHours ?>h <?= $dutyMinutes ?>p</small><?php else: ?><strong>Chưa phân công</strong><small>Chưa có người trực trong ca hiện tại</small><?php endif; ?><?php if($duty && $duty['managers']): ?><em>Quản lý: <?= e(implode(', ',$duty['managers'])) ?></em><?php endif; ?></div></article>
-        <article class="attendance-box"><span class="op-icon"><i class="bi bi-person-check-fill"></i></span><div class="op-copy"><span>Sĩ số điểm danh gần nhất</span><?php if($dashboard['noitru']['attendance_date']): ?><strong><b><?= (int)$dashboard['noitru']['present'] ?></b> có mặt · <b class="absent"><?= (int)$dashboard['noitru']['absent'] ?></b> vắng</strong><small><?= e($shiftLabels[$dashboard['noitru']['attendance_shift']]??$dashboard['noitru']['attendance_shift']) ?> · <?= date('d/m/Y',strtotime($dashboard['noitru']['attendance_date'])) ?></small><?php else: ?><strong>Chưa có dữ liệu</strong><small>Chưa ghi nhận báo cáo điểm danh</small><?php endif; ?></div><a href="noitru_attendance.php" aria-label="Mở điểm danh"><i class="bi bi-chevron-right"></i></a></article>
+        <article class="attendance-box"><span class="op-icon"><i class="bi bi-person-check-fill"></i></span><div class="op-copy"><span>3 lần điểm danh gần nhất</span><?php if($adminAttendanceRecent): ?><div class="attendance-recent"><?php foreach($adminAttendanceRecent as $attendance): ?><div><strong><b><?= (int)$attendance['present'] ?>/<?= (int)$attendance['total'] ?></b></strong><small><?= e($attendance['shift_label']) ?> · <?= date('d/m/Y',strtotime($attendance['date'])) ?><?= $attendance['by']!==''?' · '.e($attendance['by']):'' ?></small></div><?php endforeach; ?></div><?php else: ?><strong>Chưa có dữ liệu</strong><small>Chưa ghi nhận báo cáo điểm danh</small><?php endif; ?></div><a href="noitru_attendance.php" aria-label="Mở điểm danh"><i class="bi bi-chevron-right"></i></a></article>
       </div>
     </section><?php endif; ?>
   </div>

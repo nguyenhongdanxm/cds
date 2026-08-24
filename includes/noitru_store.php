@@ -569,6 +569,89 @@ function noitru_att_reports_all() {
     noitru_ensure_dir();
     return load_json(NOITRU_ATT_REPORTS, []);
 }
+
+/**
+ * Các lần điểm danh đã chốt gần nhất theo đúng thứ tự buổi được cấu hình.
+ * Không suy đoán bằng tên/mã ca cố định vì quản trị có thể đổi hoặc thêm buổi.
+ */
+function noitru_att_recent_reports($limit = 3, $studentIds = null, $scopeTotal = null, $untilDate = null) {
+    require_once __DIR__ . '/noitru_att_shifts.php';
+    $limit = max(1, (int)$limit);
+    $untilDate = $untilDate ?: date('Y-m-d');
+    $shiftMeta = [];
+    foreach (noitru_att_shifts_all() as $shift) {
+        $id = (string)($shift['id'] ?? '');
+        if ($id === '') continue;
+        $shiftMeta[$id] = [
+            'label'=>(string)($shift['label'] ?? $id),
+            'sort'=>(int)($shift['sort'] ?? 0),
+        ];
+    }
+    $shiftMeta['dot_xuat'] = $shiftMeta['dot_xuat'] ?? ['label'=>'Điểm danh đột xuất','sort'=>999];
+
+    $allReports = noitru_att_reports_all();
+    if (!$allReports && $scopeTotal !== null && (int)$scopeTotal > 0 && noitru_att_all()) {
+        noitru_att_ensure_legacy_reports((int)$scopeTotal);
+        $allReports = noitru_att_reports_all();
+    }
+    $reports = array_values(array_filter($allReports, static function ($row) use ($untilDate) {
+        $date = (string)($row['date'] ?? '');
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) && $date <= $untilDate && trim((string)($row['shift'] ?? '')) !== '';
+    }));
+    usort($reports, static function ($a, $b) use ($shiftMeta) {
+        $dateCompare = strcmp((string)($b['date'] ?? ''), (string)($a['date'] ?? ''));
+        if ($dateCompare !== 0) return $dateCompare;
+        $aShift = (string)($a['shift'] ?? '');
+        $bShift = (string)($b['shift'] ?? '');
+        $sortCompare = ($shiftMeta[$bShift]['sort'] ?? 0) <=> ($shiftMeta[$aShift]['sort'] ?? 0);
+        if ($sortCompare !== 0) return $sortCompare;
+        return strcmp((string)($b['updated_at'] ?? $b['created_at'] ?? ''), (string)($a['updated_at'] ?? $a['created_at'] ?? ''));
+    });
+
+    $studentMap = is_array($studentIds) ? array_fill_keys(array_map('strval', $studentIds), true) : null;
+    $scopeTotal = $scopeTotal === null ? null : max(0, (int)$scopeTotal);
+    $exceptions = $studentMap === null ? [] : noitru_att_all();
+    $out = [];
+    $seen = [];
+    foreach ($reports as $report) {
+        $date = (string)$report['date'];
+        $shift = (string)$report['shift'];
+        $key = $date . '|' . $shift;
+        if (isset($seen[$key])) continue;
+        $seen[$key] = true;
+        $counts = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
+        if ($studentMap === null) {
+            foreach ($counts as $status => $_) $counts[$status] = max(0, (int)($report[$status] ?? 0));
+            $total = max(0, (int)($report['total'] ?? array_sum($counts)));
+            $present = $counts['present'] + $counts['late'];
+        } else {
+            foreach ($exceptions as $row) {
+                if (($row['date'] ?? '') !== $date || ($row['shift'] ?? '') !== $shift) continue;
+                if (!isset($studentMap[(string)($row['student_id'] ?? '')])) continue;
+                $status = (string)($row['status'] ?? 'present');
+                if (isset($counts[$status])) $counts[$status]++;
+            }
+            $total = $scopeTotal ?? count($studentMap);
+            $present = max(0, $total - $counts['absent'] - $counts['excused']);
+            $counts['present'] = max(0, $present - $counts['late']);
+        }
+        $out[] = [
+            'date'=>$date,
+            'shift'=>$shift,
+            'shift_label'=>$shiftMeta[$shift]['label'] ?? $shift,
+            'present'=>$present,
+            'absent'=>$counts['absent'],
+            'excused'=>$counts['excused'],
+            'late'=>$counts['late'],
+            'total'=>$total,
+            'by'=>trim((string)($report['by'] ?? $report['saved_by'] ?? '')),
+            'saved_by'=>trim((string)($report['saved_by'] ?? '')),
+            'updated_at'=>(string)($report['updated_at'] ?? $report['created_at'] ?? ''),
+        ];
+        if (count($out) >= $limit) break;
+    }
+    return $out;
+}
 function noitru_att_report_for($date, $shift) {
     foreach (noitru_att_reports_all() as $report) {
         if (($report['date'] ?? '') === $date && ($report['shift'] ?? '') === $shift) return $report;

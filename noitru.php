@@ -1109,6 +1109,7 @@ body{background:#f8f0f4}
 .overview-panel-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:1rem 1.1rem;border-bottom:1px solid #eef2f7}.overview-panel-title{display:flex;align-items:center;gap:.7rem}.overview-panel-title i{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;font-size:1.05rem}.overview-panel-title h6{margin:0;font-weight:800}.overview-panel-title small{display:block;margin-top:.12rem;color:#64748b}
 .overview-panel-link{color:#a61e5c;text-decoration:none;font-size:.78rem;font-weight:800;white-space:nowrap}.overview-panel-body{padding:1rem 1.1rem}
 .overview-att-main{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;padding:.9rem;border-radius:16px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5)}.overview-att-main strong{font-size:2rem;line-height:1;color:#15803d}.overview-att-main span{color:#64748b;font-size:.82rem}
+.overview-att-list{display:grid;gap:.65rem}.overview-att-entry{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:.25rem .75rem;align-items:center;padding:.72rem .8rem;border:1px solid #e5eaf0;border-radius:14px;background:#fff}.overview-att-entry.latest{border-color:#bbf7d0;background:linear-gradient(135deg,#f0fdf4,#ecfdf5)}.overview-att-entry>div:first-child{display:flex;align-items:baseline;gap:.55rem;min-width:0}.overview-att-entry strong{color:#15803d;font-size:1.25rem}.overview-att-entry span,.overview-att-entry small{color:#64748b;font-size:.76rem}.overview-att-entry>small{grid-column:1/-1}.overview-att-counts{display:flex;justify-content:flex-end;gap:.55rem;white-space:nowrap}.overview-att-counts b{color:#334155}
 .overview-mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin-top:.75rem}.overview-mini{padding:.65rem .45rem;border-radius:13px;background:#f8fafc;text-align:center}.overview-mini strong{display:block;font-size:1.05rem}.overview-mini small{color:#64748b;font-size:.72rem}
 .overview-list{display:grid;gap:.65rem}.overview-list-item{display:flex;align-items:flex-start;gap:.7rem;padding:.7rem;border-radius:14px;background:#f8fafc}.overview-list-date{flex:0 0 48px;padding:.4rem .25rem;border-radius:11px;background:#fff;text-align:center;box-shadow:0 2px 8px rgba(15,23,42,.06)}.overview-list-date strong{display:block;color:#a61e5c}.overview-list-date small{font-size:.68rem;color:#64748b}.overview-list-content{min-width:0;flex:1}.overview-list-content strong,.overview-list-content span{display:block}.overview-list-content span{color:#64748b;font-size:.8rem;white-space:normal}
 .overview-duty-stack{display:grid;gap:.6rem}.overview-duty-shift{padding:.75rem;border:1px solid #e2e8f0;border-radius:15px;background:#f8fafc}.overview-duty-shift.current{border-color:#bae6fd;background:linear-gradient(135deg,#f0f9ff,#f8fcff)}.overview-duty-shift-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.7rem;margin-bottom:.6rem}.overview-duty-status{display:flex;align-items:center;gap:.45rem;font-size:.78rem;font-weight:850;color:#334155}.overview-duty-shift.current .overview-duty-status{color:#0369a1}.overview-duty-date{display:block;margin-top:.12rem;color:#64748b;font-size:.7rem}.overview-duty-countdown{padding:.25rem .48rem;border:1px solid #bae6fd;border-radius:999px;background:#fff;color:#0369a1;font-size:.68rem;font-weight:800;white-space:nowrap}.overview-duty-role{display:grid;grid-template-columns:88px minmax(0,1fr);gap:.55rem;align-items:start;padding:.38rem 0;border-top:1px dashed #dbe4eb}.overview-duty-role:first-of-type{border-top:0}.overview-duty-role-label{display:flex;align-items:center;gap:.35rem;color:#64748b;font-size:.72rem;font-weight:750}.overview-duty-names{display:flex;gap:.32rem;flex-wrap:wrap}.overview-duty-name{display:inline-flex;align-items:center;min-height:27px;padding:.22rem .5rem;border-radius:999px;background:#fff;color:#0f172a;font-size:.73rem;font-weight:750;box-shadow:0 1px 4px rgba(15,23,42,.06)}.overview-duty-name.manager{background:#fff7ed;color:#9a3412}.overview-duty-unassigned{color:#94a3b8;font-size:.74rem;font-style:italic}.overview-duty-note{margin-top:.35rem;color:#64748b;font-size:.7rem}
@@ -1125,7 +1126,7 @@ body{background:#f8f0f4}
   .meal-form-card .card-body{padding:.75rem}.meal-form-card .alert{margin-bottom:.65rem;padding:.45rem .6rem;font-size:.82rem}.meal-form-head{margin-bottom:.6rem!important}.meal-form-head h5{font-size:1rem}.meal-form-head .small{font-size:.72rem}
   .meal-quick-actions .btn{padding:.35rem .5rem;font-size:.76rem;white-space:nowrap}.meal-save-bar{padding:.65rem!important}.meal-save-bar .btn{min-height:42px}
   .meal-summary-stats{gap:.4rem}.meal-summary-stats>div{padding:.65rem .25rem}.meal-export-modal .modal-dialog{margin:.5rem}.meal-export-modal .modal-footer{grid-template-columns:1fr}
-  .overview-hero{padding:1.05rem;border-radius:18px}.overview-hero h4{font-size:1.15rem}.overview-metrics{grid-template-columns:1fr 1fr;gap:.55rem}.overview-metric{min-height:78px;padding:.72rem;gap:.55rem;border-radius:15px}.overview-metric-icon{width:38px;height:38px;flex-basis:38px}.overview-metric strong{font-size:1.18rem}.overview-metric small{font-size:.72rem}.overview-grid{grid-template-columns:1fr;gap:.75rem}.overview-panel{border-radius:17px}.overview-panel-head,.overview-panel-body{padding:.85rem}.overview-menu{gap:.4rem}.overview-menu-item{min-height:102px;padding:.65rem}.overview-menu-item strong{font-size:.78rem}.overview-duty-role{grid-template-columns:78px minmax(0,1fr)}
+  .overview-hero{padding:1.05rem;border-radius:18px}.overview-hero h4{font-size:1.15rem}.overview-metrics{grid-template-columns:1fr 1fr;gap:.55rem}.overview-metric{min-height:78px;padding:.72rem;gap:.55rem;border-radius:15px}.overview-metric-icon{width:38px;height:38px;flex-basis:38px}.overview-metric strong{font-size:1.18rem}.overview-metric small{font-size:.72rem}.overview-grid{grid-template-columns:1fr;gap:.75rem}.overview-panel{border-radius:17px}.overview-panel-head,.overview-panel-body{padding:.85rem}.overview-menu{gap:.4rem}.overview-menu-item{min-height:102px;padding:.65rem}.overview-menu-item strong{font-size:.78rem}.overview-duty-role{grid-template-columns:78px minmax(0,1fr)}.overview-att-entry{grid-template-columns:1fr}.overview-att-entry>small{grid-column:1}.overview-att-counts{justify-content:flex-start}
   .menu-subtabs{display:flex}.menu-subtabs a{flex:1;padding:.52rem .7rem;text-align:center;font-size:.83rem}.menu-add-row{grid-template-columns:1fr}.menu-add-row .form-control,.menu-add-row .form-select,.menu-add-row .btn{min-height:44px}.menu-toolbar{align-items:stretch;flex-direction:column}.menu-toolbar>div{justify-content:space-between}.menu-toolbar .form-control{min-width:0}.menu-grid{min-width:820px}.menu-grid thead th:first-child,.menu-grid tbody th{width:78px}.menu-grid thead th{font-size:.86rem}.menu-grid-note{font-size:.8rem}
 }
 @media(max-width:420px){.meal-student-grid{grid-template-columns:1fr}}
@@ -1164,35 +1165,19 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
         ($row['status'] ?? '') === 'pending' && isset($overviewStudentIds[$row['student_id'] ?? ''])
     ));
 
-    $overviewAttRows = array_values(array_filter(noitru_att_all(), fn($row) =>
-        isset($overviewStudentIds[$row['student_id'] ?? ''])
-    ));
-    $overviewAttDate = '';
-    foreach ($overviewAttRows as $row) {
-        $rowDate = $row['date'] ?? '';
-        if ($rowDate <= $overviewToday && $rowDate > $overviewAttDate) $overviewAttDate = $rowDate;
-    }
-    if ($overviewAttDate === '' && $overviewAttRows) {
-        $overviewAttDate = max(array_column($overviewAttRows, 'date'));
-    }
-    $overviewShiftOrder = ['sang'=>1, 'toi'=>2, 'hoc_toi'=>3];
-    $overviewAttShift = '';
-    foreach ($overviewAttRows as $row) {
-        if (($row['date'] ?? '') !== $overviewAttDate) continue;
-        $candidateShift = $row['shift'] ?? '';
-        if (($overviewShiftOrder[$candidateShift] ?? 0) >= ($overviewShiftOrder[$overviewAttShift] ?? 0)) {
-            $overviewAttShift = $candidateShift;
-        }
-    }
-    $overviewAttCounts = ['present'=>0, 'absent'=>0, 'late'=>0, 'excused'=>0];
-    $overviewAttReported = 0;
-    foreach ($overviewAttRows as $row) {
-        if (($row['date'] ?? '') !== $overviewAttDate || ($row['shift'] ?? '') !== $overviewAttShift) continue;
-        $status = $row['status'] ?? 'present';
-        $overviewAttCounts[$status] = ($overviewAttCounts[$status] ?? 0) + 1;
-        $overviewAttReported++;
-    }
-    $overviewPresent = $overviewAttCounts['present'] + $overviewAttCounts['late'];
+    $overviewScopeStudentIds = allowed_classes() === null ? null : array_keys($overviewStudentIds);
+    $overviewAttendanceRecent = noitru_att_recent_reports(3, $overviewScopeStudentIds, count($boarders), $overviewToday);
+    $overviewAttendanceLatest = $overviewAttendanceRecent[0] ?? [];
+    $overviewAttDate = (string)($overviewAttendanceLatest['date'] ?? '');
+    $overviewAttShift = (string)($overviewAttendanceLatest['shift'] ?? '');
+    $overviewAttCounts = [
+        'present'=>(int)($overviewAttendanceLatest['present'] ?? 0),
+        'absent'=>(int)($overviewAttendanceLatest['absent'] ?? 0),
+        'late'=>(int)($overviewAttendanceLatest['late'] ?? 0),
+        'excused'=>(int)($overviewAttendanceLatest['excused'] ?? 0),
+    ];
+    $overviewAttReported = (int)($overviewAttendanceLatest['total'] ?? 0);
+    $overviewPresent = (int)($overviewAttendanceLatest['present'] ?? 0);
 
     $overviewDutySettings = noitru_duty_settings();
     $overviewDutyStartTime = $overviewDutySettings['start_time'] ?? '06:00';
@@ -1235,7 +1220,6 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
     $overviewDayLabels = ['Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy','Chủ Nhật'];
     $overviewDayIndex = (int)date('N') - 1;
     $overviewTodayMenu = $overviewMenu['meals'][$overviewDayKeys[$overviewDayIndex]] ?? [];
-    $overviewShiftLabels = ['ngay'=>'Ca ngày', 'sang'=>'Sáng', 'toi'=>'Tối', 'hoc_toi'=>'Học tối', 'dem'=>'Đêm'];
     $overviewHealthTypeLabels = ['kham'=>'Khám', 'thuoc'=>'Thuốc', 'theo_doi'=>'Theo dõi'];
   ?>
 
@@ -1253,7 +1237,7 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
     <?php if (can_perm('nt.diemdanh')): ?>
     <div class="overview-metric">
       <span class="overview-metric-icon" style="background:#dcfce7;color:#15803d"><i class="bi bi-person-check-fill"></i></span>
-      <div><strong><?= $overviewAttDate ? $overviewPresent . '/' . (int)$st['total'] : '—' ?></strong><small>Có mặt gần nhất</small></div>
+      <div><strong><?= $overviewAttDate ? $overviewPresent . '/' . $overviewAttReported : '—' ?></strong><small>Có mặt gần nhất</small></div>
     </div>
     <?php endif; ?>
     <?php if (can_perm('nt.ravao')): ?>
@@ -1274,17 +1258,18 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
     <?php if (can_perm('nt.diemdanh')): ?>
     <section class="overview-panel">
       <div class="overview-panel-head">
-        <div class="overview-panel-title"><i class="bi bi-clipboard2-check-fill" style="background:#dcfce7;color:#15803d"></i><div><h6>Sỹ số điểm danh</h6><small><?= $overviewAttDate ? 'Cập nhật gần nhất' : 'Chưa có dữ liệu' ?></small></div></div>
+        <div class="overview-panel-title"><i class="bi bi-clipboard2-check-fill" style="background:#dcfce7;color:#15803d"></i><div><h6>Sỹ số điểm danh</h6><small><?= $overviewAttDate ? '3 lần điểm danh gần nhất' : 'Chưa có dữ liệu' ?></small></div></div>
         <a class="overview-panel-link" href="<?= e(BASE_URL . 'noitru.php?tab=attendance') ?>">Xem điểm danh <i class="bi bi-arrow-right"></i></a>
       </div>
       <div class="overview-panel-body">
-        <?php if ($overviewAttDate): ?>
-          <div class="overview-att-main"><div><strong><?= $overviewPresent ?>/<?= (int)$st['total'] ?></strong><span class="d-block mt-1">Có mặt · <?= e($overviewShiftLabels[$overviewAttShift] ?? $overviewAttShift) ?></span></div><span><?= e(date('d/m/Y', strtotime($overviewAttDate))) ?><br>Đã ghi nhận <?= $overviewAttReported ?> HS</span></div>
-          <div class="overview-mini-grid">
-            <div class="overview-mini"><strong class="text-danger"><?= $overviewAttCounts['absent'] ?></strong><small>Vắng</small></div>
-            <div class="overview-mini"><strong style="color:#d97706"><?= $overviewAttCounts['excused'] ?></strong><small>Có phép</small></div>
-            <div class="overview-mini"><strong style="color:#7c3aed"><?= $overviewAttCounts['late'] ?></strong><small>Đi muộn</small></div>
-          </div>
+        <?php if ($overviewAttendanceRecent): ?>
+          <div class="overview-att-list" data-attendance-list><?php foreach ($overviewAttendanceRecent as $index=>$attendance): ?>
+            <article class="overview-att-entry<?= $index===0?' latest':'' ?>">
+              <div><strong><?= (int)$attendance['present'] ?>/<?= (int)$attendance['total'] ?></strong><span><?= e($attendance['shift_label']) ?> · <?= e(date('d/m/Y', strtotime($attendance['date']))) ?></span></div>
+              <div class="overview-att-counts"><span><b><?= (int)$attendance['absent'] ?></b> vắng</span><span><b><?= (int)$attendance['excused'] ?></b> phép</span><span><b><?= (int)$attendance['late'] ?></b> muộn</span></div>
+              <small><?= $attendance['by']!==''?'Người điểm danh: '.e($attendance['by']):'Đã chốt đủ báo cáo' ?></small>
+            </article>
+          <?php endforeach; ?></div>
         <?php else: ?>
           <div class="overview-empty"><i class="bi bi-clipboard-x"></i>Chưa có lượt điểm danh nào.</div>
         <?php endif; ?>

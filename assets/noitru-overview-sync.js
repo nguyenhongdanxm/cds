@@ -27,8 +27,8 @@
     var presentCard=metricByLabel('Có mặt gần nhất');
     if(presentCard){
       var ps=presentCard.querySelector('strong');
-      if(ps) ps.textContent=att.date ? (String(att.present)+'/'+String(total)) : '—';
-      presentCard.title=att.date ? ('Điểm danh '+fmtDate(att.date)+' · '+(att.shift_label||att.shift||'')) : 'Chưa có dữ liệu điểm danh';
+      if(ps) ps.textContent=att.date ? (String(att.present)+'/'+String(att.report_total||total)) : '—';
+      presentCard.title=att.date ? ('Điểm danh '+fmtDate(att.date)+' · '+(att.shift_label||att.shift||'')+(att.by?' · '+att.by:'')) : 'Chưa có dữ liệu điểm danh';
     }
 
     var exitCard=metricByLabel('Phiếu chờ duyệt');
@@ -39,28 +39,20 @@
     var panel=panelByTitle('Sỹ số điểm danh');
     if(panel){
       var subtitle=panel.querySelector('.overview-panel-title small');
-      if(subtitle) subtitle.textContent=att.date ? ('Cập nhật '+fmtDate(att.date)+' · '+(att.shift_label||att.shift||'')) : 'Chưa có dữ liệu';
-      var main=panel.querySelector('.overview-att-main');
-      if(main){
-        var strong=main.querySelector('strong'); if(strong)strong.textContent=att.date ? (String(att.present)+'/'+String(total)) : '—';
-        var leftSpan=main.querySelector('div span'); if(leftSpan)leftSpan.textContent=att.date ? ('Có mặt · '+(att.shift_label||att.shift||'')) : 'Chưa có dữ liệu';
-        var rightSpan=main.querySelector(':scope > span');
-        if(rightSpan){
-          if(att.date){
-            var reported=Number(att.report_total||0);
-            var note='Đã chốt '+(reported>0?reported:total)+' HS';
-            if(reported>0 && reported!==total) note+=' · sĩ số hiện tại '+total;
-            rightSpan.innerHTML=fmtDate(att.date)+'<br>'+note;
-          } else rightSpan.textContent='';
-        }
+      var recent=Array.isArray(data.attendance_recent)?data.attendance_recent:[];
+      if(subtitle) subtitle.textContent=recent.length ? (String(recent.length)+' lần điểm danh gần nhất') : 'Chưa có dữ liệu';
+      var list=panel.querySelector('[data-attendance-list]');
+      if(!list && recent.length){list=document.createElement('div');list.className='overview-att-list';list.dataset.attendanceList='';var body=panel.querySelector('.overview-panel-body');if(body){body.innerHTML='';body.appendChild(list);}}
+      if(list && recent.length){
+        list.innerHTML=recent.map(function(row,index){
+          var reporter=row.by ? ('Người điểm danh: '+escapeHtml(row.by)) : 'Đã chốt đủ báo cáo';
+          return '<article class="overview-att-entry'+(index===0?' latest':'')+'"><div><strong>'+Number(row.present||0)+'/'+Number(row.total||total)+'</strong><span>'+escapeHtml(row.shift_label||row.shift||'')+' · '+fmtDate(row.date)+'</span></div><div class="overview-att-counts"><span><b>'+Number(row.absent||0)+'</b> vắng</span><span><b>'+Number(row.excused||0)+'</b> phép</span><span><b>'+Number(row.late||0)+'</b> muộn</span></div><small>'+reporter+'</small></article>';
+        }).join('');
       }
-      var minis=panel.querySelectorAll('.overview-mini strong');
-      if(minis[0])minis[0].textContent=String(Number(att.absent||0));
-      if(minis[1])minis[1].textContent=String(Number(att.excused||0));
-      if(minis[2])minis[2].textContent=String(Number(att.late||0));
       panel.dataset.syncSource=att.source||'';
     }
   }
+  function escapeHtml(value){var el=document.createElement('span');el.textContent=String(value||'');return el.innerHTML;}
   function sync(){
     fetch('noitru_overview_api.php?_=' + Date.now(), {credentials:'same-origin',cache:'no-store'})
       .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
