@@ -13,7 +13,7 @@ function noitru_assignments_data(): array {
         'settings'=>[
             'room_enforce_gender'=>true,
             'room_max_grade_gap'=>1,
-            'meal_max_grade_gap'=>0,
+            'meal_max_grade_gap'=>1,
             'meal_balance_gender'=>true,
         ],
         'history'=>[],
@@ -45,7 +45,7 @@ function noitru_assignments_save(array $data, string $by = ''): void {
     $data['settings']=[
         'room_enforce_gender'=>(bool)($settings['room_enforce_gender']??true),
         'room_max_grade_gap'=>max(0,min(3,(int)($settings['room_max_grade_gap']??1))),
-        'meal_max_grade_gap'=>max(0,min(3,(int)($settings['meal_max_grade_gap']??0))),
+        'meal_max_grade_gap'=>max(0,min(1,(int)($settings['meal_max_grade_gap']??1))),
         'meal_balance_gender'=>(bool)($settings['meal_balance_gender']??true),
     ];
     $data['updated_at']=date('c'); $data['updated_by']=$by;
@@ -67,7 +67,8 @@ function noitru_assignment_grade(array $student): string {
     return 'Khác';
 }
 function noitru_assignment_gender(array $student): string {
-    $g=mb_strtolower(trim((string)($student['gender']??'')),'UTF-8');
+    $raw=trim((string)($student['gender']??''));
+    $g=function_exists('mb_strtolower')?mb_strtolower($raw,'UTF-8'):strtolower($raw);
     if(in_array($g,['nam','male','m','1'],true)) return 'Nam';
     if(in_array($g,['nữ','nu','female','f','0'],true)) return 'Nữ';
     return 'Khác';
@@ -121,7 +122,7 @@ function noitru_assignment_sort_targets(array $names,array $slots,array $student
 function noitru_assignment_interleave_gender(array $students): array {
     $buckets=['Nam'=>[],'Nữ'=>[],'Khác'=>[]];
     foreach($students as $student)$buckets[noitru_assignment_gender($student)][]=$student;
-    foreach($buckets as &$bucket)usort($bucket,static fn($a,$b)=>(string)($a['name']??'')<=>(string)($b['name']??''));unset($bucket);
+    foreach($buckets as &$bucket)usort($bucket,static fn($a,$b)=>strnatcasecmp((string)($a['name']??''),(string)($b['name']??'')));unset($bucket);
     $result=[];$counts=array_map('count',$buckets);$total=array_sum($counts);$placed=['Nam'=>0,'Nữ'=>0,'Khác'=>0];
     while(count($result)<$total){
         $best=null;$score=-INF;
@@ -131,6 +132,7 @@ function noitru_assignment_interleave_gender(array $students): array {
             $candidate=$expected-$placed[$gender];
             if($candidate>$score){$score=$candidate;$best=$gender;}
         }
+        if($best===null)break;
         $result[]=array_shift($buckets[$best]);$placed[$best]++;
     }
     return $result;
@@ -147,8 +149,6 @@ function noitru_assignment_group_students(array $students,bool $separateGender=f
 function noitru_assignment_auto_rooms(array $students,array $names,$capacity,array $roomGenders=[],array $options=[]): array {
     $enforce=(bool)($options['enforce_gender']??true);$maxGap=max(0,min(3,(int)($options['max_grade_gap']??1)));
     $slots=array_fill_keys($names,[]);$runtimeGender=[];$result=[];
-    // Khi chia theo từng đợt, các phòng đã chia trước được dùng làm dữ liệu nền:
-    // thuật toán chỉ xếp thêm vào chỗ trống phù hợp, không ghi đè kết quả cũ.
     foreach(($options['seed_slots']??[]) as $name=>$members){
         if(!isset($slots[$name])||!is_array($members))continue;
         foreach($members as $member){
@@ -161,7 +161,7 @@ function noitru_assignment_auto_rooms(array $students,array $names,$capacity,arr
         }
     }
     foreach(noitru_assignment_group_students($students,true) as $group){
-        usort($group,static fn($a,$b)=>(string)($a['name']??'')<=>(string)($b['name']??''));
+        usort($group,static fn($a,$b)=>strnatcasecmp((string)($a['name']??''),(string)($b['name']??'')));
         $gender=noitru_assignment_gender($group[0]);$empty=[];$partial=[];
         foreach($names as $name){
             $free=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($free<=0)continue;
@@ -175,7 +175,6 @@ function noitru_assignment_auto_rooms(array $students,array $names,$capacity,arr
         $needed=count($group);$emptyCapacity=array_sum(array_map(static fn($name)=>noitru_assignment_capacity_for($capacity,$name),$empty));
         $pool=$emptyCapacity>=$needed?$empty:array_merge($partial,$empty);$selected=[];$freeTotal=0;
         foreach($pool as $name){$selected[]=$name;$freeTotal+=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($freeTotal>=$needed)break;}
-        // Nếu hết phòng phù hợp khối, vẫn giữ đúng giới tính và dùng phòng còn chỗ gần nhất.
         if($freeTotal<$needed){
             $fallback=[];
             foreach($names as $name){
@@ -193,7 +192,7 @@ function noitru_assignment_auto_rooms(array $students,array $names,$capacity,arr
             foreach($selected as $name){
                 $cap=noitru_assignment_capacity_for($capacity,$name);if(count($slots[$name])>=$cap)continue;
                 $sameClass=count(array_filter($slots[$name],static fn($s)=>(string)($s['class_name']??'')===(string)($student['class_name']??'')));
-                $score=$sameClass*1000+count($slots[$name])/$cap;
+                $score=-$sameClass*1000+count($slots[$name])/$cap;
                 if($score<$bestScore){$bestScore=$score;$best=$name;}
             }
             if($best===null)continue;
@@ -202,36 +201,77 @@ function noitru_assignment_auto_rooms(array $students,array $names,$capacity,arr
     }
     return $result;
 }
+
+/**
+ * Chia mâm theo thứ tự bắt buộc:
+ * 1) cùng lớp; 2) cùng khối; 3) khối liền kề (nếu được bật).
+ * Không bao giờ ghép cách khối. Ví dụ khối 6 không ghép với khối 8.
+ * balance_gender=true: ưu tiên mâm khác giới (xen kẽ nam/nữ).
+ * balance_gender=false: mỗi mâm chỉ cùng một giới tính.
+ */
 function noitru_assignment_auto_meals(array $students,array $names,$capacity,array $options=[]): array {
-    $maxGap=max(0,min(3,(int)($options['max_grade_gap']??0)));$balance=(bool)($options['balance_gender']??true);
-    $slots=array_fill_keys($names,[]);$result=[];
-    foreach(noitru_assignment_group_students($students,false) as $group){
-        $group=$balance?noitru_assignment_interleave_gender($group):array_values($group);
-        $empty=[];$partial=[];
-        foreach($names as $name){
-            $free=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($free<=0)continue;
-            if(!noitru_assignment_grade_compatible($slots[$name],$group,$maxGap))continue;
-            if($slots[$name])$partial[]=$name;else$empty[]=$name;
+    $allowAdjacent=max(0,min(1,(int)($options['max_grade_gap']??1)))===1;
+    $mixedGender=(bool)($options['balance_gender']??true);
+    $names=array_values($names);sort($names,SORT_NATURAL);
+    $slots=array_fill_keys($names,[]);$result=[];$nextTarget=0;
+
+    $buckets=[];
+    foreach($students as $student){
+        $grade=noitru_assignment_numeric_grade($student);
+        $class=trim((string)($student['class_name']??''))?:'Chưa lớp';
+        $gender=noitru_assignment_gender($student);
+        $genderKey=$mixedGender?'Tất cả':$gender;
+        $buckets[$genderKey][$grade][$class][]=$student;
+    }
+    ksort($buckets,SORT_NATURAL);
+
+    $takeNextTable=function()use(&$nextTarget,$names,$capacity,&$slots){
+        while($nextTarget<count($names)){
+            $name=$names[$nextTarget++];
+            if(count($slots[$name])<noitru_assignment_capacity_for($capacity,$name))return $name;
         }
-        $partial=noitru_assignment_sort_targets($partial,$slots,$group,$capacity);
-        $needed=count($group);$emptyCapacity=array_sum(array_map(static fn($name)=>noitru_assignment_capacity_for($capacity,$name),$empty));
-        $pool=$emptyCapacity>=$needed?$empty:array_merge($partial,$empty);$selected=[];$freeTotal=0;
-        foreach($pool as $name){$selected[]=$name;$freeTotal+=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($freeTotal>=$needed)break;}
-        if($freeTotal<$needed){
-            $fallback=array_values(array_filter($names,static fn($name)=>!in_array($name,$selected,true)&&count($slots[$name])<noitru_assignment_capacity_for($capacity,$name)));
-            foreach(noitru_assignment_sort_targets($fallback,$slots,$group,$capacity) as $name){$selected[]=$name;$freeTotal+=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($freeTotal>=$needed)break;}
-        }
-        foreach($group as $student){
-            $best=null;$bestScore=INF;
-            foreach($selected as $name){
-                $cap=noitru_assignment_capacity_for($capacity,$name);if(count($slots[$name])>=$cap)continue;
-                $sameClass=count(array_filter($slots[$name],static fn($s)=>(string)($s['class_name']??'')===(string)($student['class_name']??'')));
-                $sameGender=count(array_filter($slots[$name],static fn($s)=>noitru_assignment_gender($s)===noitru_assignment_gender($student)));
-                $score=$sameClass*1000+count($slots[$name])/$cap+($balance?$sameGender*.01:0);
-                if($score<$bestScore){$bestScore=$score;$best=$name;}
+        return null;
+    };
+
+    foreach($buckets as $genderBucket){
+        ksort($genderBucket,SORT_NUMERIC);
+        $openTable=null;$openGrade=null;
+        foreach($genderBucket as $grade=>$classes){
+            $grade=(int)$grade;
+            uksort($classes,'csdl_compare_class_names');
+            if($openTable!==null && $openGrade!==null){
+                $gap=abs($grade-$openGrade);
+                if($gap>1 || (!$allowAdjacent && $gap>0)){$openTable=null;$openGrade=null;}
             }
-            if($best===null)continue;$slots[$best][]=$student;$result[(string)$student['id']]=(string)$best;
+            foreach($classes as $classStudents){
+                $classStudents=$mixedGender?noitru_assignment_interleave_gender($classStudents):array_values($classStudents);
+                usort($classStudents,static function($a,$b){
+                    $ga=noitru_assignment_gender($a);$gb=noitru_assignment_gender($b);
+                    if($ga!==$gb)return 0;
+                    return strnatcasecmp((string)($a['name']??''),(string)($b['name']??''));
+                });
+                foreach($classStudents as $student){
+                    if($openTable===null){$openTable=$takeNextTable();$openGrade=$grade;}
+                    if($openTable===null)continue;
+                    $cap=noitru_assignment_capacity_for($capacity,$openTable);
+                    if(count($slots[$openTable])>=$cap){$openTable=$takeNextTable();$openGrade=$grade;}
+                    if($openTable===null)continue;
+                    // Nếu mâm hiện tại đã mang khối trước đó, chỉ cho ghép cùng khối hoặc khối liền kề.
+                    $existingGrades=[];
+                    foreach($slots[$openTable] as $member){$g=noitru_assignment_numeric_grade($member);if($g<99)$existingGrades[]=$g;}
+                    if($existingGrades){
+                        $min=min($existingGrades);$max=max($existingGrades);$compatible=($grade>=$min&&$grade<=$max)||($allowAdjacent&&$grade>=$min-1&&$grade<=$max+1&&max($max,$grade)-min($min,$grade)<=1);
+                        if(!$compatible){$openTable=$takeNextTable();$openGrade=$grade;}
+                    }
+                    if($openTable===null)continue;
+                    $slots[$openTable][]=$student;
+                    $result[(string)($student['id']??'')]=(string)$openTable;
+                    if(count($slots[$openTable])>=noitru_assignment_capacity_for($capacity,$openTable)){$openTable=null;$openGrade=null;}
+                }
+            }
         }
+        // Chế độ cùng giới: không dùng phần mâm còn thừa của giới trước cho giới tiếp theo.
+        if(!$mixedGender){$openTable=null;$openGrade=null;}
     }
     return $result;
 }
