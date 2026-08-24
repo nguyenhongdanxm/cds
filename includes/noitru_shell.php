@@ -48,3 +48,6 @@ $ntInGroup=function($group)use($ntGroups,$nt_sec){return in_array($nt_sec,$ntGro
 <script>window.BASE_URL=<?= json_encode(BASE_URL, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) ?>;</script>
 <script src="<?= e(BASE_URL . 'assets/noitru_meal_quantity_image.js?v=20260824-1') ?>"></script>
 <?php endif; ?>
+<?php if ($ntPage === 'noitru_assign.php' && (($_GET['mode'] ?? '') === 'meals')): ?>
+<script src="<?= e(BASE_URL . 'assets/noitru_meal_assign_rules.js?v=20260824-1') ?>"></script>
+<?php endif; ?>
