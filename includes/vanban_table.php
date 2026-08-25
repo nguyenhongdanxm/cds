@@ -1,4 +1,4 @@
-<?php $shown = $tab === 'overview' ? array_slice($filteredDocuments, 0, 8) : $filteredDocuments; ?>
+<?php require_once __DIR__ . '/vanban_views.php'; $shown = $tab === 'overview' ? array_slice($filteredDocuments, 0, 8) : $filteredDocuments; ?>
 <div class="table-wrap desktop-table">
   <table class="table document-table <?= $tab === 'overview' ? 'overview-table' : 'manage-table' ?>">
     <thead><tr><th>Số, ký hiệu</th><th>Tên văn bản</th><th>Loại</th><th>Ngày ban hành</th><th>Đơn vị</th><?php if($tab==='documents'&&$canManage):?><th>Đã xem</th><th class="action-column">Thao tác</th><?php endif;?></tr></thead>
