@@ -46,7 +46,8 @@ $ntInGroup=function($group)use($ntGroups,$nt_sec){return in_array($nt_sec,$ntGro
 <?php if ($ntPage === 'noitru.php' && $nt_sec === 'overview'): ?><script src="<?=e(BASE_URL.'assets/noitru-overview-sync.js?v=20260824-1')?>" defer></script><?php endif; ?>
 <?php if ($ntPage === 'noitru.php' && $ntTab === 'meal_summary'): ?>
 <script>window.BASE_URL=<?= json_encode(BASE_URL, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) ?>;</script>
-<script src="<?= e(BASE_URL . 'assets/noitru_meal_quantity_image.js?v=20260824-1') ?>"></script>
+<script src="<?= e(BASE_URL . 'assets/noitru_meal_quantity_image.js?v=20260825-3') ?>"></script>
+<script src="<?= e(BASE_URL . 'assets/noitru_meal_report_layout_v2.js?v=20260825-1') ?>"></script>
 <?php endif; ?>
 <?php if ($ntPage === 'noitru_assign.php' && (($_GET['mode'] ?? '') === 'meals')): ?>
 <script src="<?= e(BASE_URL . 'assets/noitru_meal_assign_rules.js?v=20260824-1') ?>"></script>
