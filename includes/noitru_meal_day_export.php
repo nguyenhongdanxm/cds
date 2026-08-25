@@ -50,10 +50,10 @@ td,th{border:1px solid #9aa9b8;padding:7px;vertical-align:middle}
     <td class="center"><?= $eat ?></td>
     <td class="center"><?= $absent ?></td>
     <td class="center"><?= $total ? number_format($eat * 100 / $total, 1) . '%' : '0%' ?></td>
-    <td class="right"><?= number_format($kg, 2) ?></td>
+    <td class="right"><?= number_format($kg, 3, ',', '.') ?></td>
   </tr>
   <?php endforeach; ?>
-  <tr class="total"><td>TỔNG CỘNG</td><td></td><td class="center"><?= $totalStudents ?></td><td class="center"><?= $totalEat ?></td><td class="center"><?= $totalAbsent ?></td><td></td><td class="right"><?= number_format($riceKg, 2) ?></td></tr>
+  <tr class="total"><td>TỔNG CỘNG</td><td></td><td class="center"><?= $totalStudents ?></td><td class="center"><?= $totalEat ?></td><td class="center"><?= $totalAbsent ?></td><td></td><td class="right"><?= number_format($riceKg, 3, ',', '.') ?></td></tr>
 </table>
 <br>
 <table>
@@ -77,8 +77,8 @@ td,th{border:1px solid #9aa9b8;padding:7px;vertical-align:middle}
   <?php foreach (['trua' => 'BỮA TRƯA', 'toi' => 'BỮA TỐI'] as $mealKey => $label):
     $eat = (int)($overview['meals'][$mealKey]['eat'] ?? 0);
     $grams = (float)($rice['settings'][$mealKey . '_grams'] ?? 0);
-  ?><tr class="rice"><td><?= $label ?></td><td class="center"><?= $eat ?></td><td class="center"><?= number_format($grams, 0) ?></td><td class="right"><?= number_format($eat * $grams / 1000, 2) ?></td></tr><?php endforeach; ?>
-  <tr class="total"><td colspan="3">TỔNG GẠO TRONG NGÀY</td><td class="right"><?= number_format($riceKg, 2) ?> kg</td></tr>
+  ?><tr class="rice"><td><?= $label ?></td><td class="center"><?= $eat ?></td><td class="center"><?= number_format($grams, 0, ',', '.') ?></td><td class="right"><?= number_format($eat * $grams / 1000, 3, ',', '.') ?></td></tr><?php endforeach; ?>
+  <tr class="total"><td colspan="3">TỔNG GẠO TRONG NGÀY</td><td class="right"><?= number_format($riceKg, 3, ',', '.') ?> kg</td></tr>
 </table>
 <br><br>
 <table class="no-border">

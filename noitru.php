@@ -5,6 +5,20 @@ require_login();
 require_module('noitru', 'view');
 $user = current_user();
 
+/** Định dạng khối lượng theo quy ước Việt Nam: 304,600 kg = 304 kg 600 g. */
+function noitru_format_kg($value, int $decimals = 3): string {
+    $number = (float)$value;
+    if (abs($number) < 0.0005) $number = 0.0;
+    return number_format($number, $decimals, ',', '.') . ' kg';
+}
+
+/** Chấp nhận cả 12.5 (dữ liệu máy) và 12,5 (cách nhập Việt Nam). */
+function noitru_parse_kg($value): float {
+    $raw = trim((string)$value);
+    if (strpos($raw, ',') !== false) $raw = str_replace(',', '.', str_replace('.', '', $raw));
+    return (float)$raw;
+}
+
 $requestedTab = $_GET['tab'] ?? '';
 $tab = $requestedTab !== '' ? $requestedTab : 'overview';
 $allowed = ['overview','boarders','exits','meals','meal_summary','rice','attendance','duty','duty_report','health','menu','stats'];
@@ -138,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('Đã xóa giao dịch gạo.', 'warning');
         } else {
             $date = trim($_POST['date'] ?? date('Y-m-d'));
-            $kg = max(0, (float)($_POST['kg'] ?? 0));
+            $kg = max(0, noitru_parse_kg($_POST['kg'] ?? 0));
             if ($kg > 0) $rice['transactions'][] = [
                 'id'=>noitru_uid('rice'),'date'=>$date,'type'=>$action==='rice_in'?'in':'out',
                 'kg'=>$kg,'meal'=>trim($_POST['meal'] ?? ''),'note'=>trim($_POST['note'] ?? ''),
@@ -1572,9 +1586,9 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
   <div class="alert alert-info">
     <div class="mb-2"><strong>Gạo dự kiến trong ngày</strong><div class="small">Tự động tính từ số học sinh ăn và định mức gạo từng bữa</div></div>
     <div class="row g-2 text-center">
-      <div class="col-4"><div class="bg-white bg-opacity-75 rounded-3 p-2 h-100"><small class="d-block text-muted">Bữa trưa</small><strong class="fs-5"><?= number_format($riceLunchKg,2) ?> kg</strong><small class="d-block"><?= $overview['meals']['trua']['eat'] ?> suất × <?= e($rice['settings']['trua_grams']??180) ?>g</small></div></div>
-      <div class="col-4"><div class="bg-white bg-opacity-75 rounded-3 p-2 h-100"><small class="d-block text-muted">Bữa tối</small><strong class="fs-5"><?= number_format($riceDinnerKg,2) ?> kg</strong><small class="d-block"><?= $overview['meals']['toi']['eat'] ?> suất × <?= e($rice['settings']['toi_grams']??180) ?>g</small></div></div>
-      <div class="col-4"><div class="bg-primary text-white rounded-3 p-2 h-100"><small class="d-block">Cả ngày</small><strong class="fs-4"><?= number_format($riceDayKg,2) ?> kg</strong><small class="d-block">Trưa + Tối</small></div></div>
+      <div class="col-4"><div class="bg-white bg-opacity-75 rounded-3 p-2 h-100"><small class="d-block text-muted">Bữa trưa</small><strong class="fs-5"><?= e(noitru_format_kg($riceLunchKg)) ?></strong><small class="d-block"><?= $overview['meals']['trua']['eat'] ?> suất × <?= e($rice['settings']['trua_grams']??180) ?>g</small></div></div>
+      <div class="col-4"><div class="bg-white bg-opacity-75 rounded-3 p-2 h-100"><small class="d-block text-muted">Bữa tối</small><strong class="fs-5"><?= e(noitru_format_kg($riceDinnerKg)) ?></strong><small class="d-block"><?= $overview['meals']['toi']['eat'] ?> suất × <?= e($rice['settings']['toi_grams']??180) ?>g</small></div></div>
+      <div class="col-4"><div class="bg-primary text-white rounded-3 p-2 h-100"><small class="d-block">Cả ngày</small><strong class="fs-4"><?= e(noitru_format_kg($riceDayKg)) ?></strong><small class="d-block">Trưa + Tối</small></div></div>
     </div>
   </div>
   <div class="modal fade meal-export-modal" id="mealDayExportModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
@@ -1607,10 +1621,10 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
     }
     $riceUsage=noitru_rice_usage_summary($riceFrom,$riceTo,$rice);
   ?>
-  <div class="nt-page-head"><div><h4>Quản lý gạo</h4><div class="subtitle">Tự động trừ kho theo số suất ăn của các bữa đã chốt</div></div><a class="btn btn-success" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'rice','export'=>'excel','period_type'=>$periodType,'month'=>$month,'from'=>$riceFrom,'to'=>$riceTo])) ?>"><i class="bi bi-file-earmark-excel"></i> Xuất báo cáo Excel</a></div>
+  <div class="nt-page-head"><div><h4>Quản lý gạo</h4><div class="subtitle">Tự động trừ kho theo số suất ăn của các bữa đã chốt</div><small class="text-muted">Quy ước: dấu phẩy biểu thị phần thập phân; ví dụ 304,600 kg = 304 kg 600 g.</small></div><a class="btn btn-success" href="<?= e(BASE_URL.'noitru.php?'.http_build_query(['tab'=>'rice','export'=>'excel','period_type'=>$periodType,'month'=>$month,'from'=>$riceFrom,'to'=>$riceTo])) ?>"><i class="bi bi-file-earmark-excel"></i> Xuất báo cáo Excel</a></div>
   <div class="row g-2 mb-3">
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= number_format($riceBalance,3) ?> kg</div><div class="small text-muted">Tồn kho hiện tại</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= number_format($riceUsage['total_kg'],3) ?> kg</div><div class="small text-muted">Đã dùng trong giai đoạn</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= e(noitru_format_kg($riceBalance)) ?></div><div class="small text-muted">Tồn kho hiện tại</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= e(noitru_format_kg($riceUsage['total_kg'])) ?></div><div class="small text-muted">Đã dùng trong giai đoạn</div></div></div>
     <div class="col-6 col-md-3"><div class="stat"><div class="n"><?= (int)$riceUsage['total_students'] ?></div><div class="small text-muted">Tổng lượt học sinh ăn</div></div></div>
     <div class="col-6 col-md-3"><div class="stat"><div class="n"><i class="bi bi-arrow-repeat"></i></div><div class="small text-muted">Tự động theo bữa đã chốt</div></div></div>
   </div>
@@ -1627,10 +1641,10 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
   <div class="card card-soft mb-3"><div class="card-body"><h6>Gạo tiêu thụ tự động theo ngày</h6><div class="table-responsive"><table class="table table-sm align-middle mb-0">
     <thead><tr><th>Ngày</th><th>Sáng</th><th>Trưa</th><th>Tối</th><th>Lượt ăn</th><th>Tổng gạo</th></tr></thead><tbody>
     <?php foreach (array_reverse($riceUsage['days'],true) as $usageDate=>$day): ?><tr><td><strong><?= e(date('d/m/Y',strtotime($usageDate))) ?></strong></td>
-      <?php foreach (['sang','trua','toi'] as $mealKey): ?><td><?= (int)$day[$mealKey]['students'] ?> HS<br><small class="text-muted"><?= number_format($day[$mealKey]['kg'],3) ?> kg</small></td><?php endforeach; ?>
-      <td><?= (int)$day['students'] ?></td><td><strong><?= number_format($day['kg'],3) ?> kg</strong></td></tr>
+      <?php foreach (['sang','trua','toi'] as $mealKey): ?><td><?= (int)$day[$mealKey]['students'] ?> HS<br><small class="text-muted"><?= e(noitru_format_kg($day[$mealKey]['kg'])) ?></small></td><?php endforeach; ?>
+      <td><?= (int)$day['students'] ?></td><td><strong><?= e(noitru_format_kg($day['kg'])) ?></strong></td></tr>
     <?php endforeach; if (!$riceUsage['days']): ?><tr><td colspan="6" class="text-center text-muted py-3">Chưa có bữa ăn đã chốt trong giai đoạn này.</td></tr><?php endif; ?>
-    </tbody><tfoot><tr class="table-success"><th colspan="4">Tổng cộng</th><th><?= (int)$riceUsage['total_students'] ?> lượt</th><th><?= number_format($riceUsage['total_kg'],3) ?> kg</th></tr></tfoot>
+    </tbody><tfoot><tr class="table-success"><th colspan="4">Tổng cộng</th><th><?= (int)$riceUsage['total_students'] ?> lượt</th><th><?= e(noitru_format_kg($riceUsage['total_kg'])) ?></th></tr></tfoot>
   </table></div></div></div>
   <?php if (allowed_classes()===null && $canEditCurrent): ?>
   <div class="row g-3 mb-3">
@@ -1644,14 +1658,14 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
     <div class="col-lg-4"><form method="post" class="card card-soft h-100"><div class="card-body">
       <input type="hidden" name="action" value="rice_in"><h6>Nhập kho</h6>
       <label class="form-label">Ngày</label><input type="date" name="date" class="form-control mb-2" value="<?= date('Y-m-d') ?>">
-      <label class="form-label">Số kg</label><input type="number" step=".001" min=".001" name="kg" class="form-control mb-2" required>
+      <label class="form-label">Số kg <small class="text-muted">(ví dụ 12,500)</small></label><input type="text" inputmode="decimal" name="kg" class="form-control mb-2" placeholder="12,500" pattern="[0-9.,]+" required>
       <label class="form-label">Ghi chú</label><input name="note" class="form-control mb-3" placeholder="Nguồn nhập, số phiếu…">
       <button class="btn btn-success w-100">Nhập kho</button>
     </div></form></div>
     <div class="col-lg-4"><form method="post" class="card card-soft h-100"><div class="card-body">
       <input type="hidden" name="action" value="rice_issue"><h6>Xuất/điều chỉnh khác</h6>
       <label class="form-label">Ngày</label><input type="date" name="date" class="form-control mb-2" value="<?= date('Y-m-d') ?>">
-      <label class="form-label">Số kg</label><input type="number" step=".001" min=".001" name="kg" class="form-control mb-2" required>
+      <label class="form-label">Số kg <small class="text-muted">(ví dụ 12,500)</small></label><input type="text" inputmode="decimal" name="kg" class="form-control mb-2" placeholder="12,500" pattern="[0-9.,]+" required>
       <label class="form-label">Lý do</label><input name="note" class="form-control mb-3" placeholder="Hao hụt, điều chỉnh, xuất khác…" required>
       <button class="btn btn-warning w-100">Ghi xuất khác</button>
     </div></form></div>
@@ -1659,7 +1673,7 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
   <?php endif; ?>
   <div class="card card-soft"><div class="card-body"><h6>Nhập kho và điều chỉnh thủ công</h6><div class="table-responsive"><table class="table table-sm align-middle mb-0">
     <thead><tr><th>Ngày</th><th>Loại</th><th>Số lượng</th><th>Bữa</th><th>Ghi chú</th><th></th></tr></thead><tbody>
-    <?php foreach ($riceRows as $row): ?><tr><td><?= e(date('d/m/Y',strtotime($row['date']))) ?></td><td><span class="badge <?= ($row['type']??'')==='in'?'bg-success':'bg-warning text-dark' ?>"><?= ($row['type']??'')==='in'?'Nhập':'Xuất' ?></span></td><td><strong><?= number_format((float)$row['kg'],3) ?> kg</strong></td><td><?= e(($row['meal']??'')==='trua'?'Trưa':(($row['meal']??'')==='toi'?'Tối':'—')) ?></td><td><?= e($row['note']??'') ?></td><td><?php if ($canDeleteCurrent && allowed_classes()===null): ?><form method="post"><input type="hidden" name="action" value="rice_delete"><input type="hidden" name="id" value="<?= e($row['id']) ?>"><button class="btn btn-sm btn-outline-danger" onclick="return confirm('Xóa giao dịch này?')"><i class="bi bi-trash"></i></button></form><?php endif; ?></td></tr>
+    <?php foreach ($riceRows as $row): ?><tr><td><?= e(date('d/m/Y',strtotime($row['date']))) ?></td><td><span class="badge <?= ($row['type']??'')==='in'?'bg-success':'bg-warning text-dark' ?>"><?= ($row['type']??'')==='in'?'Nhập':'Xuất' ?></span></td><td><strong><?= e(noitru_format_kg($row['kg'])) ?></strong></td><td><?= e(($row['meal']??'')==='trua'?'Trưa':(($row['meal']??'')==='toi'?'Tối':'—')) ?></td><td><?= e($row['note']??'') ?></td><td><?php if ($canDeleteCurrent && allowed_classes()===null): ?><form method="post"><input type="hidden" name="action" value="rice_delete"><input type="hidden" name="id" value="<?= e($row['id']) ?>"><button class="btn btn-sm btn-outline-danger" onclick="return confirm('Xóa giao dịch này?')"><i class="bi bi-trash"></i></button></form><?php endif; ?></td></tr>
     <?php endforeach; if (!$riceRows): ?><tr><td colspan="6" class="text-center text-muted py-3">Chưa có giao dịch.</td></tr><?php endif; ?></tbody>
   </table></div></div></div>
 
@@ -1829,13 +1843,13 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
     <div><i class="bi bi-door-open"></i><strong><?= number_format($exitTotal) ?></strong><span>Phiếu ra/vào KTX</span></div>
     <div><i class="bi bi-heart-pulse"></i><strong><?= number_format($full['health']) ?></strong><span>Hồ sơ y tế</span></div>
     <div><i class="bi bi-calendar2-week"></i><strong><?= number_format($full['duty']) ?></strong><span>Ca trực</span></div>
-    <div><i class="bi bi-box-seam"></i><strong><?= number_format($full['rice']['total_kg']??0,2) ?></strong><span>Kg gạo sử dụng</span></div>
+    <div><i class="bi bi-box-seam"></i><strong><?= e(noitru_format_kg($full['rice']['total_kg']??0)) ?></strong><span>Gạo sử dụng</span></div>
     <div><i class="bi bi-capsule"></i><strong><?= number_format($full['medicine_issued']) ?></strong><span>Đơn vị thuốc đã phát</span></div>
   </div>
 
   <div class="stats-section"><h5>I. Bảng tổng hợp hoạt động theo ngày</h5><div class="table-responsive"><table class="table stats-daily-table align-middle"><thead><tr><th rowspan="2">Ngày</th><th colspan="3">Suất ăn</th><th colspan="4">Điểm danh</th><th rowspan="2">Ra/vào</th><th rowspan="2">Y tế</th><th rowspan="2">Ca trực</th><th rowspan="2">Gạo (kg)</th></tr><tr><th>Sáng</th><th>Trưa</th><th>Tối</th><th>Có mặt</th><th>Vắng</th><th>Muộn</th><th>Có phép</th></tr></thead><tbody>
-    <?php foreach($full['daily'] as $date=>$row): ?><tr><td><?= e(date('d/m',strtotime($date))) ?></td><td><?= $row['meals']['sang'] ?></td><td><?= $row['meals']['trua'] ?></td><td><?= $row['meals']['toi'] ?></td><td><?= $row['attendance']['present'] ?></td><td class="text-danger"><?= $row['attendance']['absent'] ?></td><td><?= $row['attendance']['late'] ?></td><td><?= $row['attendance']['excused'] ?></td><td><?= $row['exits'] ?></td><td><?= $row['health'] ?></td><td><?= $row['duty'] ?></td><td><?= number_format($row['rice_kg'],3) ?></td></tr><?php endforeach; ?>
-  </tbody><tfoot><tr><th>Tổng</th><th><?= $full['meals']['sang'] ?></th><th><?= $full['meals']['trua'] ?></th><th><?= $full['meals']['toi'] ?></th><th><?= $full['attendance']['present'] ?></th><th><?= $full['attendance']['absent'] ?></th><th><?= $full['attendance']['late'] ?></th><th><?= $full['attendance']['excused'] ?></th><th><?= $exitTotal ?></th><th><?= $full['health'] ?></th><th><?= $full['duty'] ?></th><th><?= number_format($full['rice']['total_kg']??0,3) ?></th></tr></tfoot></table></div></div>
+    <?php foreach($full['daily'] as $date=>$row): ?><tr><td><?= e(date('d/m',strtotime($date))) ?></td><td><?= $row['meals']['sang'] ?></td><td><?= $row['meals']['trua'] ?></td><td><?= $row['meals']['toi'] ?></td><td><?= $row['attendance']['present'] ?></td><td class="text-danger"><?= $row['attendance']['absent'] ?></td><td><?= $row['attendance']['late'] ?></td><td><?= $row['attendance']['excused'] ?></td><td><?= $row['exits'] ?></td><td><?= $row['health'] ?></td><td><?= $row['duty'] ?></td><td><?= e(noitru_format_kg($row['rice_kg'])) ?></td></tr><?php endforeach; ?>
+  </tbody><tfoot><tr><th>Tổng</th><th><?= $full['meals']['sang'] ?></th><th><?= $full['meals']['trua'] ?></th><th><?= $full['meals']['toi'] ?></th><th><?= $full['attendance']['present'] ?></th><th><?= $full['attendance']['absent'] ?></th><th><?= $full['attendance']['late'] ?></th><th><?= $full['attendance']['excused'] ?></th><th><?= $exitTotal ?></th><th><?= $full['health'] ?></th><th><?= $full['duty'] ?></th><th><?= e(noitru_format_kg($full['rice']['total_kg']??0)) ?></th></tr></tfoot></table></div></div>
 
   <div class="stats-detail-grid">
     <div class="stats-section"><h5>II. Học sinh nội trú theo lớp</h5><table class="table table-sm mb-0"><thead><tr><th>Lớp</th><th class="text-end">Số học sinh</th></tr></thead><tbody><?php foreach($full['classes'] as $class=>$count): ?><tr><td><?= e($class) ?></td><td class="text-end"><strong><?= $count ?></strong></td></tr><?php endforeach; ?></tbody><tfoot><tr><th>Tổng</th><th class="text-end"><?= $full['boarders'] ?></th></tr></tfoot></table></div>
@@ -1983,6 +1997,7 @@ function mealExportBase(title,color,height){
 }
 function buildMealSummaryImage(){
   var data=window.ntMealDayData||{},meals=data.meals||{},keys=['sang','trua','toi'],totalEat=0,totalAbsent=0;
+  var kgText=function(value){return Number(value||0).toLocaleString('vi-VN',{minimumFractionDigits:3,maximumFractionDigits:3})};
   keys.forEach(function(k){totalEat+=Number(meals[k]?.eat||0);totalAbsent+=Number(meals[k]?.absent||0)});
   var absentLines=0;keys.forEach(function(k){if(Number(meals[k]?.absent||0)>0)absentLines+=Math.max(2,Math.ceil((meals[k].students||[]).length/3))});
   var base=mealExportBase('THỐNG KÊ BỮA ĂN','#0284c7',Math.max(930,760+absentLines*32)),ctx=base.ctx,w=base.w;
@@ -1996,12 +2011,12 @@ function buildMealSummaryImage(){
     ctx.fillStyle='#dc2626';ctx.font='18px Arial';ctx.fillText('-'+String(m.absent||0)+' vắng',x+117,305);
   });
   mealRoundRect(ctx,70,350,760,115,14,'#f8fafc','#e2e8f0');
-  [['TỔNG SUẤT',totalEat,'#16a34a'],['TỔNG VẮNG',totalAbsent,'#dc2626'],['KG GẠO',Number(data.rice_kg||0).toFixed(2),'#b45309']].forEach(function(s,i){
+  [['TỔNG SUẤT',totalEat,'#16a34a'],['TỔNG VẮNG',totalAbsent,'#dc2626'],['KG GẠO',kgText(data.rice_kg),'#b45309']].forEach(function(s,i){
     var x=70+i*253;ctx.textAlign='center';ctx.fillStyle=s[2];ctx.font='bold 34px Arial';ctx.fillText(String(s[1]),x+126,400);ctx.fillStyle='#64748b';ctx.font='16px Arial';ctx.fillText(s[0],x+126,435);
       if(i<2){ctx.strokeStyle='#e2e8f0';ctx.beginPath();ctx.moveTo(x+253,370);ctx.lineTo(x+253,445);ctx.stroke()}
   });
   mealRoundRect(ctx,70,485,760,110,14,'#fffbeb','#fde68a');
-  [['GẠO BỮA TRƯA',Number(data.rice_lunch_kg||0).toFixed(2)+' kg'],['GẠO BỮA TỐI',Number(data.rice_dinner_kg||0).toFixed(2)+' kg'],['GẠO CẢ NGÀY',Number(data.rice_kg||0).toFixed(2)+' kg']].forEach(function(s,i){
+  [['GẠO BỮA TRƯA',kgText(data.rice_lunch_kg)+' kg'],['GẠO BỮA TỐI',kgText(data.rice_dinner_kg)+' kg'],['GẠO CẢ NGÀY',kgText(data.rice_kg)+' kg']].forEach(function(s,i){
     var rx=70+i*253;ctx.textAlign='center';ctx.fillStyle=i===2?'#0369a1':'#b45309';ctx.font='bold 27px Arial';ctx.fillText(s[1],rx+126,535);ctx.fillStyle='#64748b';ctx.font='15px Arial';ctx.fillText(s[0],rx+126,566);
     if(i<2){ctx.strokeStyle='#fde68a';ctx.beginPath();ctx.moveTo(rx+253,500);ctx.lineTo(rx+253,580);ctx.stroke()}
   });
