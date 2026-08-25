@@ -118,6 +118,12 @@ require_once __DIR__ . '/cds_module_switcher.php';
   </a>
 </li>
 
+<li class="nav-item">
+  <a class="nav-link <?= $current==='sodaubai'?'active':'' ?><?= $cmDisabled('cm.dashboard') ?>" href="<?= BASE_URL ?>sodaubai.php">
+    <i class="bi bi-journal-check"></i> Sổ đầu bài
+  </a>
+</li>
+
 <li class="nav-item dropdown">
   <a class="nav-link dropdown-toggle <?= $pccm_active?'active':'' ?><?= !$pccmCanOpen?' permission-disabled':'' ?>" href="#" data-bs-toggle="dropdown" <?= !$pccmCanOpen?'aria-disabled="true" tabindex="-1"':'' ?>>
     <i class="bi bi-clipboard-check"></i> PCCM

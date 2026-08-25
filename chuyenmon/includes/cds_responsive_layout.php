@@ -26,6 +26,7 @@ $cmReportActive = in_array($current,['dugio','kiemtrahoso','danhgia'],true);
 $cmNavGroups = [
     ['label'=>'Tổng quan','items'=>[
         ['permission'=>'cm.dashboard','pages'=>['index'],'href'=>'index.php','icon'=>'bi-house-door','label'=>'Tổng quan & công việc'],
+        ['permission'=>'cm.dashboard','pages'=>['sodaubai'],'href'=>'sodaubai.php','icon'=>'bi-journal-check','label'=>'Sổ đầu bài'],
         ['permission'=>'cm.tracuu','pages'=>['tracuu'],'href'=>'tracuu.php','icon'=>'bi-search','label'=>'Tra cứu phân công'],
         ['permission'=>'cm.tracuu','pages'=>['thoikhoabieu'],'href'=>'thoikhoabieu.php','icon'=>'bi-calendar3','label'=>'Thời khóa biểu'],
     ]],

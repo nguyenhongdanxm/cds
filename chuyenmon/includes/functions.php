@@ -663,7 +663,8 @@ function cds_current_page_feature() {
         'doicheo'=>'cm.pccm', 'rasoat'=>'cm.pccm', 'sua'=>'cm.pccm',
         'giaovien'=>'cm.nhaplieu', 'monhoc'=>'cm.nhaplieu', 'lop'=>'cm.nhaplieu',
         'kiemnhiem'=>'cm.nhaplieu', 'thongke'=>'cm.thongke', 'xuat_bang'=>'cm.thongke',
-        'kehoach'=>'cm.kehoach', 'dugio'=>'cm.baocao.dugio', 'danhgia'=>'cm.baocao.dugio', 'kiemtrahoso'=>'cm.baocao.kythi',
+        'kehoach'=>'cm.kehoach', 'sodaubai'=>'cm.dashboard', 'sodaubai_export'=>'cm.dashboard',
+        'dugio'=>'cm.baocao.dugio', 'danhgia'=>'cm.baocao.dugio', 'kiemtrahoso'=>'cm.baocao.kythi',
     ];
     if ($page === 'baocao') {
         $tab = $_GET['tab'] ?? 'dinhky';
@@ -704,7 +705,9 @@ function require_login() {
             && $action === 'file_check_save';
         $educationPlanSelfService = cds_current_page_feature() === 'cm.kehoach'
             && in_array($action, ['save_plan', 'delete_plan'], true);
-        $requiredLevel = ($observationSelfService || $fileCheckSelfService || $educationPlanSelfService)
+        $lessonBookSelfService = in_array(basename($_SERVER['PHP_SELF'] ?? ''), ['sodaubai.php','sodaubai_export.php'], true)
+            && in_array($action, ['save_record','sign_record','upload_signature','export_book'], true);
+        $requiredLevel = ($observationSelfService || $fileCheckSelfService || $educationPlanSelfService || $lessonBookSelfService)
             ? 'view'
             : (str_contains($action, 'delete') || str_contains($action, 'xoa') ? 'delete' : 'edit');
         if (!cds_can_feature(cds_current_page_feature(), $requiredLevel)) {
