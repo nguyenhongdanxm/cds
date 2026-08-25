@@ -46,8 +46,9 @@ $ntInGroup=function($group)use($ntGroups,$nt_sec){return in_array($nt_sec,$ntGro
 <?php if ($ntPage === 'noitru.php' && $nt_sec === 'overview'): ?><script src="<?=e(BASE_URL.'assets/noitru-overview-sync.js?v=20260824-1')?>" defer></script><?php endif; ?>
 <?php if ($ntPage === 'noitru.php' && $ntTab === 'meal_summary'): ?>
 <script>window.BASE_URL=<?= json_encode(BASE_URL, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) ?>;</script>
-<script src="<?= e(BASE_URL . 'assets/noitru_meal_quantity_image.js?v=20260825-3') ?>"></script>
-<script src="<?= e(BASE_URL . 'assets/noitru_meal_report_layout_v2.js?v=20260825-1') ?>"></script>
+<!-- defer là bắt buộc: các hàm bố cục mới phải chạy SAU JavaScript cũ ở cuối noitru.php -->
+<script src="<?= e(BASE_URL . 'assets/noitru_meal_quantity_image.js?v=20260825-4') ?>" defer></script>
+<script src="<?= e(BASE_URL . 'assets/noitru_meal_report_layout_v2.js?v=20260825-2') ?>" defer></script>
 <?php endif; ?>
 <?php if ($ntPage === 'noitru_assign.php' && (($_GET['mode'] ?? '') === 'meals')): ?>
 <script src="<?= e(BASE_URL . 'assets/noitru_meal_assign_rules.js?v=20260824-1') ?>"></script>
@@ -55,5 +56,6 @@ $ntInGroup=function($group)use($ntGroups,$nt_sec){return in_array($nt_sec,$ntGro
 <?php if ($ntPage === 'noitru_attendance.php'): ?>
 <?php $ntAttRoomMap=[]; if(isset($boarders)&&is_array($boarders)){foreach($boarders as $ntAttStudent){$ntAttSid=(string)($ntAttStudent['id']??'');if($ntAttSid!=='')$ntAttRoomMap[$ntAttSid]=trim((string)($ntAttStudent['room_ktx']??''));}} ?>
 <script>window.NT_ATT_ROOM_MAP=<?= json_encode($ntAttRoomMap,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;window.NT_ATT_REPORT_SCHOOL=<?= json_encode($school??SCHOOL_NAME,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;window.NT_ATT_REPORT_SHIFT=<?= json_encode(function_exists('mb_strtoupper')?mb_strtoupper((string)($shiftLabel??''),'UTF-8'):strtoupper((string)($shiftLabel??'')),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;window.NT_ATT_REPORT_DATE=<?= json_encode((string)($weekdayVi??'').', ngày '.(string)($dateLabel??''),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;window.NT_ATT_REPORT_REPORTER=<?= json_encode((string)($reporter??''),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;</script>
-<script src="<?= e(BASE_URL . 'assets/noitru_att_report_layout.js?v=20260825-2') ?>"></script>
+<!-- defer để layout mới ghi đè drawReport cũ sau khi trang parse xong -->
+<script src="<?= e(BASE_URL . 'assets/noitru_att_report_layout.js?v=20260825-3') ?>" defer></script>
 <?php endif; ?>
