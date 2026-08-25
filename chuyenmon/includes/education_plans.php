@@ -236,7 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'bulk_plan') {
         if (!$educationIsAdmin && !$educationIsLeader) { http_response_code(403); exit('Tài khoản không có quyền thao tác hàng loạt.'); }
         $operation = (string)($_POST['bulk_operation'] ?? '');
-        if (!in_array($operation, ['approve','reject','delete'], true)) { http_response_code(400); exit('Thao tác không hợp lệ.'); }
+        if (!in_array($operation, ['approve','reject','pending','delete'], true)) { http_response_code(400); exit('Thao tác không hợp lệ.'); }
         if ($operation === 'delete' && !$educationIsAdmin) { http_response_code(403); exit('Chỉ quản trị được xóa kế hoạch hàng loạt.'); }
         $selectedIds = [];
         foreach ((array)($_POST['plan_ids'] ?? []) as $selectedId) {
@@ -265,12 +265,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $row['rejected_by'] = '';
                 $row['rejection_reason'] = '';
                 $row['updated_at'] = date('c');
-            } else {
+            } elseif ($operation === 'reject') {
                 $row['approved_at'] = '';
                 $row['approved_by'] = '';
                 $row['rejected_at'] = date('c');
                 $row['rejected_by'] = cm_education_reviewer_name($educationUser, $educationTeacher);
                 $row['rejection_reason'] = $reason;
+                $row['updated_at'] = date('c');
+            } else {
+                $row['approved_at'] = '';
+                $row['approved_by'] = '';
+                $row['rejected_at'] = '';
+                $row['rejected_by'] = '';
+                $row['rejection_reason'] = '';
                 $row['updated_at'] = date('c');
             }
             $changed++;
@@ -278,7 +285,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         unset($row);
         if ($changed === 0) { flash('Không có kế hoạch nào thuộc phạm vi được phép thao tác.', 'warning'); cm_education_redirect($appendix); }
         if (!cm_education_save($educationDataFile, $educationRows)) { flash('Không lưu được thay đổi hàng loạt.', 'danger'); cm_education_redirect($appendix); }
-        $messages = ['approve'=>'Đã duyệt','reject'=>'Đã từ chối','delete'=>'Đã xóa'];
+        $messages = ['approve'=>'Đã duyệt','reject'=>'Đã từ chối','pending'=>'Đã chuyển về chờ duyệt','delete'=>'Đã xóa'];
         flash($messages[$operation].' '.$changed.' kế hoạch.', $operation === 'delete' || $operation === 'reject' ? 'warning' : 'success');
         cm_education_redirect($appendix);
     }
@@ -379,6 +386,7 @@ require __DIR__.'/header.php';
   <span class="fw-semibold me-1"><i class="bi bi-check2-square me-1"></i><span id="educationSelectedCount">0</span> đã chọn</span>
   <button class="btn btn-sm btn-success" type="button" onclick="submitEducationBulk('approve')"><i class="bi bi-check2-circle"></i> Duyệt</button>
   <button class="btn btn-sm btn-outline-warning" type="button" onclick="submitEducationBulk('reject')"><i class="bi bi-x-circle"></i> Từ chối</button>
+  <button class="btn btn-sm btn-outline-secondary" type="button" onclick="submitEducationBulk('pending')"><i class="bi bi-arrow-counterclockwise"></i> Chuyển về chờ duyệt</button>
   <?php if($educationIsAdmin): ?><button class="btn btn-sm btn-outline-danger" type="button" onclick="submitEducationBulk('delete')"><i class="bi bi-trash"></i> Xóa</button><?php endif; ?>
   <small class="text-muted ms-auto"><?= $educationIsAdmin ? 'Quản trị: duyệt, từ chối hoặc xóa hàng loạt.' : 'TTCM: duyệt hoặc từ chối kế hoạch trong tổ.' ?></small>
 </form>
@@ -464,7 +472,7 @@ function submitEducationBulk(operation){
   if(!selected.length){alert('Vui lòng chọn ít nhất một kế hoạch.');return}
   var reason='';
   if(operation==='reject'){reason=prompt('Nhập lý do từ chối để giáo viên biết nội dung cần sửa:','');if(reason===null)return;reason=reason.trim();if(!reason){alert('Vui lòng nhập lý do từ chối.');return}}
-  var messages={approve:'Duyệt '+selected.length+' kế hoạch đã chọn?',reject:'Từ chối '+selected.length+' kế hoạch đã chọn?',delete:'Xóa vĩnh viễn '+selected.length+' kế hoạch đã chọn?'};
+  var messages={approve:'Duyệt '+selected.length+' kế hoạch đã chọn?',reject:'Từ chối '+selected.length+' kế hoạch đã chọn?',pending:'Chuyển '+selected.length+' kế hoạch đã chọn về trạng thái chờ duyệt?',delete:'Xóa vĩnh viễn '+selected.length+' kế hoạch đã chọn?'};
   if(!confirm(messages[operation]||'Thực hiện thao tác?'))return;
   document.getElementById('educationBulkOperation').value=operation;
   document.getElementById('educationBulkRejectReason').value=reason;
