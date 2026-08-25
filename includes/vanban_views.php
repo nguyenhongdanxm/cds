@@ -4,7 +4,8 @@ if (!defined('VANBAN_VIEWS_FILE')) define('VANBAN_VIEWS_FILE', DATA_PATH . '/van
 
 function vb_view_user_key(array $user): string {
     $key = trim((string)($user['username'] ?? $user['email'] ?? $user['id'] ?? ''));
-    return $key !== '' ? mb_strtolower($key, 'UTF-8') : '';
+    if ($key === '') return '';
+    return function_exists('mb_strtolower') ? mb_strtolower($key, 'UTF-8') : strtolower($key);
 }
 
 function vb_document_views_all(): array {
