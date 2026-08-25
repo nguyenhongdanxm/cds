@@ -73,6 +73,14 @@ function cm_education_is_visible(array $row, bool $isAdmin, bool $isLeader, stri
     if ($isLeader && $group !== '' && cm_education_norm($row['teacher_group'] ?? '') === cm_education_norm($group)) return true;
     return cm_education_norm($row['teacher'] ?? '') === cm_education_norm($teacher);
 }
+function cm_education_status(array $row): string {
+    if (!empty($row['rejected_at'])) return 'rejected';
+    if (!empty($row['approved_at'])) return 'approved';
+    return 'pending';
+}
+function cm_education_reviewer_name(array $user, string $teacher): string {
+    return $teacher !== '' ? $teacher : trim((string)($user['name'] ?? 'Quản trị hệ thống'));
+}
 function cm_education_redirect(string $appendix = 'I'): void {
     $redirect = BASE_URL . 'kehoach.php?tab=vanban&appendix=' . urlencode($appendix);
     if (strcasecmp((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''), 'XMLHttpRequest') === 0) {
@@ -133,6 +141,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $row['grade'] = $grade;
             if ($newFile !== '') { $row['file_path'] = $newFile; $row['submitted_at'] = date('c'); }
             if (empty($row['file_path'])) { flash('Vui lòng tải lên văn bản PDF đã ký số.', 'danger'); cm_education_redirect($appendix); }
+            $row['rejected_at'] = '';
+            $row['rejected_by'] = '';
+            $row['rejection_reason'] = '';
             $row['updated_at'] = date('c');
             $found = true;
             break;
@@ -146,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'teacher'=>$educationTeacher, 'teacher_group'=>$educationGroup, 'appendix'=>$appendix,
                 'subject'=>$subject, 'grade'=>$grade, 'file_path'=>$newFile,
                 'submitted_at'=>date('c'), 'created_at'=>date('c'), 'updated_at'=>date('c'),
-                'approved_at'=>'', 'approved_by'=>'',
+                'approved_at'=>'', 'approved_by'=>'', 'rejected_at'=>'', 'rejected_by'=>'', 'rejection_reason'=>'',
             ];
         }
         if (!cm_education_save($educationDataFile, $educationRows)) { flash('Không lưu được dữ liệu kế hoạch.', 'danger'); cm_education_redirect($appendix); }
@@ -180,7 +191,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $appendix = (string)($row['appendix'] ?? $appendix);
             if (empty($row['approved_at'])) {
                 $row['approved_at'] = date('c');
-                $row['approved_by'] = $educationTeacher ?: (string)($educationUser['name'] ?? 'Quản trị');
+                $row['approved_by'] = cm_education_reviewer_name($educationUser, $educationTeacher);
+                $row['rejected_at'] = '';
+                $row['rejected_by'] = '';
+                $row['rejection_reason'] = '';
                 $row['updated_at'] = date('c');
             }
             $approved = true;
@@ -192,12 +206,88 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('Đã duyệt kế hoạch. Giáo viên không thể sửa hoặc xóa sau thời điểm này.');
         cm_education_redirect($appendix);
     }
+
+    if ($action === 'reject_plan') {
+        if (!$educationIsAdmin && !$educationIsLeader) { http_response_code(403); exit('Chỉ TTCM hoặc quản trị được từ chối kế hoạch.'); }
+        $id = trim((string)($_POST['id'] ?? ''));
+        $reason = trim((string)($_POST['reason'] ?? ''));
+        if ($reason === '') { flash('Vui lòng nhập lý do từ chối.', 'danger'); cm_education_redirect($appendix); }
+        $rejected = false;
+        foreach ($educationRows as &$row) {
+            if (($row['id'] ?? '') !== $id) continue;
+            if (!$educationIsAdmin && ($educationGroup === '' || cm_education_norm($row['teacher_group'] ?? '') !== cm_education_norm($educationGroup))) { http_response_code(403); exit('TTCM chỉ được từ chối kế hoạch trong tổ của mình.'); }
+            $appendix = (string)($row['appendix'] ?? $appendix);
+            $row['approved_at'] = '';
+            $row['approved_by'] = '';
+            $row['rejected_at'] = date('c');
+            $row['rejected_by'] = cm_education_reviewer_name($educationUser, $educationTeacher);
+            $row['rejection_reason'] = $reason;
+            $row['updated_at'] = date('c');
+            $rejected = true;
+            break;
+        }
+        unset($row);
+        if (!$rejected) { http_response_code(404); exit('Không tìm thấy kế hoạch.'); }
+        cm_education_save($educationDataFile, $educationRows);
+        flash('Đã từ chối kế hoạch và lưu lý do.', 'warning');
+        cm_education_redirect($appendix);
+    }
+
+    if ($action === 'bulk_plan') {
+        if (!$educationIsAdmin && !$educationIsLeader) { http_response_code(403); exit('Tài khoản không có quyền thao tác hàng loạt.'); }
+        $operation = (string)($_POST['bulk_operation'] ?? '');
+        if (!in_array($operation, ['approve','reject','delete'], true)) { http_response_code(400); exit('Thao tác không hợp lệ.'); }
+        if ($operation === 'delete' && !$educationIsAdmin) { http_response_code(403); exit('Chỉ quản trị được xóa kế hoạch hàng loạt.'); }
+        $selectedIds = [];
+        foreach ((array)($_POST['plan_ids'] ?? []) as $selectedId) {
+            if (!is_scalar($selectedId)) continue;
+            $selectedId = trim((string)$selectedId);
+            if ($selectedId !== '') $selectedIds[$selectedId] = $selectedId;
+        }
+        $selectedIds = array_values($selectedIds);
+        if (!$selectedIds) { flash('Vui lòng chọn ít nhất một kế hoạch.', 'warning'); cm_education_redirect($appendix); }
+        if (count($selectedIds) > 1000) { http_response_code(400); exit('Số lượng kế hoạch được chọn vượt giới hạn.'); }
+        $reason = trim((string)($_POST['bulk_reject_reason'] ?? ''));
+        if ($operation === 'reject' && $reason === '') { flash('Vui lòng nhập lý do từ chối.', 'danger'); cm_education_redirect($appendix); }
+        $selectedMap = array_fill_keys($selectedIds, true);
+        $changed = 0;
+        foreach ($educationRows as $index => &$row) {
+            $id = (string)($row['id'] ?? '');
+            if (!isset($selectedMap[$id])) continue;
+            if (!$educationIsAdmin && ($educationGroup === '' || cm_education_norm($row['teacher_group'] ?? '') !== cm_education_norm($educationGroup))) continue;
+            $appendix = (string)($row['appendix'] ?? $appendix);
+            if ($operation === 'delete') {
+                unset($educationRows[$index]);
+            } elseif ($operation === 'approve') {
+                $row['approved_at'] = date('c');
+                $row['approved_by'] = cm_education_reviewer_name($educationUser, $educationTeacher);
+                $row['rejected_at'] = '';
+                $row['rejected_by'] = '';
+                $row['rejection_reason'] = '';
+                $row['updated_at'] = date('c');
+            } else {
+                $row['approved_at'] = '';
+                $row['approved_by'] = '';
+                $row['rejected_at'] = date('c');
+                $row['rejected_by'] = cm_education_reviewer_name($educationUser, $educationTeacher);
+                $row['rejection_reason'] = $reason;
+                $row['updated_at'] = date('c');
+            }
+            $changed++;
+        }
+        unset($row);
+        if ($changed === 0) { flash('Không có kế hoạch nào thuộc phạm vi được phép thao tác.', 'warning'); cm_education_redirect($appendix); }
+        if (!cm_education_save($educationDataFile, $educationRows)) { flash('Không lưu được thay đổi hàng loạt.', 'danger'); cm_education_redirect($appendix); }
+        $messages = ['approve'=>'Đã duyệt','reject'=>'Đã từ chối','delete'=>'Đã xóa'];
+        flash($messages[$operation].' '.$changed.' kế hoạch.', $operation === 'delete' || $operation === 'reject' ? 'warning' : 'success');
+        cm_education_redirect($appendix);
+    }
 }
 
 $educationVisibleRows = array_values(array_filter($educationRows, fn($row)=>cm_education_is_visible($row,$educationIsAdmin,$educationIsLeader,$educationTeacher,$educationGroup)));
 
 /* Thống kê chỉ dựa trên dữ liệu thực tế đã nộp, không suy diễn số phải nộp từ PCCM. */
-$educationStats = ['total'=>0,'I'=>0,'II'=>0,'III'=>0,'approved'=>0];
+$educationStats = ['total'=>0,'I'=>0,'II'=>0,'III'=>0,'approved'=>0,'rejected'=>0];
 $educationStatsByGroup = [];
 $educationSubmittedRows = [];
 foreach ($educationVisibleRows as $row) {
@@ -207,6 +297,7 @@ foreach ($educationVisibleRows as $row) {
     $educationStats['total']++;
     $educationStats[$appendix]++;
     if (!empty($row['approved_at'])) $educationStats['approved']++;
+    if (cm_education_status($row) === 'rejected') $educationStats['rejected']++;
     if (!isset($educationStatsByGroup[$group])) $educationStatsByGroup[$group] = ['group'=>$group,'total'=>0,'I'=>0,'II'=>0,'III'=>0,'approved'=>0];
     $educationStatsByGroup[$group]['total']++;
     $educationStatsByGroup[$group][$appendix]++;
@@ -225,7 +316,7 @@ $educationFilterGroup = trim((string)($_GET['group'] ?? ''));
 $educationFilterSubject = trim((string)($_GET['subject'] ?? ''));
 $educationFilterGrade = trim((string)($_GET['grade'] ?? ''));
 $educationFilterStatus = trim((string)($_GET['status'] ?? ''));
-if (!in_array($educationFilterStatus, ['', 'pending','approved'], true)) $educationFilterStatus = '';
+if (!in_array($educationFilterStatus, ['', 'pending','approved','rejected'], true)) $educationFilterStatus = '';
 $educationSort = trim((string)($_GET['sort'] ?? 'submitted_at'));
 $educationDir = strtolower((string)($_GET['dir'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
 $educationSortFields = ['teacher','appendix','teacher_group','subject','grade','submitted_at','status'];
@@ -242,9 +333,8 @@ $educationList = array_values(array_filter($educationVisibleRows, function($row)
     if ($educationFilterGroup !== '' && ($row['teacher_group'] ?? '') !== $educationFilterGroup) return false;
     if ($educationFilterSubject !== '' && ($row['subject'] ?? '') !== $educationFilterSubject) return false;
     if ($educationFilterGrade !== '' && (string)($row['grade'] ?? '') !== $educationFilterGrade) return false;
-    $approved = !empty($row['approved_at']);
-    if ($educationFilterStatus === 'approved' && !$approved) return false;
-    if ($educationFilterStatus === 'pending' && $approved) return false;
+    $status = cm_education_status($row);
+    if ($educationFilterStatus !== '' && $status !== $educationFilterStatus) return false;
     if ($educationSearch !== '') {
         $haystack = cm_education_norm(implode(' ', [$row['teacher'] ?? '',$row['teacher_group'] ?? '',$row['subject'] ?? '',$row['grade'] ?? '',$row['appendix'] ?? '']));
         if (!str_contains($haystack, cm_education_norm($educationSearch))) return false;
@@ -252,7 +342,7 @@ $educationList = array_values(array_filter($educationVisibleRows, function($row)
     return true;
 }));
 usort($educationList, function($a,$b) use($educationSort,$educationDir) {
-    if ($educationSort === 'status') { $av=!empty($a['approved_at'])?1:0; $bv=!empty($b['approved_at'])?1:0; $cmp=$av<=>$bv; }
+    if ($educationSort === 'status') { $order=['pending'=>0,'rejected'=>1,'approved'=>2]; $av=$order[cm_education_status($a)]??0; $bv=$order[cm_education_status($b)]??0; $cmp=$av<=>$bv; }
     elseif ($educationSort === 'grade') $cmp = strnatcasecmp((string)($a[$educationSort] ?? ''),(string)($b[$educationSort] ?? ''));
     else $cmp = strcasecmp((string)($a[$educationSort] ?? ''),(string)($b[$educationSort] ?? ''));
     return $educationDir === 'asc' ? $cmp : -$cmp;
@@ -272,12 +362,27 @@ require __DIR__.'/header.php';
 @media(max-width:1200px){.education-filter{grid-template-columns:1fr 1fr 1fr}.education-filter .search{grid-column:1/-1}.education-summary{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){.education-filter{grid-template-columns:1fr 1fr}.education-form-grid{grid-template-columns:1fr}.education-toolbar{align-items:flex-start;flex-direction:column}.education-summary{grid-template-columns:1fr 1fr}}
 @media(max-width:575px){.education-filter{grid-template-columns:1fr}.education-filter .search{grid-column:auto}.education-stat-toggle{align-items:stretch;flex-direction:column}.education-summary{grid-template-columns:1fr 1fr}}
+.education-status.rejected{background:#f8d7da;color:#842029}.education-bulk-bar{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;padding:.7rem .85rem;margin-bottom:1rem;border:1px solid #cfe2ff;border-radius:12px;background:#f5f9ff}.education-select-cell{width:42px;text-align:center}.education-rejection-reason{max-width:260px;white-space:normal;font-size:.75rem;color:#842029;margin-top:.3rem}
 </style>
 
 <div class="education-toolbar">
   <div><h3 class="mb-1"><i class="bi bi-file-earmark-check text-primary"></i> Kế hoạch giáo dục</h3><div class="text-muted">Nộp và duyệt văn bản PDF ký số theo Phụ lục I, II, III</div></div>
   <?php if($educationTeacher!==''&&$educationAssignments):?><button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#educationPlanModal" onclick="resetEducationForm()"><i class="bi bi-cloud-arrow-up"></i> Nhập kế hoạch</button><?php endif;?>
 </div>
+<?php if($educationIsAdmin||$educationIsLeader): ?>
+<form id="educationBulkForm" method="post" class="education-bulk-bar">
+  <input type="hidden" name="csrf" value="<?=e($educationCsrf)?>">
+  <input type="hidden" name="action" value="bulk_plan">
+  <input type="hidden" name="appendix" value="<?=e($educationAppendix ?? 'I')?>">
+  <input type="hidden" name="bulk_operation" id="educationBulkOperation">
+  <input type="hidden" name="bulk_reject_reason" id="educationBulkRejectReason">
+  <span class="fw-semibold me-1"><i class="bi bi-check2-square me-1"></i><span id="educationSelectedCount">0</span> đã chọn</span>
+  <button class="btn btn-sm btn-success" type="button" onclick="submitEducationBulk('approve')"><i class="bi bi-check2-circle"></i> Duyệt</button>
+  <button class="btn btn-sm btn-outline-warning" type="button" onclick="submitEducationBulk('reject')"><i class="bi bi-x-circle"></i> Từ chối</button>
+  <?php if($educationIsAdmin): ?><button class="btn btn-sm btn-outline-danger" type="button" onclick="submitEducationBulk('delete')"><i class="bi bi-trash"></i> Xóa</button><?php endif; ?>
+  <small class="text-muted ms-auto"><?= $educationIsAdmin ? 'Quản trị: duyệt, từ chối hoặc xóa hàng loạt.' : 'TTCM: duyệt hoặc từ chối kế hoạch trong tổ.' ?></small>
+</form>
+<?php endif; ?>
 <?php if($educationTeacher===''):?><div class="alert alert-warning">Tài khoản chưa liên kết với giáo viên. Quản trị cần cập nhật trường <strong>Giáo viên liên kết</strong>.</div><?php elseif($educationGroup===''):?><div class="alert alert-warning">Chưa xác định được tổ chuyên môn của <strong><?=e($educationTeacher)?></strong>.</div><?php elseif(!$educationAssignments):?><div class="alert alert-info">Không tìm thấy môn/khối được phân công cho <strong><?=e($educationTeacher)?></strong>.</div><?php endif;?>
 
 <div class="education-stat-toggle">
@@ -294,6 +399,7 @@ require __DIR__.'/header.php';
       <div class="education-summary-card"><small>Phụ lục II</small><strong><?= (int)$educationStats['II'] ?></strong></div>
       <div class="education-summary-card"><small>Phụ lục III</small><strong><?= (int)$educationStats['III'] ?></strong></div>
       <div class="education-summary-card"><small>Đã duyệt</small><strong><?= (int)$educationStats['approved'] ?></strong></div>
+      <div class="education-summary-card"><small>Đã từ chối</small><strong class="text-danger"><?= (int)$educationStats['rejected'] ?></strong></div>
     </div>
 
     <div class="border rounded-3 overflow-hidden mb-3">
@@ -326,4 +432,44 @@ function resetEducationForm(){document.getElementById('educationPlanForm').reset
 function editEducationPlan(b){try{var r=JSON.parse(decodeURIComponent(escape(atob(b.dataset.plan||''))));document.getElementById('educationId').value=r.id||'';document.getElementById('educationAppendix').value=r.appendix||'I';document.getElementById('educationSubject').value=r.subject||'';educationFilterGrades();document.getElementById('educationGrade').value=r.grade||'';document.getElementById('educationFile').required=false;document.getElementById('educationFileNote').textContent='Để trống nếu giữ nguyên PDF hiện tại; chọn tệp mới để thay thế.';bootstrap.Modal.getOrCreateInstance(document.getElementById('educationPlanModal')).show()}catch(e){alert('Không đọc được dữ liệu kế hoạch.')}}
 (function(){var f=document.getElementById('educationPlanForm'),box=document.getElementById('educationUploadProgress'),bar=document.getElementById('educationUploadBar'),pct=document.getElementById('educationUploadPercent'),st=document.getElementById('educationUploadStatus'),dt=document.getElementById('educationUploadDetail'),sb=document.getElementById('educationSubmitButton'),cb=document.getElementById('educationCancelButton');function p(v){v=Math.max(0,Math.min(100,Math.round(v)));bar.style.width=v+'%';pct.textContent=v+'%'}function busy(v){sb.disabled=v;cb.disabled=v}function fail(m){busy(false);bar.className='progress-bar bg-danger';st.innerHTML='<i class="bi bi-x-circle-fill text-danger me-2"></i>Tải lên chưa thành công';dt.textContent=m||'Không kết nối được máy chủ.'}f.addEventListener('submit',function(e){e.preventDefault();if(!f.reportValidity())return;box.hidden=false;bar.className='progress-bar progress-bar-striped progress-bar-animated';p(0);busy(true);var x=new XMLHttpRequest(),d=new FormData(f);x.open('POST',f.getAttribute('action')||location.href,true);x.timeout=600000;x.setRequestHeader('X-Requested-With','XMLHttpRequest');x.upload.onprogress=function(a){if(a.lengthComputable)p(a.loaded/a.total*100)};x.onload=function(){var r;try{r=JSON.parse(x.responseText||'{}')}catch(e){r={ok:false,message:'Máy chủ trả về dữ liệu không hợp lệ.'}}if(x.status<200||x.status>=300||!r.ok){fail(r.message);return}p(100);bar.className='progress-bar bg-success';st.innerHTML='<i class="bi bi-check-circle-fill text-success me-2"></i>Tải lên thành công';dt.textContent=r.message||'Đã lưu PDF vào Google Drive.';setTimeout(function(){location.href=r.redirect||location.href},500)};x.onerror=function(){fail('Mất kết nối tới máy chủ cPanel trong khi tải tệp.')};x.ontimeout=function(){fail('Máy chủ xử lý quá lâu. Vui lòng kiểm tra lại kết nối Google Drive.')};x.send(d)})})();
 </script>
+<?php if($educationIsAdmin||$educationIsLeader): ?>
+<script>
+(function(){
+  var table=document.querySelector('.education-table'),form=document.getElementById('educationBulkForm');
+  if(!table||!form)return;
+  var tableCard=table.closest('.card');if(tableCard)tableCard.parentNode.insertBefore(form,tableCard);
+  var planRows=<?=json_encode(array_map(function($row){return ['id'=>(string)($row['id']??''),'status'=>cm_education_status($row),'rejected_at'=>(string)($row['rejected_at']??''),'rejected_by'=>(string)($row['rejected_by']??''),'reason'=>(string)($row['rejection_reason']??'')];},$educationList),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;
+  var headRow=table.tHead&&table.tHead.rows[0];
+  if(headRow){var th=document.createElement('th');th.className='education-select-cell';th.innerHTML='<input class="form-check-input" type="checkbox" id="educationSelectAll" title="Chọn tất cả">';headRow.insertBefore(th,headRow.firstChild)}
+  Array.from(table.tBodies[0].rows).forEach(function(row,index){
+    if(!planRows[index]){var empty=row.cells[0];if(empty)empty.colSpan=(parseInt(empty.colSpan||'9',10)+1);return}
+    var info=planRows[index],timeCell=row.cells[6],statusCell=row.cells[7];
+    if(info.status==='rejected'){
+      statusCell.innerHTML='<span class="education-status rejected"><i class="bi bi-x-circle-fill"></i> Từ chối</span><div class="education-rejection-reason"></div>';
+      statusCell.querySelector('.education-rejection-reason').textContent=info.reason||'Không có lý do';
+      if(timeCell&&info.rejected_at){var date=new Date(info.rejected_at);var stamp=isNaN(date.getTime())?'':date.toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});timeCell.innerHTML+='<br><strong>Từ chối:</strong> '+stamp+(info.rejected_by?'<br><span></span>':'');if(info.rejected_by){timeCell.querySelector('span:last-child').textContent=info.rejected_by}}
+    }
+    var td=document.createElement('td');td.className='education-select-cell';td.innerHTML='<input class="form-check-input education-row-check" type="checkbox" name="plan_ids[]" form="educationBulkForm">';td.querySelector('input').value=info.id;row.insertBefore(td,row.firstChild)
+  });
+  var all=document.getElementById('educationSelectAll'),checks=function(){return Array.from(document.querySelectorAll('.education-row-check'))},count=document.getElementById('educationSelectedCount');
+  function refresh(){var selected=checks().filter(function(c){return c.checked}).length;count.textContent=selected;if(all){all.checked=selected>0&&selected===checks().length;all.indeterminate=selected>0&&selected<checks().length}}
+  if(all)all.addEventListener('change',function(){checks().forEach(function(c){c.checked=all.checked});refresh()});
+  checks().forEach(function(c){c.addEventListener('change',refresh)});refresh();
+  var statusSelect=document.querySelector('select[name="status"]');
+  if(statusSelect&&!Array.from(statusSelect.options).some(function(o){return o.value==='rejected'})){var option=document.createElement('option');option.value='rejected';option.textContent='Đã từ chối';statusSelect.appendChild(option)}
+  if(statusSelect&&<?=json_encode($educationFilterStatus)?>==='rejected')statusSelect.value='rejected';
+})();
+function submitEducationBulk(operation){
+  var selected=document.querySelectorAll('.education-row-check:checked');
+  if(!selected.length){alert('Vui lòng chọn ít nhất một kế hoạch.');return}
+  var reason='';
+  if(operation==='reject'){reason=prompt('Nhập lý do từ chối để giáo viên biết nội dung cần sửa:','');if(reason===null)return;reason=reason.trim();if(!reason){alert('Vui lòng nhập lý do từ chối.');return}}
+  var messages={approve:'Duyệt '+selected.length+' kế hoạch đã chọn?',reject:'Từ chối '+selected.length+' kế hoạch đã chọn?',delete:'Xóa vĩnh viễn '+selected.length+' kế hoạch đã chọn?'};
+  if(!confirm(messages[operation]||'Thực hiện thao tác?'))return;
+  document.getElementById('educationBulkOperation').value=operation;
+  document.getElementById('educationBulkRejectReason').value=reason;
+  document.getElementById('educationBulkForm').submit();
+}
+</script>
+<?php endif; ?>
 <?php require __DIR__.'/footer.php'; ?>
