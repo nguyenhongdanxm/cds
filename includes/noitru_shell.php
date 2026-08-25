@@ -54,5 +54,5 @@ $ntInGroup=function($group)use($ntGroups,$nt_sec){return in_array($nt_sec,$ntGro
 <?php if ($ntPage === 'noitru_attendance.php'): ?>
 <?php $ntAttRoomMap=[]; if(isset($boarders)&&is_array($boarders)){foreach($boarders as $ntAttStudent){$ntAttSid=(string)($ntAttStudent['id']??'');if($ntAttSid!=='')$ntAttRoomMap[$ntAttSid]=trim((string)($ntAttStudent['room_ktx']??''));}} ?>
 <script>window.NT_ATT_ROOM_MAP=<?= json_encode($ntAttRoomMap,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;window.NT_ATT_REPORT_SCHOOL=<?= json_encode($school??SCHOOL_NAME,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;window.NT_ATT_REPORT_SHIFT=<?= json_encode(function_exists('mb_strtoupper')?mb_strtoupper((string)($shiftLabel??''),'UTF-8'):strtoupper((string)($shiftLabel??'')),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;window.NT_ATT_REPORT_DATE=<?= json_encode((string)($weekdayVi??'').', ngày '.(string)($dateLabel??''),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;window.NT_ATT_REPORT_REPORTER=<?= json_encode((string)($reporter??''),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;</script>
-<script src="<?= e(BASE_URL . 'assets/noitru_att_report_layout.js?v=20260825-1') ?>"></script>
+<script src="<?= e(BASE_URL . 'assets/noitru_att_report_layout.js?v=20260825-2') ?>"></script>
 <?php endif; ?>
