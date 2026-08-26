@@ -4,10 +4,26 @@ require_once __DIR__ . '/includes/csdl_store.php';
 require_once __DIR__ . '/includes/thidua_room_lock.php';
 require_login();
 
+// Kiểm soát truy cập từng tab ở phía máy chủ.
+$requestedTab=(string)($_GET['tab']??'input');
+if($requestedTab==='settings'&&!can_perm_level('td.student_room_settings','view')){
+    flash('Tài khoản này không có quyền vào Cài đặt phòng nội trú.','warning');
+    header('Location: '.BASE_URL.'thidua_phongnoitru.php?tab=input');exit;
+}
+if($requestedTab==='stats'&&!can_perm_level('td.student_room_stats','view')){
+    flash('Tài khoản này không có quyền xem Thống kê - Xếp loại.','warning');
+    header('Location: '.BASE_URL.'thidua_phongnoitru.php?tab=input');exit;
+}
+if($requestedTab==='input'&&!can_perm_level('td.student_room_input','view')){
+    flash('Tài khoản này không có quyền nhập liệu phòng nội trú.','danger');
+    header('Location: '.BASE_URL.'thidua.php');exit;
+}
+
 // Khóa phía máy chủ: dữ liệu chỉ được sửa trong ngày chấm và ngày kế tiếp.
 if ($_SERVER['REQUEST_METHOD']==='POST') {
     $action=(string)($_POST['action']??'');
     if ($action==='batch_save') {
+        if(!can_perm_level('td.student_room_input','edit')){http_response_code(403);exit('Tài khoản chỉ có quyền xem, không được nhập/sửa dữ liệu.');}
         $date=trim((string)($_POST['date']??''));
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/',$date)) tdr_assert_date_editable($date);
     }
@@ -22,7 +38,7 @@ $html = ob_get_clean();
 $canDeleteRoomScore = function_exists('can_perm_level') && can_perm_level('td.student_room_input', 'delete');
 $canRoomAdmin = tdr_is_room_admin();
 $patch = '<script>window.TD_ROOM_CAN_DELETE=' . ($canDeleteRoomScore ? 'true' : 'false') . ';window.TD_ROOM_IS_ADMIN=' . ($canRoomAdmin ? 'true' : 'false') . ';window.TD_ROOM_BASE_URL=' . json_encode(defined('BASE_URL') ? BASE_URL : '/', JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) . ';</script>'
-       . '<script src="' . (defined('BASE_URL') ? BASE_URL : '/') . 'assets/thidua_phongnoitru_patch.js?v=20260826-3"></script>';
+       . '<script src="' . (defined('BASE_URL') ? BASE_URL : '/') . 'assets/thidua_phongnoitru_patch.js?v=20260826-4"></script>';
 if (stripos($html, '</body>') !== false) $html = preg_replace('/<\/body>/i', $patch . '</body>', $html, 1);
 else $html .= $patch;
 echo $html;
