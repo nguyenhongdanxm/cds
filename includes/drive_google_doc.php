@@ -44,7 +44,8 @@ if (!function_exists('cds_drive_upload_google_doc')) {
         }
 
         $id = (string)$json['id'];
-        $view = (string)($json['webViewLink'] ?? ('https://docs.google.com/document/d/' . rawurlencode($id) . '/view'));
+        // Luôn mở ở chế độ xem; quyền truy cập thực tế vẫn kế thừa từ thư mục Drive đã cấu hình.
+        $view = 'https://docs.google.com/document/d/' . rawurlencode($id) . '/view';
         $download = 'https://docs.google.com/document/d/' . rawurlencode($id) . '/export?format=pdf';
         cds_drive_history_add(array_merge([
             'action'=>'create_google_doc',
