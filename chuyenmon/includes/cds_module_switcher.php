@@ -19,5 +19,5 @@ if ($cdsCurrentScript === 'thoikhoabieu.php' && $cdsDailyLoadAllowed) {
 if ($cdsCurrentScript === 'sodaubai.php' && (string)($_GET['tab'] ?? '') === 'curriculum') {
     $base = defined('BASE_URL') ? BASE_URL : '/';
     echo '<script>window.CM_BASE_URL=' . json_encode($base, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) . ';</script>';
-    echo '<script src="' . htmlspecialchars($base . 'assets/sodaubai_ppct_v2.js?v=20260827-1', ENT_QUOTES, 'UTF-8') . '" defer></script>';
+    echo '<script src="' . htmlspecialchars($base . 'assets/sodaubai_ppct_v2.js?v=20260828-1', ENT_QUOTES, 'UTF-8') . '" defer></script>';
 }

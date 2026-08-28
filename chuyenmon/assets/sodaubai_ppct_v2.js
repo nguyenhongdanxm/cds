@@ -4,7 +4,7 @@
  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
  var week=new URLSearchParams(location.search).get('week')||'';
  var heads=[].slice.call(document.querySelectorAll('h2'));
- var importHead=heads.find(function(h){return /Nhập PPCT hàng loạt/i.test(text(h))});
+ var importHead=heads.find(function(h){return /(Nhập PPCT hàng loạt|Đưa PPCT lên)/i.test(text(h))});
  if(importHead){var sec=importHead.closest('section'),form=sec&&sec.querySelector('form[enctype]');if(form){form.action=(window.CM_BASE_URL||'/chuyenmon/')+'sodaubai_ppct_import_v2.php';var w=document.createElement('input');w.type='hidden';w.name='week';w.value=week;form.appendChild(w);var p=sec.querySelector('p');if(p)p.innerHTML='Mẫu chuẩn gồm <b>STT · Tên khối · Tên môn học · Tiết theo PPCT · Tên bài dạy · Thứ tự · Học kỳ</b>. Hệ thống kiểm tra toàn bộ tệp trước khi nhập; nếu có bất kỳ dòng nào sai hoặc thiếu cột, <b>toàn bộ tệp sẽ không được nhập</b> và sẽ báo rõ dòng lỗi.';var btn=form.querySelector('button');if(btn){btn.removeAttribute('onclick');btn.innerHTML='<i class="bi bi-shield-check"></i> Kiểm tra và nhập';}}
  }
  var manualHead=heads.find(function(h){return /Nhập hoặc sửa một dòng PPCT/i.test(text(h))});
