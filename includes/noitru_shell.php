@@ -59,3 +59,7 @@ $ntInGroup=function($group)use($ntGroups,$nt_sec){return in_array($nt_sec,$ntGro
 <!-- defer để layout mới ghi đè drawReport cũ sau khi trang parse xong -->
 <script src="<?= e(BASE_URL . 'assets/noitru_att_report_layout.js?v=20260825-4') ?>" defer></script>
 <?php endif; ?>
+<?php if ($ntPage === 'noitru.php' && $ntTab === 'health' && (($_GET['health_view'] ?? 'record') === 'inventory')): ?>
+<script>window.BASE_URL=<?= json_encode(BASE_URL,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) ?>;</script>
+<script src="<?= e(BASE_URL . 'assets/noitru_medicine_excel.js?v=20260828-1') ?>" defer></script>
+<?php endif; ?>
