@@ -2,6 +2,7 @@
 $page_title = 'Đăng ký và thống kê dự giờ';
 require_once 'includes/functions.php';
 require_once 'includes/observation_form.php';
+require_once 'includes/lesson_book_store.php';
 require_login();
 
 function cm_observation_norm($value): string {
@@ -96,6 +97,18 @@ foreach (get_assignments() as $assignment) {
 $assignments = array_values($assignments);
 usort($assignments, fn($a,$b)=>strnatcasecmp($a['subject'].'|'.$a['class'],$b['subject'].'|'.$b['class']));
 $subjects = array_values(array_unique(array_column($assignments, 'subject')));
+$observationCurriculum = [];
+foreach (lb_curriculum() as $curriculumRow) {
+    $curriculumSubject = trim((string)($curriculumRow['subject'] ?? ''));
+    $curriculumGrade = trim((string)($curriculumRow['grade'] ?? ''));
+    $curriculumPeriod = (int)($curriculumRow['period'] ?? 0);
+    if ($curriculumSubject === '' || $curriculumGrade === '' || $curriculumPeriod < 1) continue;
+    $allowed = false;
+    foreach ($assignments as $assignment) {
+        if (lb_same($curriculumSubject, (string)$assignment['subject']) && lb_grade((string)$assignment['class']) === $curriculumGrade) { $allowed = true; break; }
+    }
+    if ($allowed) $observationCurriculum[] = ['subject'=>$curriculumSubject,'grade'=>$curriculumGrade,'period'=>$curriculumPeriod,'title'=>(string)($curriculumRow['title'] ?? '')];
+}
 
 $allTeachers = get_teachers_sorted();
 $teamTeachers = [];
@@ -141,6 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $ppct = max(1, (int)($_POST['ppct_period'] ?? 0)); $timetable = max(1, (int)($_POST['timetable_period'] ?? 0));
         $lesson = trim((string)($_POST['lesson_title'] ?? ''));
+        if ($lesson === '') { $curriculum = lb_curriculum_for($subject, lb_grade($class), $ppct); if ($curriculum) $lesson = trim((string)($curriculum['title'] ?? '')); }
         if ($lesson === '') { flash('Vui lòng nhập tên bài dạy.', 'danger'); header('Location: '.BASE_URL.'dugio.php'); exit; }
         $id = trim((string)($_POST['id'] ?? '')); $found = false;
         foreach ($records as &$record) {
@@ -229,7 +243,7 @@ require_once 'includes/header.php';
 <div><label class="form-label fw-semibold">Lớp</label><select class="form-select" name="class" id="obsClass" required><option value="">Chọn lớp</option><?php foreach($assignments as $assignment):?><option value="<?=e($assignment['class'])?>" data-subject="<?=e($assignment['subject'])?>"><?=e($assignment['class'])?></option><?php endforeach;?></select></div>
 <div><label class="form-label fw-semibold">Tuần (đồng bộ CSDL)</label><select class="form-select" name="week_number" id="obsWeek" required><?php foreach($weeks as $weekKey=>$week):?><option value="<?=e($weekKey)?>" data-start="<?=e($week['start'])?>" data-end="<?=e($week['end'])?>" <?=(string)$weekKey===$currentWeek?'selected':''?>><?=e(cm_observation_week_text($week))?></option><?php endforeach;?></select></div>
 <div><label class="form-label fw-semibold">Ngày</label><input class="form-control" type="date" name="date" id="obsDate" value="<?=e($today)?>" required></div>
-<div><label class="form-label fw-semibold">Tiết PPCT</label><input class="form-control" type="number" name="ppct_period" id="obsPpct" min="1" required></div>
+<div><label class="form-label fw-semibold">Tiết PPCT</label><input class="form-control" type="number" name="ppct_period" id="obsPpct" min="1" required><div class="form-text" id="obsPpctHint">Chọn môn, lớp và nhập tiết để lấy tên bài.</div></div>
 <div><label class="form-label fw-semibold">Tiết TKB</label><input class="form-control" type="number" name="timetable_period" id="obsTimetable" min="1" required></div>
 <div class="wide"><label class="form-label fw-semibold">Tên bài dạy</label><input class="form-control" name="lesson_title" id="obsLesson" maxlength="300" required></div></div>
 <div class="mt-3 d-flex gap-2"><button class="btn btn-primary"><i class="bi bi-floppy"></i> Lưu đăng ký</button><button class="btn btn-outline-secondary" type="button" id="obsReset">Làm mới</button></div></form><?php endif;?>
@@ -260,9 +274,14 @@ require_once 'includes/header.php';
 <script>
 (function(){
   const subject=document.getElementById('obsSubject'),classSelect=document.getElementById('obsClass'),week=document.getElementById('obsWeek'),date=document.getElementById('obsDate');
+  const ppct=document.getElementById('obsPpct'),lesson=document.getElementById('obsLesson'),ppctHint=document.getElementById('obsPpctHint'),curriculum=<?=json_encode($observationCurriculum,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>;
+  function gradeOf(value){const match=String(value||'').match(/\d+/);return match?match[0]:''}
+  function norm(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/[^a-z0-9]/g,'')}
+  function curriculumRow(){const period=parseInt(ppct?.value||'0',10),grade=gradeOf(classSelect?.value);return curriculum.find(row=>norm(row.subject)===norm(subject?.value)&&String(row.grade)===grade&&Number(row.period)===period)}
+  function fillLesson(force){if(!ppct||!lesson)return;const row=curriculumRow();if(row){if(force||lesson.value.trim()===''||lesson.dataset.auto==='1'){lesson.value=row.title;lesson.dataset.auto='1'}if(ppctHint){ppctHint.textContent='Đã lấy từ PPCT dùng chung môn '+row.subject+' khối '+row.grade+'.';ppctHint.className='form-text text-success'}}else{if(ppctHint){ppctHint.textContent=ppct.value?'Chưa có bài tương ứng trong PPCT dùng chung.':'Chọn môn, lớp và nhập tiết để lấy tên bài.';ppctHint.className='form-text'+(ppct.value?' text-warning':'')}}}
   function filterClasses(){if(!subject||!classSelect)return;Array.from(classSelect.options).forEach(function(option,index){if(!index)return;option.hidden=option.dataset.subject!==subject.value});if(classSelect.selectedOptions[0]?.hidden)classSelect.value=''}
   function syncWeekDate(){if(!week||!date)return;const option=week.selectedOptions[0];date.min=option?.dataset.start||'';date.max=option?.dataset.end||'';if(!date.value||date.value<date.min||date.value>date.max)date.value=date.min}
-  subject?.addEventListener('change',filterClasses);week?.addEventListener('change',syncWeekDate);filterClasses();syncWeekDate();
+  subject?.addEventListener('change',function(){filterClasses();fillLesson(true)});classSelect?.addEventListener('change',function(){fillLesson(true)});ppct?.addEventListener('input',function(){fillLesson(true)});lesson?.addEventListener('input',function(){lesson.dataset.auto='0'});week?.addEventListener('change',syncWeekDate);filterClasses();syncWeekDate();
   document.querySelectorAll('.obs-review').forEach(function(form){
     const picker=form.querySelector('.obs-observer-picker'),summary=form.querySelector('.obs-observer-summary');
     function updateObserverSummary(){const count=form.querySelectorAll('input[name="observers[]"]:checked').length;summary.textContent=count?count+' người đã chọn':'Chọn người dự'}
