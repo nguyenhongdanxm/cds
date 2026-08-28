@@ -5,8 +5,20 @@ require_login();
 require_module('noitru','view');
 require_perm_level('nt.yte','edit');
 
-/* Tồn kho là số nguyên. "Sắp hết" = còn dưới 20 => 0..19. */
-const NT_MEDICINE_LOW_STOCK = 19;
+/* Tồn kho là số nguyên. "Sắp hết" = ngưỡng 20% tổng số lượng đã nhập, làm tròn số nguyên. */
+const NT_MEDICINE_LOW_STOCK_PERCENT = 20;
+function nt_medicine_low_stock_threshold(int $totalReceived): int {
+    return max(0, (int)round($totalReceived * NT_MEDICINE_LOW_STOCK_PERCENT / 100));
+}
+function nt_medicine_total_received(string $medicineId): int {
+    $total = 0;
+    foreach (noitru_medicine_transactions($medicineId) as $tx) {
+        if (in_array((string)($tx['type'] ?? ''), ['initial','restock'], true)) {
+            $total += max(0, (int)($tx['quantity'] ?? 0));
+        }
+    }
+    return $total;
+}
 
 function nt_medicine_xlsx_col_to_index(string $letters): int {
     $n=0; foreach(str_split(strtoupper($letters)) as $ch) $n=$n*26+(ord($ch)-64); return $n-1;
@@ -47,7 +59,7 @@ function nt_medicine_excel_date($raw): string {
 function nt_medicine_template_xlsx(): void {
     if(!class_exists('ZipArchive')){http_response_code(500);exit('Hosting chưa bật ZipArchive.');}
     $tmp=tempnam(sys_get_temp_dir(),'medxlsx'); $zip=new ZipArchive(); $zip->open($tmp,ZipArchive::CREATE|ZipArchive::OVERWRITE);
-    /* Không cần cột ngưỡng: hệ thống tự áp dụng còn dưới 20. */
+    /* Không cần cột ngưỡng: hệ thống tự tính 20% tổng số lượng đã nhập. */
     $headers=['STT','Tên thuốc','Đơn vị','Số lượng','Hạn sử dụng','Ghi chú'];
     $examples=[['1','Paracetamol 500mg','viên','100','31/12/2027','Thuốc hạ sốt'],['2','Oresol','gói','50','30/06/2027','Bù nước điện giải']];
     $rows=[];$all=array_merge([$headers],$examples);
@@ -87,7 +99,6 @@ foreach($parsed['rows'] as $rn=>$row){
     if($unit==='')$rowErrors[]='thiếu đơn vị';
     $qtyNorm=str_replace(',','.',$qtyRaw);
     if(!is_numeric($qtyNorm)||(float)$qtyNorm<0)$rowErrors[]='số lượng không hợp lệ';
-    /* Tồn kho luôn làm tròn thành số nguyên. */
     $qty=max(0,(int)round((float)$qtyNorm));
     $expiryRaw=trim((string)($row[$cols['expiry']??-1]??''));
     $expiry=nt_medicine_excel_date($expiryRaw);
@@ -96,7 +107,7 @@ foreach($parsed['rows'] as $rn=>$row){
     $key=mb_strtolower($name,'UTF-8').'|'.mb_strtolower($unit,'UTF-8');
     if(isset($seen[$key])){$errors[]='Dòng '.$rn.': trùng thuốc và đơn vị với dòng '.$seen[$key];continue;}
     $seen[$key]=$rn;
-    $items[]=['name'=>$name,'unit'=>$unit,'quantity'=>$qty,'expiry_date'=>$expiry,'low_stock'=>NT_MEDICINE_LOW_STOCK,'note'=>trim((string)($row[$cols['note']??-1]??''))];
+    $items[]=['name'=>$name,'unit'=>$unit,'quantity'=>$qty,'expiry_date'=>$expiry,'note'=>trim((string)($row[$cols['note']??-1]??''))];
 }
 if($errors){flash('Không nhập dữ liệu vì file có '.count($errors).' lỗi. '.implode(' | ',array_slice($errors,0,6)).(count($errors)>6?' …':''),'danger');header('Location: '.BASE_URL.'noitru.php?tab=health&health_view=inventory');exit;}
 if(!$items){flash('File Excel không có dòng thuốc hợp lệ.','warning');header('Location: '.BASE_URL.'noitru.php?tab=health&health_view=inventory');exit;}
@@ -108,14 +119,17 @@ foreach($items as $item){
     $key=mb_strtolower($item['name'],'UTF-8').'|'.mb_strtolower($item['unit'],'UTF-8');
     if(isset($map[$key])){
         $m=$map[$key];$id=(string)$m['id'];
-        noitru_medicine_save(['id'=>$id,'name'=>$item['name'],'unit'=>$item['unit'],'expiry_date'=>$item['expiry_date'],'low_stock'=>NT_MEDICINE_LOW_STOCK,'note'=>$item['note'],'quantity'=>(int)round((float)($m['quantity']??0))]);
+        $totalAfter=nt_medicine_total_received($id)+$item['quantity'];
+        $lowStock=nt_medicine_low_stock_threshold($totalAfter);
+        noitru_medicine_save(['id'=>$id,'name'=>$item['name'],'unit'=>$item['unit'],'expiry_date'=>$item['expiry_date'],'low_stock'=>$lowStock,'note'=>$item['note'],'quantity'=>(int)round((float)($m['quantity']??0))]);
         $updated++;
         if($item['quantity']>0){noitru_medicine_adjust($id,$item['quantity'],'restock','Nhập kho bằng Excel',$user['name']??'');$restocked++;}
     }else{
-        $id=noitru_medicine_save(['id'=>'','name'=>$item['name'],'unit'=>$item['unit'],'expiry_date'=>$item['expiry_date'],'low_stock'=>NT_MEDICINE_LOW_STOCK,'note'=>$item['note'],'quantity'=>0]);
+        $lowStock=nt_medicine_low_stock_threshold($item['quantity']);
+        $id=noitru_medicine_save(['id'=>'','name'=>$item['name'],'unit'=>$item['unit'],'expiry_date'=>$item['expiry_date'],'low_stock'=>$lowStock,'note'=>$item['note'],'quantity'=>0]);
         if($item['quantity']>0)noitru_medicine_adjust($id,$item['quantity'],'initial','Nhập kho bằng Excel',$user['name']??'');
         $added++;
     }
 }
-flash('Đã nhập Excel kho thuốc: thêm mới '.$added.' thuốc, cập nhật '.$updated.' thuốc. Ngưỡng sắp hết tự động: còn dưới 20.','success');
+flash('Đã nhập Excel kho thuốc: thêm mới '.$added.' thuốc, cập nhật '.$updated.' thuốc. Ngưỡng sắp hết được tự động tính bằng 20% tổng số lượng đã nhập và làm tròn số nguyên.','success');
 header('Location: '.BASE_URL.'noitru.php?tab=health&health_view=inventory');exit;
