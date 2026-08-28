@@ -45,3 +45,6 @@ body > .container > .nav-tabs + *,body > .container > .nav-pills + * {margin-top
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
 })();
 </script>
+<?php if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'sodaubai.php'): ?>
+<script src="<?= e(BASE_URL . 'assets/sodaubai_enhancements.js?v=20260828-1') ?>" defer></script>
+<?php endif; ?>
