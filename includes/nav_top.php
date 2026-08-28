@@ -91,3 +91,6 @@ body > nav.navbar-dark:not(.cds-nav){display:none!important}
   </div>
 </nav>
 <?php require_once __DIR__.'/module_switcher.php'; ?>
+<?php if (basename($_SERVER['SCRIPT_NAME'] ?? '') === 'users.php'): ?>
+<script src="<?= e(BASE_URL . 'assets/users_permission_tree.js?v=20260828-1') ?>" defer></script>
+<?php endif; ?>
