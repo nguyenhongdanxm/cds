@@ -114,9 +114,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $actionPerms = [
         'sync_from_csdl'=>'nt.danhsach',
         'exit_save'=>'nt.ravao', 'exit_status'=>'nt.ravao', 'exit_delete'=>'nt.ravao',
-        'meals_generate'=>'nt.baoan', 'meals_save'=>'nt.baoan',
+        'meals_generate'=>'nt.baoan', 'meals_save'=>'nt.baoan', 'meal_class_off_bulk'=>'nt.baoan',
         'meals_lock'=>'nt.buaan.tonghop', 'meals_unlock'=>'nt.buaan.tonghop',
-        'meal_state'=>'nt.buaan.tonghop', 'meal_settings'=>'nt.buaan.tonghop', 'meal_fill_missing'=>'nt.buaan.tonghop',
+        'meal_state'=>'nt.buaan.tonghop', 'meal_state_bulk'=>'nt.buaan.tonghop', 'meal_settings'=>'nt.buaan.tonghop', 'meal_fill_missing'=>'nt.buaan.tonghop',
         'att_save'=>'nt.diemdanh',
         'duty_save'=>'nt.lichtruc', 'duty_delete'=>'nt.lichtruc',
         'duty_toggle'=>'nt.lichtruc', 'duty_auto'=>'nt.lichtruc', 'duty_copy'=>'nt.lichtruc',
@@ -135,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $requiredLevel = substr($action, -7) === '_delete' || $action === 'duty_month_clear' ? 'delete' : 'edit';
         require_perm_level($actionPerms[$action], $requiredLevel);
     }
-    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
+    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_state_bulk','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
         noitru_require_global_scope();
     }
     if (in_array($action, ['rice_settings','rice_in','rice_issue','rice_delete'], true)) {
@@ -269,13 +269,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $targetDates = [];
         for ($cursor = $longFrom; $cursor <= $longUntil; $cursor = date('Y-m-d', strtotime($cursor . ' +1 day'))) $targetDates[] = $cursor;
 
-        if (allowed_classes() !== null) {
-            foreach ($targetDates as $targetDate) foreach ($targetMeals as $targetMeal) {
-                $state = noitru_meal_state($targetDate, $targetMeal)['status'] ?? 'open';
-                if ($state !== 'open') {
-                    flash('Có bữa ăn trong khoảng đã chọn đã khóa hoặc thông báo nghỉ. Báo cáo chưa được cập nhật.', 'warning');
-                    header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date) . '&class=' . urlencode($className) . '&meal=' . urlencode($meal)); exit;
-                }
+        foreach ($targetDates as $targetDate) foreach ($targetMeals as $targetMeal) {
+            $state = noitru_meal_state($targetDate, $targetMeal)['status'] ?? 'open';
+            if ($state !== 'open') {
+                flash('Có bữa ăn trong khoảng đã chọn đã khóa hoặc thông báo nghỉ. Báo cáo chưa được cập nhật.', 'warning');
+                header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date) . '&class=' . urlencode($className) . '&meal=' . urlencode($meal)); exit;
             }
         }
 
@@ -324,6 +322,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date) . '&class=' . urlencode($className) . '&meal=' . urlencode($meal));
         exit;
     }
+    if ($action === 'meal_class_off_bulk') {
+        $className = trim($_POST['class_name'] ?? '');
+        $from = trim($_POST['from'] ?? date('Y-m-d'));
+        $until = trim($_POST['until'] ?? $from);
+        $targetMeals = array_values(array_intersect(['sang','trua','toi'], (array)($_POST['meals'] ?? [])));
+        if ($className==='' || !can_class($className) || !preg_match('/^\d{4}-\d{2}-\d{2}$/',$from) || !preg_match('/^\d{4}-\d{2}-\d{2}$/',$until) || $until<$from || !$targetMeals) {
+            flash('Lớp, ngày hoặc bữa nghỉ không hợp lệ.','danger');header('Location: '.BASE_URL.'noitru.php?tab=meals');exit;
+        }
+        $maxUntil=date('Y-m-d',strtotime($from.' +60 days'));if($until>$maxUntil)$until=$maxUntil;
+        $classStudents=array_values(array_filter(noitru_boarders_live(),fn($student)=>($student['class_name']??'')===$className));
+        $updated=0;$skipped=0;
+        for($targetDate=$from;$targetDate<=$until;$targetDate=date('Y-m-d',strtotime($targetDate.' +1 day'))) {
+            $dayMap=noitru_meals_for_date($targetDate);
+            foreach($targetMeals as $targetMeal) {
+                if((noitru_meal_state($targetDate,$targetMeal)['status']??'open')!=='open'){$skipped++;continue;}
+                foreach($classStudents as $student){$sid=$student['id']??'';$existing=$dayMap[$sid]??[];noitru_meal_upsert(['date'=>$targetDate,'student_id'=>$sid,'sang'=>$targetMeal==='sang'?'no':($existing['sang']??'yes'),'trua'=>$targetMeal==='trua'?'no':($existing['trua']??'yes'),'toi'=>$targetMeal==='toi'?'no':($existing['toi']??'yes'),'source'=>'gvcn_class_off','reported_by'=>$user['name']??'','force'=>true]);$dayMap[$sid]=array_merge($existing,[$targetMeal=>'no']);}
+                noitru_meal_report_upsert(['date'=>$targetDate,'class_name'=>$className,'meal'=>$targetMeal,'student_count'=>count($classStudents),'eat_count'=>0,'absent_count'=>count($classStudents),'reported_by'=>$user['name']??'','status'=>'submitted']);$updated++;
+            }
+        }
+        flash('Đã báo nghỉ cho lớp '.$className.' ở '.$updated.' lượt ngày/bữa'.($skipped?' (bỏ qua '.$skipped.' lượt đã khóa hoặc nghỉ toàn trường).':'.'),$skipped?'warning':'success');
+        header('Location: '.BASE_URL.'noitru.php?tab=meals&date='.urlencode($from).'&class='.urlencode($className).'&meal=all');exit;
+    }
     if ($action === 'meals_lock') {
         $date = trim($_POST['date'] ?? '');
         noitru_meals_lock_day($date, true);
@@ -347,6 +367,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash($status === 'locked' ? 'Đã chốt số liệu bữa ăn.' : ($status === 'off' ? 'Đã thông báo nghỉ bữa ăn.' : 'Đã mở lại để nhận báo cáo.'), $status === 'off' ? 'warning' : 'success');
         }
         header('Location: ' . BASE_URL . 'noitru.php?tab=meal_summary&date=' . urlencode($date)); exit;
+    }
+    if ($action === 'meal_state_bulk') {
+        $from=trim($_POST['from']??date('Y-m-d'));$until=trim($_POST['until']??$from);
+        $targetMeals=array_values(array_intersect(['sang','trua','toi'],(array)($_POST['meals']??[])));
+        $status=($_POST['status']??'off')==='open'?'open':'off';
+        if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$from)||!preg_match('/^\d{4}-\d{2}-\d{2}$/',$until)||$until<$from||!$targetMeals){flash('Khoảng ngày hoặc bữa ăn không hợp lệ.','danger');header('Location: '.BASE_URL.'noitru.php?tab=meal_summary');exit;}
+        $maxUntil=date('Y-m-d',strtotime($from.' +120 days'));if($until>$maxUntil)$until=$maxUntil;$count=0;
+        for($targetDate=$from;$targetDate<=$until;$targetDate=date('Y-m-d',strtotime($targetDate.' +1 day')))foreach($targetMeals as $targetMeal){noitru_meal_state_set($targetDate,$targetMeal,$status,$user['name']??'');$count++;}
+        flash(($status==='off'?'Đã đặt nghỉ toàn trường cho ':'Đã mở lại ').$count.' lượt ngày/bữa.',$status==='off'?'warning':'success');
+        header('Location: '.BASE_URL.'noitru.php?tab=meal_summary&date='.urlencode($from));exit;
     }
     if ($action === 'meal_settings') {
         noitru_meal_settings_save($_POST);
@@ -1446,7 +1476,7 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
     foreach ($viewMeals as $viewMeal) $mealStates[$viewMeal] = noitru_meal_state($date, $viewMeal)['status'] ?? 'open';
     $mealState = count(array_filter($mealStates, fn($state)=>$state==='open')) === count($mealStates) ? 'open' : (count(array_filter($mealStates, fn($state)=>$state==='locked')) === count($mealStates) ? 'locked' : 'mixed');
     $mealReport = $className !== '' && $meal !== 'all' ? noitru_meal_report_for($date, $className, $meal) : null;
-    $readOnly = $mealState !== 'open' && allowed_classes() !== null;
+    $readOnly = $mealState !== 'open';
   ?>
   <?php if (($_GET['meal_view'] ?? '') === 'history'): ?>
     <?= nt_meal_history_panel_html() ?>
@@ -1481,7 +1511,7 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
     <input type="hidden" name="long_from" id="mealLongFrom" value="<?= e($date) ?>"><input type="hidden" name="long_until" id="mealLongUntil" value="<?= e($date) ?>">
     <div class="card-body">
       <div class="d-flex justify-content-between gap-2 flex-wrap meal-form-head mb-3"><div><h5 class="mb-1"><?= e($className) ?> · <?= e($mealLabels[$meal]) ?></h5><div class="small text-muted"><?= $mealReport?'Đã báo bởi '.e($mealReport['reported_by']??'').' lúc '.e(date('d/m/Y H:i',strtotime($mealReport['updated_at']??$mealReport['created_at']??'now'))):($meal==='all'?'Báo đồng thời cả 3 bữa':'Chưa gửi báo cáo') ?></div></div>
-        <?php if (!$readOnly && $classStudents): ?><div class="meal-quick-actions"><button class="btn btn-outline-success btn-sm" type="button" onclick="setMealAbsent(false)">Đủ cả lớp</button><button class="btn btn-outline-danger btn-sm" type="button" onclick="setMealAbsent(true)">Nghỉ cả lớp</button><button class="btn btn-outline-warning btn-sm" type="button" onclick="openLongMealModal()"><i class="bi bi-calendar-range"></i> Cập nhật nhiều ngày</button></div><?php endif; ?>
+        <?php if ($classStudents): ?><div class="meal-quick-actions"><?php if(!$readOnly): ?><button class="btn btn-outline-success btn-sm" type="button" onclick="setMealAbsent(false)">Đủ cả lớp</button><button class="btn btn-outline-danger btn-sm" type="button" onclick="setMealAbsent(true)">Nghỉ cả lớp</button><button class="btn btn-outline-warning btn-sm" type="button" onclick="openLongMealModal()"><i class="bi bi-calendar-range"></i> Cập nhật nhiều ngày</button><?php endif; ?><button class="btn btn-danger btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#classMealOffModal"><i class="bi bi-calendar2-x"></i> Chọn ngày nghỉ lớp</button></div><?php endif; ?>
       </div>
       <div class="alert alert-light border py-2"><strong>Mặc định tất cả học sinh ăn.</strong> Chỉ tích vào học sinh nghỉ ăn.</div>
       <div class="meal-student-grid">
@@ -1502,6 +1532,11 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
     </div>
     <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-warning" type="button" onclick="continueLongMeal()">Tiếp tục kiểm tra</button></div>
   </div></div></div>
+  <div class="modal fade" id="classMealOffModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><form class="modal-content" method="post">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-calendar2-x text-danger me-2"></i>Báo ngày nghỉ của lớp <?=e($className)?></h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><input type="hidden" name="action" value="meal_class_off_bulk"><input type="hidden" name="class_name" value="<?=e($className)?>"><div class="alert alert-warning py-2">Tất cả học sinh của lớp sẽ được báo nghỉ ở những bữa và ngày đã chọn.</div><div class="row g-2"><div class="col-6"><label class="form-label">Từ ngày</label><input class="form-control" type="date" name="from" value="<?=e($date)?>" required></div><div class="col-6"><label class="form-label">Đến ngày</label><input class="form-control" type="date" name="until" value="<?=e($date)?>" required></div></div><label class="form-label mt-3">Chọn bữa nghỉ</label><div class="d-flex flex-wrap gap-3"><label><input class="form-check-input me-1" type="checkbox" name="meals[]" value="sang"> Sáng</label><label><input class="form-check-input me-1" type="checkbox" name="meals[]" value="trua" checked> Trưa</label><label><input class="form-check-input me-1" type="checkbox" name="meals[]" value="toi" checked> Tối</label></div></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-danger" type="submit" onclick="return confirm('Xác nhận báo nghỉ cả lớp trong khoảng đã chọn?')"><i class="bi bi-check-circle"></i> Xác nhận nghỉ lớp</button></div>
+  </form></div></div>
   <div class="modal fade" id="mealConfirmModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title"><i class="bi bi-clipboard-check me-2"></i>Kiểm tra báo ăn trước khi lưu</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
     <div class="modal-body" id="mealConfirmBody"></div>
@@ -1540,13 +1575,13 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
   ?>
   <div class="nt-page-head">
     <div><h4><i class="bi bi-fork-knife text-primary"></i> Báo cơm cả trường – <?= e(date('d/m/Y',strtotime($date))) ?></h4><div class="subtitle">Nhận báo cáo từ GVCN, chốt số liệu và báo nhà bếp</div></div>
-    <div class="dropdown"><button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-file-earmark-spreadsheet"></i> Xuất báo cáo</button><ul class="dropdown-menu dropdown-menu-end">
+    <div class="d-flex gap-2 flex-wrap"><?php if (allowed_classes()===null && $canEditCurrent): ?><button class="btn btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#schoolMealOffModal"><i class="bi bi-calendar2-x"></i> Chọn ngày nghỉ</button><?php endif; ?><div class="dropdown"><button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-file-earmark-spreadsheet"></i> Xuất báo cáo</button><ul class="dropdown-menu dropdown-menu-end">
       <li><button class="dropdown-item" type="button" onclick="openMealDayExport('summary')"><i class="bi bi-image text-info me-2"></i>Xuất ảnh thống kê</button></li>
       <li><button class="dropdown-item" type="button" onclick="openMealDayExport('groups')"><i class="bi bi-people text-danger me-2"></i>DS vắng theo mâm</button></li>
       <li><hr class="dropdown-divider"></li>
       <li><button class="dropdown-item" type="button" onclick="openMealExcelModal('breakfast')"><i class="bi bi-file-earmark-excel text-success me-2"></i>Excel bữa sáng</button></li>
       <li><button class="dropdown-item" type="button" onclick="openMealExcelModal('lunch_dinner')"><i class="bi bi-file-earmark-excel text-success me-2"></i>Excel bữa trưa, tối</button></li>
-    </ul></div>
+    </ul></div></div>
   </div>
   <form method="get" class="card card-soft mb-3"><div class="card-body d-flex align-items-end gap-2 flex-wrap"><input type="hidden" name="tab" value="meal_summary"><div><label class="form-label">Ngày chuẩn bị</label><input type="date" name="date" class="form-control" value="<?= e($date) ?>"></div><button class="btn btn-nt">Xem tổng hợp</button></div></form>
   <?php if (allowed_classes()===null && $canEditCurrent): ?><details class="card card-soft mb-3"><summary class="card-body fw-bold"><i class="bi bi-sliders"></i> Cài đặt giờ khóa và định mức gạo</summary><form method="post" class="card-body border-top">
@@ -1596,6 +1631,11 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
     <div class="modal-body"><img class="meal-export-preview" id="mealDayExportPreview" alt="Ảnh báo cáo bữa ăn"></div>
     <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" onclick="downloadMealDayExport()"><i class="bi bi-download"></i> Tải ảnh</button><button class="btn btn-info text-white" type="button" onclick="shareMealDayExport()"><i class="bi bi-share"></i> Chia sẻ</button></div>
   </div></div></div>
+  <?php if (allowed_classes()===null && $canEditCurrent): ?><div class="modal fade" id="schoolMealOffModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><form class="modal-content" method="post">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-calendar2-x text-danger me-2"></i>Chọn ngày nghỉ toàn trường</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><input type="hidden" name="action" value="meal_state_bulk"><div class="alert alert-info py-2">Khi đặt nghỉ, GVCN không thể báo ăn cho các bữa này; mọi số liệu đã báo trước đó được tính về 0.</div><div class="row g-2"><div class="col-6"><label class="form-label">Từ ngày</label><input class="form-control" type="date" name="from" value="<?=e($date)?>" required></div><div class="col-6"><label class="form-label">Đến ngày</label><input class="form-control" type="date" name="until" value="<?=e($date)?>" required></div></div><label class="form-label mt-3">Chọn bữa</label><div class="d-flex flex-wrap gap-3"><label><input class="form-check-input me-1" type="checkbox" name="meals[]" value="sang"> Sáng</label><label><input class="form-check-input me-1" type="checkbox" name="meals[]" value="trua" checked> Trưa</label><label><input class="form-check-input me-1" type="checkbox" name="meals[]" value="toi" checked> Tối</label></div><label class="form-label mt-3">Thao tác</label><select class="form-select" name="status"><option value="off">Đặt nghỉ toàn trường</option><option value="open">Mở lại để nhận báo ăn</option></select></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-danger" type="submit" onclick="return confirm('Xác nhận áp dụng cho toàn trường?')"><i class="bi bi-check-circle"></i> Áp dụng</button></div>
+  </form></div></div><?php endif; ?>
   <div class="modal fade" id="mealExcelModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><form class="modal-content" method="get">
     <div class="modal-header"><h5 class="modal-title" id="mealExcelTitle"><i class="bi bi-file-earmark-excel text-success me-2"></i>Xuất sổ bữa ăn</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
     <div class="modal-body"><input type="hidden" name="tab" value="meal_summary"><input type="hidden" name="export" id="mealExcelType" value="month_breakfast"><label class="form-label fw-bold">Chọn tháng báo cáo</label><input class="form-control" type="month" name="month" value="<?= e(substr($date,0,7)) ?>" required><div class="form-text mt-2">Sheet đầu tiên là <strong>Toàn trường</strong>, tổng hợp số suất từng lớp theo từng ngày; phía sau là các sheet chi tiết từng lớp.</div></div>
