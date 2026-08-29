@@ -211,6 +211,77 @@ function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYe
         . '</worksheet>';
 }
 
+function nt_xlsx_school_summary_xml(array $classes, $month, $type, $schoolYear) {
+    $start = $month . '-01';
+    $daysInMonth = (int)date('t', strtotime($start));
+    $monthNumber = (int)date('m', strtotime($start));
+    $yearNumber = (int)date('Y', strtotime($start));
+    $mealKeys = $type === 'breakfast' ? ['sang'=>'Sáng'] : ['trua'=>'Trưa','toi'=>'Tối'];
+    $dayMaps = [];$reportedMap = [];
+    foreach ((array)(noitru_meal_reports_data()['reports']??[]) as $report) {
+        $reportDate=(string)($report['date']??'');
+        if (substr($reportDate,0,7)!==$month) continue;
+        $reportedMap[$reportDate.'|'.(string)($report['class_name']??'').'|'.(string)($report['meal']??'')]=true;
+    }
+    for($day=1;$day<=$daysInMonth;$day++) {$date=sprintf('%s-%02d',$month,$day);$dayMaps[$date]=noitru_meals_for_date($date);}
+    $lastDayCol = nt_xlsx_col(2 + 31);
+    $totalCol = nt_xlsx_col(34);
+    $rows = [];
+    $rows[] = '<row r="1" ht="22">' . nt_xlsx_text_cell('A1', 'Trường PTDT nội trú THCS&THPT Xín Mần', 1) . nt_xlsx_text_cell('K1', 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', 3) . '</row>';
+    $rows[] = '<row r="2" ht="20">' . nt_xlsx_text_cell('K2', 'Độc lập - Tự do - Hạnh phúc', 3) . '</row>';
+    $rows[] = '<row r="3" ht="8"></row>';
+    $title = $type === 'breakfast' ? 'TỔNG HỢP SUẤT ĂN BỮA SÁNG TOÀN TRƯỜNG' : 'TỔNG HỢP SUẤT ĂN BỮA TRƯA, BỮA TỐI TOÀN TRƯỜNG';
+    $rows[] = '<row r="4" ht="26">' . nt_xlsx_text_cell('A4', $title, 2) . '</row>';
+    $rows[] = '<row r="5" ht="22">' . nt_xlsx_text_cell('A5', 'Tháng ' . $monthNumber . ' năm ' . $yearNumber . ' · Năm học ' . $schoolYear, 3) . '</row>';
+    $rows[] = '<row r="6" ht="36">' . nt_xlsx_text_cell('A6', 'Lớp', 6) . nt_xlsx_text_cell('B6', 'Bữa', 6) . nt_xlsx_text_cell('C6', 'Số suất ăn theo từng ngày trong tháng', 6) . nt_xlsx_text_cell($totalCol . '6', 'Tổng tháng', 6) . '</row>';
+    $dayHeader = '<row r="7" ht="22">' . nt_xlsx_text_cell('A7', '', 6) . nt_xlsx_text_cell('B7', '', 6);
+    for ($day=1;$day<=31;$day++) $dayHeader .= nt_xlsx_text_cell(nt_xlsx_col(2+$day).'7', $day<=$daysInMonth?sprintf('%02d',$day):'', 6);
+    $rows[] = $dayHeader . nt_xlsx_text_cell($totalCol.'7', '', 6) . '</row>';
+    $rowNumber = 8;
+    $totals = [];
+    foreach ($mealKeys as $mealKey=>$unused) $totals[$mealKey] = array_fill(1,31,0);
+    $merges = ['A1:J1','K1:AH1','K2:AH2','A4:AH4','A5:AH5','A6:A7','B6:B7','C6:AG6','AH6:AH7'];
+    foreach ($classes as $className=>$classStudents) {
+        $classStartRow = $rowNumber;
+        foreach ($mealKeys as $mealKey=>$mealLabel) {
+            $cells = nt_xlsx_text_cell('A'.$rowNumber, $className, 5) . nt_xlsx_text_cell('B'.$rowNumber, $mealLabel, 4);
+            $rowTotal = 0;
+            for ($day=1;$day<=31;$day++) {
+                $ref = nt_xlsx_col(2+$day).$rowNumber;
+                if ($day>$daysInMonth) { $cells .= nt_xlsx_text_cell($ref, '', 4); continue; }
+                $date = sprintf('%s-%02d',$month,$day);
+                $reported = isset($reportedMap[$date.'|'.$className.'|'.$mealKey]);
+                if (!$reported) { $cells .= nt_xlsx_text_cell($ref, '', 4); continue; }
+                $mealMap = $dayMaps[$date]??[];
+                $count = 0;
+                foreach ($classStudents as $student) if (($mealMap[$student['id']??''][$mealKey]??'')==='yes') $count++;
+                $rowTotal += $count;$totals[$mealKey][$day] += $count;
+                $cells .= nt_xlsx_number_cell($ref,$count,4);
+            }
+            $cells .= nt_xlsx_number_cell($totalCol.$rowNumber,$rowTotal,8);
+            $rows[] = '<row r="'.$rowNumber.'" ht="20">'.$cells.'</row>';
+            $rowNumber++;
+        }
+        if (count($mealKeys)>1) $merges[] = 'A'.$classStartRow.':A'.($rowNumber-1);
+    }
+    foreach ($mealKeys as $mealKey=>$mealLabel) {
+        $cells = nt_xlsx_text_cell('A'.$rowNumber,'TOÀN TRƯỜNG',8) . nt_xlsx_text_cell('B'.$rowNumber,$mealLabel,8);
+        for ($day=1;$day<=31;$day++) $cells .= nt_xlsx_number_cell(nt_xlsx_col(2+$day).$rowNumber,$totals[$mealKey][$day],8);
+        $cells .= nt_xlsx_number_cell($totalCol.$rowNumber,array_sum($totals[$mealKey]),8);
+        $rows[] = '<row r="'.$rowNumber.'" ht="22">'.$cells.'</row>';$rowNumber++;
+    }
+    if (count($mealKeys)>1) $merges[] = 'A'.($rowNumber-count($mealKeys)).':A'.($rowNumber-1);
+    $noteRow = $rowNumber;
+    $rows[] = '<row r="'.$noteRow.'" ht="24">'.nt_xlsx_text_cell('A'.$noteRow,'Ghi chú: Ô trống là lớp chưa gửi báo ăn; số 0 là lớp đã báo nhưng không có suất ăn.',10).'</row>';
+    $merges[] = 'A'.$noteRow.':AH'.$noteRow;
+    $mergeXml = '<mergeCells count="'.count($merges).'">';foreach($merges as $merge)$mergeXml.='<mergeCell ref="'.$merge.'"/>';$mergeXml.='</mergeCells>';
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>'
+        . '<dimension ref="A1:AH'.$noteRow.'"/><sheetViews><sheetView showGridLines="0" workbookViewId="0"><pane xSplit="2" ySplit="7" topLeftCell="C8" activePane="bottomRight" state="frozen"/></sheetView></sheetViews>'
+        . '<sheetFormatPr defaultRowHeight="20"/><cols><col min="1" max="1" width="12" customWidth="1"/><col min="2" max="2" width="9" customWidth="1"/><col min="3" max="33" width="4.2" customWidth="1"/><col min="34" max="34" width="13" customWidth="1"/></cols>'
+        . '<sheetData>'.implode('',$rows).'</sheetData>'.$mergeXml.'<printOptions horizontalCentered="1"/><pageMargins left="0.2" right="0.2" top="0.35" bottom="0.35" header="0.1" footer="0.1"/><pageSetup paperSize="8" orientation="landscape" fitToWidth="1" fitToHeight="0" horizontalDpi="300" verticalDpi="300"/></worksheet>';
+}
+
 function nt_export_meal_month_xlsx(array $students, $month, $type, $exportedBy = '', $saveToDrive = false) {
     if (!preg_match('/^\\d{4}-\\d{2}$/', $month)) $month = date('Y-m');
     if (!in_array($type, ['breakfast','lunch_dinner'], true)) $type = 'breakfast';
@@ -237,9 +308,10 @@ function nt_export_meal_month_xlsx(array $students, $month, $type, $exportedBy =
     }
     $schoolYear = defined('SCHOOL_YEAR') ? str_replace('–', '-', SCHOOL_YEAR) : (date('Y') . '-' . (date('Y') + 1));
     $tmp = tempnam(sys_get_temp_dir(), 'ntmeal_');
-    $sheetNames = [];
+    $sheetNames = ['Toàn trường'];
     $usedNames = [];
-    $sheetXml = [];
+    $usedNames[mb_strtolower('Toàn trường','UTF-8')] = true;
+    $sheetXml = [nt_xlsx_school_summary_xml($classes, $month, $type, $schoolYear)];
     foreach ($classes as $className => $classStudents) {
         $sheetNames[] = nt_xlsx_safe_sheet_name($className, $usedNames);
         $sheetXml[] = nt_xlsx_sheet_xml($className, $classStudents, $month, $type, $schoolYear, $homeroomTeachers[$className] ?? '');
