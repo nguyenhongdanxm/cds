@@ -9,14 +9,16 @@ if (!is_dir(DATA_PATH)) {
     @mkdir(DATA_PATH, 0755, true);
 }
 
+require_once __DIR__ . '/school_config.php';
+
 define('BASE_URL', '/');
 
-define('SCHOOL_NAME', 'Trường PTDTNT THCS&THPT Xín Mần');
-define('SCHOOL_SHORT', 'Xín Mần');
-define('SCHOOL_SO', 'Sở GD&ĐT Tuyên Quang');
-define('SCHOOL_YEAR', '2025–2026');
+define('SCHOOL_NAME', school_name());
+define('SCHOOL_SHORT', school_short_name());
+define('SCHOOL_SO', school_department());
+define('SCHOOL_YEAR', school_year());
 
-define('URL_TIN_TUC', 'https://noitruxinman.edu.vn');
+define('URL_TIN_TUC', school_website());
 /* Chuyên môn (PCCM) – module thư mục trên cùng domain CDS */
 define('URL_CHUYEN_MON', BASE_URL . 'chuyenmon/');
 define('URL_CSDL', BASE_URL . 'csdl.php');
