@@ -15,6 +15,11 @@ if (!defined('BASE_URL')) {
 
 if (!is_dir(DATA_PATH)) mkdir(DATA_PATH, 0755, true);
 
+$sharedSchoolConfig = dirname(__DIR__, 2) . '/includes/school_config.php';
+if (is_file($sharedSchoolConfig)) {
+    require_once $sharedSchoolConfig;
+}
+
 define('TEACHERS_FILE', DATA_PATH . '/teachers.json');
 define('TEACHER_META_FILE', DATA_PATH . '/teacher_meta.json');
 define('GROUPS_FILE', DATA_PATH . '/groups.json');
@@ -32,8 +37,8 @@ define('LEGACY_ROLE_ASSIGNMENTS_FILE', DATA_PATH . '/role_assignments.json');
 define('DEFAULT_QUOTA_THCS', 17);
 define('DEFAULT_QUOTA_THPT', 15);
 
-define('SCHOOL_SO', 'Sở GD&ĐT Tuyên Quang');
-define('SCHOOL_NAME', 'Trường PTDTNT THCS&THPT Xín Mần');
+if (!defined('SCHOOL_SO')) define('SCHOOL_SO', function_exists('school_department') ? school_department() : 'Sở GD&ĐT Tuyên Quang');
+if (!defined('SCHOOL_NAME')) define('SCHOOL_NAME', function_exists('school_name') ? school_name() : 'Trường PTDTNT THCS&THPT Xín Mần');
 
 $DEFAULT_TEACHERS = ["Nguyễn Thị Ngân","Nguyễn Hồng Dân","Lục Thị Kim Liên","Nguyễn Thị Hoa T","Hoàng Tú Phượng","Hoàng Thị Thanh Huệ","Hoàng Trọng Đại","Ma Ngọc Doanh","Nguyễn Thị Hoa V","Nguyễn Thị Ninh","Phú","Lê Thị Hiền","Nguyễn Thị Thu Hường","Vũ Thị Linh","Hoàng Minh Hải","Đinh Thị Phượng","Vương Hữu Sơn","Vũ Thị Thanh Hường","Vàng Thị Thêm","Lương Thị Bích Tuệ","Ma Thị Hà","Vũ Tiến Sĩ","Sùng Đức Kinh","Nguyễn Thị Thu Huyền","Nguyễn Đức Hội","Đinh Xuân Nghĩa","Bùi Thị Xuân","Nguyễn Trọng Dũng","Nguyễn Thị Kim Dung","Hoàng Thị Hiền","Nguyễn Khắc Kiên","Vương Văn Quân"];
 $DEFAULT_CLASSES = ["6A","6B","7A","7B","7C","8A","8B","8C","9A","9B","10A","10B","11A","11B","12A","12B"];
