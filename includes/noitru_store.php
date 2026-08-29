@@ -442,6 +442,7 @@ function noitru_meals_summary($from, $to) {
         $reported[(string)($report['date'] ?? '') . '|' . (string)($report['class_name'] ?? '') . '|' . (string)($report['meal'] ?? '')] = true;
     }
     $out = ['classes'=>[], 'groups'=>[], 'days'=>[], 'total'=>['sang'=>0,'trua'=>0,'toi'=>0]];
+    $mealStates = [];
     foreach (noitru_meals_all() as $m) {
         $date = $m['date'] ?? '';
         if ($date < $from || $date > $to) continue;
@@ -449,6 +450,10 @@ function noitru_meals_summary($from, $to) {
         $class = trim($student['class_name'] ?? '') ?: '(Chưa lớp)';
         $group = trim($student['meal_group'] ?? '') ?: '(Chưa mâm)';
         foreach (['sang','trua','toi'] as $meal) {
+            /* Trạng thái nghỉ của toàn bữa luôn ưu tiên hơn dữ liệu báo ăn từng học sinh. */
+            $stateKey = $date . '|' . $meal;
+            if (!array_key_exists($stateKey, $mealStates)) $mealStates[$stateKey] = noitru_meal_state($date, $meal)['status'] ?? 'open';
+            if ($mealStates[$stateKey] === 'off') continue;
             /* Không có phiếu báo của lớp/bữa thì không được mặc định là có ăn. */
             if (empty($reported[$date . '|' . $class . '|' . $meal])) continue;
             if (!in_array($m[$meal] ?? '', ['yes','sick','guest'], true)) continue;

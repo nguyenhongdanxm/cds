@@ -103,12 +103,15 @@ function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYe
     $dayData = [];
     for ($day = 1; $day <= $daysInMonth; $day++) {
         $date = sprintf('%s-%02d', $month, $day);
+        $sangActive = (noitru_meal_state($date, 'sang')['status'] ?? 'open') !== 'off';
+        $truaActive = (noitru_meal_state($date, 'trua')['status'] ?? 'open') !== 'off';
+        $toiActive = (noitru_meal_state($date, 'toi')['status'] ?? 'open') !== 'off';
         $dayData[$day] = [
             'date' => $date,
             'map' => noitru_meals_for_date($date),
-            'sang_report' => noitru_meal_report_for($date, $className, 'sang') !== null,
-            'trua_report' => noitru_meal_report_for($date, $className, 'trua') !== null,
-            'toi_report' => noitru_meal_report_for($date, $className, 'toi') !== null,
+            'sang_report' => $sangActive && noitru_meal_report_for($date, $className, 'sang') !== null,
+            'trua_report' => $truaActive && noitru_meal_report_for($date, $className, 'trua') !== null,
+            'toi_report' => $toiActive && noitru_meal_report_for($date, $className, 'toi') !== null,
         ];
     }
     $lastDayCol = nt_xlsx_col(2 + 31);
@@ -217,13 +220,16 @@ function nt_xlsx_school_summary_xml(array $classes, $month, $type, $schoolYear) 
     $monthNumber = (int)date('m', strtotime($start));
     $yearNumber = (int)date('Y', strtotime($start));
     $mealKeys = $type === 'breakfast' ? ['sang'=>'Sáng'] : ['trua'=>'Trưa','toi'=>'Tối'];
-    $dayMaps = [];$reportedMap = [];
+    $dayMaps = [];$reportedMap = [];$offMap = [];
     foreach ((array)(noitru_meal_reports_data()['reports']??[]) as $report) {
         $reportDate=(string)($report['date']??'');
         if (substr($reportDate,0,7)!==$month) continue;
         $reportedMap[$reportDate.'|'.(string)($report['class_name']??'').'|'.(string)($report['meal']??'')]=true;
     }
-    for($day=1;$day<=$daysInMonth;$day++) {$date=sprintf('%s-%02d',$month,$day);$dayMaps[$date]=noitru_meals_for_date($date);}
+    for($day=1;$day<=$daysInMonth;$day++) {
+        $date=sprintf('%s-%02d',$month,$day);$dayMaps[$date]=noitru_meals_for_date($date);
+        foreach(array_keys($mealKeys) as $mealKey)$offMap[$date.'|'.$mealKey]=(noitru_meal_state($date,$mealKey)['status']??'open')==='off';
+    }
     $lastDayCol = nt_xlsx_col(2 + 31);
     $totalCol = nt_xlsx_col(34);
     $rows = [];
@@ -250,11 +256,12 @@ function nt_xlsx_school_summary_xml(array $classes, $month, $type, $schoolYear) 
                 $ref = nt_xlsx_col(2+$day).$rowNumber;
                 if ($day>$daysInMonth) { $cells .= nt_xlsx_text_cell($ref, '', 4); continue; }
                 $date = sprintf('%s-%02d',$month,$day);
-                $reported = isset($reportedMap[$date.'|'.$className.'|'.$mealKey]);
+                $isOff = !empty($offMap[$date.'|'.$mealKey]);
+                $reported = $isOff || isset($reportedMap[$date.'|'.$className.'|'.$mealKey]);
                 if (!$reported) { $cells .= nt_xlsx_text_cell($ref, '', 4); continue; }
                 $mealMap = $dayMaps[$date]??[];
                 $count = 0;
-                foreach ($classStudents as $student) if (($mealMap[$student['id']??''][$mealKey]??'')==='yes') $count++;
+                if (!$isOff) foreach ($classStudents as $student) if (($mealMap[$student['id']??''][$mealKey]??'')==='yes') $count++;
                 $rowTotal += $count;$totals[$mealKey][$day] += $count;
                 $cells .= nt_xlsx_number_cell($ref,$count,4);
             }
