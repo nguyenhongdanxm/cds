@@ -1,0 +1,13 @@
+{
+  "teachers": [],
+  "classes": ["6A", "7A", "8A", "9A"],
+  "groups": ["Tổ Toán", "Tổ Ngữ văn", "Tổ KHTN", "Tổ KHXH"],
+  "subjects": {
+    "Toán học": {"6": 4, "7": 4, "8": 4, "9": 4},
+    "Ngữ văn": {"6": 4, "7": 4, "8": 4, "9": 4}
+  },
+  "roles": [
+    {"name": "GVCN", "need_class": true, "periods": 3, "note": "Giáo viên chủ nhiệm"},
+    {"name": "TTCM", "need_class": false, "periods": 2, "note": "Tổ trưởng chuyên môn"}
+  ]
+}
