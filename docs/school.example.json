@@ -27,6 +27,10 @@
     "thidua": true,
     "yte": false
   },
+  "chuyenmon": {
+    "seed_profile": "empty",
+    "defaults_file": ""
+  },
   "pwa": {
     "theme_color": "#0f4c81",
     "background_color": "#f4f7fb",
@@ -35,6 +39,7 @@
   },
   "_notes": {
     "modules": "false chỉ ẩn module khỏi trang hệ sinh thái; không xóa dữ liệu và không thay thế hệ thống phân quyền.",
-    "levels": "levels chỉ lọc dữ liệu mặc định khi khởi tạo Chuyên môn. Dữ liệu Chuyên môn đã tồn tại không bị sửa hoặc xóa."
+    "levels": "levels chỉ lọc dữ liệu mặc định khi khởi tạo Chuyên môn. Dữ liệu Chuyên môn đã tồn tại không bị sửa hoặc xóa.",
+    "chuyenmon": "Trường mới nên giữ seed_profile=empty. Nếu muốn dùng bộ khởi tạo riêng, đặt defaults_file tới JSON ngoài web root hoặc dùng biến môi trường CDS_CHUYENMON_DEFAULTS."
   }
 }
