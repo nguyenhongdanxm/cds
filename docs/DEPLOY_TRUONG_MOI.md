@@ -57,17 +57,23 @@ Kiểm tra thêm các script trong `tools/` và các shell script deploy cũ tr�
 
 ## 4. Dữ liệu Chuyên môn ban đầu
 
-`chuyenmon/includes/config.php` vẫn chứa các bộ dữ liệu mặc định phục vụ khởi tạo cũ gồm:
+Từ giai đoạn 5, dữ liệu mẫu lịch sử của Xín Mần đã được tách khỏi core Chuyên môn sang:
 
-- `$DEFAULT_TEACHERS`
-- `$DEFAULT_CLASSES`
-- `$DEFAULT_GROUPS`
-- `$DEFAULT_SUBJECTS`
-- `$DEFAULT_ROLES`
+`chuyenmon/includes/defaults_xinman.php`
 
-Các giá trị này **không phải cấu hình nhận diện trường** và chưa được tự động thay khi đổi `school.json`.
+Tệp này chỉ chứa các giá trị fallback phục vụ khởi tạo ban đầu:
 
-Khi tạo trường mới, ưu tiên khởi tạo database/dữ liệu rỗng rồi nhập giáo viên, lớp, tổ, môn theo trường mới. Không mang dữ liệu thật của Xín Mần sang trường khác.
+- giáo viên mẫu;
+- lớp mẫu;
+- tổ chuyên môn mẫu;
+- môn học và số tiết mẫu;
+- vai trò/kiêm nhiệm mẫu.
+
+`chuyenmon/includes/config.php` chỉ nạp các giá trị này thành các biến `$DEFAULT_*`. Cơ chế này **không đọc, sửa, xóa hoặc ghi lại** các file dữ liệu đang vận hành trong `chuyenmon/data`.
+
+Nếu dữ liệu Chuyên môn thực tế đã tồn tại thì hệ thống tiếp tục dùng dữ liệu hiện có như trước. Việc tách file chỉ thay đổi vị trí lưu source của bộ mặc định, không thay đổi nội dung mặc định của Xín Mần.
+
+Với trường mới, không nên sử dụng dữ liệu mẫu Xín Mần để khởi tạo chính thức. Ưu tiên tạo dữ liệu rỗng rồi nhập giáo viên, lớp, tổ, môn của trường mới.
 
 ## 5. PWA, icon và logo
 
@@ -119,13 +125,15 @@ Các chuỗi còn lại có thể thuộc: fallback tương thích, dữ liệu 
 - Không commit `school.json`, `database.conf`, token hoặc secret vào repo.
 - Core có thể tiếp tục cập nhật từ GitHub mà không cần ghi đè thông tin nhận diện trường nếu thông tin riêng nằm ngoài source.
 - Nếu `school.json` bị thiếu hoặc JSON lỗi, hệ thống quay về cấu hình mặc định trong source thay vì dừng toàn bộ CDS.
+- Dữ liệu mẫu trong `defaults_xinman.php` chỉ là fallback khởi tạo, không phải dữ liệu vận hành.
 - Chưa bật cơ chế đa tenant dùng chung database trong giai đoạn này.
 
 ## Ghi chú kiến trúc
 
-Từ giai đoạn 3, CDS đã có hai lớp cấu hình tách biệt:
+Từ giai đoạn 5, CDS đã có ba lớp tách biệt rõ hơn:
 
-- **Core/source:** chứa mặc định an toàn và mã dùng chung.
-- **Deployment riêng từng trường:** `school.json` + `database.conf` nằm ngoài web root.
+- **Core/source dùng chung:** mã xử lý hệ thống.
+- **Cấu hình deployment riêng:** `school.json` + `database.conf` nằm ngoài web root.
+- **Dữ liệu mẫu lịch sử Xín Mần:** `chuyenmon/includes/defaults_xinman.php`, chỉ phục vụ fallback khởi tạo.
 
-Cách này cho phép sao chép hoặc nâng cấp CDS cho trường khác mà giảm đáng kể việc sửa trực tiếp code, đồng thời vẫn giữ mô hình **mỗi trường một database riêng** để đảm bảo cách ly dữ liệu.
+Cách này giảm dữ liệu riêng của một trường nằm trực tiếp trong core, đồng thời vẫn giữ nguyên cơ chế vận hành và dữ liệu thật hiện tại.
