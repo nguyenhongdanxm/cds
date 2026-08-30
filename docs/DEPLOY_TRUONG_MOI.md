@@ -4,7 +4,19 @@ Tài liệu này dùng cho mô hình **mỗi trường một source + một data
 
 ## 1. Thông tin nhận diện nhà trường
 
-Chỉnh tại `includes/school_config.php`:
+Từ giai đoạn 3, **không cần sửa trực tiếp source** để đổi thông tin trường. CDS hỗ trợ tệp cấu hình JSON riêng nằm ngoài web root.
+
+Đường dẫn mặc định:
+
+`/home/capnachi/cds_private/school.json`
+
+Hoặc có thể đặt biến môi trường `CDS_SCHOOL_CONFIG` trỏ tới một tệp JSON khác.
+
+Mẫu tham khảo trong repo:
+
+`docs/school.example.json`
+
+Các trường có thể cấu hình:
 
 - `code`: mã trường nội bộ.
 - `name`: tên trường đầy đủ.
@@ -13,11 +25,14 @@ Chỉnh tại `includes/school_config.php`:
 - `school_year`: năm học mặc định.
 - `website`: website trường.
 - `cds_title`, `cds_short_title`: tên hiển thị PWA/CDS.
-- `address`, `phone`, `email`, `logo`: bổ sung khi cần.
+- `address`, `phone`, `email`, `logo`: thông tin nhận diện.
 - `levels`: trường có THCS/THPT hay không.
-- `modules`: các module được dự kiến sử dụng.
+- `modules`: module dự kiến sử dụng.
+- `pwa`: màu nền, màu giao diện và icon PWA.
 
-Không đặt mật khẩu database, OAuth secret hoặc thông tin bí mật trong tệp này.
+Nếu `school.json` không tồn tại, CDS tự dùng cấu hình Xín Mần có sẵn trong source. Vì vậy việc cập nhật source hiện tại không làm thay đổi hệ thống đang chạy.
+
+Không đặt mật khẩu database, OAuth secret hoặc thông tin bí mật trong `school.json`.
 
 ## 2. Database riêng
 
@@ -50,17 +65,17 @@ Kiểm tra thêm các script trong `tools/` và các shell script deploy cũ tr�
 - `$DEFAULT_SUBJECTS`
 - `$DEFAULT_ROLES`
 
-Các giá trị này **không phải cấu hình nhận diện trường** và chưa được tự động thay khi đổi `school_config.php`.
+Các giá trị này **không phải cấu hình nhận diện trường** và chưa được tự động thay khi đổi `school.json`.
 
 Khi tạo trường mới, ưu tiên khởi tạo database/dữ liệu rỗng rồi nhập giáo viên, lớp, tổ, môn theo trường mới. Không mang dữ liệu thật của Xín Mần sang trường khác.
 
 ## 5. PWA, icon và logo
 
-`manifest.webmanifest` hiện còn tên nhận diện Xín Mần ở dạng tĩnh. Khi nhân bản cần đổi:
+PWA chính đã chuyển sang `manifest.php`, lấy tên trường và nhận diện từ cấu hình trường.
 
-- `name`
-- `short_name`
-- icon trong `assets/icons/` nếu trường muốn dùng nhận diện riêng.
+`manifest.webmanifest` cũ vẫn được giữ lại tạm thời để tương thích với các bản cũ, nhưng trang đăng nhập hiện sử dụng `manifest.php`.
+
+Icon mặc định nằm trong `assets/icons/`. Trường mới có thể thay icon hoặc cấu hình đường dẫn icon trong `school.json`.
 
 ## 6. Google Drive và tích hợp ngoài
 
@@ -82,22 +97,35 @@ Trước khi đưa trường mới vào sử dụng, tìm toàn source các chu�
 - `/home/capnachi/`
 - tên trường đầy đủ hiện tại
 
-Các chuỗi còn lại có thể thuộc: footer, bản in, script deploy cũ, fallback tương thích hoặc tài liệu. Phải kiểm tra ngữ cảnh trước khi thay, không replace hàng loạt mù quáng.
+Các chuỗi còn lại có thể thuộc: fallback tương thích, dữ liệu khởi tạo cũ, script deploy, tài liệu hoặc đường dẫn máy chủ thật. Phải kiểm tra ngữ cảnh trước khi thay, không replace hàng loạt.
 
 ## 8. Quy trình triển khai an toàn đề xuất
 
-1. Sao chép repo/bản source sang môi trường mới.
-2. Tạo database và file cấu hình database riêng.
-3. Sửa `includes/school_config.php`.
-4. Sửa đường dẫn deploy/domain.
-5. Sửa PWA/logo/icon nếu cần.
+1. Sao chép source sang môi trường mới.
+2. Tạo database mới và `database.conf` riêng.
+3. Tạo `school.json` từ `docs/school.example.json`.
+4. Sửa đường dẫn deploy/domain của bản trường mới.
+5. Thay logo/icon nếu cần.
 6. Khởi tạo tài khoản quản trị mới.
 7. Nhập dữ liệu lớp, học sinh, giáo viên, tổ, môn.
 8. Thiết lập năm học/tuần học.
 9. Thiết lập PCCM và TKB.
-10. Cấu hình Drive nếu sử dụng.
+10. Cấu hình Drive/OAuth riêng nếu sử dụng.
 11. Kiểm tra toàn bộ báo cáo/bản in trước khi vận hành chính thức.
+
+## 9. Nguyên tắc an toàn khi cập nhật core
+
+- Không dùng chung database dữ liệu thật giữa các trường.
+- Không commit `school.json`, `database.conf`, token hoặc secret vào repo.
+- Core có thể tiếp tục cập nhật từ GitHub mà không cần ghi đè thông tin nhận diện trường nếu thông tin riêng nằm ngoài source.
+- Nếu `school.json` bị thiếu hoặc JSON lỗi, hệ thống quay về cấu hình mặc định trong source thay vì dừng toàn bộ CDS.
+- Chưa bật cơ chế đa tenant dùng chung database trong giai đoạn này.
 
 ## Ghi chú kiến trúc
 
-Từ bản chuẩn hóa này, `includes/config.php` và `chuyenmon/includes/config.php` đều lấy **tên trường và cơ quan chủ quản** từ `includes/school_config.php`. Các giá trị Xín Mần hiện tại được giữ nguyên để việc triển khai bản đang chạy không thay đổi hành vi.
+Từ giai đoạn 3, CDS đã có hai lớp cấu hình tách biệt:
+
+- **Core/source:** chứa mặc định an toàn và mã dùng chung.
+- **Deployment riêng từng trường:** `school.json` + `database.conf` nằm ngoài web root.
+
+Cách này cho phép sao chép hoặc nâng cấp CDS cho trường khác mà giảm đáng kể việc sửa trực tiếp code, đồng thời vẫn giữ mô hình **mỗi trường một database riêng** để đảm bảo cách ly dữ liệu.
