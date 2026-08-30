@@ -31,6 +31,9 @@
     "seed_profile": "empty",
     "defaults_file": ""
   },
+  "integrations": {
+    "drive_settings_file": "/home/USER/cds_private/TRUONG_MOI/google_drive_settings.json"
+  },
   "pwa": {
     "theme_color": "#0f4c81",
     "background_color": "#f4f7fb",
@@ -40,6 +43,7 @@
   "_notes": {
     "modules": "false chỉ ẩn module khỏi trang hệ sinh thái; không xóa dữ liệu và không thay thế hệ thống phân quyền.",
     "levels": "levels chỉ lọc dữ liệu mặc định khi khởi tạo Chuyên môn. Dữ liệu Chuyên môn đã tồn tại không bị sửa hoặc xóa.",
-    "chuyenmon": "Trường mới nên giữ seed_profile=empty. Nếu muốn dùng bộ khởi tạo riêng, đặt defaults_file tới JSON ngoài web root hoặc dùng biến môi trường CDS_CHUYENMON_DEFAULTS."
+    "chuyenmon": "Trường mới nên giữ seed_profile=empty. Nếu muốn dùng bộ khởi tạo riêng, đặt defaults_file tới JSON ngoài web root hoặc dùng biến môi trường CDS_CHUYENMON_DEFAULTS.",
+    "integrations": "drive_settings_file nên đặt ngoài web root vì file này chứa private_key của Service Account. Có thể dùng biến môi trường CDS_DRIVE_CONFIG thay thế."
   }
 }
