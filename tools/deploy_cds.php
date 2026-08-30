@@ -14,7 +14,9 @@ $legacyTarget = '/home/capnachi/cds.noitruxinman.edu.vn';
 
 function cds_deploy_private_dir(): string
 {
-    return dirname(dirname(__DIR__)) . '/cds_private';
+    $home = getenv('HOME');
+    if (is_string($home) && trim($home) !== '') return rtrim(trim($home), '/') . '/cds_private';
+    return dirname(__DIR__, 3) . '/cds_private';
 }
 
 function cds_deploy_read_json(string $path): array
