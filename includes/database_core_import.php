@@ -47,12 +47,20 @@ function cds_core_datetime($row)
 
 function cds_core_source_data()
 {
-    return array(
-        'years' => csdl_years_all(),
-        'teachers' => csdl_teachers_all(),
-        'classes' => csdl_classes_all(),
-        'students' => csdl_students_all(),
-    );
+    $hadOverride = array_key_exists('cds_force_json_core_read', $GLOBALS);
+    $previousOverride = $GLOBALS['cds_force_json_core_read'] ?? null;
+    $GLOBALS['cds_force_json_core_read'] = true;
+    try {
+        return array(
+            'years' => csdl_years_all(),
+            'teachers' => csdl_teachers_all(),
+            'classes' => csdl_classes_all(),
+            'students' => csdl_students_all(),
+        );
+    } finally {
+        if ($hadOverride) $GLOBALS['cds_force_json_core_read'] = $previousOverride;
+        else unset($GLOBALS['cds_force_json_core_read']);
+    }
 }
 
 function cds_core_duplicate_values($rows, $field)

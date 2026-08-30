@@ -5,6 +5,7 @@
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/database_shadow.php';
 require_once __DIR__ . '/database_read_verify.php';
+require_once __DIR__ . '/database_sql_read.php';
 require_once __DIR__ . '/school_week_calendar.php';
 
 define('CSDL_TEACHERS', DATA_PATH . '/teachers.json');
@@ -92,6 +93,8 @@ function csdl_sort_students(array &$rows, array $classMap = []) {
 
 /* —— Năm học —— */
 function csdl_years_all() {
+    $sqlRows = cds_core_sql_rows('years');
+    if (is_array($sqlRows)) return $sqlRows;
     $years = load_json(CSDL_YEARS, []);
     if (!$years) {
         $years = [[
@@ -324,6 +327,11 @@ function csdl_year_delete($id) {
 
 /* —— Lớp / khối —— */
 function csdl_classes_all() {
+    $sqlRows = cds_core_sql_rows('classes');
+    if (is_array($sqlRows)) {
+        csdl_sort_classes($sqlRows);
+        return $sqlRows;
+    }
     $rows = load_json(CSDL_CLASSES, []);
     if (!$rows) {
         $seed = [];
@@ -396,6 +404,8 @@ function csdl_class_delete($id) {
 
 /* —— Giáo viên —— */
 function csdl_teachers_all() {
+    $sqlRows = cds_core_sql_rows('teachers');
+    if (is_array($sqlRows)) return $sqlRows;
     $rows = load_json(CSDL_TEACHERS, []);
     cds_read_verify_rows('teachers', $rows);
     return $rows;
@@ -475,6 +485,15 @@ function csdl_students_recover_rows() {
 }
 
 function csdl_students_all() {
+    $sqlRows = cds_core_sql_rows('students');
+    if (is_array($sqlRows)) {
+        $classMap = [];
+        foreach (csdl_classes_all() as $class) {
+            $classMap[(string)($class['id'] ?? '')] = (string)($class['name'] ?? '');
+        }
+        csdl_sort_students($sqlRows, $classMap);
+        return $sqlRows;
+    }
     $rows = load_json(CSDL_STUDENTS, []);
     if(!$rows){
         $recovered=csdl_students_recover_rows();

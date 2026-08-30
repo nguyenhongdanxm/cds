@@ -192,6 +192,14 @@ function cds_db_migrations()
                  VALUES ('core_read_verify', '0', 'migration')",
             ),
         ),
+        '20260830_005_safe_core_sql_read' => array(
+            'description' => 'Công tắc đọc dữ liệu lõi từ MySQL có tự động quay về JSON',
+            'statements' => array(
+                "INSERT IGNORE INTO cds_runtime_settings
+                    (setting_key, setting_value, updated_by)
+                 VALUES ('core_sql_read', '0', 'migration')",
+            ),
+        ),
     );
 }
 

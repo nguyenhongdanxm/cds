@@ -4,6 +4,7 @@ require_once __DIR__ . '/includes/database_migrations.php';
 require_once __DIR__ . '/includes/database_core_import.php';
 require_once __DIR__ . '/includes/database_shadow.php';
 require_once __DIR__ . '/includes/database_read_verify.php';
+require_once __DIR__ . '/includes/database_sql_read.php';
 require_admin();
 
 if (empty($_SESSION['cds_db_csrf'])) {
@@ -35,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $result = cds_core_import_snapshot(current_user());
             $counts = $result['counts'];
+            cds_read_verify_mark_snapshot_match($counts);
             flash(
                 'Đã nhập bản sao JSON vào MySQL: '
                 . $counts['teachers'] . ' giáo viên, '
@@ -78,6 +80,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (($_POST['action'] ?? '') === 'set_core_sql_read') {
+        try {
+            $enabled = ($_POST['enabled'] ?? '') === '1';
+            cds_core_sql_read_set($enabled, current_user());
+            flash(
+                $enabled
+                    ? 'Đã bật đọc SQL an toàn cho dữ liệu lõi. JSON vẫn được giữ và sẽ tự dùng lại nếu SQL có vấn đề.'
+                    : 'Đã tắt đọc SQL; website sử dụng JSON như trước.',
+                'success'
+            );
+        } catch (Throwable $e) {
+            flash('Không thể đổi nguồn đọc dữ liệu lõi: ' . $e->getMessage(), 'danger');
+        }
+    }
+
     header('Location: ' . BASE_URL . 'database_admin.php');
     exit;
 }
@@ -92,6 +109,8 @@ $shadowWriteEnabled = false;
 $readVerifyReady = false;
 $readVerifyEnabled = false;
 $readVerifyStatus = array();
+$sqlReadReady = false;
+$sqlReadEnabled = false;
 $coreTablesReady = false;
 if ($dbStatus['connected']) {
     try {
@@ -115,6 +134,12 @@ if ($dbStatus['connected']) {
             if ($readVerifyReady) {
                 $readVerifyEnabled = cds_read_verify_enabled();
                 $readVerifyStatus = cds_read_verify_status();
+            }
+            $sqlReadReady = !isset(
+                $migrationStatus['pending']['20260830_005_safe_core_sql_read']
+            );
+            if ($sqlReadReady) {
+                $sqlReadEnabled = cds_core_sql_read_enabled();
             }
         }
     } catch (Throwable $e) {
@@ -423,6 +448,44 @@ include __DIR__ . '/includes/nav_top.php';
       <button type="submit" class="btn <?= $readVerifyEnabled ? 'btn-outline-secondary' : 'btn-primary' ?>">
         <i class="bi <?= $readVerifyEnabled ? 'bi-pause-circle' : 'bi-play-circle' ?>"></i>
         <?= $readVerifyEnabled ? 'Tắt kiểm chứng đọc' : 'Bật kiểm chứng đọc' ?>
+      </button>
+    </form>
+  </section>
+  <?php endif; ?>
+
+  <?php if ($coreComparison && $coreComparison['is_match'] && $sqlReadReady): ?>
+  <section class="status-card p-3 mt-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div>
+        <h5 class="mb-1"><i class="bi bi-database-check"></i> Đọc SQL an toàn – dữ liệu lõi</h5>
+        <p class="text-muted small mb-0">
+          Áp dụng cho năm học, giáo viên, lớp và học sinh. JSON tiếp tục được lưu làm bản dự phòng.
+        </p>
+      </div>
+      <span class="badge <?= $sqlReadEnabled ? 'text-bg-success' : 'text-bg-secondary' ?>">
+        <?= $sqlReadEnabled ? 'Đang đọc SQL' : 'Đang đọc JSON' ?>
+      </span>
+    </div>
+    <div class="alert alert-info mt-3 mb-0">
+      Khi SQL mất kết nối, ghi song song bị tắt hoặc dữ liệu không còn khớp,
+      hệ thống tự động quay về JSON mà không cần quản trị can thiệp.
+    </div>
+    <?php if (!$shadowWriteEnabled): ?>
+      <div class="alert alert-warning mt-2 mb-0">
+        Cần bật <strong>Ghi song song dữ liệu lõi</strong> trước khi có thể bật đọc SQL.
+      </div>
+    <?php endif; ?>
+    <form method="post" class="mt-3"
+          onsubmit="return confirm('<?= $sqlReadEnabled
+              ? 'Tắt đọc SQL và quay về JSON?'
+              : 'Bật đọc SQL cho dữ liệu lõi? JSON vẫn được giữ làm dự phòng.' ?>');">
+      <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
+      <input type="hidden" name="action" value="set_core_sql_read">
+      <input type="hidden" name="enabled" value="<?= $sqlReadEnabled ? '0' : '1' ?>">
+      <button type="submit" class="btn <?= $sqlReadEnabled ? 'btn-outline-secondary' : 'btn-primary' ?>"
+              <?= !$sqlReadEnabled && !$shadowWriteEnabled ? 'disabled' : '' ?>>
+        <i class="bi <?= $sqlReadEnabled ? 'bi-arrow-counterclockwise' : 'bi-database-check' ?>"></i>
+        <?= $sqlReadEnabled ? 'Quay về đọc JSON' : 'Bật đọc SQL an toàn' ?>
       </button>
     </form>
   </section>
