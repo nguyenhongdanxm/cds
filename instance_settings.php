@@ -1,25 +1,4 @@
 <?php
-/* Chẩn đoán lỗi khởi động chỉ dành cho quản trị viên đã đăng nhập. */
-if (session_status() !== PHP_SESSION_ACTIVE) @session_start();
-$instanceDiagnostic = isset($_GET['diagnostic']) && (string)$_GET['diagnostic'] === '1';
-register_shutdown_function(static function () use ($instanceDiagnostic): void {
-    if (!$instanceDiagnostic || (string)($_SESSION['cds_user']['role'] ?? '') !== 'admin') return;
-    $error = error_get_last();
-    if (!is_array($error) || !in_array((int)($error['type'] ?? 0), [E_ERROR,E_PARSE,E_CORE_ERROR,E_COMPILE_ERROR,E_USER_ERROR], true)) return;
-    if (!headers_sent()) {
-        http_response_code(500);
-        header('Content-Type: text/html; charset=UTF-8');
-    }
-    $message = htmlspecialchars((string)($error['message'] ?? 'Không rõ lỗi'), ENT_QUOTES, 'UTF-8');
-    $file = htmlspecialchars(basename((string)($error['file'] ?? '')), ENT_QUOTES, 'UTF-8');
-    $line = (int)($error['line'] ?? 0);
-    echo '<!doctype html><meta charset="utf-8"><title>Chẩn đoán CDS</title>';
-    echo '<main style="max-width:900px;margin:50px auto;font:16px/1.55 Arial;padding:24px">';
-    echo '<h2>Chẩn đoán lỗi Cấu hình trường</h2><p><strong>Lỗi:</strong> '.$message.'</p>';
-    echo '<p><strong>Tệp:</strong> '.$file.' — <strong>Dòng:</strong> '.$line.'</p>';
-    echo '<p>Hãy chụp nguyên phần thông báo này gửi lại để sửa lỗi.</p></main>';
-});
-
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 require_admin();
@@ -49,7 +28,9 @@ try {
 
 $drive = ['enabled'=>false,'client_email'=>'','private_key'=>'','folders'=>[],'types'=>[],'bindings'=>[]];
 try {
-    require_once __DIR__ . '/includes/google_drive_storage.php';
+    if (!function_exists('cds_drive_settings')) {
+        require_once __DIR__ . '/includes/google_drive_storage.php';
+    }
     $drive = cds_drive_settings();
 } catch (Throwable $e) {
     $settingsWarnings[] = 'Chưa đọc được cấu hình Google Drive cũ. Có thể để nguyên phần Drive và cấu hình lại sau.';

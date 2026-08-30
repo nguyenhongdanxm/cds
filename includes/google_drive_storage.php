@@ -1,6 +1,6 @@
 <?php
 /** Lưu trữ Google Drive bằng Service Account, không cần Composer. */
-if (function_exists('cds_drive_settings')) return;
+if (!function_exists('cds_drive_settings')) {
 
 /*
  * Mặc định vẫn dùng đúng vị trí cũ trong DATA_PATH để không ảnh hưởng hệ thống
@@ -90,4 +90,5 @@ function cds_drive_download(string $id): array {
     if(!preg_match('/^[A-Za-z0-9_-]{10,}$/',$id))return ['ok'=>false,'status'=>404];$token=cds_drive_token();if(empty($token['ok']))return ['ok'=>false,'status'=>503,'message'=>$token['message']??''];
     $meta=cds_drive_http('https://www.googleapis.com/drive/v3/files/'.rawurlencode($id).'?supportsAllDrives=true&fields=name,mimeType,size','GET',['Authorization: Bearer '.$token['token']]);$info=json_decode($meta['body'],true);if(!$meta['ok'])return ['ok'=>false,'status'=>$meta['status']?:404];
     $file=cds_drive_http('https://www.googleapis.com/drive/v3/files/'.rawurlencode($id).'?supportsAllDrives=true&alt=media','GET',['Authorization: Bearer '.$token['token']]);if(!$file['ok'])return ['ok'=>false,'status'=>$file['status']?:404];return ['ok'=>true,'body'=>$file['body'],'name'=>$info['name']??'file','mime'=>$info['mimeType']??'application/octet-stream'];
+}
 }
