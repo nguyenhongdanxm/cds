@@ -32,5 +32,9 @@
     "background_color": "#f4f7fb",
     "icon_192": "assets/icons/cds-192.png",
     "icon_512": "assets/icons/cds-512.png"
+  },
+  "_notes": {
+    "modules": "false chỉ ẩn module khỏi trang hệ sinh thái; không xóa dữ liệu và không thay thế hệ thống phân quyền.",
+    "levels": "levels chỉ lọc dữ liệu mặc định khi khởi tạo Chuyên môn. Dữ liệu Chuyên môn đã tồn tại không bị sửa hoặc xóa."
   }
 }
