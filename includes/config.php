@@ -9,6 +9,18 @@ if (!is_dir(DATA_PATH)) {
     @mkdir(DATA_PATH, 0755, true);
 }
 
+require_once __DIR__ . '/instance_config.php';
+
+/*
+ * Cho phép một bản CDS dùng cấu hình Drive riêng mà không sửa code.
+ * Nếu cấu hình hợp nhất chưa khai báo thì giữ nguyên file Drive cũ trong data/.
+ */
+$instanceDriveSettings = (string)cds_instance_config('paths.drive_settings_file', '');
+if ($instanceDriveSettings !== '' && !defined('CDS_DRIVE_SETTINGS')) {
+    define('CDS_DRIVE_SETTINGS', $instanceDriveSettings);
+}
+unset($instanceDriveSettings);
+
 require_once __DIR__ . '/school_config.php';
 
 define('BASE_URL', '/');
