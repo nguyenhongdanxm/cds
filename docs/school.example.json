@@ -1,0 +1,36 @@
+{
+  "code": "TRUONG_MOI",
+  "name": "Trường THCS&THPT Ví dụ",
+  "short_name": "Trường Ví dụ",
+  "department": "Sở GD&ĐT ...",
+  "school_year": "2026–2027",
+  "website": "https://example.edu.vn",
+  "cds_title": "CDS - Trường THCS&THPT Ví dụ",
+  "cds_short_title": "CDS Trường Ví dụ",
+  "description": "Hệ sinh thái quản lý nhà trường",
+  "address": "",
+  "phone": "",
+  "email": "",
+  "logo": "assets/logo.png",
+  "levels": {
+    "thcs": true,
+    "thpt": true
+  },
+  "modules": {
+    "tintuc": true,
+    "chuyenmon": true,
+    "vanban": true,
+    "thuvien": true,
+    "csdl": true,
+    "hoclieu": true,
+    "noitru": false,
+    "thidua": true,
+    "yte": false
+  },
+  "pwa": {
+    "theme_color": "#0f4c81",
+    "background_color": "#f4f7fb",
+    "icon_192": "assets/icons/cds-192.png",
+    "icon_512": "assets/icons/cds-512.png"
+  }
+}
