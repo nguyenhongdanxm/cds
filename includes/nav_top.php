@@ -83,7 +83,7 @@ body > nav.navbar-dark:not(.cds-nav){display:none!important}
           <span class="text-white-50 small d-none d-md-inline">
             <i class="bi bi-person-circle"></i> <?= e($nav_user['name'] ?? $nav_user['username'] ?? '') ?>
           </span>
-          <a href="<?= e(BASE_URL . 'instance_settings.php') ?>" class="btn btn-outline-light btn-sm"><i class="bi bi-sliders"></i> Cấu hình trường</a>
+          <?php if (($nav_user['role'] ?? '') === 'admin'): ?><a href="<?= e(BASE_URL . 'instance_settings.php') ?>" class="btn btn-outline-light btn-sm"><i class="bi bi-sliders"></i> Cấu hình trường</a><?php endif; ?>
         <?php endif; ?>
         <a href="<?= BASE_URL ?>" class="btn btn-outline-light btn-sm">Trang chủ</a>
         <a href="<?= BASE_URL ?>logout.php" class="btn btn-warning btn-sm text-dark">Thoát</a>

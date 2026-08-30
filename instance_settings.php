@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/database.php';
 require_admin();
 
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
@@ -10,10 +9,35 @@ $csrf = (string)$_SESSION['instance_settings_csrf'];
 
 $instance = function_exists('cds_instance_config') ? cds_instance_config() : [];
 $school = cds_school_config();
-try { $db = cds_db_read_config(); } catch (Throwable $e) { $db = ['host'=>'localhost','port'=>'3306','database'=>'','username'=>'','password'=>'','charset'=>'utf8mb4']; }
+$instance = is_array($instance) ? $instance : [];
+$instance['deployment'] = is_array($instance['deployment'] ?? null) ? $instance['deployment'] : [];
+$school = is_array($school) ? $school : [];
+$school['levels'] = is_array($school['levels'] ?? null) ? $school['levels'] : [];
+$school['modules'] = is_array($school['modules'] ?? null) ? $school['modules'] : [];
+$school['chuyenmon'] = is_array($school['chuyenmon'] ?? null) ? $school['chuyenmon'] : [];
+$school['pwa'] = is_array($school['pwa'] ?? null) ? $school['pwa'] : [];
+$settingsWarnings = [];
+$db = ['host'=>'localhost','port'=>'3306','database'=>'','username'=>'','password'=>'','charset'=>'utf8mb4'];
+try {
+    require_once __DIR__ . '/includes/database.php';
+    $db = cds_db_read_config();
+} catch (Throwable $e) {
+    $settingsWarnings[] = 'Chưa đọc được cấu hình database cũ. Thầy vẫn có thể nhập lại thông tin database bên dưới.';
+    error_log('CDS instance settings database bootstrap: ' . $e->getMessage());
+}
 
-require_once __DIR__ . '/includes/google_drive_storage.php';
-$drive = cds_drive_settings();
+$drive = ['enabled'=>false,'client_email'=>'','private_key'=>'','folders'=>[],'types'=>[],'bindings'=>[]];
+try {
+    require_once __DIR__ . '/includes/google_drive_storage.php';
+    $drive = cds_drive_settings();
+} catch (Throwable $e) {
+    $settingsWarnings[] = 'Chưa đọc được cấu hình Google Drive cũ. Có thể để nguyên phần Drive và cấu hình lại sau.';
+    error_log('CDS instance settings Drive bootstrap: ' . $e->getMessage());
+}
+$drive = is_array($drive) ? $drive : [];
+$drive['folders'] = is_array($drive['folders'] ?? null) ? $drive['folders'] : [];
+$drive['types'] = is_array($drive['types'] ?? null) ? $drive['types'] : [];
+$drive['bindings'] = is_array($drive['bindings'] ?? null) ? $drive['bindings'] : [];
 
 function instance_bool_post(string $key): bool { return isset($_POST[$key]) && (string)$_POST[$key] === '1'; }
 function instance_clean(string $key, string $default=''): string { return trim((string)($_POST[$key] ?? $default)); }
@@ -139,6 +163,7 @@ $deployTarget = (string)($instance['deployment']['target_path'] ?? BASE_PATH);
 <main class="container py-4" style="max-width:1100px">
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4"><div><h2 class="mb-1"><i class="bi bi-sliders"></i> Cấu hình trường</h2><div class="text-muted">Một nơi duy nhất để cấu hình bản CDS khi triển khai sang trường khác.</div></div><a href="admin.php" class="btn btn-outline-secondary">Quay lại quản trị</a></div>
 <?php show_flash(); ?>
+<?php foreach ($settingsWarnings as $warning): ?><div class="alert alert-warning"><?=e($warning)?></div><?php endforeach; ?>
 <div class="alert alert-success"><strong>Không cần sửa code.</strong> Cấu hình được lưu ngoài web root tại <code><?=e(cds_instance_config_path())?></code>. Nếu chưa tạo bộ cấu hình này, bản Xín Mần tiếp tục dùng cơ chế cũ như hiện tại.</div>
 <form method="post"><input type="hidden" name="csrf" value="<?=e($csrf)?>">
 <div class="card mb-4"><div class="card-body p-4"><h5 class="section-title mb-3">1. Thông tin nhà trường</h5><div class="row g-3">
