@@ -107,11 +107,12 @@ if (!is_dir($target) && !mkdir($target, 0755, true) && !is_dir($target)) {
 $directories = ['assets', 'includes', 'chuyenmon'];
 $rootFiles = [
     'activity.php','admin.php','notices.php','drive_viewer.php','public_notice.php',
-    'public_drive_viewer.php','public_ktx_exit_file.php','hoclieu.php','hoclieu_file.php',
+    'public_drive_viewer.php','public_ktx_exit_file.php','drive_file.php','drive_settings.php',
+    'hoclieu.php','hoclieu_file.php',
     'chuyenmon.php','csdl.php','csdl_preweeks.php','csdl_export.php','csdl_export_filtered_excel.php',
     'csdl_statistics_export_xlsx.php','csdl_student_cards.php','danhgia.php','dashboard_settings.php',
     'database_admin.php','instance_settings.php','index.php','login.php','logout.php','manifest.php','manifest.webmanifest','sw.js',
-    'noitru.php','noitru_overview_api.php','noitru_exit.php','noitru_exit_manager.php',
+    'noitru.php','noitru_overview_api.php','noitru_duty_drive.php','noitru_exit.php','noitru_exit_manager.php',
     'noitru_exit_drive_api.php','noitru_exit_check_api.php','noitru_exit_check.php','noitru_attendance.php',
     'noitru_list.php','noitru_assign.php','noitru_assign_enhanced.php','noitru_assign_sync.php',
     'noitru_room_template.php','noitru_room_roles.php','noitru_room_roles_data.php','noitru_room_quick_save.php',
@@ -120,6 +121,24 @@ $rootFiles = [
     'thuvien_bienban.php','thietbi_phieu.php','thidua.php','thidua_baiviet.php','thidua_phongnoitru.php',
     'thidua_phongnoitru_delete.php','thidua_phongnoitru_history_api.php','users.php','vanban.php','vanban_open.php'
 ];
+
+/*
+ * Kiểm tra đầy đủ nguồn trước khi ghi bất kỳ tệp nào vào website. Nếu một
+ * commit khai báo thiếu tệp hoặc thư mục, deploy dừng tại đây thay vì để lại
+ * bản triển khai trộn giữa phiên bản cũ và mới.
+ */
+foreach ($directories as $dir) {
+    if (!is_dir($repoRoot . '/' . $dir)) {
+        fwrite(STDERR, 'DEPLOY_SOURCE_MISSING: ' . $dir . "\n");
+        exit(4);
+    }
+}
+foreach ($rootFiles as $file) {
+    if (!is_file($repoRoot . '/' . $file)) {
+        fwrite(STDERR, 'DEPLOY_SOURCE_MISSING: ' . $file . "\n");
+        exit(4);
+    }
+}
 
 try {
     foreach ($directories as $dir) cds_deploy_copy_tree($repoRoot . '/' . $dir, $target . '/' . $dir);
