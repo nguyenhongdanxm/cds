@@ -41,18 +41,18 @@ if (!defined('SCHOOL_SO')) define('SCHOOL_SO', function_exists('school_departmen
 if (!defined('SCHOOL_NAME')) define('SCHOOL_NAME', function_exists('school_name') ? school_name() : 'Trường PTDTNT THCS&THPT Xín Mần');
 
 /*
- * Dữ liệu mẫu lịch sử của Xín Mần được tách khỏi core để thuận lợi nhân bản.
- * Đây chỉ là nguồn fallback khởi tạo; KHÔNG tác động các file dữ liệu hiện có.
+ * Dữ liệu khởi tạo Chuyên môn được nạp qua lớp trung gian an toàn.
+ * Không đọc/ghi/xóa các file dữ liệu vận hành trong chuyenmon/data.
  */
-$seedDefaultsFile = __DIR__ . '/defaults_xinman.php';
-$seedDefaults = is_file($seedDefaultsFile) ? require $seedDefaultsFile : [];
+require_once __DIR__ . '/seed_defaults.php';
+$seedDefaults = cds_load_chuyenmon_seed_defaults();
 
-$DEFAULT_TEACHERS = is_array($seedDefaults['teachers'] ?? null) ? $seedDefaults['teachers'] : [];
-$DEFAULT_CLASSES = is_array($seedDefaults['classes'] ?? null) ? $seedDefaults['classes'] : [];
-$DEFAULT_GROUPS = is_array($seedDefaults['groups'] ?? null) ? $seedDefaults['groups'] : [];
-$DEFAULT_SUBJECTS = is_array($seedDefaults['subjects'] ?? null) ? $seedDefaults['subjects'] : [];
-$DEFAULT_ROLES = is_array($seedDefaults['roles'] ?? null) ? $seedDefaults['roles'] : [];
-unset($seedDefaults, $seedDefaultsFile);
+$DEFAULT_TEACHERS = $seedDefaults['teachers'];
+$DEFAULT_CLASSES = $seedDefaults['classes'];
+$DEFAULT_GROUPS = $seedDefaults['groups'];
+$DEFAULT_SUBJECTS = $seedDefaults['subjects'];
+$DEFAULT_ROLES = $seedDefaults['roles'];
+unset($seedDefaults);
 
 /*
  * Chỉ lọc BỘ DỮ LIỆU KHỞI TẠO theo cấp học của trường mới. Các file dữ liệu
