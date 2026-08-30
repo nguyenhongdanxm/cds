@@ -26,10 +26,21 @@ if (!function_exists('cds_drive_settings_path')) {
 if (!defined('CDS_DRIVE_SETTINGS')) define('CDS_DRIVE_SETTINGS', cds_drive_settings_path());
 
 function cds_drive_settings(): array {
-    $raw = is_file(CDS_DRIVE_SETTINGS) ? json_decode((string)file_get_contents(CDS_DRIVE_SETTINGS), true) : [];
+    $raw = function_exists('cds_instance_config') ? cds_instance_config('drive', []) : [];
+    if (!is_array($raw) || !$raw) {
+        $raw = is_file(CDS_DRIVE_SETTINGS) ? json_decode((string)file_get_contents(CDS_DRIVE_SETTINGS), true) : [];
+    }
     return array_merge(['enabled'=>false,'client_email'=>'','private_key'=>'','folders'=>['documents'=>'','plans'=>'','education_plans'=>'','photos'=>'']], is_array($raw)?$raw:[]);
 }
 function cds_drive_save_settings(array $settings): bool {
+    if (function_exists('cds_instance_config') && function_exists('cds_instance_save')) {
+        $instance = cds_instance_config();
+        if (is_array($instance) && $instance) {
+            $instance['drive'] = $settings;
+            $instance['updated_at'] = date('c');
+            return cds_instance_save($instance);
+        }
+    }
     $dir = dirname(CDS_DRIVE_SETTINGS);
     if (!is_dir($dir)) @mkdir($dir,0700,true);
     if (!is_dir($dir) || !is_writable($dir)) return false;

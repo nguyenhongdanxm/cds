@@ -14,24 +14,9 @@ try { $db = cds_db_read_config(); } catch (Throwable $e) { $db = ['host'=>'local
 
 require_once __DIR__ . '/includes/google_drive_storage.php';
 $drive = cds_drive_settings();
-$privateDir = dirname(cds_instance_config_path());
-$defaultDrivePath = $privateDir . '/google_drive_settings.json';
 
 function instance_bool_post(string $key): bool { return isset($_POST[$key]) && (string)$_POST[$key] === '1'; }
 function instance_clean(string $key, string $default=''): string { return trim((string)($_POST[$key] ?? $default)); }
-function instance_write_json_private(string $path, array $data): bool {
-    $dir = dirname($path);
-    if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) return false;
-    @chmod($dir, 0700);
-    $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-    if (!is_string($json)) return false;
-    $tmp = $path . '.tmp.' . bin2hex(random_bytes(4));
-    if (@file_put_contents($tmp, $json . PHP_EOL, LOCK_EX) === false) return false;
-    @chmod($tmp, 0600);
-    if (!@rename($tmp, $path)) { @unlink($tmp); return false; }
-    @chmod($path, 0600);
-    return true;
-}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!hash_equals($csrf, (string)($_POST['csrf'] ?? ''))) {
@@ -75,12 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $modules = [];
     foreach (['tintuc','chuyenmon','vanban','thuvien','csdl','hoclieu','noitru','thidua','yte'] as $module) {
         $modules[$module] = instance_bool_post('module_'.$module);
-    }
-
-    $drivePath = instance_clean('drive_settings_file', $defaultDrivePath);
-    if ($drivePath === '' || $drivePath[0] !== '/' || preg_match('#(?:^|/)\.\.(?:/|$)#', $drivePath)) {
-        flash('Đường dẫn cấu hình Google Drive phải là đường dẫn tuyệt đối hợp lệ.', 'danger');
-        header('Location: instance_settings.php'); exit;
     }
 
     $driveNext = $drive;
@@ -140,13 +119,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ],
     ];
     $next['database'] = $dbNext;
+    $next['drive'] = $driveNext;
     $next['deployment'] = ['target_path'=>$deployTarget];
-    $next['paths'] = ['drive_settings_file'=>$drivePath];
-
-    if (!instance_write_json_private($drivePath, $driveNext)) {
-        flash('Không ghi được cấu hình Google Drive ngoài web root.', 'danger');
-        header('Location: instance_settings.php'); exit;
-    }
+    if (isset($next['paths']['drive_settings_file'])) unset($next['paths']['drive_settings_file']);
+    if (isset($next['paths']) && !$next['paths']) unset($next['paths']);
     if (!cds_instance_save($next)) {
         flash('Không ghi được bộ cấu hình trường hợp nhất.', 'danger');
         header('Location: instance_settings.php'); exit;
@@ -187,7 +163,7 @@ $deployTarget = (string)($instance['deployment']['target_path'] ?? BASE_PATH);
 
 <div class="card mb-4"><div class="card-body p-4"><h5 class="section-title mb-3">3. Cơ sở dữ liệu MySQL</h5><div class="alert alert-warning py-2">Hệ thống sẽ <strong>kiểm tra kết nối trước khi lưu</strong>. Nếu thông tin sai, cấu hình hiện tại không bị thay đổi.</div><div class="row g-3"><div class="col-md-4"><label class="form-label">Host</label><input class="form-control" name="db_host" value="<?=e((string)($db['host']??'localhost'))?>"></div><div class="col-md-2"><label class="form-label">Port</label><input class="form-control" name="db_port" value="<?=e((string)($db['port']??'3306'))?>"></div><div class="col-md-3"><label class="form-label">Database</label><input class="form-control" name="db_name" value="<?=e((string)($db['database']??''))?>"></div><div class="col-md-3"><label class="form-label">Username</label><input class="form-control" name="db_user" value="<?=e((string)($db['username']??''))?>"></div><div class="col-md-6"><label class="form-label">Password</label><input type="password" class="form-control" name="db_password" placeholder="Để trống để giữ mật khẩu hiện tại"><div class="form-text">Mật khẩu không hiển thị lại trên giao diện.</div></div><div class="col-md-3"><label class="form-label">Charset</label><input class="form-control" name="db_charset" value="<?=e((string)($db['charset']??'utf8mb4'))?>"></div></div></div></div>
 
-<div class="card mb-4"><div class="card-body p-4"><h5 class="section-title mb-3">4. Google Drive (tùy chọn)</h5><div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" name="drive_enabled" value="1" id="drive_enabled" <?=!empty($drive['enabled'])?'checked':''?>><label class="form-check-label fw-semibold" for="drive_enabled">Bật Google Drive</label></div><div class="row g-3"><div class="col-12"><label class="form-label">JSON Service Account</label><textarea class="form-control font-monospace" rows="3" name="service_account_json" placeholder="Để trống để giữ tài khoản Google hiện tại"></textarea></div><div class="col-12"><label class="form-label">File cấu hình Drive ngoài web root</label><input class="form-control" name="drive_settings_file" value="<?=e((string)($instance['paths']['drive_settings_file']??$defaultDrivePath))?>"></div><?php foreach(['documents'=>'Văn bản','plans'=>'Kế hoạch/báo cáo','education_plans'=>'Kế hoạch giáo dục','photos'=>'Ảnh học sinh'] as $key=>$label): ?><div class="col-md-6"><label class="form-label"><?=e($label)?></label><input class="form-control" name="drive_folder_<?=e($key)?>" value="<?=e((string)($drive['folders'][$key]??$drive['types'][$key]['folder_id']??''))?>" placeholder="ID thư mục Google Drive"></div><?php endforeach; ?></div><div class="form-text mt-2">Các cấu hình Drive nâng cao vẫn có thể quản lý tại trang Kho Google Drive.</div></div></div>
+<div class="card mb-4"><div class="card-body p-4"><h5 class="section-title mb-3">4. Google Drive (tùy chọn)</h5><div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" name="drive_enabled" value="1" id="drive_enabled" <?=!empty($drive['enabled'])?'checked':''?>><label class="form-check-label fw-semibold" for="drive_enabled">Bật Google Drive</label></div><div class="row g-3"><div class="col-12"><label class="form-label">JSON Service Account</label><textarea class="form-control font-monospace" rows="3" name="service_account_json" placeholder="Để trống để giữ tài khoản Google hiện tại"></textarea><div class="form-text">Tài khoản Drive và các ID thư mục được lưu chung trong bộ cấu hình trường, ngoài web root.</div></div><?php foreach(['documents'=>'Văn bản','plans'=>'Kế hoạch/báo cáo','education_plans'=>'Kế hoạch giáo dục','photos'=>'Ảnh học sinh'] as $key=>$label): ?><div class="col-md-6"><label class="form-label"><?=e($label)?></label><input class="form-control" name="drive_folder_<?=e($key)?>" value="<?=e((string)($drive['folders'][$key]??$drive['types'][$key]['folder_id']??''))?>" placeholder="ID thư mục Google Drive"></div><?php endforeach; ?></div><div class="form-text mt-2">Các cấu hình Drive nâng cao vẫn có thể quản lý tại trang Kho Google Drive và sẽ được ghi về cùng file instance.json.</div></div></div>
 
 <div class="card mb-4"><div class="card-body p-4"><h5 class="section-title mb-3">5. Triển khai và PWA</h5><div class="row g-3"><div class="col-12"><label class="form-label">Thư mục website trên hosting</label><input class="form-control font-monospace" name="deploy_target" value="<?=e($deployTarget)?>"><div class="form-text">Ví dụ: /home/tenuser/cds.truongabc.edu.vn</div></div><div class="col-md-4"><label class="form-label">Màu giao diện</label><input class="form-control" name="theme_color" value="<?=e((string)($school['pwa']['theme_color']??'#0f4c81'))?>"></div><div class="col-md-4"><label class="form-label">Màu nền PWA</label><input class="form-control" name="background_color" value="<?=e((string)($school['pwa']['background_color']??'#f4f7fb'))?>"></div><div class="col-md-4"><label class="form-label">Icon 192</label><input class="form-control" name="icon_192" value="<?=e((string)($school['pwa']['icon_192']??'assets/icons/cds-192.png'))?>"></div><div class="col-md-4"><label class="form-label">Icon 512</label><input class="form-control" name="icon_512" value="<?=e((string)($school['pwa']['icon_512']??'assets/icons/cds-512.png'))?>"></div></div></div></div>
 

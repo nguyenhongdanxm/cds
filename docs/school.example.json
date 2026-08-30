@@ -41,6 +41,7 @@
     "icon_512": "assets/icons/cds-512.png"
   },
   "_notes": {
+    "legacy": "Đây là mẫu school.json cũ chỉ giữ để tương thích. Triển khai mới dùng docs/instance.example.json và trang Cấu hình trường.",
     "modules": "false chỉ ẩn module khỏi trang hệ sinh thái; không xóa dữ liệu và không thay thế hệ thống phân quyền.",
     "levels": "levels chỉ lọc dữ liệu mặc định khi khởi tạo Chuyên môn. Dữ liệu Chuyên môn đã tồn tại không bị sửa hoặc xóa.",
     "chuyenmon": "Trường mới nên giữ seed_profile=empty. Nếu muốn dùng bộ khởi tạo riêng, đặt defaults_file tới JSON ngoài web root hoặc dùng biến môi trường CDS_CHUYENMON_DEFAULTS.",

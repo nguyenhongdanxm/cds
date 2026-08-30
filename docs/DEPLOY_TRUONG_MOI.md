@@ -1,160 +1,89 @@
-# HƯỚNG DẪN NHÂN BẢN CDS SANG TRƯỜNG KHÁC
+# TRIỂN KHAI CDS CHO TRƯỜNG MỚI
 
-Tài liệu này dùng cho mô hình **mỗi trường một source + một database riêng**.
+CDS dùng **một bộ cấu hình hợp nhất** cho mỗi trường. Người quản trị không cần
+sửa PHP, JavaScript, YAML hoặc nhiều file cấu hình riêng.
 
-## 1. Thông tin nhận diện nhà trường
+## 1. File cấu hình duy nhất
 
-Từ giai đoạn 3, **không cần sửa trực tiếp source** để đổi thông tin trường. CDS hỗ trợ tệp cấu hình JSON riêng nằm ngoài web root.
+Mặc định CDS lưu cấu hình tại:
 
-Đường dẫn mặc định:
+`/home/<user>/cds_private/instance.json`
 
-`/home/capnachi/cds_private/school.json`
+File nằm ngoài web root và được đặt quyền hạn chế. Có thể đổi vị trí bằng biến
+môi trường `CDS_INSTANCE_CONFIG`.
 
-Hoặc có thể đặt biến môi trường `CDS_SCHOOL_CONFIG` trỏ tới một tệp JSON khác.
+Các nhóm cấu hình trong cùng file:
 
-Mẫu tham khảo trong repo:
+- `school`: nhận diện trường, năm học, cấp học, module và PWA;
+- `database`: kết nối MySQL/MariaDB;
+- `drive`: OAuth hoặc Service Account và các thư mục Google Drive;
+- `deployment`: thư mục đích trên hosting.
 
-`docs/school.example.json`
+Mẫu cấu trúc đầy đủ: `docs/instance.example.json`.
 
-Các trường có thể cấu hình:
+Không commit `instance.json` lên GitHub vì file có thể chứa mật khẩu database và
+khóa Google Drive.
 
-- `code`: mã trường nội bộ.
-- `name`: tên trường đầy đủ.
-- `short_name`: tên trường rút gọn.
-- `department`: cơ quan chủ quản.
-- `school_year`: năm học mặc định.
-- `website`: website trường.
-- `cds_title`, `cds_short_title`: tên hiển thị PWA/CDS.
-- `address`, `phone`, `email`, `logo`: thông tin nhận diện.
-- `levels`: trường có THCS/THPT hay không.
-- `modules`: module dự kiến sử dụng.
-- `pwa`: màu nền, màu giao diện và icon PWA.
+## 2. Cấu hình bằng giao diện
 
-Nếu `school.json` không tồn tại, CDS tự dùng cấu hình Xín Mần có sẵn trong source. Vì vậy việc cập nhật source hiện tại không làm thay đổi hệ thống đang chạy.
+Sau khi đăng nhập tài khoản quản trị, mở:
 
-Không đặt mật khẩu database, OAuth secret hoặc thông tin bí mật trong `school.json`.
+`Quản trị CDS → Cấu hình trường`
 
-## 2. Database riêng
+hoặc truy cập `/instance_settings.php`.
 
-CDS đọc cấu hình MySQL từ tệp ngoài web root. Mặc định:
+Trang này cho phép khai báo toàn bộ thông tin trường, database, Drive, dữ liệu
+khởi tạo Chuyên môn và đường dẫn deploy. Khi bấm **Lưu bộ cấu hình trường**, mọi
+thiết lập được ghi vào cùng `instance.json`.
 
-`/home/capnachi/cds_private/database.conf`
+Mật khẩu database và JSON Service Account không được hiển thị lại trên giao
+diện. Để trống các ô bí mật khi chỉnh sửa lần sau sẽ giữ nguyên giá trị đã lưu.
 
-Có thể chỉ định đường dẫn khác qua biến môi trường `CDS_DB_CONFIG`.
+## 3. Quy trình nhân bản
 
-Khi triển khai trường mới:
+1. Tạo database và người dùng database riêng cho trường mới.
+2. Copy nguyên source CDS sang hosting/domain mới.
+3. Đăng nhập bằng tài khoản quản trị ban đầu.
+4. Mở **Cấu hình trường**.
+5. Nhập thông tin nhà trường, cấp học và các module cần dùng.
+6. Nhập database; CDS sẽ kiểm tra kết nối trước khi lưu.
+7. Chọn `Trường mới – dữ liệu rỗng` cho phần khởi tạo Chuyên môn.
+8. Nhập Drive nếu sử dụng.
+9. Nhập đúng thư mục website trên hosting.
+10. Lưu cấu hình và tải lại trang.
 
-1. Tạo database mới.
-2. Tạo user database mới.
-3. Tạo file `database.conf` riêng cho trường mới.
-4. Không dùng chung database dữ liệu thật giữa hai trường.
+Từ lần triển khai tiếp theo, `tools/deploy_cds.php` tự đọc
+`instance.json → deployment.target_path`; không cần sửa `.cpanel.yml`.
 
-## 3. Domain và đường dẫn deploy
+## 4. Dữ liệu và tài nguyên riêng
 
-`.cpanel.yml` hiện gắn với đường dẫn host của bản Xín Mần. Khi tạo repo/bản triển khai cho trường khác phải thay toàn bộ đích deploy sang thư mục host mới.
+Mỗi trường cần dùng database và thư mục dữ liệu vận hành riêng. Việc thay cấu
+hình nhận diện không tự động sao chép, xóa hoặc chuyển đổi dữ liệu của trường
+khác.
 
-Kiểm tra thêm các script trong `tools/` và các shell script deploy cũ trước khi sử dụng trên host mới.
+Logo và icon có thể tiếp tục dùng file mặc định trong source hoặc thay bằng tài
+nguyên riêng rồi khai báo đường dẫn trên trang cấu hình.
 
-## 4. Dữ liệu Chuyên môn ban đầu
+## 5. Tương thích bản cũ
 
-Dữ liệu mẫu lịch sử của Xín Mần đã được tách khỏi core Chuyên môn sang:
+Nếu chưa có `instance.json`, CDS vẫn đọc các cấu hình cũ để bảo đảm hệ thống Xín
+Mần đang vận hành không bị thay đổi:
 
-`chuyenmon/includes/defaults_xinman.php`
+- `school.json`;
+- `database.conf`;
+- `deploy.json`;
+- `google_drive_settings.json`.
 
-Tệp này chỉ chứa các giá trị fallback phục vụ khởi tạo ban đầu:
+Đây chỉ là cơ chế fallback. Khi lưu trang **Cấu hình trường**, các giá trị đang
+dùng được gom vào `instance.json` và file hợp nhất được ưu tiên từ đó về sau.
 
-- giáo viên mẫu;
-- lớp mẫu;
-- tổ chuyên môn mẫu;
-- môn học và số tiết mẫu;
-- vai trò/kiêm nhiệm mẫu.
+## 6. Kiểm tra sau cấu hình
 
-`chuyenmon/includes/config.php` chỉ nạp các giá trị này thành các biến `$DEFAULT_*`. Cơ chế này **không đọc, sửa, xóa hoặc ghi lại** các file dữ liệu đang vận hành trong `chuyenmon/data`.
+- Đăng nhập và kiểm tra đúng tên, logo, năm học của trường.
+- Mở trang trạng thái database và xác nhận kết nối thành công.
+- Kiểm tra các module đã bật/tắt.
+- Nếu dùng Drive, thử quyền truy cập một thư mục trước khi tải tài liệu thật.
+- Chạy deploy và xác nhận thông báo `CDS_DEPLOY_OK` trỏ đúng thư mục website.
 
-Với trường mới nên đặt `chuyenmon.seed_profile = "empty"` trong `school.json`, hoặc cấu hình `chuyenmon.defaults_file` / biến môi trường `CDS_CHUYENMON_DEFAULTS` tới file JSON khởi tạo riêng.
-
-## 5. PWA, icon và logo
-
-PWA chính đã chuyển sang `manifest.php`, lấy tên trường và nhận diện từ cấu hình trường.
-
-`manifest.webmanifest` cũ vẫn được giữ lại tạm thời để tương thích với các bản cũ, nhưng trang đăng nhập hiện sử dụng `manifest.php`.
-
-Icon mặc định nằm trong `assets/icons/`. Trường mới có thể thay icon hoặc cấu hình đường dẫn icon trong `school.json`.
-
-## 6. Google Drive và tích hợp ngoài
-
-Cấu hình Google Drive có `private_key` của Service Account nên nên tách riêng cho từng trường và đặt ngoài web root.
-
-CDS hiện chọn file cấu hình Drive theo thứ tự:
-
-1. Biến môi trường `CDS_DRIVE_CONFIG` nếu có.
-2. `school.json` → `integrations.drive_settings_file` nếu có.
-3. Nếu không có hai cấu hình trên, tiếp tục dùng vị trí cũ `DATA_PATH/google_drive_settings.json` để giữ tương thích với hệ thống Xín Mần đang chạy.
-
-Ví dụ cho trường mới:
-
-`/home/USER/cds_private/TRUONG_MOI/google_drive_settings.json`
-
-Không đưa file này lên GitHub vì có thể chứa:
-
-- email Service Account;
-- private key;
-- ID các thư mục Google Drive;
-- trạng thái bật/tắt lưu Drive.
-
-Mỗi trường phải dùng Service Account/thư mục Drive riêng hoặc ít nhất phải được phân quyền rõ ràng trên Shared Drive riêng. Không sao chép file cấu hình Drive thật của Xín Mần sang trường khác.
-
-Các thành phần liên quan:
-
-- `drive_settings.php`
-- `includes/google_drive_storage.php`
-- `includes/drive_google_doc.php`
-
-Nếu sau này có OAuth callback riêng, phải kiểm tra và đổi redirect URI/domain theo deployment của từng trường trước khi bật.
-
-## 7. Kiểm tra chuỗi gắn cứng trước khi mở hệ thống
-
-Trước khi đưa trường mới vào sử dụng, tìm toàn source các chuỗi:
-
-- `Xín Mần`
-- `noitruxinman.edu.vn`
-- `/home/capnachi/`
-- tên trường đầy đủ hiện tại
-
-Các chuỗi còn lại có thể thuộc: fallback tương thích, dữ liệu khởi tạo cũ, script deploy, tài liệu hoặc đường dẫn máy chủ thật. Phải kiểm tra ngữ cảnh trước khi thay, không replace hàng loạt.
-
-## 8. Quy trình triển khai an toàn đề xuất
-
-1. Sao chép source sang môi trường mới.
-2. Tạo database mới và `database.conf` riêng.
-3. Tạo `school.json` từ `docs/school.example.json`.
-4. Đặt `chuyenmon.seed_profile = "empty"` hoặc bộ defaults riêng.
-5. Sửa đường dẫn deploy/domain của bản trường mới.
-6. Thay logo/icon nếu cần.
-7. Khởi tạo tài khoản quản trị mới.
-8. Nhập dữ liệu lớp, học sinh, giáo viên, tổ, môn.
-9. Thiết lập năm học/tuần học.
-10. Thiết lập PCCM và TKB.
-11. Tạo file Drive riêng ngoài web root và cấu hình Service Account/thư mục riêng nếu sử dụng.
-12. Kiểm tra toàn bộ báo cáo/bản in trước khi vận hành chính thức.
-
-## 9. Nguyên tắc an toàn khi cập nhật core
-
-- Không dùng chung database dữ liệu thật giữa các trường.
-- Không commit `school.json`, `database.conf`, `google_drive_settings.json`, token hoặc secret vào repo.
-- Core có thể tiếp tục cập nhật từ GitHub mà không cần ghi đè thông tin nhận diện trường nếu thông tin riêng nằm ngoài source.
-- Nếu `school.json` bị thiếu hoặc JSON lỗi, hệ thống quay về cấu hình mặc định trong source thay vì dừng toàn bộ CDS.
-- Dữ liệu mẫu trong `defaults_xinman.php` chỉ là fallback khởi tạo, không phải dữ liệu vận hành.
-- Cấu hình Drive ngoài source là opt-in; nếu không khai báo, hệ thống hiện tại vẫn dùng đúng đường dẫn cũ.
-- Chưa bật cơ chế đa tenant dùng chung database trong giai đoạn này.
-
-## Ghi chú kiến trúc
-
-CDS hiện đã tách rõ bốn lớp:
-
-- **Core/source dùng chung:** mã xử lý hệ thống.
-- **Cấu hình nhận diện deployment:** `school.json` ngoài web root.
-- **Cấu hình dữ liệu/kết nối riêng:** `database.conf`, `google_drive_settings.json` và các secret nằm ngoài web root.
-- **Dữ liệu mẫu lịch sử Xín Mần:** `chuyenmon/includes/defaults_xinman.php`, chỉ phục vụ fallback khởi tạo.
-
-Cách này giúp nhân bản CDS sang trường khác mà giảm nguy cơ dùng nhầm database, Google Drive hoặc dữ liệu mẫu của Xín Mần, đồng thời giữ nguyên cơ chế vận hành và dữ liệu thật hiện tại.
+Không xóa các file cấu hình cũ ngay trong lần chuyển đổi đầu tiên. Chỉ dọn chúng
+sau khi đã xác nhận `instance.json` hoạt động ổn định và đã có bản sao lưu.

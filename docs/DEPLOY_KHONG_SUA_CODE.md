@@ -38,10 +38,14 @@ File này có các nhóm chính:
 
 - `school`
 - `database`
+- `drive`
 - `deployment`
-- `paths`
 
-Mật khẩu database được lưu trong file ngoài web root với quyền file hạn chế. Giao diện không hiển thị lại mật khẩu đã lưu.
+Mật khẩu database, OAuth secret và khóa Service Account của Drive đều được lưu
+trong file ngoài web root với quyền file hạn chế. Giao diện không hiển thị lại
+mật khẩu hoặc khóa đã lưu.
+
+Mẫu đầy đủ: `docs/instance.example.json`.
 
 ## 3. Tương thích với hệ thống cũ
 
@@ -66,7 +70,14 @@ Mỗi trường vẫn nên dùng database riêng.
 
 Trang cấu hình cho phép bật/tắt Drive, nhập Service Account JSON và các thư mục Drive cơ bản.
 
-File chứa khóa Drive được đặt ngoài web root. Các thiết lập Drive nâng cao vẫn có thể quản lý tại trang Kho Google Drive hiện có.
+Toàn bộ cấu hình Drive được lưu trực tiếp trong nhóm `drive` của `instance.json`;
+không cần tạo thêm `google_drive_settings.json`. Các thiết lập Drive nâng cao vẫn
+có thể quản lý tại trang Kho Google Drive hiện có và cũng được ghi về cùng
+`instance.json`.
+
+Nếu một bản cũ chưa có nhóm `drive`, hệ thống vẫn đọc file Drive cũ. Khi lưu lại
+trang **Cấu hình trường**, cấu hình Drive hiện có được đưa vào `instance.json` và
+từ đó file hợp nhất được ưu tiên.
 
 ## 6. Triển khai
 
@@ -87,7 +98,7 @@ Vì vậy sau khi đã cấu hình trường, các lần cập nhật/deploy sau
 4. Khai báo thông tin trường.
 5. Chọn cấp học và module sử dụng.
 6. Nhập database và mật khẩu database.
-7. Cấu hình Drive nếu sử dụng.
+7. Cấu hình Drive nếu sử dụng; không cần khai báo thêm đường dẫn file Drive.
 8. Khai báo thư mục website trên hosting.
 9. Bấm **Lưu bộ cấu hình trường**.
 10. Tải lại trang và bắt đầu nhập dữ liệu của trường mới.
