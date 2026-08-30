@@ -1,79 +1,101 @@
 # TRIỂN KHAI CDS SANG TRƯỜNG KHÁC KHÔNG SỬA CODE
 
-Mục tiêu: sao chép nguyên bộ source CDS sang môi trường khác và **chỉ cấu hình**, không chỉnh PHP/JS/YAML trong source.
+Mục tiêu: sao chép nguyên bộ source CDS sang môi trường khác và **chỉ cấu hình trên giao diện**, không chỉnh PHP/JS/YAML trong source.
 
-## 1. Cấu hình đường dẫn deploy
+## 1. Một nơi cấu hình duy nhất
 
-CDS dùng `tools/deploy_cds.php`. `.cpanel.yml` chỉ gọi script này và không còn chứa trực tiếp đường dẫn host của từng trường.
+Sau khi đăng nhập bằng tài khoản quản trị, mở:
 
-Thứ tự xác định thư mục deploy:
+`Quản trị CDS → Cấu hình trường`
 
-1. Biến môi trường `CDS_DEPLOY_PATH`.
-2. File JSON do `CDS_DEPLOY_CONFIG` chỉ định.
-3. `/home/capnachi/cds_private/deploy.json`.
-4. Nếu không có cấu hình nào, hệ thống dùng đường dẫn Xín Mần cũ để giữ tương thích với hệ thống hiện tại.
+hoặc truy cập trực tiếp:
 
-Mẫu `deploy.json`:
+`/instance_settings.php`
 
-```json
-{
-  "target_path": "/home/USER/example.edu.vn"
-}
-```
+Trang này quản lý tập trung:
 
-Mẫu có sẵn trong repo: `docs/deploy.example.json`.
+- tên trường, mã trường, tên rút gọn;
+- cơ quan chủ quản, năm học, website, địa chỉ, điện thoại, email;
+- logo, tiêu đề CDS, PWA;
+- cấp học THCS/THPT;
+- module sử dụng;
+- chế độ khởi tạo dữ liệu Chuyên môn;
+- kết nối MySQL/MariaDB;
+- Google Drive cơ bản;
+- thư mục triển khai trên hosting.
 
-## 2. Cấu hình nhận diện trường
+Người quản trị **không cần mở hoặc sửa các file source**.
 
-Dùng file `school.json` ngoài web root hoặc biến môi trường `CDS_SCHOOL_CONFIG`.
+## 2. Bộ cấu hình hợp nhất
 
-Mẫu: `docs/school.example.json`.
+Giao diện lưu cấu hình chính vào một file duy nhất ngoài web root:
 
-Không cần sửa `includes/config.php`, `manifest.php`, `login.php` hay các file core để đổi tên trường, Sở, năm học, website, logo, module, cấp học, PWA.
+`/home/<user>/cds_private/instance.json`
 
-## 3. Database riêng
+Có thể thay vị trí bằng biến môi trường `CDS_INSTANCE_CONFIG` nếu hosting yêu cầu.
 
-Dùng `database.conf` riêng và cấu hình qua `CDS_DB_CONFIG` nếu không dùng vị trí mặc định.
+File này có các nhóm chính:
 
-Không sửa thông tin database trực tiếp trong source.
+- `school`
+- `database`
+- `deployment`
+- `paths`
 
-## 4. Google Drive riêng
+Mật khẩu database được lưu trong file ngoài web root với quyền file hạn chế. Giao diện không hiển thị lại mật khẩu đã lưu.
 
-Dùng `CDS_DRIVE_CONFIG` hoặc `integrations.drive_settings_file` trong `school.json` để trỏ đến file cấu hình Drive riêng ngoài web root.
+## 3. Tương thích với hệ thống cũ
 
-Không sửa `includes/google_drive_storage.php`.
+Các cơ chế cũ vẫn được giữ làm fallback:
 
-## 5. Dữ liệu khởi tạo Chuyên môn
-
-Trường mới nên đặt:
-
-```json
-"chuyenmon": {
-  "seed_profile": "empty",
-  "defaults_file": ""
-}
-```
-
-Hoặc dùng `CDS_CHUYENMON_DEFAULTS` để trỏ đến file JSON dữ liệu mẫu riêng.
-
-Không sửa `chuyenmon/includes/config.php`.
-
-## 6. Bộ cấu hình tối thiểu cho một trường mới
-
-Một deployment mới chỉ cần chuẩn bị các file cấu hình ngoài source:
-
-- `deploy.json`
 - `school.json`
 - `database.conf`
-- `google_drive_settings.json` nếu dùng Drive
-- file defaults Chuyên môn nếu muốn khởi tạo sẵn dữ liệu
+- `deploy.json`
+- cấu hình Drive cũ
 
-Sau đó copy cùng một source CDS và deploy. Không cần thay chuỗi tên trường, domain, đường dẫn host hay dữ liệu mẫu trong mã nguồn.
+Nếu chưa có `instance.json`, CDS Xín Mần tiếp tục hoạt động theo cấu hình hiện tại. Không có quá trình tự động ghi đè, xóa hay chuyển đổi dữ liệu cũ.
 
-## 7. An toàn với bản Xín Mần hiện tại
+Khi `instance.json` tồn tại, cấu hình hợp nhất được ưu tiên.
 
-Nếu chưa tạo `deploy.json` và chưa đặt `CDS_DEPLOY_PATH`, script deploy vẫn dùng đường dẫn cũ:
+## 4. Database
 
-`/home/capnachi/cds.noitruxinman.edu.vn`
+Trang `Cấu hình trường` kiểm tra kết nối MySQL trước khi lưu. Nếu host/database/user/password sai, hệ thống từ chối lưu để tránh làm hỏng một bản CDS đang vận hành.
 
-Do đó thay đổi kiến trúc deploy không làm đổi đích triển khai hiện tại của Xín Mần.
+Mỗi trường vẫn nên dùng database riêng.
+
+## 5. Google Drive
+
+Trang cấu hình cho phép bật/tắt Drive, nhập Service Account JSON và các thư mục Drive cơ bản.
+
+File chứa khóa Drive được đặt ngoài web root. Các thiết lập Drive nâng cao vẫn có thể quản lý tại trang Kho Google Drive hiện có.
+
+## 6. Triển khai
+
+`tools/deploy_cds.php` ưu tiên đọc:
+
+1. `CDS_DEPLOY_PATH` nếu được đặt;
+2. `instance.json → deployment.target_path`;
+3. cấu hình `deploy.json` cũ;
+4. fallback Xín Mần để tương thích bản hiện tại.
+
+Vì vậy sau khi đã cấu hình trường, các lần cập nhật/deploy sau không cần sửa `.cpanel.yml` hoặc đường dẫn trong code.
+
+## 7. Quy trình dùng cho trường mới
+
+1. Copy nguyên source CDS sang hosting/domain mới.
+2. Đăng nhập quản trị.
+3. Mở **Cấu hình trường**.
+4. Khai báo thông tin trường.
+5. Chọn cấp học và module sử dụng.
+6. Nhập database và mật khẩu database.
+7. Cấu hình Drive nếu sử dụng.
+8. Khai báo thư mục website trên hosting.
+9. Bấm **Lưu bộ cấu hình trường**.
+10. Tải lại trang và bắt đầu nhập dữ liệu của trường mới.
+
+Không cần sửa `includes/config.php`, `school_config.php`, `database.php`, `.cpanel.yml`, `manifest.php`, file Chuyên môn hoặc các file PHP khác.
+
+## 8. An toàn với bản Xín Mần hiện tại
+
+Nếu chưa bấm lưu tại trang `Cấu hình trường` và chưa có `instance.json`, hệ thống vẫn dùng toàn bộ fallback hiện tại của Xín Mần.
+
+Việc bổ sung cơ chế cấu hình hợp nhất không tự động thay database, dữ liệu Chuyên môn, dữ liệu nội trú, Drive hoặc đường dẫn deploy của hệ thống đang chạy.
