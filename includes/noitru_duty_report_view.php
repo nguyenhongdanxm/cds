@@ -1,5 +1,6 @@
 <?php
 /** Nhập trực tiếp và in Biên bản trực nội trú hằng ngày theo mẫu hành chính A4. */
+require_once __DIR__ . '/noitru_att_shifts.php';
 $reportDate = trim((string)($_GET['date'] ?? date('Y-m-d')));
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $reportDate)) $reportDate = date('Y-m-d');
 $report = noitru_duty_report_for_date($reportDate) ?? [];
@@ -55,7 +56,10 @@ foreach (noitru_att_all() as $row) {
 }
 foreach($absentByShiftClass as &$classes) uksort($classes,'csdl_compare_class_names');
 unset($classes);
-$shiftLabels = ['the_duc_sang'=>'Thể dục sáng','sang'=>'Sáng','trua'=>'Trưa','chieu'=>'Chiều','toi'=>'Tối','hoc_toi'=>'Học tối','dot_xuat'=>'Đột xuất'];
+$shiftLabels=[];$shiftSort=[];
+foreach(noitru_att_shifts_all() as $configuredShift){$configuredId=trim((string)($configuredShift['id']??''));if($configuredId==='')continue;$shiftLabels[$configuredId]=trim((string)($configuredShift['label']??''))?:$configuredId;$shiftSort[$configuredId]=(int)($configuredShift['sort']??99);}
+$shiftLabels['dot_xuat']=$shiftLabels['dot_xuat']??'Điểm danh đột xuất';$shiftSort['dot_xuat']=$shiftSort['dot_xuat']??999;
+uksort($attendanceByShift,function($a,$b)use($shiftSort){$compare=($shiftSort[$a]??998)<=>($shiftSort[$b]??998);return $compare!==0?$compare:strcmp((string)$a,(string)$b);});
 $location = trim((string)($report['location'] ?? ''));
 if ($location === '' || in_array($location, ['Pà Vầy Sủ', 'Xã Pà Vầy Sủ'], true)) $location = 'Phòng trực nội trú';
 $shiftLabel = (string)($report['shift_label'] ?? ($startTime . ' ngày ' . date('d/m/Y',strtotime($reportDate)) . ' đến ' . $endTime . ' ngày ' . date('d/m/Y',strtotime($nextDate))));
