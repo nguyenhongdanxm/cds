@@ -57,7 +57,7 @@ Kiểm tra thêm các script trong `tools/` và các shell script deploy cũ tr�
 
 ## 4. Dữ liệu Chuyên môn ban đầu
 
-Từ giai đoạn 5, dữ liệu mẫu lịch sử của Xín Mần đã được tách khỏi core Chuyên môn sang:
+Dữ liệu mẫu lịch sử của Xín Mần đã được tách khỏi core Chuyên môn sang:
 
 `chuyenmon/includes/defaults_xinman.php`
 
@@ -71,9 +71,7 @@ Tệp này chỉ chứa các giá trị fallback phục vụ khởi tạo ban đ
 
 `chuyenmon/includes/config.php` chỉ nạp các giá trị này thành các biến `$DEFAULT_*`. Cơ chế này **không đọc, sửa, xóa hoặc ghi lại** các file dữ liệu đang vận hành trong `chuyenmon/data`.
 
-Nếu dữ liệu Chuyên môn thực tế đã tồn tại thì hệ thống tiếp tục dùng dữ liệu hiện có như trước. Việc tách file chỉ thay đổi vị trí lưu source của bộ mặc định, không thay đổi nội dung mặc định của Xín Mần.
-
-Với trường mới, không nên sử dụng dữ liệu mẫu Xín Mần để khởi tạo chính thức. Ưu tiên tạo dữ liệu rỗng rồi nhập giáo viên, lớp, tổ, môn của trường mới.
+Với trường mới nên đặt `chuyenmon.seed_profile = "empty"` trong `school.json`, hoặc cấu hình `chuyenmon.defaults_file` / biến môi trường `CDS_CHUYENMON_DEFAULTS` tới file JSON khởi tạo riêng.
 
 ## 5. PWA, icon và logo
 
@@ -85,14 +83,34 @@ Icon mặc định nằm trong `assets/icons/`. Trường mới có thể thay i
 
 ## 6. Google Drive và tích hợp ngoài
 
-Mỗi trường nên dùng cấu hình Drive/OAuth riêng. Kiểm tra các thành phần:
+Cấu hình Google Drive có `private_key` của Service Account nên nên tách riêng cho từng trường và đặt ngoài web root.
+
+CDS hiện chọn file cấu hình Drive theo thứ tự:
+
+1. Biến môi trường `CDS_DRIVE_CONFIG` nếu có.
+2. `school.json` → `integrations.drive_settings_file` nếu có.
+3. Nếu không có hai cấu hình trên, tiếp tục dùng vị trí cũ `DATA_PATH/google_drive_settings.json` để giữ tương thích với hệ thống Xín Mần đang chạy.
+
+Ví dụ cho trường mới:
+
+`/home/USER/cds_private/TRUONG_MOI/google_drive_settings.json`
+
+Không đưa file này lên GitHub vì có thể chứa:
+
+- email Service Account;
+- private key;
+- ID các thư mục Google Drive;
+- trạng thái bật/tắt lưu Drive.
+
+Mỗi trường phải dùng Service Account/thư mục Drive riêng hoặc ít nhất phải được phân quyền rõ ràng trên Shared Drive riêng. Không sao chép file cấu hình Drive thật của Xín Mần sang trường khác.
+
+Các thành phần liên quan:
 
 - `drive_settings.php`
 - `includes/google_drive_storage.php`
 - `includes/drive_google_doc.php`
-- các callback/redirect URI trong Google Cloud.
 
-Không sao chép token, client secret hoặc thư mục Drive dùng thật của trường cũ sang trường mới.
+Nếu sau này có OAuth callback riêng, phải kiểm tra và đổi redirect URI/domain theo deployment của từng trường trước khi bật.
 
 ## 7. Kiểm tra chuỗi gắn cứng trước khi mở hệ thống
 
@@ -110,30 +128,33 @@ Các chuỗi còn lại có thể thuộc: fallback tương thích, dữ liệu 
 1. Sao chép source sang môi trường mới.
 2. Tạo database mới và `database.conf` riêng.
 3. Tạo `school.json` từ `docs/school.example.json`.
-4. Sửa đường dẫn deploy/domain của bản trường mới.
-5. Thay logo/icon nếu cần.
-6. Khởi tạo tài khoản quản trị mới.
-7. Nhập dữ liệu lớp, học sinh, giáo viên, tổ, môn.
-8. Thiết lập năm học/tuần học.
-9. Thiết lập PCCM và TKB.
-10. Cấu hình Drive/OAuth riêng nếu sử dụng.
-11. Kiểm tra toàn bộ báo cáo/bản in trước khi vận hành chính thức.
+4. Đặt `chuyenmon.seed_profile = "empty"` hoặc bộ defaults riêng.
+5. Sửa đường dẫn deploy/domain của bản trường mới.
+6. Thay logo/icon nếu cần.
+7. Khởi tạo tài khoản quản trị mới.
+8. Nhập dữ liệu lớp, học sinh, giáo viên, tổ, môn.
+9. Thiết lập năm học/tuần học.
+10. Thiết lập PCCM và TKB.
+11. Tạo file Drive riêng ngoài web root và cấu hình Service Account/thư mục riêng nếu sử dụng.
+12. Kiểm tra toàn bộ báo cáo/bản in trước khi vận hành chính thức.
 
 ## 9. Nguyên tắc an toàn khi cập nhật core
 
 - Không dùng chung database dữ liệu thật giữa các trường.
-- Không commit `school.json`, `database.conf`, token hoặc secret vào repo.
+- Không commit `school.json`, `database.conf`, `google_drive_settings.json`, token hoặc secret vào repo.
 - Core có thể tiếp tục cập nhật từ GitHub mà không cần ghi đè thông tin nhận diện trường nếu thông tin riêng nằm ngoài source.
 - Nếu `school.json` bị thiếu hoặc JSON lỗi, hệ thống quay về cấu hình mặc định trong source thay vì dừng toàn bộ CDS.
 - Dữ liệu mẫu trong `defaults_xinman.php` chỉ là fallback khởi tạo, không phải dữ liệu vận hành.
+- Cấu hình Drive ngoài source là opt-in; nếu không khai báo, hệ thống hiện tại vẫn dùng đúng đường dẫn cũ.
 - Chưa bật cơ chế đa tenant dùng chung database trong giai đoạn này.
 
 ## Ghi chú kiến trúc
 
-Từ giai đoạn 5, CDS đã có ba lớp tách biệt rõ hơn:
+CDS hiện đã tách rõ bốn lớp:
 
 - **Core/source dùng chung:** mã xử lý hệ thống.
-- **Cấu hình deployment riêng:** `school.json` + `database.conf` nằm ngoài web root.
+- **Cấu hình nhận diện deployment:** `school.json` ngoài web root.
+- **Cấu hình dữ liệu/kết nối riêng:** `database.conf`, `google_drive_settings.json` và các secret nằm ngoài web root.
 - **Dữ liệu mẫu lịch sử Xín Mần:** `chuyenmon/includes/defaults_xinman.php`, chỉ phục vụ fallback khởi tạo.
 
-Cách này giảm dữ liệu riêng của một trường nằm trực tiếp trong core, đồng thời vẫn giữ nguyên cơ chế vận hành và dữ liệu thật hiện tại.
+Cách này giúp nhân bản CDS sang trường khác mà giảm nguy cơ dùng nhầm database, Google Drive hoặc dữ liệu mẫu của Xín Mần, đồng thời giữ nguyên cơ chế vận hành và dữ liệu thật hiện tại.
