@@ -1,7 +1,7 @@
 <?php
 /** Danh sách module hệ sinh thái: live | link | soon */
 function get_ecosystem_modules() {
-    return [
+    $modules = [
         [
             'id' => 'tintuc', 'num' => 1,
             'title' => 'Tin tức',
@@ -59,6 +59,24 @@ function get_ecosystem_modules() {
             'status' => 'live', 'url' => BASE_URL . 'thidua.php', 'external' => false,
         ],
     ];
+
+    /*
+     * Cấu hình module theo từng trường chỉ tác động đến danh sách hiển thị ở
+     * trang hệ sinh thái. Không chặn URL, không đổi quyền và không xóa dữ liệu.
+     * Nếu cấu hình không khai báo module thì mặc định vẫn hiển thị để tương
+     * thích với các bản CDS cũ.
+     */
+    if (function_exists('cds_school_config')) {
+        $configured = cds_school_config('modules', null);
+        if (is_array($configured)) {
+            $modules = array_values(array_filter($modules, static function (array $module) use ($configured): bool {
+                $id = (string)($module['id'] ?? '');
+                return !array_key_exists($id, $configured) || (bool)$configured[$id];
+            }));
+        }
+    }
+
+    return $modules;
 }
 
 /*
