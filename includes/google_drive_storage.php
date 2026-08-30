@@ -1,14 +1,38 @@
 <?php
 /** Lưu trữ Google Drive bằng Service Account, không cần Composer. */
 if (function_exists('cds_drive_settings')) return;
-if (!defined('CDS_DRIVE_SETTINGS')) define('CDS_DRIVE_SETTINGS', DATA_PATH . '/google_drive_settings.json');
+
+/*
+ * Mặc định vẫn dùng đúng vị trí cũ trong DATA_PATH để không ảnh hưởng hệ thống
+ * Xín Mần đang vận hành. Trường mới có thể tách riêng cấu hình Drive bằng:
+ *   1) biến môi trường CDS_DRIVE_CONFIG; hoặc
+ *   2) school.json: integrations.drive_settings_file
+ *
+ * File cấu hình Drive có chứa private_key nên nên đặt ngoài web root.
+ */
+if (!function_exists('cds_drive_settings_path')) {
+    function cds_drive_settings_path(): string {
+        $env = getenv('CDS_DRIVE_CONFIG');
+        if (is_string($env) && trim($env) !== '') return trim($env);
+
+        if (function_exists('cds_school_config')) {
+            $configured = trim((string)cds_school_config('integrations.drive_settings_file', ''));
+            if ($configured !== '') return $configured;
+        }
+
+        return DATA_PATH . '/google_drive_settings.json';
+    }
+}
+if (!defined('CDS_DRIVE_SETTINGS')) define('CDS_DRIVE_SETTINGS', cds_drive_settings_path());
 
 function cds_drive_settings(): array {
     $raw = is_file(CDS_DRIVE_SETTINGS) ? json_decode((string)file_get_contents(CDS_DRIVE_SETTINGS), true) : [];
     return array_merge(['enabled'=>false,'client_email'=>'','private_key'=>'','folders'=>['documents'=>'','plans'=>'','education_plans'=>'','photos'=>'']], is_array($raw)?$raw:[]);
 }
 function cds_drive_save_settings(array $settings): bool {
-    if (!is_dir(DATA_PATH)) @mkdir(DATA_PATH,0755,true);
+    $dir = dirname(CDS_DRIVE_SETTINGS);
+    if (!is_dir($dir)) @mkdir($dir,0700,true);
+    if (!is_dir($dir) || !is_writable($dir)) return false;
     return false !== file_put_contents(CDS_DRIVE_SETTINGS,json_encode($settings,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX);
 }
 function cds_drive_b64url(string $value): string { return rtrim(strtr(base64_encode($value),'+/','-_'),'='); }
