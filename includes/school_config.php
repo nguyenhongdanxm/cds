@@ -2,13 +2,13 @@
 /**
  * Cấu hình nhận diện nhà trường dùng chung toàn hệ sinh thái CDS.
  *
- * Giá trị trong source là mặc định an toàn cho hệ thống Xín Mần hiện tại.
- * Khi triển khai trường khác, có thể ghi đè bằng tệp JSON nằm ngoài web root:
- *   /home/capnachi/cds_private/school.json
- * hoặc biến môi trường CDS_SCHOOL_CONFIG trỏ tới một tệp JSON khác.
- *
- * Không đặt mật khẩu, OAuth secret hoặc database password trong tệp này.
+ * Ưu tiên cấu hình hợp nhất instance.json. Các cơ chế school.json cũ vẫn được
+ * giữ làm fallback để không ảnh hưởng bản Xín Mần đang vận hành.
  */
+
+$instanceConfigHelper = __DIR__ . '/instance_config.php';
+if (is_file($instanceConfigHelper)) require_once $instanceConfigHelper;
+unset($instanceConfigHelper);
 
 if (!function_exists('cds_school_array_merge')) {
     function cds_school_array_merge(array $base, array $override): array
@@ -28,28 +28,27 @@ if (!function_exists('cds_school_config_path')) {
     function cds_school_config_path(): string
     {
         $custom = getenv('CDS_SCHOOL_CONFIG');
-        if (is_string($custom) && trim($custom) !== '') {
-            return trim($custom);
-        }
-        return '/home/capnachi/cds_private/school.json';
+        if (is_string($custom) && trim($custom) !== '') return trim($custom);
+        return dirname(__DIR__, 2) . '/cds_private/school.json';
     }
 }
 
 if (!function_exists('cds_school_load_override')) {
     function cds_school_load_override(): array
     {
+        $legacy = [];
         $path = cds_school_config_path();
-        if ($path === '' || !is_file($path) || !is_readable($path)) {
-            return [];
+        if ($path !== '' && is_file($path) && is_readable($path)) {
+            $raw = @file_get_contents($path);
+            $decoded = is_string($raw) ? json_decode($raw, true) : null;
+            if (is_array($decoded)) $legacy = $decoded;
         }
 
-        $raw = @file_get_contents($path);
-        if (!is_string($raw) || trim($raw) === '') {
-            return [];
+        $instanceSchool = function_exists('cds_instance_config') ? cds_instance_config('school', []) : [];
+        if (is_array($instanceSchool) && $instanceSchool) {
+            return cds_school_array_merge($legacy, $instanceSchool);
         }
-
-        $decoded = json_decode($raw, true);
-        return is_array($decoded) ? $decoded : [];
+        return $legacy;
     }
 }
 
@@ -97,20 +96,14 @@ if (!function_exists('cds_school_config')) {
             ];
 
             $override = cds_school_load_override();
-            if ($override) {
-                $config = cds_school_array_merge($config, $override);
-            }
+            if ($override) $config = cds_school_array_merge($config, $override);
         }
 
-        if ($key === null || $key === '') {
-            return $config;
-        }
+        if ($key === null || $key === '') return $config;
 
         $value = $config;
         foreach (explode('.', $key) as $part) {
-            if (!is_array($value) || !array_key_exists($part, $value)) {
-                return $default;
-            }
+            if (!is_array($value) || !array_key_exists($part, $value)) return $default;
             $value = $value[$part];
         }
         return $value;
