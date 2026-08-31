@@ -180,6 +180,51 @@ function cds_read_verify_mark_snapshot_pending()
     }
 }
 
+function cds_read_verify_mark_entity_pending($entityType)
+{
+    $allowed = array('years','teachers','classes','students');
+    if (!in_array($entityType, $allowed, true)) return false;
+    try {
+        $stmt = cds_db()->prepare(
+            "UPDATE cds_read_verification_status
+             SET verify_status='pending', checked_at=NOW()
+             WHERE entity_type=?"
+        );
+        $stmt->execute(array((string)$entityType));
+        return true;
+    } catch (Throwable $e) {
+        error_log('[CDS MySQL verify entity pending] ' . $e->getMessage());
+        return false;
+    }
+}
+
+function cds_read_verify_mark_entity_match($entityType, $count)
+{
+    $allowed = array('years','teachers','classes','students');
+    if (!in_array($entityType, $allowed, true)) return false;
+    try {
+        $stmt = cds_db()->prepare(
+            "INSERT INTO cds_read_verification_status
+                (entity_type, verify_status, json_count, mysql_count, details_json, checked_at)
+             VALUES (?, 'match', ?, ?, ?, NOW())
+             ON DUPLICATE KEY UPDATE
+                verify_status='match', json_count=VALUES(json_count),
+                mysql_count=VALUES(mysql_count), details_json=VALUES(details_json),
+                checked_at=NOW()"
+        );
+        $stmt->execute(array(
+            (string)$entityType,
+            (int)$count,
+            (int)$count,
+            json_encode(array('missing'=>array(),'extra'=>array(),'changed'=>array())),
+        ));
+        return true;
+    } catch (Throwable $e) {
+        error_log('[CDS MySQL verify entity match] ' . $e->getMessage());
+        return false;
+    }
+}
+
 function cds_read_verify_mark_snapshot_match($counts)
 {
     $map = array(
@@ -206,7 +251,9 @@ function cds_read_verify_mark_snapshot_match($counts)
                 json_encode(array('missing'=>array(),'extra'=>array(),'changed'=>array())),
             ));
         }
+        return true;
     } catch (Throwable $e) {
         error_log('[CDS MySQL verify match] ' . $e->getMessage());
+        return false;
     }
 }
