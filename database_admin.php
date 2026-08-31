@@ -36,7 +36,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $result = cds_core_import_snapshot(current_user());
             $counts = $result['counts'];
-            cds_read_verify_mark_snapshot_match($counts);
+            if (!cds_read_verify_mark_snapshot_match($counts)) {
+                throw new RuntimeException('Đã cập nhật MySQL nhưng chưa xác nhận được trạng thái kiểm chứng.');
+            }
+            if (!cds_shadow_pending_clear()) {
+                throw new RuntimeException('MySQL đã đồng bộ nhưng chưa xóa được dấu đồng bộ đang chờ.');
+            }
             flash(
                 'Đã nhập bản sao JSON vào MySQL: '
                 . $counts['teachers'] . ' giáo viên, '
@@ -392,8 +397,9 @@ include __DIR__ . '/includes/nav_top.php';
       <div>
         <h5 class="mb-1"><i class="bi bi-arrow-left-right"></i> Ghi song song dữ liệu lõi</h5>
         <p class="text-muted small mb-0">
-          JSON vẫn là nguồn chính; MySQL được cập nhật tự động sau mỗi lần lưu.
+          JSON vẫn là nguồn chính; mỗi lần lưu chỉ cập nhật đúng bản ghi MySQL tương ứng.
           Nhập hoặc xóa hàng loạt chỉ đồng bộ MySQL một lần khi hoàn tất để tránh chậm hệ thống.
+          Thay đổi năm học tiếp tục dùng ảnh chụp đầy đủ để giữ đúng liên kết lớp và học sinh.
         </p>
       </div>
       <span class="badge <?= $shadowWriteEnabled ? 'text-bg-success' : 'text-bg-secondary' ?>">
