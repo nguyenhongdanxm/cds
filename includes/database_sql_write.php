@@ -53,6 +53,62 @@ function cds_core_sql_write_set($enabled, $actor)
     );
     $stmt->execute(array($enabled ? '1' : '0', (string)($actor['username'] ?? $actor['name'] ?? '')));
     $GLOBALS['cds_core_sql_write_enabled_cache'] = (bool)$enabled;
+    if (!$enabled) {
+        try {
+            $disableYear = cds_db()->prepare(
+                "UPDATE cds_runtime_settings
+                 SET setting_value='0', updated_by=?, updated_at=NOW()
+                 WHERE setting_key='core_sql_primary_year_write'"
+            );
+            $disableYear->execute(array((string)($actor['username'] ?? $actor['name'] ?? '')));
+        } catch (Throwable $e) {
+            // Migration 007 có thể chưa được cài; công tắc cha vẫn được tắt an toàn.
+        }
+        $GLOBALS['cds_core_sql_year_write_enabled_cache'] = false;
+    }
+}
+
+function cds_core_sql_year_write_enabled()
+{
+    if (array_key_exists('cds_core_sql_year_write_enabled_cache', $GLOBALS)) {
+        return (bool)$GLOBALS['cds_core_sql_year_write_enabled_cache'];
+    }
+    try {
+        $stmt = cds_db()->prepare(
+            "SELECT setting_value FROM cds_runtime_settings WHERE setting_key='core_sql_primary_year_write'"
+        );
+        $stmt->execute();
+        $enabled = (string)$stmt->fetchColumn() === '1';
+        $GLOBALS['cds_core_sql_year_write_enabled_cache'] = $enabled;
+        return $enabled;
+    } catch (Throwable $e) {
+        $GLOBALS['cds_core_sql_year_write_enabled_cache'] = false;
+        return false;
+    }
+}
+
+function cds_core_sql_year_write_readiness()
+{
+    if (!cds_core_sql_write_enabled()) {
+        return array('ready' => false, 'reason' => 'Cần bật và kiểm thử ghi MySQL trước cho giáo viên, lớp và học sinh.');
+    }
+    return cds_core_sql_write_readiness();
+}
+
+function cds_core_sql_year_write_set($enabled, $actor)
+{
+    if ($enabled) {
+        $readiness = cds_core_sql_year_write_readiness();
+        if (empty($readiness['ready'])) throw new RuntimeException($readiness['reason']);
+    }
+    $stmt = cds_db()->prepare(
+        "INSERT INTO cds_runtime_settings (setting_key, setting_value, updated_by, updated_at)
+         VALUES ('core_sql_primary_year_write', ?, ?, NOW())
+         ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),
+             updated_by=VALUES(updated_by), updated_at=NOW()"
+    );
+    $stmt->execute(array($enabled ? '1' : '0', (string)($actor['username'] ?? $actor['name'] ?? '')));
+    $GLOBALS['cds_core_sql_year_write_enabled_cache'] = (bool)$enabled;
 }
 
 function cds_core_sql_backup_pending_path()
@@ -102,6 +158,7 @@ function cds_core_sql_restore_json_backup()
     $pending = cds_core_sql_backup_pending_status();
     if (!is_array($pending)) throw new RuntimeException('Không có bản dự phòng JSON đang chờ phục hồi.');
     $types = array(
+        'school_year' => array('verify' => 'years', 'table' => 'cds_school_years', 'file' => defined('DATA_PATH') ? DATA_PATH . '/school_years.json' : ''),
         'teacher' => array('verify' => 'teachers', 'table' => 'cds_teachers', 'file' => defined('DATA_PATH') ? DATA_PATH . '/teachers.json' : ''),
         'class' => array('verify' => 'classes', 'table' => 'cds_classes', 'file' => defined('DATA_PATH') ? DATA_PATH . '/classes.json' : ''),
         'student' => array('verify' => 'students', 'table' => 'cds_students', 'file' => defined('DATA_PATH') ? DATA_PATH . '/students.json' : ''),
@@ -127,6 +184,100 @@ function cds_core_sql_restore_json_backup()
     if (function_exists('cds_core_sql_read_cache_clear')) cds_core_sql_read_cache_clear($meta['verify']);
     if (!cds_core_sql_backup_pending_clear()) throw new RuntimeException('Đã phục hồi JSON nhưng chưa xóa được dấu đang chờ.');
     return array('entity_type' => $type, 'count' => count($rows));
+}
+
+function cds_core_sql_years_map(array $rows)
+{
+    $map = array();
+    foreach ($rows as $row) {
+        $id = trim((string)($row['id'] ?? ''));
+        if ($id === '' || isset($map[$id])) throw new RuntimeException('Năm học thiếu hoặc trùng ID.');
+        $map[$id] = cds_read_verify_hash($row);
+    }
+    ksort($map);
+    return $map;
+}
+
+function cds_core_sql_primary_year_save($entityId, array $originalYears, array $years, $jsonFile)
+{
+    if (!cds_core_sql_year_write_enabled()) return false;
+    $readiness = cds_core_sql_year_write_readiness();
+    if (empty($readiness['ready'])) throw new RuntimeException($readiness['reason']);
+    $current = array_values(array_filter($years, static function ($row) { return !empty($row['is_current']); }));
+    if (count($current) !== 1) throw new RuntimeException('Cần đúng một năm học hiện hành.');
+    if (!$years) throw new RuntimeException('Không thể xóa toàn bộ năm học.');
+    if (!cds_core_sql_backup_pending_mark('school_year', $entityId)) {
+        throw new RuntimeException('Không tạo được dấu bảo vệ bản dự phòng JSON; chưa ghi dữ liệu.');
+    }
+
+    $pdo = null;
+    $committed = false;
+    try {
+        $pdo = cds_db();
+        $pdo->beginTransaction();
+        $actual = array();
+        $locked = $pdo->query('SELECT id, raw_json FROM cds_school_years FOR UPDATE');
+        while ($dbRow = $locked->fetch(PDO::FETCH_ASSOC)) {
+            $row = json_decode((string)($dbRow['raw_json'] ?? ''), true);
+            if (!is_array($row)) throw new RuntimeException('MySQL có raw_json năm học không hợp lệ.');
+            $actual[(string)$dbRow['id']] = cds_read_verify_hash($row);
+        }
+        ksort($actual);
+        if ($actual !== cds_core_sql_years_map($originalYears)) {
+            throw new RuntimeException('Năm học vừa được yêu cầu khác cập nhật; vui lòng tải lại trước khi lưu.');
+        }
+
+        $sql = "INSERT INTO cds_school_years
+            (id, label, start_date, end_date, is_current, raw_json, source_updated_at, imported_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE label=VALUES(label), start_date=VALUES(start_date),
+                end_date=VALUES(end_date), is_current=VALUES(is_current), raw_json=VALUES(raw_json),
+                source_updated_at=VALUES(source_updated_at), imported_at=NOW()";
+        foreach ($years as $row) {
+            cds_core_upsert($pdo, $sql, array(
+                (string)$row['id'], cds_core_string($row, 'label'),
+                cds_core_date($row['start'] ?? ''), cds_core_date($row['end'] ?? ''),
+                cds_core_bool($row, 'is_current'), cds_core_json($row), cds_core_datetime($row),
+            ));
+        }
+        $currentId = (string)$current[0]['id'];
+        $stmt = $pdo->prepare('UPDATE cds_classes SET school_year_id=? WHERE school_year_id<>?');
+        $stmt->execute(array($currentId, $currentId));
+        $stmt = $pdo->prepare('UPDATE cds_students SET school_year_id=? WHERE school_year_id<>?');
+        $stmt->execute(array($currentId, $currentId));
+        cds_core_delete_missing_rows($pdo, 'cds_school_years', array_column($years, 'id'));
+        $count = (int)$pdo->query('SELECT COUNT(*) FROM cds_school_years')->fetchColumn();
+        if ($count !== count($years)) throw new RuntimeException('Số lượng năm học MySQL không khớp.');
+
+        $actor = function_exists('current_user') ? current_user() : array();
+        $audit = $pdo->prepare(
+            "INSERT INTO cds_audit_log
+                (actor_user_id, actor_name, module_key, action_key, entity_type,
+                 entity_id, after_json, request_ip, created_at)
+             VALUES (?, ?, 'csdl', 'sql_primary_year_write', 'school_year', ?, ?, ?, NOW())"
+        );
+        $audit->execute(array(
+            (string)($actor['id'] ?? ''), (string)($actor['name'] ?? ''),
+            (string)$entityId, cds_core_json($years), (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+        ));
+        $pdo->commit();
+        $committed = true;
+        cds_read_verify_mark_entity_pending('years');
+    } catch (Throwable $e) {
+        if ($pdo instanceof PDO && $pdo->inTransaction()) $pdo->rollBack();
+        if (!$committed) cds_core_sql_backup_pending_clear();
+        throw $e;
+    }
+
+    if (!save_json($jsonFile, $years)) {
+        error_log('[CDS SQL primary] MySQL committed; JSON year backup pending.');
+        if (function_exists('flash')) flash('Năm học đã lưu vào MySQL nhưng JSON dự phòng chưa cập nhật. Hãy phục hồi tại trang Trạng thái MySQL.', 'warning');
+        return true;
+    }
+    if (!cds_read_verify_mark_entity_match('years', count($years))) return true;
+    if (function_exists('cds_core_sql_read_cache_clear')) cds_core_sql_read_cache_clear();
+    cds_core_sql_backup_pending_clear();
+    return true;
 }
 
 function cds_core_sql_assert_unchanged_rows(PDO $pdo, $table, $entityId, array $rows)
@@ -156,7 +307,7 @@ function cds_core_sql_assert_unchanged_rows(PDO $pdo, $table, $entityId, array $
 
 /**
  * Ghi một bản ghi MySQL trước, rồi lưu toàn bộ JSON làm bản dự phòng.
- * Chỉ dùng cho giáo viên/lớp/học sinh; các nhóm khác giữ luồng JSON-first.
+ * Dùng cho giáo viên/lớp/học sinh; năm học có transaction ảnh chụp riêng.
  */
 function cds_core_sql_primary_save($entityType, $entityId, array $rows, $jsonFile)
 {
