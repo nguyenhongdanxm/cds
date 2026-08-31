@@ -119,7 +119,8 @@ $rootFiles = [
     'noitru_meal_quantity_data.php','noitru_medicine_excel.php','push_api.php','student_card_students.php',
     'student_photo.php','student_verify.php','thoikhoabieu.php','thuvien.php','thuvien_book_supplement.php',
     'thuvien_bienban.php','thietbi_phieu.php','thidua.php','thidua_baiviet.php','thidua_phongnoitru.php',
-    'thidua_phongnoitru_delete.php','thidua_phongnoitru_history_api.php','users.php','vanban.php','vanban_open.php'
+    'thidua_phongnoitru_delete.php','thidua_phongnoitru_history_api.php','users.php','vanban.php','vanban_open.php',
+    'vanban_preview.php','vanban_preview_file.php'
 ];
 
 /*
