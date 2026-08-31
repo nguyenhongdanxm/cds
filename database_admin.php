@@ -376,6 +376,7 @@ include __DIR__ . '/includes/nav_top.php';
         <h5 class="mb-1"><i class="bi bi-arrow-left-right"></i> Ghi song song dữ liệu lõi</h5>
         <p class="text-muted small mb-0">
           JSON vẫn là nguồn chính; MySQL được cập nhật tự động sau mỗi lần lưu.
+          Nhập hoặc xóa hàng loạt chỉ đồng bộ MySQL một lần khi hoàn tất để tránh chậm hệ thống.
         </p>
       </div>
       <span class="badge <?= $shadowWriteEnabled ? 'text-bg-success' : 'text-bg-secondary' ?>">
