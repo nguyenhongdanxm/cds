@@ -64,11 +64,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('Chưa chọn file CSV.', 'danger');
         } else {
             $tmp = $_FILES['csv']['tmp_name'];
-            if ($entity === 'teachers') $r = csdl_io_import_teachers($tmp);
-            elseif ($entity === 'classes') $r = csdl_io_import_classes($tmp);
-            elseif ($entity === 'students') $r = csdl_io_import_students($tmp);
-            else $r = ['ok' => false, 'message' => 'Entity không hợp lệ'];
-            flash($r['message'], !empty($r['ok']) ? 'success' : 'danger');
+            $r = cds_shadow_batch_run(function () use ($entity, $tmp) {
+                if ($entity === 'teachers') return csdl_io_import_teachers($tmp);
+                if ($entity === 'classes') return csdl_io_import_classes($tmp);
+                if ($entity === 'students') return csdl_io_import_students($tmp);
+                return ['ok' => false, 'message' => 'Entity không hợp lệ'];
+            });
+            $flashType = empty($r['ok'])
+                ? 'danger'
+                : ((isset($r['shadow_sync_ok']) && !$r['shadow_sync_ok']) ? 'warning' : 'success');
+            flash($r['message'], $flashType);
         }
         $back = in_array($entity, ['teachers','classes','students'], true) ? $entity : 'overview';
         header('Location: ' . BASE_URL . 'csdl.php?tab=' . $back);
