@@ -460,16 +460,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     /* Duty */
     if ($action === 'duty_save') {
+        $date = trim((string)($_POST['date'] ?? ''));
+        $teacherId = trim((string)($_POST['teacher_id'] ?? ''));
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $date)) {
+            throw new RuntimeException('Ngày trực không hợp lệ.');
+        }
+        $activeTeachers = [];
+        foreach (csdl_teachers_all() as $teacher) {
+            if (empty($teacher['active'])) continue;
+            $id = (string)($teacher['id'] ?? '');
+            if ($id !== '') $activeTeachers[$id] = (string)($teacher['name'] ?? '');
+        }
+        $rosterMap = [];
+        foreach (noitru_duty_roster_all($activeTeachers) as $row) {
+            $id = (string)($row['teacher_id'] ?? '');
+            if ($id !== '') $rosterMap[$id] = $activeTeachers[$id] ?? (string)($row['teacher_name'] ?? '');
+        }
+        if ($teacherId === '' || !isset($rosterMap[$teacherId])) {
+            throw new RuntimeException('Người được chọn chưa có trong danh sách trực.');
+        }
+        $editId = trim((string)($_POST['id'] ?? ''));
+        foreach (noitru_duty_all() as $existingDuty) {
+            if (($existingDuty['id'] ?? '') === $editId) continue;
+            if (($existingDuty['date'] ?? '') === $date && ($existingDuty['teacher_id'] ?? '') === $teacherId) {
+                throw new RuntimeException($rosterMap[$teacherId] . ' đã được phân công trong ngày này.');
+            }
+        }
         noitru_duty_save([
-            'id' => trim($_POST['id'] ?? ''),
-            'date' => trim($_POST['date'] ?? ''),
-            'shift' => trim($_POST['shift'] ?? 'toi'),
-            'teacher_id' => trim($_POST['teacher_id'] ?? ''),
-            'teacher_name' => trim($_POST['teacher_name'] ?? ''),
-            'note' => trim($_POST['note'] ?? ''),
+            'id' => $editId,
+            'date' => $date,
+            'shift' => 'ngay',
+            'teacher_id' => $teacherId,
+            'teacher_name' => $rosterMap[$teacherId],
+            'note' => trim((string)($_POST['note'] ?? '')),
         ]);
-        flash('Đã lưu lịch trực.');
-        header('Location: ' . BASE_URL . 'noitru.php?tab=duty');
+        $month = preg_match('/^\\d{4}-\\d{2}$/', (string)($_POST['month'] ?? '')) ? (string)$_POST['month'] : substr($date, 0, 7);
+        flash('Đã phân công trực thủ công cho ' . $rosterMap[$teacherId] . '.');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=duty&section=assign&month=' . urlencode($month));
         exit;
     }
     if ($action === 'duty_delete') {
