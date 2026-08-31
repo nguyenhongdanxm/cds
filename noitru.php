@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'meals_lock'=>'nt.buaan.tonghop', 'meals_unlock'=>'nt.buaan.tonghop',
         'meal_state'=>'nt.buaan.tonghop', 'meal_state_bulk'=>'nt.buaan.tonghop', 'meal_settings'=>'nt.buaan.tonghop', 'meal_fill_missing'=>'nt.buaan.tonghop',
         'att_save'=>'nt.diemdanh',
-        'duty_save'=>'nt.lichtruc', 'duty_delete'=>'nt.lichtruc',
+        'duty_save'=>'nt.lichtruc', 'duty_bulk_save'=>'nt.lichtruc', 'duty_delete'=>'nt.lichtruc',
         'duty_toggle'=>'nt.lichtruc', 'duty_auto'=>'nt.lichtruc', 'duty_copy'=>'nt.lichtruc',
         'duty_month_clear'=>'nt.lichtruc', 'duty_manager_save'=>'nt.lichtruc',
         'duty_settings_save'=>'nt.lichtruc', 'duty_group_save'=>'nt.lichtruc', 'duty_group_delete'=>'nt.lichtruc',
@@ -459,6 +459,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     /* Duty */
+    if ($action === 'duty_bulk_save') {
+        $month = trim((string)($_POST['month'] ?? ''));
+        if (!preg_match('/^\\d{4}-\\d{2}$/', $month)) throw new RuntimeException('Tháng phân công không hợp lệ.');
+        $activeTeachers = [];
+        foreach (csdl_teachers_all() as $teacher) {
+            if (empty($teacher['active'])) continue;
+            $id = (string)($teacher['id'] ?? '');
+            if ($id !== '') $activeTeachers[$id] = (string)($teacher['name'] ?? '');
+        }
+        $rosterMap = [];
+        foreach (noitru_duty_roster_all($activeTeachers) as $row) {
+            $id = (string)($row['teacher_id'] ?? '');
+            if ($id !== '') $rosterMap[$id] = $activeTeachers[$id] ?? (string)($row['teacher_name'] ?? '');
+        }
+        $submitted = is_array($_POST['assignments'] ?? null) ? $_POST['assignments'] : [];
+        $selected = [];
+        $counts = [];
+        foreach ($submitted as $teacherId => $dates) {
+            $teacherId = (string)$teacherId;
+            if (!isset($rosterMap[$teacherId]) || !is_array($dates)) continue;
+            foreach (array_values(array_unique(array_map('strval', $dates))) as $date) {
+                if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $date) || !str_starts_with($date, $month . '-')) continue;
+                $selected[$teacherId][] = $date;
+                $counts[$date] = ($counts[$date] ?? 0) + 1;
+            }
+        }
+        $expected = max(1, (int)(noitru_duty_settings()['people_per_day'] ?? 1));
+        $days = (int)date('t', strtotime($month . '-01'));
+        $mismatches = [];
+        for ($day = 1; $day <= $days; $day++) {
+            $date = $month . '-' . str_pad((string)$day, 2, '0', STR_PAD_LEFT);
+            $count = (int)($counts[$date] ?? 0);
+            if ($count !== $expected) $mismatches[] = date('d/m', strtotime($date)) . ': ' . $count . '/' . $expected;
+        }
+        if ($mismatches && ($_POST['confirm_mismatch'] ?? '') !== '1') {
+            throw new RuntimeException('Cần xác nhận các ngày chưa đúng định mức: ' . implode(', ', array_slice($mismatches, 0, 12)));
+        }
+        if (!noitru_duty_replace_roster_month($month, $selected, $rosterMap, $user['name'] ?? '')) {
+            throw new RuntimeException('Không lưu được ma trận phân công trực.');
+        }
+        flash('Đã lưu phân công trực tháng ' . date('m/Y', strtotime($month . '-01')) . ($mismatches ? ' (đã xác nhận ngày thiếu/vượt định mức).' : '.') , $mismatches ? 'warning' : 'success');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=duty&section=assign&month=' . urlencode($month));
+        exit;
+    }
     if ($action === 'duty_save') {
         $date = trim((string)($_POST['date'] ?? ''));
         $teacherId = trim((string)($_POST['teacher_id'] ?? ''));
