@@ -90,6 +90,7 @@ function csdl_sync_from_pccm() {
         return ['ok' => false, 'message' => 'Không tìm thấy thư mục data PCCM. Kiểm tra PCCM_DATA_PATH trong config.'];
     }
 
+    return cds_shadow_batch_run(function () {
     $pccm_teachers = load_json(PCCM_DATA_PATH . '/teachers.json', []);
     $pccm_meta = load_json(PCCM_DATA_PATH . '/teacher_meta.json', []);
     $pccm_classes = load_json(PCCM_DATA_PATH . '/classes.json', []);
@@ -222,6 +223,7 @@ function csdl_sync_from_pccm() {
         'classes_updated' => $updated_c,
         'roles' => $roles_count,
     ];
+    });
 }
 
 /* ========== CDS → PCCM ========== */
