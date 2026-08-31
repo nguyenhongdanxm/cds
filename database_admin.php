@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             cds_read_verify_set($enabled, current_user());
             flash(
                 $enabled
-                    ? 'Đã bật kiểm chứng đọc MySQL. Giao diện vẫn tiếp tục dùng JSON.'
+                    ? 'Đã bật kiểm chứng đọc MySQL.'
                     : 'Đã tắt kiểm chứng đọc MySQL.',
                 'success'
             );
@@ -111,6 +111,14 @@ $readVerifyEnabled = false;
 $readVerifyStatus = array();
 $sqlReadReady = false;
 $sqlReadEnabled = false;
+$sqlReadStatus = array(
+    'configured' => false,
+    'ready' => false,
+    'effective' => false,
+    'reason_code' => '',
+    'reason' => '',
+    'entities' => array(),
+);
 $coreTablesReady = false;
 if ($dbStatus['connected']) {
     try {
@@ -139,7 +147,8 @@ if ($dbStatus['connected']) {
                 $migrationStatus['pending']['20260830_005_safe_core_sql_read']
             );
             if ($sqlReadReady) {
-                $sqlReadEnabled = cds_core_sql_read_enabled();
+                $sqlReadStatus = cds_core_sql_read_status();
+                $sqlReadEnabled = !empty($sqlReadStatus['configured']);
             }
         }
     } catch (Throwable $e) {
@@ -185,9 +194,17 @@ include __DIR__ . '/includes/nav_top.php';
     </a>
   </div>
 
-  <div class="alert alert-info">
-    <strong>Chế độ an toàn:</strong> CDS vẫn đang đọc và ghi dữ liệu JSON.
-    MySQL hiện chỉ là nền chuẩn bị, chưa thay thế dữ liệu đang chạy.
+  <div class="alert <?= !empty($sqlReadStatus['configured']) && empty($sqlReadStatus['effective'])
+      ? 'alert-warning' : 'alert-info' ?>">
+    <strong>Chế độ an toàn:</strong>
+    <?php if (!empty($sqlReadStatus['effective'])): ?>
+      CDS đang đọc dữ liệu lõi từ MySQL; JSON vẫn được ghi song song và giữ làm bản dự phòng.
+    <?php elseif (!empty($sqlReadStatus['configured'])): ?>
+      CDS đã tự quay về đọc JSON vì <?= e($sqlReadStatus['reason']) ?>
+      Chế độ SQL sẽ tự hoạt động lại khi các điều kiện an toàn được khôi phục.
+    <?php else: ?>
+      CDS đang đọc và ghi dữ liệu JSON. MySQL chưa được chọn làm nguồn đọc dữ liệu lõi.
+    <?php endif; ?>
   </div>
 
   <div class="row g-3">
@@ -398,13 +415,15 @@ include __DIR__ . '/includes/nav_top.php';
   </section>
   <?php endif; ?>
 
-  <?php if ($coreComparison && $coreComparison['is_match'] && $readVerifyReady): ?>
+  <?php if ($coreComparison && $readVerifyReady): ?>
   <section class="status-card p-3 mt-3">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <div>
         <h5 class="mb-1"><i class="bi bi-shield-check"></i> Kiểm chứng đọc MySQL</h5>
         <p class="text-muted small mb-0">
-          Website vẫn trả dữ liệu JSON; MySQL chỉ được đọc âm thầm để đối chiếu.
+          <?= !empty($sqlReadStatus['effective'])
+              ? 'CDS đang đọc dữ liệu lõi từ MySQL; kết quả đối chiếu được giữ để bảo vệ cơ chế tự quay về JSON.'
+              : 'CDS đang đọc JSON; MySQL được đối chiếu để xác nhận đủ điều kiện đọc SQL an toàn.' ?>
         </p>
       </div>
       <span class="badge <?= $readVerifyEnabled ? 'text-bg-success' : 'text-bg-secondary' ?>">
@@ -435,7 +454,7 @@ include __DIR__ . '/includes/nav_top.php';
         <?php endforeach; ?>
       </div>
       <div class="alert alert-info mt-3 mb-0">
-        Nếu MySQL lỗi hoặc có sai lệch, website vẫn sử dụng JSON và tiếp tục hoạt động.
+        Nếu MySQL lỗi hoặc có sai lệch, website tự sử dụng JSON và tiếp tục hoạt động.
       </div>
     <?php endif; ?>
 
@@ -454,7 +473,7 @@ include __DIR__ . '/includes/nav_top.php';
   </section>
   <?php endif; ?>
 
-  <?php if ($coreComparison && $coreComparison['is_match'] && $sqlReadReady): ?>
+  <?php if ($sqlReadReady && $coreTablesReady): ?>
   <section class="status-card p-3 mt-3">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
       <div>
@@ -463,15 +482,34 @@ include __DIR__ . '/includes/nav_top.php';
           Áp dụng cho năm học, giáo viên, lớp và học sinh. JSON tiếp tục được lưu làm bản dự phòng.
         </p>
       </div>
-      <span class="badge <?= $sqlReadEnabled ? 'text-bg-success' : 'text-bg-secondary' ?>">
-        <?= $sqlReadEnabled ? 'Đang đọc SQL' : 'Đang đọc JSON' ?>
+      <?php
+      $sqlReadBadgeClass = !empty($sqlReadStatus['effective'])
+          ? 'text-bg-success'
+          : ($sqlReadEnabled ? 'text-bg-warning' : 'text-bg-secondary');
+      $sqlReadBadgeText = !empty($sqlReadStatus['effective'])
+          ? 'Đang đọc SQL'
+          : ($sqlReadEnabled ? 'Đã tự về JSON' : 'Đang đọc JSON');
+      ?>
+      <span class="badge <?= $sqlReadBadgeClass ?>">
+        <?= $sqlReadBadgeText ?>
       </span>
     </div>
     <div class="alert alert-info mt-3 mb-0">
       Khi SQL mất kết nối, ghi song song bị tắt hoặc dữ liệu không còn khớp,
       hệ thống tự động quay về JSON mà không cần quản trị can thiệp.
     </div>
-    <?php if (!$shadowWriteEnabled): ?>
+    <?php if ($sqlReadEnabled && empty($sqlReadStatus['effective'])): ?>
+      <div class="alert alert-warning mt-2 mb-0">
+        <strong>Đang dùng JSON dự phòng:</strong> <?= e($sqlReadStatus['reason']) ?>
+        <?php if (!empty($sqlReadStatus['entities'])): ?>
+          <ul class="mb-0 mt-1">
+            <?php foreach ($sqlReadStatus['entities'] as $entityType => $message): ?>
+              <li><?= e($coreLabels[$entityType] ?? $entityType) ?>: <?= e($message) ?></li>
+            <?php endforeach; ?>
+          </ul>
+        <?php endif; ?>
+      </div>
+    <?php elseif (!$shadowWriteEnabled): ?>
       <div class="alert alert-warning mt-2 mb-0">
         Cần bật <strong>Ghi song song dữ liệu lõi</strong> trước khi có thể bật đọc SQL.
       </div>
@@ -484,7 +522,7 @@ include __DIR__ . '/includes/nav_top.php';
       <input type="hidden" name="action" value="set_core_sql_read">
       <input type="hidden" name="enabled" value="<?= $sqlReadEnabled ? '0' : '1' ?>">
       <button type="submit" class="btn <?= $sqlReadEnabled ? 'btn-outline-secondary' : 'btn-primary' ?>"
-              <?= !$sqlReadEnabled && !$shadowWriteEnabled ? 'disabled' : '' ?>>
+              <?= !$sqlReadEnabled && empty($sqlReadStatus['ready']) ? 'disabled' : '' ?>>
         <i class="bi <?= $sqlReadEnabled ? 'bi-arrow-counterclockwise' : 'bi-database-check' ?>"></i>
         <?= $sqlReadEnabled ? 'Quay về đọc JSON' : 'Bật đọc SQL an toàn' ?>
       </button>
