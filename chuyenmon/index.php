@@ -89,6 +89,7 @@ if (is_logged_in()) {
       <div class="opacity-90 small mt-1">Năm học <?= e($app['year']) ?> · Hôm nay <?= date('d/m/Y') ?> · Tuần <?= date('d/m', strtotime($w0s)) ?>–<?= date('d/m', strtotime($w0e)) ?></div>
     </div>
     <div class="d-flex flex-wrap gap-2">
+      <?php if(cds_can_feature('cm.nhaplieu','edit')):?><a href="<?= BASE_URL ?>../tkb_xep.php" class="btn btn-sm btn-success fw-semibold"><i class="bi bi-cpu"></i> Xếp TKB</a><?php endif;?>
       <a href="<?= BASE_URL ?>kehoach.php" class="btn btn-sm btn-light"><i class="bi bi-calendar2-week"></i> Kế hoạch</a>
       <a href="<?= BASE_URL ?>baocao.php" class="btn btn-sm btn-outline-light"><i class="bi bi-file-earmark-text"></i> Báo cáo</a>
       <a href="<?= BASE_URL ?>them.php" class="btn btn-sm btn-warning text-dark fw-semibold"><i class="bi bi-clipboard-check"></i> PCCM</a>
