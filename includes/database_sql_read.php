@@ -22,16 +22,76 @@ function cds_core_sql_read_enabled()
 
 function cds_core_sql_read_ready()
 {
-    if (!cds_shadow_write_enabled()) return false;
+    $readiness = cds_core_sql_read_readiness();
+    return !empty($readiness['ready']);
+}
+
+/**
+ * Trả về nguyên nhân có thể khiến CDS phải dùng JSON. Hàm chỉ đọc các trạng
+ * thái sẵn có, không ghi log/bảng và không thay đổi nguồn dữ liệu.
+ */
+function cds_core_sql_read_readiness()
+{
+    if (!cds_shadow_write_enabled()) {
+        return array(
+            'ready' => false,
+            'reason_code' => 'shadow_write_disabled',
+            'reason' => 'Ghi song song JSON → MySQL đang tắt.',
+            'entities' => array(),
+        );
+    }
+
+    if (!cds_read_verify_enabled()) {
+        return array(
+            'ready' => false,
+            'reason_code' => 'read_verification_disabled',
+            'reason' => 'Kiểm chứng đọc MySQL đang tắt.',
+            'entities' => array(),
+        );
+    }
+
     $status = cds_read_verify_status();
+    $issues = array();
     foreach (array('years','teachers','classes','students') as $entityType) {
         $row = $status[$entityType] ?? null;
-        if (!$row || ($row['verify_status'] ?? '') !== 'match'
-            || (int)($row['json_count'] ?? -1) !== (int)($row['mysql_count'] ?? -2)) {
-            return false;
+        if (!$row) {
+            $issues[$entityType] = 'Chưa có kết quả kiểm chứng.';
+            continue;
+        }
+        if (($row['verify_status'] ?? '') !== 'match') {
+            $issues[$entityType] = 'Dữ liệu đang sai lệch.';
+            continue;
+        }
+        if ((int)($row['json_count'] ?? -1) !== (int)($row['mysql_count'] ?? -2)) {
+            $issues[$entityType] = 'Số lượng JSON và MySQL không khớp.';
         }
     }
-    return true;
+
+    if ($issues) {
+        return array(
+            'ready' => false,
+            'reason_code' => 'verification_not_match',
+            'reason' => 'Một hoặc nhiều nhóm dữ liệu chưa khớp.',
+            'entities' => $issues,
+        );
+    }
+
+    return array(
+        'ready' => true,
+        'reason_code' => '',
+        'reason' => '',
+        'entities' => array(),
+    );
+}
+
+function cds_core_sql_read_status()
+{
+    $configured = cds_core_sql_read_enabled();
+    $readiness = cds_core_sql_read_readiness();
+    return array_merge($readiness, array(
+        'configured' => $configured,
+        'effective' => $configured && !empty($readiness['ready']),
+    ));
 }
 
 function cds_core_sql_read_set($enabled, $actor)
@@ -65,7 +125,8 @@ function cds_core_sql_read_cache_clear($entityType = null)
 function cds_core_sql_rows($entityType)
 {
     if (!empty($GLOBALS['cds_force_json_core_read'])) return null;
-    if (!cds_core_sql_read_enabled() || !cds_core_sql_read_ready()) return null;
+    $readStatus = cds_core_sql_read_status();
+    if (empty($readStatus['effective'])) return null;
     $tables = array(
         'years' => 'cds_school_years',
         'teachers' => 'cds_teachers',
