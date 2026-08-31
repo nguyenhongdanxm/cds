@@ -5,6 +5,7 @@ require_once __DIR__ . '/includes/database_core_import.php';
 require_once __DIR__ . '/includes/database_shadow.php';
 require_once __DIR__ . '/includes/database_read_verify.php';
 require_once __DIR__ . '/includes/database_sql_read.php';
+require_once __DIR__ . '/includes/database_sql_write.php';
 require_admin();
 
 if (empty($_SESSION['cds_db_csrf'])) {
@@ -100,6 +101,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (($_POST['action'] ?? '') === 'set_core_sql_primary_write') {
+        try {
+            $enabled = ($_POST['enabled'] ?? '') === '1';
+            cds_core_sql_write_set($enabled, current_user());
+            flash($enabled
+                ? 'Đã bật thí điểm ghi MySQL trước cho giáo viên, lớp và học sinh.'
+                : 'Đã tắt thí điểm ghi MySQL trước; hệ thống trở lại JSON-first.', 'success');
+        } catch (Throwable $e) {
+            flash('Không thể đổi chế độ ghi MySQL trước: ' . $e->getMessage(), 'danger');
+        }
+    }
+
+    if (($_POST['action'] ?? '') === 'restore_core_json_backup') {
+        try {
+            $result = cds_core_sql_restore_json_backup();
+            flash('Đã phục hồi bản dự phòng JSON từ MySQL: ' . (int)$result['count'] . ' bản ghi.', 'success');
+        } catch (Throwable $e) {
+            flash('Không thể phục hồi bản dự phòng JSON: ' . $e->getMessage(), 'danger');
+        }
+    }
+
     header('Location: ' . BASE_URL . 'database_admin.php');
     exit;
 }
@@ -116,6 +138,9 @@ $readVerifyEnabled = false;
 $readVerifyStatus = array();
 $sqlReadReady = false;
 $sqlReadEnabled = false;
+$sqlWriteReady = false;
+$sqlWriteEnabled = false;
+$sqlWriteReadiness = array('ready' => false, 'reason' => 'Chưa cài đặt bản nâng cấp.');
 $sqlReadStatus = array(
     'configured' => false,
     'ready' => false,
@@ -154,6 +179,11 @@ if ($dbStatus['connected']) {
             if ($sqlReadReady) {
                 $sqlReadStatus = cds_core_sql_read_status();
                 $sqlReadEnabled = !empty($sqlReadStatus['configured']);
+            }
+            $sqlWriteReady = !isset($migrationStatus['pending']['20260831_006_pilot_core_sql_primary_write']);
+            if ($sqlWriteReady) {
+                $sqlWriteEnabled = cds_core_sql_write_enabled();
+                $sqlWriteReadiness = cds_core_sql_write_readiness();
             }
         }
     } catch (Throwable $e) {
@@ -531,6 +561,50 @@ include __DIR__ . '/includes/nav_top.php';
               <?= !$sqlReadEnabled && empty($sqlReadStatus['ready']) ? 'disabled' : '' ?>>
         <i class="bi <?= $sqlReadEnabled ? 'bi-arrow-counterclockwise' : 'bi-database-check' ?>"></i>
         <?= $sqlReadEnabled ? 'Quay về đọc JSON' : 'Bật đọc SQL an toàn' ?>
+      </button>
+    </form>
+  </section>
+  <?php endif; ?>
+
+  <?php if ($sqlWriteReady && $coreTablesReady): ?>
+  <section class="status-card p-3 mt-3 border border-warning-subtle">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div>
+        <h5 class="mb-1"><i class="bi bi-database-gear"></i> Thí điểm ghi MySQL trước</h5>
+        <p class="text-muted small mb-0">
+          Chỉ áp dụng cho giáo viên, lớp và học sinh. MySQL được ghi trong transaction trước;
+          JSON tiếp tục được cập nhật nguyên tử làm bản dự phòng. Năm học và thao tác hàng loạt
+          vẫn giữ JSON-first rồi đồng bộ MySQL một lần khi hoàn tất.
+        </p>
+      </div>
+      <span class="badge <?= $sqlWriteEnabled ? 'text-bg-warning' : 'text-bg-secondary' ?>">
+        <?= $sqlWriteEnabled ? 'Đang thí điểm' : 'Mặc định tắt' ?>
+      </span>
+    </div>
+    <?php if (!$sqlWriteEnabled && empty($sqlWriteReadiness['ready'])): ?>
+      <div class="alert alert-warning mt-3 mb-0"><?= e($sqlWriteReadiness['reason']) ?></div>
+    <?php endif; ?>
+    <?php if (cds_core_sql_backup_pending_status()): ?>
+      <div class="alert alert-danger mt-3 mb-0">
+        Có bản dự phòng JSON chưa hoàn tất. Không bật hoặc tiếp tục thí điểm cho tới khi phục hồi.
+      </div>
+      <form method="post" class="mt-2"
+            onsubmit="return confirm('Phục hồi toàn bộ tệp JSON của nhóm đang chờ từ raw_json trong MySQL?');">
+        <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
+        <input type="hidden" name="action" value="restore_core_json_backup">
+        <button type="submit" class="btn btn-danger btn-sm">Phục hồi JSON từ MySQL</button>
+      </form>
+    <?php endif; ?>
+    <form method="post" class="mt-3"
+          onsubmit="return confirm('<?= $sqlWriteEnabled
+              ? 'Tắt ghi MySQL trước và quay lại JSON-first?'
+              : 'Bật chế độ thí điểm ghi MySQL trước? Chỉ thực hiện sau khi đã sao lưu và kiểm thử.' ?>');">
+      <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
+      <input type="hidden" name="action" value="set_core_sql_primary_write">
+      <input type="hidden" name="enabled" value="<?= $sqlWriteEnabled ? '0' : '1' ?>">
+      <button type="submit" class="btn <?= $sqlWriteEnabled ? 'btn-outline-secondary' : 'btn-warning' ?>"
+              <?= !$sqlWriteEnabled && empty($sqlWriteReadiness['ready']) ? 'disabled' : '' ?>>
+        <?= $sqlWriteEnabled ? 'Tắt thí điểm' : 'Bật thí điểm có kiểm soát' ?>
       </button>
     </form>
   </section>

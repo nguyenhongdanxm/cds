@@ -98,6 +98,11 @@ function cds_shadow_batch_begin()
     if ($depth === 0) {
         $GLOBALS['cds_shadow_batch_enabled'] = cds_shadow_write_enabled();
         $GLOBALS['cds_shadow_batch_dirty'] = array();
+        $GLOBALS['cds_shadow_batch_previous_force_json'] = !empty($GLOBALS['cds_force_json_core_read']);
+        // Trong một lô, các lần lưu sau phải thấy JSON vừa được lần lưu trước
+        // cập nhật; nếu tiếp tục đọc cache SQL, các dòng trước có thể bị mất.
+        $GLOBALS['cds_force_json_core_read'] = true;
+        if (function_exists('cds_core_sql_read_cache_clear')) cds_core_sql_read_cache_clear();
     }
     $GLOBALS['cds_shadow_batch_depth'] = $depth + 1;
 }
@@ -150,11 +155,16 @@ function cds_shadow_batch_end()
 
     $enabled = !empty($GLOBALS['cds_shadow_batch_enabled']);
     $dirty = (array)($GLOBALS['cds_shadow_batch_dirty'] ?? array());
+    $previousForceJson = !empty($GLOBALS['cds_shadow_batch_previous_force_json']);
     unset(
         $GLOBALS['cds_shadow_batch_enabled'],
         $GLOBALS['cds_shadow_batch_dirty'],
+        $GLOBALS['cds_shadow_batch_previous_force_json'],
         $GLOBALS['cds_shadow_batch_depth']
     );
+    if ($previousForceJson) $GLOBALS['cds_force_json_core_read'] = true;
+    else unset($GLOBALS['cds_force_json_core_read']);
+    if (function_exists('cds_core_sql_read_cache_clear')) cds_core_sql_read_cache_clear();
     if (!$enabled || !$dirty) return true;
 
     $types = array_keys($dirty);
