@@ -123,6 +123,36 @@ function vb_download_url(string $path): string {
     return $url . (str_contains($url, '?') ? '&' : '?') . 'download=1';
 }
 
+/** Tạo liên kết tạm thời để dịch vụ xem Office đọc tệp mà không công khai đường dẫn lưu trữ. */
+function vb_preview_secret(): string {
+    $file = DATA_PATH . '/vanban_preview_secret.key';
+    $secret = is_file($file) ? trim((string)@file_get_contents($file)) : '';
+    if (strlen($secret) >= 48) return $secret;
+    $handle = @fopen($file, 'c+');
+    if ($handle) {
+        @flock($handle, LOCK_EX);
+        rewind($handle); $secret = trim((string)stream_get_contents($handle));
+        if (strlen($secret) < 48) {
+            $secret = bin2hex(random_bytes(32));
+            ftruncate($handle, 0); rewind($handle); fwrite($handle, $secret); fflush($handle);
+        }
+        @flock($handle, LOCK_UN); fclose($handle); @chmod($file, 0600);
+        return $secret;
+    }
+    /* DATA_PATH vốn phải ghi được để CDS hoạt động; nhánh này chỉ giữ thông báo lỗi rõ ràng. */
+    throw new RuntimeException('Không tạo được khóa xem trước văn bản trong thư mục dữ liệu.');
+}
+
+function vb_office_preview_source(string $kind, string $id, int $index = 0): string {
+    if (!in_array($kind, ['document','number','archive'], true) || $id === '') return '';
+    $expires = time() + 1800;
+    $payload = $kind . '|' . $id . '|' . max(0, $index) . '|' . $expires;
+    $token = hash_hmac('sha256', $payload, vb_preview_secret());
+    return BASE_URL . 'vanban_preview_file.php?' . http_build_query([
+        'kind'=>$kind, 'id'=>$id, 'file'=>max(0, $index), 'expires'=>$expires, 'token'=>$token,
+    ]);
+}
+
 function vb_delete_file(string $path): bool {
     if ($path === '') return true;
     if (str_starts_with($path, 'gdrive:')) {

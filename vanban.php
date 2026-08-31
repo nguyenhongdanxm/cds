@@ -422,7 +422,7 @@ if(previewDialog){
   previewDialog.querySelector('[data-preview-close]').addEventListener('click',closePreview);
   previewDialog.addEventListener('cancel',event=>{event.preventDefault();closePreview()});
   previewDialog.addEventListener('click',event=>{if(event.target===previewDialog)frame.src='about:blank'});
-  document.querySelectorAll('.preview-document').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();title.textContent=link.dataset.title||'Xem văn bản';if(link.dataset.previewable==='0'){frame.removeAttribute('src');frame.srcdoc='<div style="font-family:system-ui;text-align:center;padding:12vh 2rem;color:#344054"><h2>Định dạng này không xem trực tiếp trong trình duyệt</h2><p>Văn bản chưa được tải xuống. Hãy bấm <b>Tải về</b> khi cần mở bằng Word, Excel hoặc PowerPoint.</p></div>'}else{frame.removeAttribute('srcdoc');frame.src=link.href}download.href=link.dataset.download||link.href;previewDialog.showModal()}));
+  document.querySelectorAll('.preview-document').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();title.textContent=link.dataset.title||'Xem văn bản';frame.removeAttribute('srcdoc');if(link.dataset.previewable==='0'&&link.dataset.officeSource){const source=new URL(link.dataset.officeSource,window.location.href).href;frame.src='https://view.officeapps.live.com/op/embed.aspx?src='+encodeURIComponent(source)}else{frame.src=link.href}download.href=link.dataset.download||link.href;previewDialog.showModal()}));
 }
 const numberUploadDialog=document.getElementById('numberUploadDialog');
 if(numberUploadDialog){
