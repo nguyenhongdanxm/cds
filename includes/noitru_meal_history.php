@@ -89,6 +89,7 @@ function nt_meal_history_delete_related_data(array $historyRows) {
     unset($mealRow);
     $mealRows = array_values(array_filter($mealRows, fn($row) => isset($row['sang']) || isset($row['trua']) || isset($row['toi'])));
     if (!save_json(NOITRU_MEALS, $mealRows)) return 0;
+    noitru_meal_read_cache_clear();
     if (!cds_meal_shadow_sync('history_delete')) cds_meal_shadow_notify_failure();
     return $beforeReports - count($reportData['reports']);
 }

@@ -26,13 +26,17 @@ function cds_meal_pending_mark($scope)
     $dir = dirname($path);
     if (!is_dir($dir) && !@mkdir($dir, 0755, true)) return false;
     $payload = cds_meal_json(array('at' => date('c'), 'scope' => (string)$scope));
-    return $payload !== false && @file_put_contents($path, $payload, LOCK_EX) !== false;
+    $saved = $payload !== false && @file_put_contents($path, $payload, LOCK_EX) !== false;
+    unset($GLOBALS['cds_meal_sql_read_status_cache']);
+    return $saved;
 }
 
 function cds_meal_pending_clear()
 {
     $path = cds_meal_pending_path();
-    return $path === '' || !is_file($path) || @unlink($path);
+    $cleared = $path === '' || !is_file($path) || @unlink($path);
+    unset($GLOBALS['cds_meal_sql_read_status_cache']);
+    return $cleared;
 }
 
 function cds_meal_shadow_enabled()
@@ -77,6 +81,7 @@ function cds_meal_shadow_set($enabled, $actor)
         throw $e;
     }
     $GLOBALS['cds_meal_shadow_enabled_cache'] = (bool)$enabled;
+    unset($GLOBALS['cds_meal_sql_read_status_cache']);
 }
 
 function cds_meal_source_snapshot()
@@ -289,6 +294,8 @@ function cds_meal_shadow_notify_failure()
     static $shown = false;
     if ($shown) return;
     $shown = true;
+    $GLOBALS['cds_force_json_meal_read'] = true;
+    unset($GLOBALS['cds_meal_sql_read_status_cache']);
     if (function_exists('flash')) {
         flash('Dữ liệu báo ăn đã lưu an toàn vào JSON; bản sao MySQL đang chờ đồng bộ lại.', 'warning');
     }
