@@ -200,6 +200,14 @@ function cds_db_migrations()
                  VALUES ('core_sql_read', '0', 'migration')",
             ),
         ),
+        '20260831_006_pilot_core_sql_primary_write' => array(
+            'description' => 'Công tắc thí điểm ghi MySQL trước cho giáo viên, lớp và học sinh',
+            'statements' => array(
+                "INSERT IGNORE INTO cds_runtime_settings
+                    (setting_key, setting_value, updated_by)
+                 VALUES ('core_sql_primary_write', '0', 'migration')",
+            ),
+        ),
     );
 }
 
