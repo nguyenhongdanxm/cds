@@ -41,6 +41,53 @@ function cds_shadow_write_set($enabled, $actor)
     $GLOBALS['cds_shadow_write_enabled_cache'] = (bool)$enabled;
 }
 
+function cds_shadow_pending_path()
+{
+    return defined('DATA_PATH') ? DATA_PATH . '/mysql_shadow_pending.json' : '';
+}
+
+function cds_shadow_pending_status()
+{
+    $path = cds_shadow_pending_path();
+    if ($path === '' || !is_file($path)) return null;
+    $decoded = json_decode((string)@file_get_contents($path), true);
+    return is_array($decoded) ? $decoded : array('at' => '', 'entity_type' => '', 'entity_id' => '');
+}
+
+function cds_shadow_pending_mark($entityType, $entityId)
+{
+    $path = cds_shadow_pending_path();
+    if ($path === '') return false;
+    if (empty($GLOBALS['cds_shadow_pending_token'])) {
+        try {
+            $GLOBALS['cds_shadow_pending_token'] = bin2hex(random_bytes(16));
+        } catch (Throwable $e) {
+            $GLOBALS['cds_shadow_pending_token'] = uniqid('shadow_', true);
+        }
+    }
+    $payload = json_encode(array(
+        'token' => (string)$GLOBALS['cds_shadow_pending_token'],
+        'at' => date('c'),
+        'entity_type' => (string)$entityType,
+        'entity_id' => (string)$entityId,
+    ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    return @file_put_contents($path, $payload, LOCK_EX) !== false;
+}
+
+function cds_shadow_pending_clear()
+{
+    $path = cds_shadow_pending_path();
+    if ($path === '' || !is_file($path)) return true;
+    $token = (string)($GLOBALS['cds_shadow_pending_token'] ?? '');
+    if ($token !== '') {
+        $current = cds_shadow_pending_status();
+        if (is_array($current) && (string)($current['token'] ?? '') !== $token) {
+            return true;
+        }
+    }
+    return @unlink($path);
+}
+
 /**
  * Bắt đầu một thao tác hàng loạt. Trong khoảng này các hàm save/delete vẫn
  * ghi JSON như cũ, nhưng MySQL chỉ được đồng bộ một lần khi kết thúc.
@@ -79,7 +126,12 @@ function cds_shadow_refresh_snapshot($sourceType, $sourceLabel, $context = array
         $actor = is_array($actor) ? $actor : array();
         foreach ((array)$context as $key => $value) $actor[(string)$key] = $value;
         $result = cds_core_import_snapshot($actor, (string)$sourceType, (string)$sourceLabel);
-        cds_read_verify_mark_snapshot_match($result['counts'] ?? array());
+        if (!cds_read_verify_mark_snapshot_match($result['counts'] ?? array())) {
+            throw new RuntimeException('Đã cập nhật MySQL nhưng chưa xác nhận được trạng thái kiểm chứng.');
+        }
+        if (!cds_shadow_pending_clear()) {
+            throw new RuntimeException('MySQL đã đồng bộ nhưng chưa xóa được dấu đồng bộ đang chờ.');
+        }
         return true;
     } catch (Throwable $e) {
         cds_shadow_notify_failure($e->getMessage());
@@ -141,11 +193,44 @@ function cds_shadow_refresh_core($entityType, $entityId)
                 $GLOBALS['cds_shadow_batch_dirty'][$type] = array();
             }
             $GLOBALS['cds_shadow_batch_dirty'][$type][(string)$entityId] = true;
+            if (!cds_shadow_pending_mark($type, (string)$entityId)) {
+                cds_read_verify_mark_snapshot_pending();
+            }
         }
         return true;
     }
 
     if (!cds_shadow_write_enabled()) return true;
+
+    $hadPendingSync = is_array(cds_shadow_pending_status());
+    if (!cds_shadow_pending_mark((string)$entityType, (string)$entityId)) {
+        cds_read_verify_mark_snapshot_pending();
+        cds_shadow_notify_failure('Không tạo được dấu đồng bộ MySQL đang chờ.');
+        return false;
+    }
+
+    if ($hadPendingSync) {
+        return cds_shadow_refresh_snapshot(
+            'json_shadow_recovery',
+            'Khôi phục MySQL sau lần đồng bộ chưa hoàn tất',
+            array(
+                'shadow_entity_type' => (string)$entityType,
+                'shadow_entity_id' => (string)$entityId,
+            )
+        );
+    }
+
+    if (in_array((string)$entityType, array('teacher','class','student'), true)) {
+        try {
+            require_once __DIR__ . '/database_core_incremental.php';
+            return cds_core_incremental_sync((string)$entityType, (string)$entityId);
+        } catch (Throwable $e) {
+            cds_shadow_notify_failure(
+                (string)$entityType . ' ' . (string)$entityId . ': ' . $e->getMessage()
+            );
+            return false;
+        }
+    }
 
     return cds_shadow_refresh_snapshot(
         'json_shadow',
