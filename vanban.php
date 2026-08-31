@@ -337,7 +337,7 @@ if(documentDialog){
 }
 const numberDialog=document.getElementById('numberDialog');
 if(numberDialog){
-  const form=numberDialog.querySelector('form'),submit=form.querySelector('button[type="submit"],button:not([type])'),rows=<?=json_encode($tab==='numbers'?$numbers:[],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;
+  const form=numberDialog.querySelector('form'),submit=form.querySelector('button[type="submit"],button:not([type])'),rows=<?=json_encode($tab==='numbers'?$filteredNumbers:[],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;
   const symbolInput=form.elements.symbol,dateInput=form.elements.issued_date;
   symbolInput.placeholder='Ví dụ: 25/QĐ-NTXM hoặc 26/KH-NTXM';
   function suggestedSymbol(){
@@ -349,7 +349,7 @@ if(numberDialog){
   function syncSuggestedSymbol(){if(!form.elements.id||!form.elements.id.value)symbolInput.value=suggestedSymbol()}
   form.querySelectorAll('input[name="book"]').forEach(input=>input.addEventListener('change',syncSuggestedSymbol));
   dateInput.addEventListener('change',syncSuggestedSymbol);
-  const tableRows=document.querySelectorAll('main .table tbody tr');
+  const tableRows=document.querySelectorAll('main .number-table tbody tr');
   rows.forEach((row,index)=>{const tr=tableRows[index];if(!tr)return;const cell=tr.lastElementChild;if(!cell)return;const actions=document.createElement('div');actions.className='row-actions';Array.from(cell.children).forEach(child=>actions.appendChild(child));
     const edit=document.createElement('button');edit.type='button';edit.className='btn btn-outline';edit.innerHTML='<i class="bi bi-pencil"></i> Sửa';edit.addEventListener('click',()=>{form.reset();hiddenInput(form,'id',row.id);const radio=form.querySelector('input[name="book"][value="'+row.book+'"]');if(radio)radio.checked=true;['symbol','title','issued_date','issuer','drafter','signer'].forEach(name=>{if(form.elements[name])form.elements[name].value=row[name]||''});submit.innerHTML='<i class="bi bi-check2-circle"></i> Lưu thay đổi';numberDialog.showModal()});actions.appendChild(edit);
     const del=document.createElement('form');del.method='post';del.innerHTML='<input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="delete_number"><input type="hidden" name="return_tab" value="numbers"><input type="hidden" name="id" value="'+String(row.id).replace(/"/g,'&quot;')+'"><button class="btn btn-danger" type="submit"><i class="bi bi-trash"></i></button>';del.addEventListener('submit',event=>{if(!confirm('Xóa số văn bản '+row.symbol+'?'))event.preventDefault()});actions.appendChild(del);cell.appendChild(actions)
