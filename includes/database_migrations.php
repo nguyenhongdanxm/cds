@@ -224,6 +224,57 @@ function cds_db_migrations()
                  VALUES ('core_sql_primary_batch_write', '0', 'migration')",
             ),
         ),
+        '20260831_009_meal_mysql_foundation' => array(
+            'description' => 'Nền MySQL báo ăn với công tắc ghi bản sao mặc định tắt',
+            'statements' => array(
+                "CREATE TABLE IF NOT EXISTS cds_meal_daily (
+                    meal_date DATE NOT NULL,
+                    student_id VARCHAR(100) NOT NULL,
+                    breakfast VARCHAR(20) NOT NULL DEFAULT '',
+                    lunch VARCHAR(20) NOT NULL DEFAULT '',
+                    dinner VARCHAR(20) NOT NULL DEFAULT '',
+                    is_locked TINYINT(1) NOT NULL DEFAULT 0,
+                    raw_json LONGTEXT NOT NULL,
+                    source_updated_at DATETIME NULL,
+                    imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (meal_date, student_id),
+                    KEY idx_cds_meal_student_date (student_id, meal_date),
+                    KEY idx_cds_meal_date_locked (meal_date, is_locked)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "CREATE TABLE IF NOT EXISTS cds_meal_reports (
+                    id VARCHAR(100) NOT NULL,
+                    meal_date DATE NOT NULL,
+                    class_name VARCHAR(100) NOT NULL,
+                    meal_code VARCHAR(20) NOT NULL,
+                    student_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+                    absent_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+                    raw_json LONGTEXT NOT NULL,
+                    source_updated_at DATETIME NULL,
+                    imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    UNIQUE KEY uq_cds_meal_report_target (meal_date, class_name, meal_code),
+                    KEY idx_cds_meal_report_date (meal_date)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "CREATE TABLE IF NOT EXISTS cds_meal_states (
+                    meal_date DATE NOT NULL,
+                    meal_code VARCHAR(20) NOT NULL,
+                    status_code VARCHAR(30) NOT NULL DEFAULT 'open',
+                    raw_json LONGTEXT NOT NULL,
+                    source_updated_at DATETIME NULL,
+                    imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (meal_date, meal_code)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "CREATE TABLE IF NOT EXISTS cds_meal_settings (
+                    id TINYINT UNSIGNED NOT NULL,
+                    raw_json LONGTEXT NOT NULL,
+                    imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "INSERT IGNORE INTO cds_runtime_settings
+                    (setting_key, setting_value, updated_by)
+                 VALUES ('meal_shadow_write', '0', 'migration')",
+            ),
+        ),
     );
 }
 
