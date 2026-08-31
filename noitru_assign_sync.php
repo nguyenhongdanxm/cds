@@ -36,6 +36,7 @@ $unchanged = 0;
 $skipped = 0;
 $failed = 0;
 $shadowSyncOk = true;
+$batchCommit = false;
 cds_shadow_batch_begin();
 try {
 foreach ($map as $studentId => $target) {
@@ -61,8 +62,9 @@ foreach ($map as $studentId => $target) {
         $failed++;
     }
 }
+$batchCommit = true;
 } finally {
-    $shadowSyncOk = cds_shadow_batch_end();
+    $shadowSyncOk = cds_shadow_batch_end($batchCommit);
 }
 
 $user = current_user();

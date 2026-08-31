@@ -125,6 +125,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (($_POST['action'] ?? '') === 'set_core_sql_primary_batch_write') {
+        try {
+            $enabled = ($_POST['enabled'] ?? '') === '1';
+            cds_core_sql_batch_write_set($enabled, current_user());
+            flash($enabled
+                ? 'Đã bật giai đoạn 2B cho nhập và xóa hàng loạt có transaction.'
+                : 'Đã tắt giai đoạn 2B; thao tác hàng loạt trở lại cơ chế JSON-first.', 'success');
+        } catch (Throwable $e) {
+            flash('Không thể đổi chế độ 2B: ' . $e->getMessage(), 'danger');
+        }
+    }
+
     if (($_POST['action'] ?? '') === 'restore_core_json_backup') {
         try {
             $result = cds_core_sql_restore_json_backup();
@@ -156,6 +168,9 @@ $sqlWriteReadiness = array('ready' => false, 'reason' => 'Chưa cài đặt bả
 $yearWriteReady = false;
 $yearWriteEnabled = false;
 $yearWriteReadiness = array('ready' => false, 'reason' => 'Chưa cài đặt bản nâng cấp.');
+$batchWriteReady = false;
+$batchWriteEnabled = false;
+$batchWriteReadiness = array('ready' => false, 'reason' => 'Chưa cài đặt bản nâng cấp.');
 $sqlReadStatus = array(
     'configured' => false,
     'ready' => false,
@@ -204,6 +219,11 @@ if ($dbStatus['connected']) {
             if ($yearWriteReady) {
                 $yearWriteEnabled = cds_core_sql_year_write_enabled();
                 $yearWriteReadiness = cds_core_sql_year_write_readiness();
+            }
+            $batchWriteReady = !isset($migrationStatus['pending']['20260831_008_pilot_batch_sql_write']);
+            if ($batchWriteReady) {
+                $batchWriteEnabled = cds_core_sql_batch_write_enabled();
+                $batchWriteReadiness = cds_core_sql_batch_write_readiness();
             }
         }
     } catch (Throwable $e) {
@@ -658,6 +678,39 @@ include __DIR__ . '/includes/nav_top.php';
       <button type="submit" class="btn <?= $yearWriteEnabled ? 'btn-outline-secondary' : 'btn-primary' ?>"
               <?= !$yearWriteEnabled && empty($yearWriteReadiness['ready']) ? 'disabled' : '' ?>>
         <?= $yearWriteEnabled ? 'Tắt thí điểm 2A' : 'Bật thí điểm 2A có kiểm soát' ?>
+      </button>
+    </form>
+  </section>
+  <?php endif; ?>
+
+  <?php if ($batchWriteReady && $coreTablesReady): ?>
+  <section class="status-card p-3 mt-3 border border-success-subtle">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div>
+        <h5 class="mb-1"><i class="bi bi-database-check"></i> Giai đoạn 2B – nhập và xóa hàng loạt an toàn</h5>
+        <p class="text-muted small mb-0">
+          Dữ liệu lõi được giữ trong vùng tạm và kiểm tra toàn bộ trước khi ghi MySQL bằng một transaction.
+          Chỉ sau khi MySQL hoàn tất, các tệp JSON dự phòng mới được cập nhật. Nếu lô lỗi trước commit,
+          dữ liệu đang vận hành không thay đổi; nếu JSON dự phòng lỗi, hệ thống giữ dấu phục hồi toàn bộ từ MySQL.
+        </p>
+      </div>
+      <span class="badge <?= $batchWriteEnabled ? 'text-bg-success' : 'text-bg-secondary' ?>">
+        <?= $batchWriteEnabled ? 'Đang thí điểm 2B' : 'Mặc định tắt' ?>
+      </span>
+    </div>
+    <?php if (!$batchWriteEnabled && empty($batchWriteReadiness['ready'])): ?>
+      <div class="alert alert-warning mt-3 mb-0"><?= e($batchWriteReadiness['reason']) ?></div>
+    <?php endif; ?>
+    <form method="post" class="mt-3"
+          onsubmit="return confirm('<?= $batchWriteEnabled
+              ? 'Tắt giai đoạn 2B và quay lại xử lý hàng loạt JSON-first?'
+              : 'Bật giai đoạn 2B? Hãy thử trước bằng một lô nhỏ có thể đối chiếu.' ?>');">
+      <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
+      <input type="hidden" name="action" value="set_core_sql_primary_batch_write">
+      <input type="hidden" name="enabled" value="<?= $batchWriteEnabled ? '0' : '1' ?>">
+      <button type="submit" class="btn <?= $batchWriteEnabled ? 'btn-outline-secondary' : 'btn-success' ?>"
+              <?= !$batchWriteEnabled && empty($batchWriteReadiness['ready']) ? 'disabled' : '' ?>>
+        <?= $batchWriteEnabled ? 'Tắt thí điểm 2B' : 'Bật 2B có kiểm soát' ?>
       </button>
     </form>
   </section>

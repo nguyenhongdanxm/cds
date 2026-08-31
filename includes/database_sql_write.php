@@ -21,6 +21,48 @@ function cds_core_sql_write_enabled()
     }
 }
 
+function cds_core_sql_batch_write_enabled()
+{
+    if (array_key_exists('cds_core_sql_batch_write_enabled_cache', $GLOBALS)) {
+        return (bool)$GLOBALS['cds_core_sql_batch_write_enabled_cache'];
+    }
+    try {
+        $stmt = cds_db()->query(
+            "SELECT setting_value FROM cds_runtime_settings WHERE setting_key='core_sql_primary_batch_write'"
+        );
+        $enabled = (string)$stmt->fetchColumn() === '1';
+        $GLOBALS['cds_core_sql_batch_write_enabled_cache'] = $enabled;
+        return $enabled;
+    } catch (Throwable $e) {
+        $GLOBALS['cds_core_sql_batch_write_enabled_cache'] = false;
+        return false;
+    }
+}
+
+function cds_core_sql_batch_write_readiness()
+{
+    if (!cds_core_sql_write_enabled() || !cds_core_sql_year_write_enabled()) {
+        return array('ready' => false, 'reason' => 'Cần bật và kiểm thử thành công giai đoạn ghi đơn lẻ và 2A trước.');
+    }
+    return cds_core_sql_write_readiness();
+}
+
+function cds_core_sql_batch_write_set($enabled, $actor)
+{
+    if ($enabled) {
+        $readiness = cds_core_sql_batch_write_readiness();
+        if (empty($readiness['ready'])) throw new RuntimeException($readiness['reason']);
+    }
+    $stmt = cds_db()->prepare(
+        "INSERT INTO cds_runtime_settings (setting_key, setting_value, updated_by, updated_at)
+         VALUES ('core_sql_primary_batch_write', ?, ?, NOW())
+         ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),
+             updated_by=VALUES(updated_by), updated_at=NOW()"
+    );
+    $stmt->execute(array($enabled ? '1' : '0', (string)($actor['username'] ?? $actor['name'] ?? '')));
+    $GLOBALS['cds_core_sql_batch_write_enabled_cache'] = (bool)$enabled;
+}
+
 function cds_core_sql_write_readiness()
 {
     $read = cds_core_sql_read_status();
@@ -65,6 +107,16 @@ function cds_core_sql_write_set($enabled, $actor)
             // Migration 007 có thể chưa được cài; công tắc cha vẫn được tắt an toàn.
         }
         $GLOBALS['cds_core_sql_year_write_enabled_cache'] = false;
+        try {
+            $disableBatch = cds_db()->prepare(
+                "UPDATE cds_runtime_settings SET setting_value='0', updated_by=?, updated_at=NOW()
+                 WHERE setting_key='core_sql_primary_batch_write'"
+            );
+            $disableBatch->execute(array((string)($actor['username'] ?? $actor['name'] ?? '')));
+        } catch (Throwable $e) {
+            // Migration 008 có thể chưa được cài.
+        }
+        $GLOBALS['cds_core_sql_batch_write_enabled_cache'] = false;
     }
 }
 
@@ -109,6 +161,18 @@ function cds_core_sql_year_write_set($enabled, $actor)
     );
     $stmt->execute(array($enabled ? '1' : '0', (string)($actor['username'] ?? $actor['name'] ?? '')));
     $GLOBALS['cds_core_sql_year_write_enabled_cache'] = (bool)$enabled;
+    if (!$enabled) {
+        try {
+            $stmt = cds_db()->prepare(
+                "UPDATE cds_runtime_settings SET setting_value='0', updated_by=?, updated_at=NOW()
+                 WHERE setting_key='core_sql_primary_batch_write'"
+            );
+            $stmt->execute(array((string)($actor['username'] ?? $actor['name'] ?? '')));
+        } catch (Throwable $e) {
+            // Migration 008 có thể chưa được cài.
+        }
+        $GLOBALS['cds_core_sql_batch_write_enabled_cache'] = false;
+    }
 }
 
 function cds_core_sql_backup_pending_path()
@@ -164,6 +228,34 @@ function cds_core_sql_restore_json_backup()
         'student' => array('verify' => 'students', 'table' => 'cds_students', 'file' => defined('DATA_PATH') ? DATA_PATH . '/students.json' : ''),
     );
     $type = (string)($pending['entity_type'] ?? '');
+    if ($type === 'core_batch') {
+        $allRows = array();
+        foreach ($types as $entityType => $meta) {
+            $stmt = cds_db()->query('SELECT raw_json FROM ' . $meta['table'] . ' ORDER BY id');
+            $rows = array();
+            while ($dbRow = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $row = json_decode((string)($dbRow['raw_json'] ?? ''), true);
+                if (!is_array($row) || trim((string)($row['id'] ?? '')) === '') {
+                    throw new RuntimeException('MySQL có raw_json không hợp lệ; chưa thay đổi tệp dự phòng.');
+                }
+                $rows[] = $row;
+            }
+            if (!$rows) throw new RuntimeException('Từ chối phục hồi lô vì nhóm ' . $entityType . ' đang rỗng.');
+            $allRows[$entityType] = $rows;
+        }
+        $total = 0;
+        foreach ($types as $entityType => $meta) {
+            $rows = $allRows[$entityType];
+            if (!cds_json_save($meta['file'], $rows)) {
+                throw new RuntimeException('Chưa phục hồi được ' . basename($meta['file']) . '.');
+            }
+            $total += count($rows);
+            cds_read_verify_mark_entity_match($meta['verify'], count($rows));
+        }
+        if (function_exists('cds_core_sql_read_cache_clear')) cds_core_sql_read_cache_clear();
+        if (!cds_core_sql_backup_pending_clear()) throw new RuntimeException('Đã phục hồi JSON nhưng chưa xóa được dấu đang chờ.');
+        return array('entity_type' => $type, 'count' => $total);
+    }
     if (!isset($types[$type]) || $types[$type]['file'] === '') {
         throw new RuntimeException('Dấu phục hồi không xác định được nhóm dữ liệu.');
     }
@@ -200,6 +292,7 @@ function cds_core_sql_years_map(array $rows)
 
 function cds_core_sql_primary_year_save($entityId, array $originalYears, array $years, $jsonFile)
 {
+    if (function_exists('cds_batch_primary_staging_active') && cds_batch_primary_staging_active()) return false;
     if (!cds_core_sql_year_write_enabled()) return false;
     $readiness = cds_core_sql_year_write_readiness();
     if (empty($readiness['ready'])) throw new RuntimeException($readiness['reason']);
@@ -311,6 +404,7 @@ function cds_core_sql_assert_unchanged_rows(PDO $pdo, $table, $entityId, array $
  */
 function cds_core_sql_primary_save($entityType, $entityId, array $rows, $jsonFile)
 {
+    if (function_exists('cds_batch_primary_staging_active') && cds_batch_primary_staging_active()) return false;
     if (!cds_core_sql_write_enabled()) return false;
     // Nhập/xóa hàng loạt tiếp tục dùng JSON-first và chỉ chụp MySQL một lần.
     // Việc này tránh hàng trăm transaction SQL trong một yêu cầu.

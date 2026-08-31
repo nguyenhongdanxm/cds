@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/database_read_verify.php';
+require_once __DIR__ . '/database_batch_primary.php';
 
 function cds_shadow_write_enabled()
 {
@@ -88,10 +89,7 @@ function cds_shadow_pending_clear()
     return @unlink($path);
 }
 
-/**
- * Bắt đầu một thao tác hàng loạt. Trong khoảng này các hàm save/delete vẫn
- * ghi JSON như cũ, nhưng MySQL chỉ được đồng bộ một lần khi kết thúc.
- */
+/** Bắt đầu lô: JSON-first như cũ, hoặc vùng tạm 2B khi công tắc đã sẵn sàng. */
 function cds_shadow_batch_begin()
 {
     $depth = (int)($GLOBALS['cds_shadow_batch_depth'] ?? 0);
@@ -103,6 +101,7 @@ function cds_shadow_batch_begin()
         // cập nhật; nếu tiếp tục đọc cache SQL, các dòng trước có thể bị mất.
         $GLOBALS['cds_force_json_core_read'] = true;
         if (function_exists('cds_core_sql_read_cache_clear')) cds_core_sql_read_cache_clear();
+        $GLOBALS['cds_shadow_batch_primary'] = cds_batch_primary_begin();
     }
     $GLOBALS['cds_shadow_batch_depth'] = $depth + 1;
 }
@@ -112,11 +111,11 @@ function cds_shadow_notify_failure($message)
     error_log('[CDS MySQL shadow] ' . (string)$message);
     if (empty($GLOBALS['cds_shadow_failure_notified']) && function_exists('flash')) {
         $GLOBALS['cds_shadow_failure_notified'] = true;
-        flash(
-            'Dữ liệu đã lưu an toàn vào JSON nhưng MySQL chưa đồng bộ được. '
-            . 'Quản trị hãy kiểm tra trang Trạng thái MySQL.',
-            'warning'
-        );
+        $backupPending = function_exists('cds_core_sql_backup_pending_status')
+            && is_array(cds_core_sql_backup_pending_status());
+        flash($backupPending
+            ? 'MySQL đã nhận lô nhưng JSON dự phòng chưa hoàn tất. Quản trị hãy phục hồi tại trang Trạng thái MySQL.'
+            : 'Lô dữ liệu chưa hoàn tất; dữ liệu đang vận hành không bị công bố một phần. Quản trị hãy kiểm tra trang Trạng thái MySQL.', 'warning');
     }
 }
 
@@ -144,27 +143,41 @@ function cds_shadow_refresh_snapshot($sourceType, $sourceLabel, $context = array
     }
 }
 
-function cds_shadow_batch_end()
+function cds_shadow_batch_end($commit = true)
 {
     $depth = (int)($GLOBALS['cds_shadow_batch_depth'] ?? 0);
     if ($depth <= 0) return true;
 
     $depth--;
     $GLOBALS['cds_shadow_batch_depth'] = $depth;
+    if (!$commit) $GLOBALS['cds_shadow_batch_aborted'] = true;
     if ($depth > 0) return true;
 
     $enabled = !empty($GLOBALS['cds_shadow_batch_enabled']);
     $dirty = (array)($GLOBALS['cds_shadow_batch_dirty'] ?? array());
     $previousForceJson = !empty($GLOBALS['cds_shadow_batch_previous_force_json']);
+    $primary = !empty($GLOBALS['cds_shadow_batch_primary']);
+    $commit = $commit && empty($GLOBALS['cds_shadow_batch_aborted']);
     unset(
         $GLOBALS['cds_shadow_batch_enabled'],
         $GLOBALS['cds_shadow_batch_dirty'],
         $GLOBALS['cds_shadow_batch_previous_force_json'],
+        $GLOBALS['cds_shadow_batch_primary'],
+        $GLOBALS['cds_shadow_batch_aborted'],
         $GLOBALS['cds_shadow_batch_depth']
     );
     if ($previousForceJson) $GLOBALS['cds_force_json_core_read'] = true;
     else unset($GLOBALS['cds_force_json_core_read']);
     if (function_exists('cds_core_sql_read_cache_clear')) cds_core_sql_read_cache_clear();
+    if ($primary) {
+        try {
+            return (bool)cds_batch_primary_finish($commit);
+        } catch (Throwable $e) {
+            cds_shadow_notify_failure($e->getMessage());
+            return false;
+        }
+    }
+    if (!$commit) return false;
     if (!$enabled || !$dirty) return true;
 
     $types = array_keys($dirty);
@@ -181,14 +194,19 @@ function cds_shadow_batch_run(callable $callback)
     $syncOk = true;
     try {
         $result = $callback();
+    } catch (Throwable $e) {
+        cds_shadow_batch_end(false);
+        throw $e;
     } finally {
-        $syncOk = cds_shadow_batch_end();
+        if ((int)($GLOBALS['cds_shadow_batch_depth'] ?? 0) > 0) {
+            $syncOk = cds_shadow_batch_end(true);
+        }
     }
     if (is_array($result)) {
         $result['shadow_sync_ok'] = $syncOk;
         if (!$syncOk) {
             $result['message'] = rtrim((string)($result['message'] ?? ''), '. ')
-                . '. Dữ liệu JSON đã lưu; MySQL chưa đồng bộ được và cần quản trị kiểm tra.';
+                . '. Lô chưa hoàn tất hoặc bản dự phòng JSON cần quản trị kiểm tra.';
         }
     }
     return $result;
@@ -203,7 +221,9 @@ function cds_shadow_refresh_core($entityType, $entityId)
                 $GLOBALS['cds_shadow_batch_dirty'][$type] = array();
             }
             $GLOBALS['cds_shadow_batch_dirty'][$type][(string)$entityId] = true;
-            if (!cds_shadow_pending_mark($type, (string)$entityId)) {
+            // 2B có dấu phục hồi JSON riêng và sẽ commit MySQL một lần ở cuối lô.
+            if (empty($GLOBALS['cds_shadow_batch_primary'])
+                && !cds_shadow_pending_mark($type, (string)$entityId)) {
                 cds_read_verify_mark_snapshot_pending();
             }
         }
