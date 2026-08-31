@@ -18,5 +18,6 @@ if (!$attachments || !isset($attachments[$index])) { http_response_code(404); ex
 vb_record_document_view($id, $user);
 $url = vb_file_url((string)($attachments[$index]['path'] ?? ''));
 if ($url === '') { http_response_code(404); exit('Không tìm thấy đường dẫn tệp.'); }
+if (!empty($_GET['download'])) $url .= (str_contains($url, '?') ? '&' : '?') . 'download=1';
 header('Location: ' . $url, true, 302);
 exit;

@@ -117,6 +117,12 @@ function vb_file_url(string $path): string {
     return str_starts_with($path, 'gdrive:') ? cds_storage_file_url($path) : BASE_URL . ltrim($path, '/');
 }
 
+function vb_download_url(string $path): string {
+    $url = vb_file_url($path);
+    if ($url === '') return '';
+    return $url . (str_contains($url, '?') ? '&' : '?') . 'download=1';
+}
+
 function vb_delete_file(string $path): bool {
     if ($path === '') return true;
     if (str_starts_with($path, 'gdrive:')) {
