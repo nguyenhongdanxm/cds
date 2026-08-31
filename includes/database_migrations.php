@@ -208,6 +208,14 @@ function cds_db_migrations()
                  VALUES ('core_sql_primary_write', '0', 'migration')",
             ),
         ),
+        '20260831_007_pilot_school_year_sql_write' => array(
+            'description' => 'Công tắc thí điểm ghi MySQL trước cho năm học',
+            'statements' => array(
+                "INSERT IGNORE INTO cds_runtime_settings
+                    (setting_key, setting_value, updated_by)
+                 VALUES ('core_sql_primary_year_write', '0', 'migration')",
+            ),
+        ),
     );
 }
 

@@ -29,6 +29,19 @@ function cds_core_incremental_source($entityType, $entityId)
 
 function cds_core_incremental_current_year_id()
 {
+    // Khi MySQL là nguồn ghi chính, dùng năm hiện hành đã commit trong SQL.
+    // Điều này đóng khoảng thời gian rất ngắn giữa SQL commit và lúc JSON dự
+    // phòng được cập nhật, tránh lớp/học sinh mới bị gắn lại vào năm cũ.
+    if (function_exists('cds_core_sql_write_enabled') && cds_core_sql_write_enabled()) {
+        $stmt = cds_db()->query(
+            'SELECT id FROM cds_school_years WHERE is_current=1 ORDER BY id'
+        );
+        $ids = array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        if (count($ids) !== 1) {
+            throw new RuntimeException('MySQL cần đúng một năm học hiện hành trước khi ghi dữ liệu.');
+        }
+        return $ids[0];
+    }
     if (!defined('CSDL_YEARS')) {
         throw new RuntimeException('Chưa xác định tệp năm học nguồn.');
     }

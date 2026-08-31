@@ -193,6 +193,7 @@ function csdl_year_week_adjust($yearId, $weekNumber, $newStart) {
     }
 
     $years = csdl_years_all();
+    $originalYears = $years;
     foreach ($years as &$year) {
         if (($year['id'] ?? '') !== $yearId) continue;
         // Chỉ điều chỉnh các tuần chính khóa; Tuần học trước 1/2 có biểu mẫu
@@ -220,8 +221,10 @@ function csdl_year_week_adjust($yearId, $weekNumber, $newStart) {
             'end' => $week['end'],
         ], $weeks);
         $year['weeks_updated_at'] = csdl_now();
-        save_json(CSDL_YEARS, $years);
-        cds_shadow_refresh_core('school_year', $yearId);
+        if (!cds_core_sql_primary_year_save($yearId, $originalYears, $years, CSDL_YEARS)) {
+            save_json(CSDL_YEARS, $years);
+            cds_shadow_refresh_core('school_year', $yearId);
+        }
         unset($year);
         return ['ok' => true, 'message' => 'Đã cập nhật lịch tuần dùng chung.'];
     }
@@ -277,16 +280,20 @@ function csdl_current_week($date = null) {
 
 function csdl_year_set_current($id) {
     $years = csdl_years_all();
+    $originalYears = $years;
     foreach ($years as &$y) {
         $y['is_current'] = (($y['id'] ?? '') === $id);
     }
     unset($y);
-    save_json(CSDL_YEARS, $years);
-    cds_shadow_refresh_core('school_year', $id);
+    if (!cds_core_sql_primary_year_save($id, $originalYears, $years, CSDL_YEARS)) {
+        save_json(CSDL_YEARS, $years);
+        cds_shadow_refresh_core('school_year', $id);
+    }
 }
 
 function csdl_year_save($data) {
     $years = csdl_years_all();
+    $originalYears = $years;
     $id = $data['id'] ?? '';
     $found = false;
     foreach ($years as &$y) {
@@ -306,13 +313,16 @@ function csdl_year_save($data) {
         if (!$id) $data['id'] = csdl_uid('y');
         $years[] = $data;
     }
-    save_json(CSDL_YEARS, $years);
-    cds_shadow_refresh_core('school_year', $data['id'] ?? $id);
+    if (!cds_core_sql_primary_year_save($data['id'] ?? $id, $originalYears, $years, CSDL_YEARS)) {
+        save_json(CSDL_YEARS, $years);
+        cds_shadow_refresh_core('school_year', $data['id'] ?? $id);
+    }
     return $data['id'] ?? $id;
 }
 
 function csdl_year_delete($id) {
     $years = csdl_years_all();
+    $originalYears = $years;
     $years = array_values(array_filter($years, fn($y) => ($y['id'] ?? '') !== $id));
     // Nếu xóa năm hiện hành → đặt năm đầu tiên làm hiện hành
     $hasCurrent = false;
@@ -322,8 +332,10 @@ function csdl_year_delete($id) {
     if (!$hasCurrent && $years) {
         $years[0]['is_current'] = true;
     }
-    save_json(CSDL_YEARS, $years);
-    cds_shadow_refresh_core('school_year', $id);
+    if (!cds_core_sql_primary_year_save($id, $originalYears, $years, CSDL_YEARS)) {
+        save_json(CSDL_YEARS, $years);
+        cds_shadow_refresh_core('school_year', $id);
+    }
 }
 
 /* —— Lớp / khối —— */
