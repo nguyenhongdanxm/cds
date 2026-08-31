@@ -111,7 +111,7 @@ $rootFiles = [
     'hoclieu.php','hoclieu_file.php',
     'chuyenmon.php','csdl.php','csdl_preweeks.php','csdl_export.php','csdl_export_filtered_excel.php',
     'csdl_statistics_export_xlsx.php','csdl_student_cards.php','danhgia.php','dashboard_settings.php',
-    'database_admin.php','instance_settings.php','index.php','login.php','logout.php','manifest.php','manifest.webmanifest','sw.js',
+    'database_admin.php','instance_settings.php','initial_setup.php','index.php','login.php','logout.php','manifest.php','manifest.webmanifest','sw.js',
     'noitru.php','noitru_overview_api.php','noitru_duty_drive.php','noitru_exit.php','noitru_exit_manager.php',
     'noitru_exit_drive_api.php','noitru_exit_check_api.php','noitru_exit_check.php','noitru_attendance.php',
     'noitru_list.php','noitru_assign.php','noitru_assign_enhanced.php','noitru_assign_sync.php',
