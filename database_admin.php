@@ -113,6 +113,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (($_POST['action'] ?? '') === 'set_core_sql_primary_year_write') {
+        try {
+            $enabled = ($_POST['enabled'] ?? '') === '1';
+            cds_core_sql_year_write_set($enabled, current_user());
+            flash($enabled
+                ? 'Đã bật thí điểm ghi MySQL trước cho năm học.'
+                : 'Đã tắt thí điểm năm học; năm học trở lại JSON-first.', 'success');
+        } catch (Throwable $e) {
+            flash('Không thể đổi chế độ ghi năm học: ' . $e->getMessage(), 'danger');
+        }
+    }
+
     if (($_POST['action'] ?? '') === 'restore_core_json_backup') {
         try {
             $result = cds_core_sql_restore_json_backup();
@@ -141,6 +153,9 @@ $sqlReadEnabled = false;
 $sqlWriteReady = false;
 $sqlWriteEnabled = false;
 $sqlWriteReadiness = array('ready' => false, 'reason' => 'Chưa cài đặt bản nâng cấp.');
+$yearWriteReady = false;
+$yearWriteEnabled = false;
+$yearWriteReadiness = array('ready' => false, 'reason' => 'Chưa cài đặt bản nâng cấp.');
 $sqlReadStatus = array(
     'configured' => false,
     'ready' => false,
@@ -184,6 +199,11 @@ if ($dbStatus['connected']) {
             if ($sqlWriteReady) {
                 $sqlWriteEnabled = cds_core_sql_write_enabled();
                 $sqlWriteReadiness = cds_core_sql_write_readiness();
+            }
+            $yearWriteReady = !isset($migrationStatus['pending']['20260831_007_pilot_school_year_sql_write']);
+            if ($yearWriteReady) {
+                $yearWriteEnabled = cds_core_sql_year_write_enabled();
+                $yearWriteReadiness = cds_core_sql_year_write_readiness();
             }
         }
     } catch (Throwable $e) {
@@ -605,6 +625,39 @@ include __DIR__ . '/includes/nav_top.php';
       <button type="submit" class="btn <?= $sqlWriteEnabled ? 'btn-outline-secondary' : 'btn-warning' ?>"
               <?= !$sqlWriteEnabled && empty($sqlWriteReadiness['ready']) ? 'disabled' : '' ?>>
         <?= $sqlWriteEnabled ? 'Tắt thí điểm' : 'Bật thí điểm có kiểm soát' ?>
+      </button>
+    </form>
+  </section>
+  <?php endif; ?>
+
+  <?php if ($yearWriteReady && $coreTablesReady): ?>
+  <section class="status-card p-3 mt-3 border border-primary-subtle">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div>
+        <h5 class="mb-1"><i class="bi bi-calendar2-check"></i> Giai đoạn 2A – ghi năm học vào MySQL trước</h5>
+        <p class="text-muted small mb-0">
+          Đổi năm hiện hành, sửa lịch tuần và thêm/xóa năm học được thực hiện trong transaction;
+          liên kết năm của lớp, học sinh được cập nhật cùng lúc. JSON vẫn là bản dự phòng.
+          Nhập và xóa hàng loạt tiếp tục dùng cơ chế JSON-first an toàn.
+        </p>
+      </div>
+      <span class="badge <?= $yearWriteEnabled ? 'text-bg-primary' : 'text-bg-secondary' ?>">
+        <?= $yearWriteEnabled ? 'Đang thí điểm 2A' : 'Mặc định tắt' ?>
+      </span>
+    </div>
+    <?php if (!$yearWriteEnabled && empty($yearWriteReadiness['ready'])): ?>
+      <div class="alert alert-warning mt-3 mb-0"><?= e($yearWriteReadiness['reason']) ?></div>
+    <?php endif; ?>
+    <form method="post" class="mt-3"
+          onsubmit="return confirm('<?= $yearWriteEnabled
+              ? 'Tắt thí điểm ghi năm học vào MySQL trước?'
+              : 'Bật giai đoạn 2A? Chỉ kiểm thử sau khi toàn bộ dữ liệu đang khớp.' ?>');">
+      <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
+      <input type="hidden" name="action" value="set_core_sql_primary_year_write">
+      <input type="hidden" name="enabled" value="<?= $yearWriteEnabled ? '0' : '1' ?>">
+      <button type="submit" class="btn <?= $yearWriteEnabled ? 'btn-outline-secondary' : 'btn-primary' ?>"
+              <?= !$yearWriteEnabled && empty($yearWriteReadiness['ready']) ? 'disabled' : '' ?>>
+        <?= $yearWriteEnabled ? 'Tắt thí điểm 2A' : 'Bật thí điểm 2A có kiểm soát' ?>
       </button>
     </form>
   </section>
