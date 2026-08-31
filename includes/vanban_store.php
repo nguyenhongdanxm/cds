@@ -128,6 +128,24 @@ function vb_office_preview_source(string $kind, string $id, int $index = 0): str
     return BASE_URL . 'vanban_preview.php?' . http_build_query(['id'=>$id, 'file'=>max(0, $index)]);
 }
 
+/** Đọc tệp qua một cửa duy nhất để tương thích cả Drive, data/ và đường dẫn cũ. */
+function vb_read_stored_file(string $path, string $fallbackName = 'van-ban'): array {
+    if ($path === '') return ['ok'=>false,'status'=>404];
+    if (str_starts_with($path, 'gdrive:')) return cds_drive_download(substr($path, 7));
+    $clean=ltrim(str_replace('\\','/',$path),'/');
+    $candidates=[BASE_PATH.'/'.$clean, DATA_PATH.'/'.$clean];
+    if(str_starts_with($clean,'data/'))$candidates[]=DATA_PATH.'/'.substr($clean,5);
+    $root=realpath(BASE_PATH);
+    foreach(array_unique($candidates) as $candidate){
+        $absolute=realpath($candidate);
+        if(!$absolute||!$root||!str_starts_with($absolute,$root.DIRECTORY_SEPARATOR)||!is_file($absolute))continue;
+        $bytes=@file_get_contents($absolute);if($bytes===false)continue;
+        $mime=function_exists('mime_content_type')?(mime_content_type($absolute)?:'application/octet-stream'):'application/octet-stream';
+        return ['ok'=>true,'body'=>$bytes,'name'=>basename($absolute)?:$fallbackName,'mime'=>$mime];
+    }
+    return ['ok'=>false,'status'=>404];
+}
+
 function vb_delete_file(string $path): bool {
     if ($path === '') return true;
     if (str_starts_with($path, 'gdrive:')) {

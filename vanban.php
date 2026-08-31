@@ -422,7 +422,7 @@ if(previewDialog){
   previewDialog.querySelector('[data-preview-close]').addEventListener('click',closePreview);
   previewDialog.addEventListener('cancel',event=>{event.preventDefault();closePreview()});
   previewDialog.addEventListener('click',event=>{if(event.target===previewDialog)frame.src='about:blank'});
-  document.querySelectorAll('.preview-document').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();title.textContent=link.dataset.title||'Xem văn bản';frame.removeAttribute('srcdoc');frame.src=link.dataset.previewable==='0'&&link.dataset.officeSource?link.dataset.officeSource:link.href;download.href=link.dataset.download||link.href;previewDialog.showModal()}));
+  document.querySelectorAll('.preview-document').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();title.textContent=link.dataset.title||'Xem văn bản';frame.removeAttribute('srcdoc');frame.src=link.dataset.officeSource||link.href;download.href=link.dataset.download||link.href;previewDialog.showModal()}));
 }
 const numberUploadDialog=document.getElementById('numberUploadDialog');
 if(numberUploadDialog){

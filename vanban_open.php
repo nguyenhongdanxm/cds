@@ -16,8 +16,10 @@ $attachments = vb_document_attachments($document);
 if (!$attachments || !isset($attachments[$index])) { http_response_code(404); exit('Văn bản chưa có tệp đính kèm.'); }
 
 vb_record_document_view($id, $user);
-$url = vb_file_url((string)($attachments[$index]['path'] ?? ''));
-if ($url === '') { http_response_code(404); exit('Không tìm thấy đường dẫn tệp.'); }
-if (!empty($_GET['download'])) $url .= (str_contains($url, '?') ? '&' : '?') . 'download=1';
-header('Location: ' . $url, true, 302);
-exit;
+$item=$attachments[$index];$file=vb_read_stored_file((string)($item['path']??''),(string)($item['name']??'van-ban'));
+if(empty($file['ok'])){http_response_code((int)($file['status']??404));exit('Không tìm thấy tệp văn bản.');}
+$name=(string)($item['name']??($file['name']??'van-ban'));$disposition=!empty($_GET['download'])?'attachment':'inline';
+header('Content-Type: '.(string)($file['mime']??'application/octet-stream'));
+header('Content-Length: '.strlen((string)$file['body']));
+header("Content-Disposition: $disposition; filename*=UTF-8''".rawurlencode($name));
+header('Cache-Control: private, max-age=300');header('X-Content-Type-Options: nosniff');echo $file['body'];exit;
