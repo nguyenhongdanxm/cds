@@ -35,6 +35,9 @@ $updated = 0;
 $unchanged = 0;
 $skipped = 0;
 $failed = 0;
+$shadowSyncOk = true;
+cds_shadow_batch_begin();
+try {
 foreach ($map as $studentId => $target) {
     $studentId = (string)$studentId;
     $target = trim((string)$target);
@@ -58,6 +61,9 @@ foreach ($map as $studentId => $target) {
         $failed++;
     }
 }
+} finally {
+    $shadowSyncOk = cds_shadow_batch_end();
+}
 
 $user = current_user();
 $by = (string)($user['name'] ?? $user['username'] ?? '');
@@ -74,8 +80,11 @@ $data['history'][] = [
 ];
 noitru_assignments_save($data, $by);
 
-if ($failed > 0) {
-    flash('Đã cập nhật ' . $updated . ' học sinh; có ' . $failed . ' bản ghi lỗi, ' . $skipped . ' bản ghi bỏ qua.', 'warning');
+if ($failed > 0 || !$shadowSyncOk) {
+    $message = 'Đã cập nhật ' . $updated . ' học sinh; có ' . $failed
+        . ' bản ghi lỗi, ' . $skipped . ' bản ghi bỏ qua.';
+    if (!$shadowSyncOk) $message .= ' JSON đã lưu; MySQL chưa đồng bộ được.';
+    flash($message, 'warning');
 } else {
     flash('Đã cập nhật kết quả chia ' . $label . ' vào Cơ sở dữ liệu cho ' . $updated . ' học sinh'
         . ($unchanged ? '; ' . $unchanged . ' học sinh đã đúng dữ liệu' : '')
