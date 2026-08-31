@@ -1,6 +1,7 @@
 <?php
 /** Quản lý nội trú – dữ liệu vận hành (HS từ CSDL). */
 require_once __DIR__ . '/csdl_store.php';
+require_once __DIR__ . '/database_meals.php';
 
 define('NOITRU_DIR', DATA_PATH . '/noitru');
 define('NOITRU_META', NOITRU_DIR . '/meta.json');
@@ -282,7 +283,9 @@ function noitru_meal_reports_save(array $data) {
     $data['reports'] = array_values($data['reports'] ?? []);
     $data['states'] = array_values($data['states'] ?? []);
     $data['settings'] = $data['settings'] ?? [];
-    save_json(NOITRU_MEAL_REPORTS, $data);
+    if (!save_json(NOITRU_MEAL_REPORTS, $data)) return false;
+    if (!cds_meal_shadow_reports_data($data)) cds_meal_shadow_notify_failure();
+    return true;
 }
 function noitru_meal_settings() {
     return noitru_meal_reports_data()['settings'];
@@ -370,12 +373,14 @@ function noitru_meal_upsert(array $row) {
     $date = $row['date'] ?? '';
     $sid = $row['student_id'] ?? '';
     $found = false;
+    $savedRow = null;
     foreach ($rows as &$m) {
         if (($m['date'] ?? '') === $date && ($m['student_id'] ?? '') === $sid) {
             if (!empty($m['locked']) && empty($row['force'])) return false;
             $m = array_merge($m, $row);
             unset($m['force']);
             $m['updated_at'] = noitru_now();
+            $savedRow = $m;
             $found = true;
             break;
         }
@@ -386,30 +391,47 @@ function noitru_meal_upsert(array $row) {
         $row['created_at'] = noitru_now();
         unset($row['force']);
         $rows[] = $row;
+        $savedRow = $row;
     }
-    save_json(NOITRU_MEALS, $rows);
+    if (!save_json(NOITRU_MEALS, $rows)) return false;
+    if ($savedRow && !cds_meal_shadow_daily_row($savedRow)) cds_meal_shadow_notify_failure();
     return true;
 }
 function noitru_meals_generate_day($date) {
     $n = 0;
-    $exist = noitru_meals_for_date($date);
+    $rows = noitru_meals_all();
+    $positions = [];
+    foreach ($rows as $index => $saved) {
+        if (($saved['date'] ?? '') === $date) $positions[(string)($saved['student_id'] ?? '')] = $index;
+    }
     foreach (noitru_boarders_live() as $s) {
-        if (isset($exist[$s['id']]) && !empty($exist[$s['id']]['locked'])) continue;
+        $sid = (string)($s['id'] ?? '');
+        $index = $positions[$sid] ?? null;
+        if ($index !== null && !empty($rows[$index]['locked'])) continue;
         $away = noitru_student_away_on_date($s['id'], $date);
         $val = $away ? 'no' : 'yes';
-        noitru_meal_upsert([
+        $next = [
             'date' => $date,
-            'student_id' => $s['id'],
+            'student_id' => $sid,
             'sang' => $val,
             'trua' => $val,
             'toi' => $val,
             'source' => $away ? 'auto_exit' : 'auto',
             'locked' => false,
             'note' => $away ? ('Theo phiếu: ' . ($away['reason'] ?? '')) : '',
-            'force' => true,
-        ]);
+        ];
+        if ($index !== null) {
+            $rows[$index] = array_merge($rows[$index], $next, ['updated_at'=>noitru_now()]);
+        } else {
+            $next['id'] = noitru_uid('ml');
+            $next['created_at'] = noitru_now();
+            $rows[] = $next;
+            $positions[$sid] = count($rows) - 1;
+        }
         $n++;
     }
+    if (!save_json(NOITRU_MEALS, $rows)) return 0;
+    if (!cds_meal_shadow_daily_rows($rows, $date)) cds_meal_shadow_notify_failure();
     return $n;
 }
 function noitru_meals_lock_day($date, $lock = true) {
@@ -418,7 +440,9 @@ function noitru_meals_lock_day($date, $lock = true) {
         if (($m['date'] ?? '') === $date) $m['locked'] = $lock;
     }
     unset($m);
-    save_json(NOITRU_MEALS, $rows);
+    if (!save_json(NOITRU_MEALS, $rows)) return false;
+    if (!cds_meal_shadow_daily_rows($rows, $date)) cds_meal_shadow_notify_failure();
+    return true;
 }
 function noitru_meals_count_day($date) {
     $c = ['sang' => 0, 'trua' => 0, 'toi' => 0, 'students' => 0];

@@ -6,6 +6,7 @@ require_once __DIR__ . '/includes/database_shadow.php';
 require_once __DIR__ . '/includes/database_read_verify.php';
 require_once __DIR__ . '/includes/database_sql_read.php';
 require_once __DIR__ . '/includes/database_sql_write.php';
+require_once __DIR__ . '/includes/database_meals.php';
 require_admin();
 
 if (empty($_SESSION['cds_db_csrf'])) {
@@ -146,6 +147,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (($_POST['action'] ?? '') === 'import_meal_snapshot') {
+        try {
+            $result = cds_meal_import_snapshot(current_user());
+            if (empty($result['is_match'])) throw new RuntimeException('Đã nhập nhưng đối chiếu chi tiết chưa khớp.');
+            flash('Đã sao chép và đối chiếu báo ăn JSON vào MySQL. Website vẫn vận hành bằng JSON.', 'success');
+        } catch (Throwable $e) {
+            flash('Không thể nhập bản sao báo ăn: ' . $e->getMessage(), 'danger');
+        }
+    }
+
+    if (($_POST['action'] ?? '') === 'set_meal_shadow_write') {
+        try {
+            $enabled = ($_POST['enabled'] ?? '') === '1';
+            cds_meal_shadow_set($enabled, current_user());
+            flash($enabled
+                ? 'Đã bật bản sao MySQL báo ăn. JSON vẫn là nguồn vận hành và bản dự phòng.'
+                : 'Đã tắt bản sao MySQL báo ăn; dữ liệu JSON không thay đổi.', 'success');
+        } catch (Throwable $e) {
+            flash('Không thể đổi chế độ 3A: ' . $e->getMessage(), 'danger');
+        }
+    }
+
     header('Location: ' . BASE_URL . 'database_admin.php');
     exit;
 }
@@ -171,6 +194,10 @@ $yearWriteReadiness = array('ready' => false, 'reason' => 'Chưa cài đặt b�
 $batchWriteReady = false;
 $batchWriteEnabled = false;
 $batchWriteReadiness = array('ready' => false, 'reason' => 'Chưa cài đặt bản nâng cấp.');
+$mealReady = false;
+$mealShadowEnabled = false;
+$mealComparison = null;
+$mealPending = null;
 $sqlReadStatus = array(
     'configured' => false,
     'ready' => false,
@@ -224,6 +251,12 @@ if ($dbStatus['connected']) {
             if ($batchWriteReady) {
                 $batchWriteEnabled = cds_core_sql_batch_write_enabled();
                 $batchWriteReadiness = cds_core_sql_batch_write_readiness();
+            }
+            $mealReady = !isset($migrationStatus['pending']['20260831_009_meal_mysql_foundation']);
+            if ($mealReady) {
+                $mealShadowEnabled = cds_meal_shadow_enabled();
+                $mealComparison = cds_meal_compare_snapshot();
+                $mealPending = cds_meal_pending_status();
             }
         }
     } catch (Throwable $e) {
@@ -713,6 +746,71 @@ include __DIR__ . '/includes/nav_top.php';
         <?= $batchWriteEnabled ? 'Tắt thí điểm 2B' : 'Bật 2B có kiểm soát' ?>
       </button>
     </form>
+  </section>
+  <?php endif; ?>
+
+  <?php if ($mealReady): ?>
+  <section class="status-card p-3 mt-3 border border-info-subtle">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+      <div>
+        <h5 class="mb-1"><i class="bi bi-cup-hot"></i> Giai đoạn 3A – bản sao MySQL báo ăn</h5>
+        <p class="text-muted small mb-0">
+          Sao chép báo ăn cá nhân, phiếu báo theo lớp, trạng thái bữa và thiết lập từ JSON sang MySQL.
+          Website vẫn đọc và lưu JSON như hiện tại; MySQL chưa phải nguồn xuất báo cáo ở giai đoạn này.
+        </p>
+      </div>
+      <span class="badge <?= $mealShadowEnabled ? 'text-bg-info' : 'text-bg-secondary' ?>">
+        <?= $mealShadowEnabled ? 'Đang ghi bản sao' : 'Mặc định tắt' ?>
+      </span>
+    </div>
+
+    <?php if ($mealComparison): ?>
+      <div class="row g-2 mt-2">
+        <?php foreach (array('daily'=>'Báo ăn cá nhân','reports'=>'Phiếu theo lớp','states'=>'Trạng thái bữa') as $key=>$label): ?>
+          <div class="col-12 col-md-4"><div class="border rounded-3 p-2 h-100">
+            <div class="small text-muted"><?= e($label) ?></div>
+            <div>JSON: <strong><?= (int)$mealComparison['counts'][$key] ?></strong></div>
+            <div class="<?= $mealComparison['types'][$key] ? 'text-success' : 'text-warning' ?>">
+              MySQL: <strong><?= (int)$mealComparison['mysql_counts'][$key] ?></strong>
+            </div>
+          </div></div>
+        <?php endforeach; ?>
+      </div>
+      <div class="alert <?= $mealComparison['is_match'] ? 'alert-success' : 'alert-warning' ?> mt-3 mb-0">
+        <strong><?= $mealComparison['is_match']
+            ? 'Đối chiếu chi tiết: dữ liệu báo ăn JSON và MySQL đang khớp.'
+            : 'Bản sao MySQL chưa khớp. Hãy nhập lại ảnh chụp JSON trước khi bật 3A.' ?></strong>
+      </div>
+    <?php endif; ?>
+    <?php if ($mealPending): ?>
+      <div class="alert alert-warning mt-2 mb-0">
+        Có lần đồng bộ đang chờ từ <?= e((string)($mealPending['at'] ?? '')) ?>.
+        Hãy cập nhật lại bản sao JSON vào MySQL trước khi tiếp tục thử nghiệm.
+      </div>
+    <?php endif; ?>
+
+    <div class="d-flex flex-wrap gap-2 mt-3">
+      <form method="post" onsubmit="return confirm('Sao chép ảnh chụp báo ăn JSON hiện tại vào MySQL? JSON không bị sửa hoặc xóa.');">
+        <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
+        <input type="hidden" name="action" value="import_meal_snapshot">
+        <button type="submit" class="btn btn-success"><i class="bi bi-database-up"></i> Cập nhật bản sao báo ăn</button>
+      </form>
+      <?php if ($mealComparison && $mealComparison['is_match']): ?>
+      <form method="post" onsubmit="return confirm('<?= $mealShadowEnabled
+          ? 'Tắt ghi bản sao MySQL báo ăn? JSON vẫn hoạt động bình thường.'
+          : 'Bật ghi bản sao MySQL báo ăn? JSON vẫn là nguồn vận hành.' ?>');">
+        <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
+        <input type="hidden" name="action" value="set_meal_shadow_write">
+        <input type="hidden" name="enabled" value="<?= $mealShadowEnabled ? '0' : '1' ?>">
+        <button type="submit" class="btn <?= $mealShadowEnabled ? 'btn-outline-secondary' : 'btn-info' ?>">
+          <?= $mealShadowEnabled ? 'Tắt giai đoạn 3A' : 'Bật 3A có kiểm soát' ?>
+        </button>
+      </form>
+      <?php endif; ?>
+    </div>
+    <div class="small text-muted mt-3">
+      Trình tự an toàn: giữ bản xuất cũ → nhập bản sao → xác nhận khớp → bật 3A trong kỳ nghỉ → thử một thay đổi có thể hoàn tác → đối chiếu lại trước ngày 03/09.
+    </div>
   </section>
   <?php endif; ?>
 </main>
