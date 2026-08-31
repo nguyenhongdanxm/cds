@@ -778,6 +778,57 @@ function noitru_duty_save(array $data) {
     save_json(NOITRU_DUTY, $rows);
     return $id;
 }
+/**
+ * Thay toàn bộ lựa chọn trong ma trận của một tháng cho danh sách trực hiện tại.
+ * Các lượt của người đã rời danh sách trực và các tháng khác được giữ nguyên.
+ */
+function noitru_duty_replace_roster_month($month, array $selectedByTeacher, array $rosterMap, $by = '') {
+    if (!preg_match('/^\\d{4}-\\d{2}$/', (string)$month)) return false;
+    noitru_ensure_dir();
+    $lock = fopen(NOITRU_DIR . '/.duty.lock', 'c');
+    if ($lock === false || !flock($lock, LOCK_EX)) {
+        if (is_resource($lock)) fclose($lock);
+        return false;
+    }
+    try {
+        $rows = noitru_duty_all();
+        $existing = [];
+        $kept = [];
+        foreach ($rows as $row) {
+            $date = (string)($row['date'] ?? '');
+            $teacherId = (string)($row['teacher_id'] ?? '');
+            if (str_starts_with($date, $month . '-') && isset($rosterMap[$teacherId])) {
+                $existing[$teacherId . '|' . $date] = $row;
+                continue;
+            }
+            $kept[] = $row;
+        }
+        foreach ($selectedByTeacher as $teacherId => $dates) {
+            $teacherId = (string)$teacherId;
+            if (!isset($rosterMap[$teacherId]) || !is_array($dates)) continue;
+            foreach (array_values(array_unique(array_map('strval', $dates))) as $date) {
+                if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $date) || !str_starts_with($date, $month . '-')) continue;
+                $key = $teacherId . '|' . $date;
+                $row = $existing[$key] ?? [
+                    'id'=>noitru_uid('du'),
+                    'created_at'=>noitru_now(),
+                    'note'=>'',
+                ];
+                $row['date'] = $date;
+                $row['shift'] = 'ngay';
+                $row['teacher_id'] = $teacherId;
+                $row['teacher_name'] = (string)$rosterMap[$teacherId];
+                $row['updated_by'] = (string)$by;
+                $row['updated_at'] = noitru_now();
+                $kept[] = $row;
+            }
+        }
+        return save_json(NOITRU_DUTY, array_values($kept));
+    } finally {
+        flock($lock, LOCK_UN);
+        fclose($lock);
+    }
+}
 function noitru_duty_delete($id) {
     save_json(NOITRU_DUTY, array_values(array_filter(noitru_duty_all(), fn($r) => ($r['id'] ?? '') !== $id)));
 }
