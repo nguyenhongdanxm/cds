@@ -573,7 +573,8 @@ include __DIR__ . '/includes/nav_top.php';
         <h5 class="mb-1"><i class="bi bi-database-gear"></i> Thí điểm ghi MySQL trước</h5>
         <p class="text-muted small mb-0">
           Chỉ áp dụng cho giáo viên, lớp và học sinh. MySQL được ghi trong transaction trước;
-          JSON tiếp tục được cập nhật nguyên tử làm bản dự phòng. Năm học vẫn giữ JSON-first.
+          JSON tiếp tục được cập nhật nguyên tử làm bản dự phòng. Năm học và thao tác hàng loạt
+          vẫn giữ JSON-first rồi đồng bộ MySQL một lần khi hoàn tất.
         </p>
       </div>
       <span class="badge <?= $sqlWriteEnabled ? 'text-bg-warning' : 'text-bg-secondary' ?>">
