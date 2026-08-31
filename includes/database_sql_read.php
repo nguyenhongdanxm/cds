@@ -32,6 +32,18 @@ function cds_core_sql_read_ready()
  */
 function cds_core_sql_read_readiness()
 {
+    $pending = function_exists('cds_shadow_pending_status')
+        ? cds_shadow_pending_status()
+        : null;
+    if (is_array($pending)) {
+        return array(
+            'ready' => false,
+            'reason_code' => 'shadow_sync_pending',
+            'reason' => 'Lần ghi JSON gần nhất chưa được MySQL xác nhận đồng bộ.',
+            'entities' => array(),
+        );
+    }
+
     if (!cds_shadow_write_enabled()) {
         return array(
             'ready' => false,
