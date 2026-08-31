@@ -6,6 +6,7 @@ require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/database_shadow.php';
 require_once __DIR__ . '/database_read_verify.php';
 require_once __DIR__ . '/database_sql_read.php';
+require_once __DIR__ . '/database_sql_write.php';
 require_once __DIR__ . '/school_week_calendar.php';
 
 define('CSDL_TEACHERS', DATA_PATH . '/teachers.json');
@@ -391,15 +392,19 @@ function csdl_class_save($data) {
         $data['active'] = $data['active'] ?? true;
         $rows[] = $data;
     }
-    save_json(CSDL_CLASSES, $rows);
-    cds_shadow_refresh_core('class', $id);
+    if (!cds_core_sql_primary_save('class', $id, $rows, CSDL_CLASSES)) {
+        save_json(CSDL_CLASSES, $rows);
+        cds_shadow_refresh_core('class', $id);
+    }
     return $id;
 }
 
 function csdl_class_delete($id) {
     $rows = array_values(array_filter(csdl_classes_all(), fn($c) => ($c['id'] ?? '') !== $id));
-    save_json(CSDL_CLASSES, $rows);
-    cds_shadow_refresh_core('class', $id);
+    if (!cds_core_sql_primary_save('class', $id, $rows, CSDL_CLASSES)) {
+        save_json(CSDL_CLASSES, $rows);
+        cds_shadow_refresh_core('class', $id);
+    }
 }
 
 /* —— Giáo viên —— */
@@ -438,15 +443,19 @@ function csdl_teacher_save($data) {
         $data['active'] = $data['active'] ?? true;
         $rows[] = $data;
     }
-    save_json(CSDL_TEACHERS, $rows);
-    cds_shadow_refresh_core('teacher', $id);
+    if (!cds_core_sql_primary_save('teacher', $id, $rows, CSDL_TEACHERS)) {
+        save_json(CSDL_TEACHERS, $rows);
+        cds_shadow_refresh_core('teacher', $id);
+    }
     return $id;
 }
 
 function csdl_teacher_delete($id) {
     $rows = array_values(array_filter(csdl_teachers_all(), fn($t) => ($t['id'] ?? '') !== $id));
-    save_json(CSDL_TEACHERS, $rows);
-    cds_shadow_refresh_core('teacher', $id);
+    if (!cds_core_sql_primary_save('teacher', $id, $rows, CSDL_TEACHERS)) {
+        save_json(CSDL_TEACHERS, $rows);
+        cds_shadow_refresh_core('teacher', $id);
+    }
 }
 
 /* —— Học sinh —— */
@@ -542,15 +551,19 @@ function csdl_student_save($data) {
         $data['active'] = $data['active'] ?? true;
         $rows[] = $data;
     }
-    save_json(CSDL_STUDENTS, $rows);
-    cds_shadow_refresh_core('student', $id);
+    if (!cds_core_sql_primary_save('student', $id, $rows, CSDL_STUDENTS)) {
+        save_json(CSDL_STUDENTS, $rows);
+        cds_shadow_refresh_core('student', $id);
+    }
     return $id;
 }
 
 function csdl_student_delete($id) {
     $rows = array_values(array_filter(csdl_students_all(), fn($s) => ($s['id'] ?? '') !== $id));
-    save_json(CSDL_STUDENTS, $rows);
-    cds_shadow_refresh_core('student', $id);
+    if (!cds_core_sql_primary_save('student', $id, $rows, CSDL_STUDENTS)) {
+        save_json(CSDL_STUDENTS, $rows);
+        cds_shadow_refresh_core('student', $id);
+    }
 }
 
 function csdl_stats() {
