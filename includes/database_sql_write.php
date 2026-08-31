@@ -72,8 +72,15 @@ function cds_core_sql_backup_pending_mark($entityType, $entityId)
 {
     $path = cds_core_sql_backup_pending_path();
     if ($path === '') return false;
+    try {
+        $token = bin2hex(random_bytes(16));
+    } catch (Throwable $e) {
+        $token = uniqid('sql_primary_', true);
+    }
+    $GLOBALS['cds_core_sql_backup_pending_token'] = $token;
     $payload = json_encode(array(
-        'at' => date('c'), 'entity_type' => (string)$entityType, 'entity_id' => (string)$entityId,
+        'token' => $token, 'at' => date('c'),
+        'entity_type' => (string)$entityType, 'entity_id' => (string)$entityId,
     ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     return $payload !== false && @file_put_contents($path, $payload, LOCK_EX) !== false;
 }
@@ -81,7 +88,13 @@ function cds_core_sql_backup_pending_mark($entityType, $entityId)
 function cds_core_sql_backup_pending_clear()
 {
     $path = cds_core_sql_backup_pending_path();
-    return $path === '' || !is_file($path) || @unlink($path);
+    if ($path === '' || !is_file($path)) return true;
+    $token = (string)($GLOBALS['cds_core_sql_backup_pending_token'] ?? '');
+    if ($token !== '') {
+        $current = cds_core_sql_backup_pending_status();
+        if (is_array($current) && (string)($current['token'] ?? '') !== $token) return true;
+    }
+    return @unlink($path);
 }
 
 function cds_core_sql_restore_json_backup()
@@ -116,6 +129,31 @@ function cds_core_sql_restore_json_backup()
     return array('entity_type' => $type, 'count' => count($rows));
 }
 
+function cds_core_sql_assert_unchanged_rows(PDO $pdo, $table, $entityId, array $rows)
+{
+    $expected = array();
+    foreach ($rows as $row) {
+        $id = (string)($row['id'] ?? '');
+        if ($id !== '' && $id !== (string)$entityId) {
+            $expected[$id] = cds_read_verify_hash($row);
+        }
+    }
+    $actual = array();
+    $stmt = $pdo->query('SELECT id, raw_json FROM ' . $table . ' FOR UPDATE');
+    while ($dbRow = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $id = (string)($dbRow['id'] ?? '');
+        if ($id === (string)$entityId) continue;
+        $row = json_decode((string)($dbRow['raw_json'] ?? ''), true);
+        if (!is_array($row)) throw new RuntimeException('MySQL có raw_json không hợp lệ.');
+        $actual[$id] = cds_read_verify_hash($row);
+    }
+    ksort($expected);
+    ksort($actual);
+    if ($expected !== $actual) {
+        throw new RuntimeException('Dữ liệu vừa được yêu cầu khác cập nhật; vui lòng tải lại trước khi lưu.');
+    }
+}
+
 /**
  * Ghi một bản ghi MySQL trước, rồi lưu toàn bộ JSON làm bản dự phòng.
  * Chỉ dùng cho giáo viên/lớp/học sinh; các nhóm khác giữ luồng JSON-first.
@@ -123,6 +161,9 @@ function cds_core_sql_restore_json_backup()
 function cds_core_sql_primary_save($entityType, $entityId, array $rows, $jsonFile)
 {
     if (!cds_core_sql_write_enabled()) return false;
+    // Nhập/xóa hàng loạt tiếp tục dùng JSON-first và chỉ chụp MySQL một lần.
+    // Việc này tránh hàng trăm transaction SQL trong một yêu cầu.
+    if ((int)($GLOBALS['cds_shadow_batch_depth'] ?? 0) > 0) return false;
     $types = array(
         'teacher' => array('verify' => 'teachers', 'table' => 'cds_teachers'),
         'class' => array('verify' => 'classes', 'table' => 'cds_classes'),
@@ -143,10 +184,14 @@ function cds_core_sql_primary_save($entityType, $entityId, array $rows, $jsonFil
         }
     }
     $meta = $types[$entityType];
-    $pdo = cds_db();
-    cds_read_verify_mark_entity_pending($meta['verify']);
+    $pdo = null;
+    $committed = false;
     try {
+        $pdo = cds_db();
         $pdo->beginTransaction();
+        // Khóa và đối chiếu toàn bộ các dòng còn lại để không ghi đè một thay
+        // đổi đồng thời bằng bản JSON được đọc trước đó.
+        cds_core_sql_assert_unchanged_rows($pdo, $meta['table'], $entityId, $rows);
         if ($target !== null) {
             if ($entityType === 'teacher') cds_core_incremental_upsert_teacher($pdo, $target);
             elseif ($entityType === 'class') cds_core_incremental_upsert_class($pdo, $target, cds_core_incremental_current_year_id());
@@ -158,9 +203,11 @@ function cds_core_sql_primary_save($entityType, $entityId, array $rows, $jsonFil
         $count = (int)$pdo->query('SELECT COUNT(*) FROM ' . $meta['table'])->fetchColumn();
         if ($count !== count($rows)) throw new RuntimeException('Số lượng MySQL không khớp dữ liệu chuẩn bị lưu.');
         $pdo->commit();
+        $committed = true;
+        cds_read_verify_mark_entity_pending($meta['verify']);
     } catch (Throwable $e) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
-        cds_core_sql_backup_pending_clear();
+        if ($pdo instanceof PDO && $pdo->inTransaction()) $pdo->rollBack();
+        if (!$committed) cds_core_sql_backup_pending_clear();
         throw $e;
     }
 
