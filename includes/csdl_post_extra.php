@@ -6,6 +6,9 @@ $entity = $_POST['entity'] ?? '';
 $ids = $_POST['ids'] ?? [];
 if (!is_array($ids)) $ids = [];
 $n = 0;
+$shadowSyncOk = true;
+cds_shadow_batch_begin();
+try {
 foreach ($ids as $id) {
     $id = trim((string)$id);
     if ($id === '') continue;
@@ -20,7 +23,12 @@ foreach ($ids as $id) {
         $n++;
     }
 }
-flash("Đã xóa $n mục đã chọn.", 'warning');
+} finally {
+    $shadowSyncOk = cds_shadow_batch_end();
+}
+$message = "Đã xóa $n mục đã chọn.";
+if (!$shadowSyncOk) $message .= ' JSON đã lưu; MySQL chưa đồng bộ được.';
+flash($message, 'warning');
 $back = in_array($entity, ['teachers', 'classes', 'students'], true) ? $entity : 'overview';
 header('Location: ' . BASE_URL . 'csdl.php?tab=' . $back);
 exit;
