@@ -83,6 +83,7 @@ function csdl_import_teachers_from_csv_file($tmpPath) {
         ];
     }
 
+    return cds_shadow_batch_run(function () use ($lines, $delimiter, $map) {
     $existing = csdl_teachers_all();
     $by_name = [];
     foreach ($existing as $t) {
@@ -183,4 +184,5 @@ function csdl_import_teachers_from_csv_file($tmpPath) {
         'skipped' => $skipped,
         'errors' => $errors,
     ];
+    });
 }
