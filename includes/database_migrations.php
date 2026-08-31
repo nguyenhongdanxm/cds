@@ -216,6 +216,14 @@ function cds_db_migrations()
                  VALUES ('core_sql_primary_year_write', '0', 'migration')",
             ),
         ),
+        '20260831_008_pilot_batch_sql_write' => array(
+            'description' => 'Công tắc giai đoạn 2B nhập và xóa hàng loạt an toàn',
+            'statements' => array(
+                "INSERT IGNORE INTO cds_runtime_settings
+                    (setting_key, setting_value, updated_by)
+                 VALUES ('core_sql_primary_batch_write', '0', 'migration')",
+            ),
+        ),
     );
 }
 

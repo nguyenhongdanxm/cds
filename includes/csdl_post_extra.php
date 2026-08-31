@@ -7,6 +7,7 @@ $ids = $_POST['ids'] ?? [];
 if (!is_array($ids)) $ids = [];
 $n = 0;
 $shadowSyncOk = true;
+$batchCommit = false;
 cds_shadow_batch_begin();
 try {
 foreach ($ids as $id) {
@@ -23,11 +24,12 @@ foreach ($ids as $id) {
         $n++;
     }
 }
+$batchCommit = true;
 } finally {
-    $shadowSyncOk = cds_shadow_batch_end();
+    $shadowSyncOk = cds_shadow_batch_end($batchCommit);
 }
 $message = "Đã xóa $n mục đã chọn.";
-if (!$shadowSyncOk) $message .= ' JSON đã lưu; MySQL chưa đồng bộ được.';
+if (!$shadowSyncOk) $message .= ' Lô chưa hoàn tất hoặc bản dự phòng cần quản trị kiểm tra.';
 flash($message, 'warning');
 $back = in_array($entity, ['teachers', 'classes', 'students'], true) ? $entity : 'overview';
 header('Location: ' . BASE_URL . 'csdl.php?tab=' . $back);

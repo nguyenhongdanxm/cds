@@ -105,9 +105,9 @@ function cds_core_duplicate_identity_groups($rows, $field)
     }));
 }
 
-function cds_core_preview()
+function cds_core_preview($sourceData = null)
 {
-    $data = cds_core_source_data();
+    $data = is_array($sourceData) ? $sourceData : cds_core_source_data();
     $errors = array();
     $warnings = array();
 
@@ -219,10 +219,12 @@ function cds_core_upsert(PDO $pdo, $sql, $values)
 function cds_core_import_snapshot(
     $actor,
     $sourceType = 'json_core',
-    $sourceLabel = 'CSDL JSON lõi'
+    $sourceLabel = 'CSDL JSON lõi',
+    $sourceData = null,
+    $expectedData = null
 )
 {
-    $preview = cds_core_preview();
+    $preview = cds_core_preview($sourceData);
     if (!$preview['can_import']) {
         throw new RuntimeException('Dữ liệu nguồn còn mâu thuẫn; chưa thể nhập MySQL.');
     }
@@ -247,6 +249,29 @@ function cds_core_import_snapshot(
 
     $pdo->beginTransaction();
     try {
+        if (is_array($expectedData)) {
+            $tables = array(
+                'years' => 'cds_school_years', 'teachers' => 'cds_teachers',
+                'classes' => 'cds_classes', 'students' => 'cds_students',
+            );
+            foreach ($tables as $type => $table) {
+                $expected = array();
+                foreach ((array)($expectedData[$type] ?? array()) as $row) {
+                    $expected[(string)($row['id'] ?? '')] = cds_core_record_hash($row);
+                }
+                ksort($expected);
+                $actual = array();
+                $locked = $pdo->query('SELECT id, raw_json FROM ' . $table . ' ORDER BY id FOR UPDATE');
+                while ($dbRow = $locked->fetch(PDO::FETCH_ASSOC)) {
+                    $row = json_decode((string)($dbRow['raw_json'] ?? ''), true);
+                    $actual[(string)$dbRow['id']] = cds_core_record_hash(is_array($row) ? $row : array());
+                }
+                ksort($actual);
+                if ($actual !== $expected) {
+                    throw new RuntimeException('Dữ liệu ' . $type . ' vừa được yêu cầu khác cập nhật; lô đã hủy an toàn.');
+                }
+            }
+        }
         $batch = $pdo->prepare(
             "INSERT INTO cds_import_batches
                 (source_type, source_label, source_checksum, status, records_total,

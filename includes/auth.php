@@ -84,10 +84,16 @@ if (!defined('CDS_SKIP_DRIVE_ACTION_REGISTRATION') || !CDS_SKIP_DRIVE_ACTION_REG
 }
 
 function load_json($file, $default = []) {
+    if (function_exists('cds_batch_primary_load')) {
+        $staged = cds_batch_primary_load((string)$file);
+        if (!empty($staged['handled'])) return $staged['data'];
+    }
     return cds_json_load((string)$file, $default);
 }
 
 function save_json($file, $data) {
+    if (function_exists('cds_batch_primary_save')
+        && cds_batch_primary_save((string)$file, $data)) return true;
     return cds_json_save((string)$file, $data);
 }
 
