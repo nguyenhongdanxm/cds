@@ -79,7 +79,9 @@ function cds_drive_csrf_token(): string {
     if (empty($_SESSION['cds_drive_csrf'])) $_SESSION['cds_drive_csrf'] = bin2hex(random_bytes(24));
     return (string)$_SESSION['cds_drive_csrf'];
 }
-cds_drive_register_action(cds_drive_page_action());
+if (!defined('CDS_SKIP_DRIVE_ACTION_REGISTRATION') || !CDS_SKIP_DRIVE_ACTION_REGISTRATION) {
+    cds_drive_register_action(cds_drive_page_action());
+}
 
 function load_json($file, $default = []) {
     return cds_json_load((string)$file, $default);
