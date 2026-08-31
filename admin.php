@@ -168,12 +168,12 @@ $pushUnread = cds_push_unread_count($user);
       <summary><i class="bi bi-grid-3x3-gap-fill"></i><span>Chuyển module</span><i class="bi bi-chevron-down"></i></summary>
       <div class="module-menu">
         <?php foreach ($modules as $module): ?><a href="<?= e($module['url']) ?>" style="--module-color:<?= e($module['color']) ?>"><i class="bi <?= e($module['icon']) ?>"></i><span><?= e($module['title']) ?></span></a><?php endforeach; ?>
-        <?php if ($isAdmin): ?><a href="users.php" style="--module-color:#7c3aed"><i class="bi bi-shield-check"></i><span>Phân quyền</span></a><a href="admin.php?view=drive" style="--module-color:#0f9d58"><i class="bi bi-cloud-check"></i><span>Kho Google Drive</span></a><a href="activity.php" style="--module-color:#475569"><i class="bi bi-activity"></i><span>Nhật ký</span></a><?php endif; ?>
+        <?php if ($isAdmin): ?><a href="initial_setup.php" style="--module-color:#176a9b"><i class="bi bi-list-check"></i><span>Khởi tạo dữ liệu</span></a><a href="users.php" style="--module-color:#7c3aed"><i class="bi bi-shield-check"></i><span>Phân quyền</span></a><a href="admin.php?view=drive" style="--module-color:#0f9d58"><i class="bi bi-cloud-check"></i><span>Kho Google Drive</span></a><a href="activity.php" style="--module-color:#475569"><i class="bi bi-activity"></i><span>Nhật ký</span></a><?php endif; ?>
       </div>
     </details>
     <details class="user-picker">
       <summary><span class="avatar"><?= e($avatarUpper) ?></span><span class="user-copy"><strong><?= e($user['name'] ?? '') ?></strong><small><?= e($scopeText) ?></small></span><i class="bi bi-chevron-down"></i></summary>
-      <div class="user-menu"><a href="admin.php?view=profile"><i class="bi bi-person-vcard"></i>Thông tin cá nhân</a><?php if ($isAdmin): ?><a href="users.php"><i class="bi bi-person-gear"></i>Tài khoản và quyền</a><a href="admin.php?view=drive"><i class="bi bi-google"></i>Kho Google Drive</a><?php endif; ?><a href="logout.php" class="logout"><i class="bi bi-box-arrow-right"></i>Đăng xuất</a></div>
+      <div class="user-menu"><a href="admin.php?view=profile"><i class="bi bi-person-vcard"></i>Thông tin cá nhân</a><?php if ($isAdmin): ?><a href="initial_setup.php"><i class="bi bi-list-check"></i>Khởi tạo dữ liệu</a><a href="users.php"><i class="bi bi-person-gear"></i>Tài khoản và quyền</a><a href="admin.php?view=drive"><i class="bi bi-google"></i>Kho Google Drive</a><?php endif; ?><a href="logout.php" class="logout"><i class="bi bi-box-arrow-right"></i>Đăng xuất</a></div>
     </details>
   </div>
 </header>
