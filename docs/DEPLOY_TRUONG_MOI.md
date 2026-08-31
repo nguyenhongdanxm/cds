@@ -51,6 +51,12 @@ diện. Để trống các ô bí mật khi chỉnh sửa lần sau sẽ giữ n
 8. Nhập Drive nếu sử dụng.
 9. Nhập đúng thư mục website trên hosting.
 10. Lưu cấu hình và tải lại trang.
+11. Bấm **Tiếp tục khởi tạo dữ liệu** hoặc mở `/initial_setup.php`.
+12. Làm theo thứ tự: MySQL → năm học → giáo viên → lớp → học sinh → Chuyên môn → tài khoản và phân quyền.
+
+Trang `/initial_setup.php` chỉ đọc trạng thái và cung cấp liên kết tới từng
+chức năng. Trang không tự chạy migration, không tự nhập và không sửa dữ liệu
+vận hành hiện có.
 
 Từ lần triển khai tiếp theo, `tools/deploy_cds.php` tự đọc
 `instance.json → deployment.target_path`; không cần sửa `.cpanel.yml`.
