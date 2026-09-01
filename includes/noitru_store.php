@@ -889,6 +889,7 @@ function noitru_duty_settings() {
     return array_merge([
         'people_per_day' => 3,
         'max_per_month' => 4,
+        'max_male_per_day' => 0,
         'start_time' => '06:00',
         'end_time' => '06:00',
     ], load_json(NOITRU_DUTY_SETTINGS, []));
@@ -897,6 +898,8 @@ function noitru_duty_settings_save(array $data) {
     $settings = noitru_duty_settings();
     $settings['people_per_day'] = max(1, min(20, (int)($data['people_per_day'] ?? 3)));
     $settings['max_per_month'] = max(1, min(31, (int)($data['max_per_month'] ?? 4)));
+    // 0 = không giới hạn; số dương là tối đa nam trong một ca/ngày.
+    $settings['max_male_per_day'] = max(0, min(20, (int)($data['max_male_per_day'] ?? 0)));
     foreach (['start_time','end_time'] as $key) {
         $value = trim((string)($data[$key] ?? $settings[$key]));
         if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $value)) $settings[$key] = $value;
@@ -975,7 +978,7 @@ function noitru_duty_roster_all(array $teacherMap = []) {
         $row['note'] = trim((string)($row['note'] ?? ''));
         $out[] = $row;
     }
-    usort($out, fn($a,$b) => strcasecmp((string)($a['teacher_name'] ?? ''), (string)($b['teacher_name'] ?? '')));
+    usort($out, fn($a,$b) => csdl_compare_person_names((string)($a['teacher_name'] ?? ''), (string)($b['teacher_name'] ?? '')));
     return $out;
 }
 function noitru_duty_roster_save($teacherId, array $teacherMap, $maxPerMonth = 0, $note = '') {
