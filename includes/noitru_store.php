@@ -752,6 +752,14 @@ function noitru_att_delete(array $dates, $shift = null) {
     return max($deleted,$deletedReports);
 }
 
+/** Chuẩn hóa giới tính dùng cho các quy tắc phân công trực. */
+function noitru_gender_is_male($gender) {
+    $value = function_exists('mb_strtolower')
+        ? mb_strtolower(trim((string)$gender), 'UTF-8')
+        : strtolower(trim((string)$gender));
+    return in_array($value, ['nam','male','m','1'], true);
+}
+
 /* —— Duty —— */
 function noitru_duty_all() {
     noitru_ensure_dir();
