@@ -275,6 +275,14 @@ function cds_db_migrations()
                  VALUES ('meal_shadow_write', '0', 'migration')",
             ),
         ),
+        '20260831_010_meal_safe_sql_read' => array(
+            'description' => 'Công tắc đọc MySQL an toàn cho báo ăn, mặc định tắt',
+            'statements' => array(
+                "INSERT IGNORE INTO cds_runtime_settings
+                    (setting_key, setting_value, updated_by)
+                 VALUES ('meal_sql_read', '0', 'migration')",
+            ),
+        ),
     );
 }
 

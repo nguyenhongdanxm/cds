@@ -7,6 +7,7 @@ require_once __DIR__ . '/includes/database_read_verify.php';
 require_once __DIR__ . '/includes/database_sql_read.php';
 require_once __DIR__ . '/includes/database_sql_write.php';
 require_once __DIR__ . '/includes/database_meals.php';
+require_once __DIR__ . '/includes/database_meal_read.php';
 require_admin();
 
 if (empty($_SESSION['cds_db_csrf'])) {
@@ -169,6 +170,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (($_POST['action'] ?? '') === 'set_meal_sql_read') {
+        try {
+            $enabled = ($_POST['enabled'] ?? '') === '1';
+            cds_meal_sql_read_set($enabled, current_user());
+            flash($enabled
+                ? 'Đã bật đọc MySQL an toàn cho báo ăn; hệ thống tự quay về JSON khi có vấn đề.'
+                : 'Đã quay báo ăn về đọc JSON.', 'success');
+        } catch (Throwable $e) {
+            flash('Không thể đổi nguồn đọc báo ăn: ' . $e->getMessage(), 'danger');
+        }
+    }
+
     header('Location: ' . BASE_URL . 'database_admin.php');
     exit;
 }
@@ -198,6 +211,8 @@ $mealReady = false;
 $mealShadowEnabled = false;
 $mealComparison = null;
 $mealPending = null;
+$mealReadReady = false;
+$mealReadStatus = array('configured'=>false,'effective'=>false,'ready'=>false,'reason'=>'Chưa cài đặt bản nâng cấp.');
 $sqlReadStatus = array(
     'configured' => false,
     'ready' => false,
@@ -257,6 +272,8 @@ if ($dbStatus['connected']) {
                 $mealShadowEnabled = cds_meal_shadow_enabled();
                 $mealComparison = cds_meal_compare_snapshot();
                 $mealPending = cds_meal_pending_status();
+                $mealReadReady = !isset($migrationStatus['pending']['20260831_010_meal_safe_sql_read']);
+                if ($mealReadReady) $mealReadStatus = cds_meal_sql_read_status();
             }
         }
     } catch (Throwable $e) {
@@ -811,6 +828,37 @@ include __DIR__ . '/includes/nav_top.php';
     <div class="small text-muted mt-3">
       Trình tự an toàn: giữ bản xuất cũ → nhập bản sao → xác nhận khớp → bật 3A trong kỳ nghỉ → thử một thay đổi có thể hoàn tác → đối chiếu lại trước ngày 03/09.
     </div>
+  </section>
+  <?php endif; ?>
+
+  <?php if ($mealReadReady): ?>
+  <section class="status-card p-3 mt-3 border border-primary-subtle">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+      <div>
+        <h5 class="mb-1"><i class="bi bi-speedometer2"></i> Giai đoạn 3B – đọc và xuất báo ăn từ MySQL</h5>
+        <p class="text-muted small mb-0">
+          Trang báo ăn, tổng hợp và xuất dữ liệu đọc các bản ghi đã lập chỉ mục trong MySQL.
+          JSON vẫn được ghi và giữ làm bản dự phòng; hệ thống tự quay về JSON khi MySQL lỗi hoặc còn đồng bộ chờ.
+        </p>
+      </div>
+      <span class="badge <?= !empty($mealReadStatus['effective']) ? 'text-bg-primary' : (!empty($mealReadStatus['configured']) ? 'text-bg-warning' : 'text-bg-secondary') ?>">
+        <?= !empty($mealReadStatus['effective']) ? 'Đang đọc MySQL' : (!empty($mealReadStatus['configured']) ? 'Đã tự về JSON' : 'Mặc định tắt') ?>
+      </span>
+    </div>
+    <?php if (!empty($mealReadStatus['configured']) && empty($mealReadStatus['effective'])): ?>
+      <div class="alert alert-warning mt-3 mb-0"><strong>Đang dùng JSON dự phòng:</strong> <?= e($mealReadStatus['reason']) ?></div>
+    <?php endif; ?>
+    <form method="post" class="mt-3" onsubmit="return confirm('<?= !empty($mealReadStatus['configured'])
+        ? 'Quay báo ăn về đọc JSON?'
+        : 'Bật đọc MySQL cho báo ăn? JSON vẫn được giữ làm bản dự phòng.' ?>');">
+      <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
+      <input type="hidden" name="action" value="set_meal_sql_read">
+      <input type="hidden" name="enabled" value="<?= !empty($mealReadStatus['configured']) ? '0' : '1' ?>">
+      <button type="submit" class="btn <?= !empty($mealReadStatus['configured']) ? 'btn-outline-secondary' : 'btn-primary' ?>"
+          <?= empty($mealReadStatus['configured']) && (!$mealComparison || empty($mealComparison['is_match']) || !$mealShadowEnabled || $mealPending) ? 'disabled' : '' ?>>
+        <?= !empty($mealReadStatus['configured']) ? 'Quay về đọc JSON' : 'Bật 3B có kiểm soát' ?>
+      </button>
+    </form>
   </section>
   <?php endif; ?>
 </main>
