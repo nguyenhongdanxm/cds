@@ -1,8 +1,11 @@
 <?php
 require_once __DIR__.'/lesson_book_store.php';
 function lb_ppct_grade_v2(string $v): string { if(preg_match('/(6|7|8|9|10|11|12)/',$v,$m))return $m[1]; return trim($v); }
-function lb_ppct_import_v2(array $file): array {
+function lb_ppct_import_v2(array $file,array $input=[]): array {
  if(!lb_can_manage_curriculum())return['ok'=>false,'message'=>'Bạn chưa được phân quyền nhập PPCT.'];
+ $isAdmin=lb_is_admin();$targetSubject=trim((string)($input['target_subject']??''));$targetGrade=lb_ppct_grade_v2((string)($input['target_grade']??''));
+ if(!$isAdmin&&($targetSubject===''||$targetGrade===''))return['ok'=>false,'message'=>'Hãy chọn Môn–Khối được phân công trước khi tải PPCT.'];
+ if(!$isAdmin&&!lb_can_manage_curriculum($targetSubject,$targetGrade))return['ok'=>false,'message'=>'Môn–Khối đã chọn không thuộc phân công chuyên môn hiện hành của tài khoản.'];
  if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)return['ok'=>false,'message'=>'Chưa chọn tệp Excel PPCT.'];
  if(strtolower(pathinfo((string)($file['name']??''),PATHINFO_EXTENSION))!=='xlsx')return['ok'=>false,'message'=>'Chỉ nhận tệp .xlsx.'];
  $raw=tkb_xlsx_rows((string)$file['tmp_name']); if(empty($raw['ok']))return$raw;
@@ -28,7 +31,7 @@ function lb_ppct_import_v2(array $file): array {
   $incoming[$key]=['stt'=>$stt!==''?(int)$stt:$excelRow-$headerRow-1,'subject'=>$subject,'grade'=>$grade,'grade_name'=>'Khối '.$grade,'period'=>$period,'title'=>$title,'order'=>$order,'semester'=>$semester];
  }
  foreach($incoming as$item)if(!lb_can_manage_curriculum($item['subject'],$item['grade']))$errors[]='Không có quyền môn '.$item['subject'].' khối '.$item['grade'].'.';
- if(!lb_is_admin())foreach($incoming as$item)if(lb_curriculum_scope_exists($item['subject'],$item['grade']))$errors[]='PPCT '.$item['subject'].' khối '.$item['grade'].' đã có. Giáo viên không được sửa hoặc ghi đè; quản trị phải xóa bản cũ trước khi tải lại.';
+ if(!$isAdmin)foreach($incoming as$item){if(!lb_same($targetSubject,(string)$item['subject'])||$targetGrade!==(string)$item['grade'])$errors[]='Tệp có Môn–Khối ngoài lựa chọn '.$targetSubject.' – Khối '.$targetGrade.': '.$item['subject'].' – Khối '.$item['grade'].'. Mỗi tệp chỉ được chứa một Môn–Khối.';if(lb_curriculum_scope_exists($item['subject'],$item['grade']))$errors[]='PPCT '.$item['subject'].' khối '.$item['grade'].' đã có. Giáo viên không được sửa hoặc ghi đè; quản trị phải xóa bản cũ trước khi tải lại.';}
  if($errors)return['ok'=>false,'message'=>'Không nhập dữ liệu vì phát hiện '.count($errors).' lỗi hoặc phạm vi không được cấp. '.implode(' ',array_slice(array_values(array_unique($errors)),0,8)).(count($errors)>8?' …':'')];
  if(!$incoming)return['ok'=>false,'message'=>'Tệp không có dòng PPCT hợp lệ.'];
  $rows=lb_curriculum();$index=[];foreach($rows as$i=>$r)$index[lb_norm((string)($r['subject']??'')).'|'.lb_ppct_grade_v2((string)($r['grade']??'')).'|'.(int)($r['period']??0)]=$i;$added=0;$updated=0;
