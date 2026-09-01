@@ -421,10 +421,16 @@ function csdl_class_delete($id) {
 
 /* —— Giáo viên —— */
 function csdl_teachers_all() {
-    $sqlRows = cds_core_sql_rows('teachers');
-    if (is_array($sqlRows)) return $sqlRows;
-    $rows = load_json(CSDL_TEACHERS, []);
-    cds_read_verify_rows('teachers', $rows);
+    $rows = cds_core_sql_rows('teachers');
+    if (!is_array($rows)) {
+        $rows = load_json(CSDL_TEACHERS, []);
+        cds_read_verify_rows('teachers', $rows);
+    }
+    // Mọi danh sách giáo viên dùng chung thứ tự theo tên gọi cuối cùng.
+    usort($rows, static fn($a, $b) => csdl_compare_person_names(
+        (string)($a['name'] ?? ''),
+        (string)($b['name'] ?? '')
+    ));
     return $rows;
 }
 
