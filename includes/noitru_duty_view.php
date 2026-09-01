@@ -195,7 +195,7 @@ if (!function_exists('nt_duty_url')) {
         <input type="hidden" name="action" value="duty_bulk_save"><input type="hidden" name="month" value="<?= e($dutyMonth) ?>"><input type="hidden" name="confirm_mismatch" id="dutyConfirmMismatch" value="0">
         <div class="duty-bulk-bar"><div class="duty-bulk-status" id="dutyBulkStatus"><strong>Chấm trực tiếp trên danh sách</strong><span>Tích/bỏ các vòng tròn rồi lưu một lần.</span></div><button class="btn btn-sm btn-success text-white" type="submit"><i class="bi bi-floppy"></i> Lưu phân công</button></div>
         <div class="duty-matrix-wrap"><table class="duty-matrix"><thead><tr><th class="teacher-col">Giáo viên</th><th class="count-col">Lần</th><th class="count-col">CN</th><?php for($day=1;$day<=$dutyDays;$day++):$date=$dutyMonth.'-'.str_pad((string)$day,2,'0',STR_PAD_LEFT);$weekday=(int)date('N',strtotime($date));?><th class="<?= $weekday>=6?'duty-weekend-col':'' ?>"><small><?= e($dutyShortWeekdays[$weekday-1]) ?></small><br><?= $day ?></th><?php endfor;?></tr></thead><tbody>
-        <?php foreach ($dutyRosterMap as $teacherId=>$teacherName):$personalLimit=($dutyRosterLimits[$teacherId]??0)>0?$dutyRosterLimits[$teacherId]:(int)$dutySettings['max_per_month']; ?><tr data-duty-teacher="<?= e($teacherId) ?>"><td class="teacher-col"><i class="bi bi-person-circle text-info me-1"></i><strong><?= e($teacherName) ?></strong></td><td class="count-col"><span class="badge bg-light text-dark border"><span data-duty-total><?= (int)($dutyMonthStats[$teacherId]??0) ?></span>/<?= (int)$personalLimit ?></span></td><td class="count-col"><span class="badge bg-light text-warning border" data-duty-sundays><?= (int)($dutySundayStats[$teacherId]??0) ?></span></td><?php for($day=1;$day<=$dutyDays;$day++):$date=$dutyMonth.'-'.str_pad((string)$day,2,'0',STR_PAD_LEFT);$selected=isset($dutyByTeacher[$teacherId][$date]);$weekday=(int)date('N',strtotime($date));?><td class="<?= $weekday>=6?'duty-weekend-col':'' ?>"><label class="duty-matrix-choice" aria-label="<?= $selected?'Bỏ':'Thêm' ?> lịch trực <?= e($teacherName) ?> ngày <?= e(date('d/m/Y',strtotime($date))) ?>"><input type="checkbox" name="assignments[<?= e($teacherId) ?>][]" value="<?= e($date) ?>" data-duty-date="<?= e($date) ?>" data-duty-sunday="<?= $weekday===7?'1':'0' ?>" data-duty-male="<?= !empty($dutyTeacherMaleMap[$teacherId])?'1':'0' ?>" <?= $selected?'checked':'' ?>><span class="duty-matrix-day"><i class="bi bi-check"></i></span></label></td><?php endfor;?></tr><?php endforeach; ?>
+        <?php foreach ($dutyRosterMap as $teacherId=>$teacherName):$personalLimit=($dutyRosterLimits[$teacherId]??0)>0?$dutyRosterLimits[$teacherId]:(int)$dutySettings['max_per_month']; ?><tr data-duty-teacher="<?= e($teacherId) ?>" data-duty-limit="<?= (int)$personalLimit ?>"><td class="teacher-col"><i class="bi bi-person-circle text-info me-1"></i><strong><?= e($teacherName) ?></strong></td><td class="count-col"><span class="badge bg-light text-dark border"><span data-duty-total><?= (int)($dutyMonthStats[$teacherId]??0) ?></span>/<?= (int)$personalLimit ?></span></td><td class="count-col"><span class="badge bg-light text-warning border" data-duty-sundays><?= (int)($dutySundayStats[$teacherId]??0) ?></span></td><?php for($day=1;$day<=$dutyDays;$day++):$date=$dutyMonth.'-'.str_pad((string)$day,2,'0',STR_PAD_LEFT);$selected=isset($dutyByTeacher[$teacherId][$date]);$weekday=(int)date('N',strtotime($date));?><td class="<?= $weekday>=6?'duty-weekend-col':'' ?>"><label class="duty-matrix-choice" aria-label="<?= $selected?'Bỏ':'Thêm' ?> lịch trực <?= e($teacherName) ?> ngày <?= e(date('d/m/Y',strtotime($date))) ?>"><input type="checkbox" name="assignments[<?= e($teacherId) ?>][]" value="<?= e($date) ?>" data-duty-date="<?= e($date) ?>" data-duty-sunday="<?= $weekday===7?'1':'0' ?>" data-duty-male="<?= !empty($dutyTeacherMaleMap[$teacherId])?'1':'0' ?>" <?= $selected?'checked':'' ?>><span class="duty-matrix-day"><i class="bi bi-check"></i></span></label></td><?php endfor;?></tr><?php endforeach; ?>
         </tbody></table></div>
       </form>
       <?php endif;?>
@@ -206,10 +206,12 @@ if (!function_exists('nt_duty_url')) {
     var form=document.getElementById('dutyBulkForm');if(!form)return;
     var expected=<?= (int)$dutySettings['people_per_day'] ?>,maxMale=<?= (int)($dutySettings['max_male_per_day']??0) ?>,days=<?= (int)$dutyDays ?>,month=<?= json_encode($dutyMonth) ?>,status=document.getElementById('dutyBulkStatus');
     function refresh(){
+      var personOver=[];
       form.querySelectorAll('tbody tr[data-duty-teacher]').forEach(function(row){
-        var checked=row.querySelectorAll('input[data-duty-date]:checked');
+        var checked=row.querySelectorAll('input[data-duty-date]:checked'),limit=parseInt(row.dataset.dutyLimit||'0',10),name=(row.querySelector('.teacher-col strong')||{}).textContent||'Người trực';
         row.querySelector('[data-duty-total]').textContent=checked.length;
         row.querySelector('[data-duty-sundays]').textContent=Array.from(checked).filter(function(input){return input.dataset.dutySunday==='1'}).length;
+        if(limit>0&&checked.length>limit)personOver.push(name.trim()+' ('+checked.length+'/'+limit+' lượt)');
       });
       var counts={},maleCounts={};
       form.querySelectorAll('input[data-duty-date]:checked').forEach(function(input){
@@ -222,18 +224,36 @@ if (!function_exists('nt_duty_url')) {
         if(count<expected)under.push(label+' ('+count+'/'+expected+')');else if(count>expected)over.push(label+' ('+count+'/'+expected+')');
         if(maxMale>0&&male>maxMale)maleOver.push(label+' ('+male+'/'+maxMale+' nam)');
       }
-      var warning=under.length>0||over.length>0||maleOver.length>0;
+      var warning=under.length>0||over.length>0||maleOver.length>0||personOver.length>0;
       status.classList.toggle('warning',warning);
-      status.innerHTML='<strong>'+(warning?'Chưa đúng định mức ca trực':'Đã đúng định mức cho tất cả các ngày')+'</strong><span>'+(under.length?'Thiếu: '+under.length+' ngày. ':'')+(over.length?'Vượt người: '+over.length+' ngày. ':'')+(maleOver.length?'Vượt số nam: '+maleOver.length+' ngày. ':'')+'Tích/bỏ vòng tròn rồi bấm Lưu phân công.</span>';
-      return {under:under,over:over,maleOver:maleOver};
+      status.innerHTML='<strong>'+(warning?'Chưa đúng định mức ca trực':'Đã đúng định mức cho tất cả các ngày')+'</strong><span>'+(under.length?'Thiếu: '+under.length+' ngày. ':'')+(over.length?'Vượt người: '+over.length+' ngày. ':'')+(maleOver.length?'Vượt số nam: '+maleOver.length+' ngày. ':'')+(personOver.length?'Vượt lượt cá nhân: '+personOver.length+' người. ':'')+'Tích/bỏ vòng tròn rồi bấm Lưu phân công.</span>';
+      return {under:under,over:over,maleOver:maleOver,personOver:personOver};
     }
-    form.addEventListener('change',refresh);
+    form.addEventListener('change',function(event){
+      var input=event.target;
+      if(!input.matches('input[data-duty-date]')){refresh();return}
+      if(input.checked){
+        var date=input.dataset.dutyDate,label=date.slice(8,10)+'/'+date.slice(5,7);
+        var dayChecked=Array.from(form.querySelectorAll('input[data-duty-date]:checked')).filter(function(item){return item.dataset.dutyDate===date});
+        var maleCount=dayChecked.filter(function(item){return item.dataset.dutyMale==='1'}).length;
+        var row=input.closest('tr[data-duty-teacher]'),personCount=row?row.querySelectorAll('input[data-duty-date]:checked').length:0;
+        var personLimit=row?parseInt(row.dataset.dutyLimit||'0',10):0;
+        var personName=row&&row.querySelector('.teacher-col strong')?row.querySelector('.teacher-col strong').textContent.trim():'Người trực';
+        var warnings=[];
+        if(dayChecked.length>expected)warnings.push('Ngày '+label+' đã có '+dayChecked.length+'/'+expected+' người trực.');
+        if(maxMale>0&&maleCount>maxMale)warnings.push('Ngày '+label+' đã có '+maleCount+'/'+maxMale+' nam.');
+        if(personLimit>0&&personCount>personLimit)warnings.push(personName+' đã có '+personCount+'/'+personLimit+' lượt trong tháng.');
+        if(warnings.length&&!confirm(warnings.join('\\n')+'\\n\\nBạn vẫn muốn chọn vượt giới hạn?'))input.checked=false;
+      }
+      refresh();
+    });
     form.addEventListener('submit',function(event){
-      var mismatch=refresh();if(!mismatch.under.length&&!mismatch.over.length&&!mismatch.maleOver.length)return;
+      var mismatch=refresh();if(!mismatch.under.length&&!mismatch.over.length&&!mismatch.maleOver.length&&!mismatch.personOver.length)return;
       var lines=[];
       if(mismatch.under.length)lines.push('Ngày thiếu người: '+mismatch.under.slice(0,12).join(', ')+(mismatch.under.length>12?'…':''));
       if(mismatch.over.length)lines.push('Ngày vượt tổng người: '+mismatch.over.slice(0,12).join(', ')+(mismatch.over.length>12?'…':''));
       if(mismatch.maleOver.length)lines.push('Ngày vượt số nam: '+mismatch.maleOver.slice(0,12).join(', ')+(mismatch.maleOver.length>12?'…':''));
+      if(mismatch.personOver.length)lines.push('Người vượt số lượt: '+mismatch.personOver.slice(0,12).join(', ')+(mismatch.personOver.length>12?'…':''));
       if(!confirm('Phân công chưa đúng giới hạn đã cài đặt.\\n\\n'+lines.join('\\n')+'\\n\\nBạn vẫn muốn lưu?')){event.preventDefault();return}
       document.getElementById('dutyConfirmMismatch').value='1';
     });
