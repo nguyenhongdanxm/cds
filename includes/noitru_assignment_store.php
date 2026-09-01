@@ -122,7 +122,7 @@ function noitru_assignment_sort_targets(array $names,array $slots,array $student
 function noitru_assignment_interleave_gender(array $students): array {
     $buckets=['Nam'=>[],'Nữ'=>[],'Khác'=>[]];
     foreach($students as $student)$buckets[noitru_assignment_gender($student)][]=$student;
-    foreach($buckets as &$bucket)usort($bucket,static fn($a,$b)=>strnatcasecmp((string)($a['name']??''),(string)($b['name']??'')));unset($bucket);
+    foreach($buckets as &$bucket)usort($bucket,static fn($a,$b)=>csdl_compare_person_names($a['name']??'',$b['name']??''));unset($bucket);
     $result=[];$counts=array_map('count',$buckets);$total=array_sum($counts);$placed=['Nam'=>0,'Nữ'=>0,'Khác'=>0];
     while(count($result)<$total){
         $best=null;$score=-INF;
@@ -161,7 +161,7 @@ function noitru_assignment_auto_rooms(array $students,array $names,$capacity,arr
         }
     }
     foreach(noitru_assignment_group_students($students,true) as $group){
-        usort($group,static fn($a,$b)=>strnatcasecmp((string)($a['name']??''),(string)($b['name']??'')));
+        usort($group,static fn($a,$b)=>csdl_compare_person_names($a['name']??'',$b['name']??''));
         $gender=noitru_assignment_gender($group[0]);$empty=[];$partial=[];
         foreach($names as $name){
             $free=noitru_assignment_capacity_for($capacity,$name)-count($slots[$name]);if($free<=0)continue;
