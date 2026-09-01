@@ -35,6 +35,7 @@ function permission_features_catalog() {
         'cm.baocao.tiendo' => ['module' => 'chuyenmon', 'label' => 'Tiến độ chương trình', 'group' => 'Báo cáo'],
         'cm.baocao.dugio'  => ['module' => 'chuyenmon', 'label' => 'Dự giờ', 'group' => 'Báo cáo'],
         'cm.baocao.kythi'  => ['module' => 'chuyenmon', 'label' => 'Kiểm tra', 'group' => 'Theo dõi – Đánh giá'],
+        'cm.tkb'      => ['module' => 'chuyenmon', 'label' => 'Xếp thời khóa biểu', 'group' => 'Thời khóa biểu'],
         'cm.dashboard'=> ['module' => 'chuyenmon', 'label' => 'Bảng điều khiển trang chủ CM', 'group' => 'Chung'],
 
         // CSDL
