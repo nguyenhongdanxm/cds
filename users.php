@@ -388,7 +388,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $users = get_users();
-usort($users, fn($a, $b) => strcasecmp($a['username'] ?? '', $b['username'] ?? ''));
+usort($users, fn($a, $b) => csdl_compare_person_names($a['name'] ?? $a['username'] ?? '', $b['name'] ?? $b['username'] ?? ''));
 $userAccessMap = [];
 foreach ($users as $userItem) {
     if (!empty($userItem['id'])) $userAccessMap[$userItem['id']] = permission_effective_access_for_user($userItem);
