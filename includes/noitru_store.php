@@ -879,9 +879,17 @@ function noitru_duty_report_save(array $data) {
     return save_json(NOITRU_DUTY_REPORTS, $rows);
 }
 function noitru_duty_for_month($month) {
-    return array_values(array_filter(noitru_duty_all(), fn($row) =>
+    $rows = array_values(array_filter(noitru_duty_all(), fn($row) =>
         str_starts_with((string)($row['date'] ?? ''), $month . '-')
     ));
+    usort($rows, static function ($a, $b) {
+        $dateCompare = strcmp((string)($a['date'] ?? ''), (string)($b['date'] ?? ''));
+        return $dateCompare !== 0 ? $dateCompare : csdl_compare_person_names(
+            $a['teacher_name'] ?? '',
+            $b['teacher_name'] ?? ''
+        );
+    });
+    return $rows;
 }
 function noitru_duty_delete_month($month) {
     $rows = noitru_duty_all();
