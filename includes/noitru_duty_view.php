@@ -21,9 +21,12 @@ $dutyManagers = noitru_duty_managers_all();
 $dutyGroups = noitru_duty_groups_all();
 
 $dutyTeacherMap = [];
+$dutyTeacherMaleMap = [];
 foreach ($teachers as $teacher) {
     $teacherId = (string)($teacher['id'] ?? '');
-    if ($teacherId !== '') $dutyTeacherMap[$teacherId] = (string)($teacher['name'] ?? '');
+    if ($teacherId === '') continue;
+    $dutyTeacherMap[$teacherId] = (string)($teacher['name'] ?? '');
+    $dutyTeacherMaleMap[$teacherId] = noitru_gender_is_male($teacher['gender'] ?? $teacher['gioi_tinh'] ?? '');
 }
 $dutyRoster = noitru_duty_roster_all($dutyTeacherMap);
 $dutyRosterMap = [];
@@ -181,7 +184,7 @@ if (!function_exists('nt_duty_url')) {
       <?php if ($canDeleteCurrent): ?><form method="post" onsubmit="return confirm('Xóa toàn bộ lịch trực tháng này?')"><input type="hidden" name="action" value="duty_month_clear"><input type="hidden" name="month" value="<?= e($dutyMonth) ?>"><input type="hidden" name="section" value="assign"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Xóa cả tháng</button></form><?php endif; ?>
     </div></div>
     <div class="duty-panel-body">
-      <div class="duty-mode-note"><i class="bi bi-info-circle"></i> Mục tiêu hiện tại: <?= (int)$dutySettings['people_per_day'] ?> người/ngày, tối đa <?= (int)$dutySettings['max_per_month'] ?> lượt/người/tháng.</div>
+      <div class="duty-mode-note"><i class="bi bi-info-circle"></i> Mục tiêu hiện tại: <?= (int)$dutySettings['people_per_day'] ?> người/ngày, tối đa <?= (int)$dutySettings['max_per_month'] ?> lượt/người/tháng<?= (int)($dutySettings['max_male_per_day']??0)>0?', tối đa '.(int)$dutySettings['max_male_per_day'].' nam/ca':'' ?>.</div>
       <div class="duty-tools-grid">
         <div class="duty-tool-box"><h6><i class="bi bi-calendar-plus text-info"></i> Gán nhanh theo thứ</h6><form method="post" class="duty-tool-form"><input type="hidden" name="action" value="duty_assign_weekday"><input type="hidden" name="month" value="<?= e($dutyMonth) ?>"><input type="hidden" name="section" value="assign"><select name="teacher_id" class="form-select form-select-sm" required><option value="">Chọn người trực</option><?php foreach($dutyRosterMap as $id=>$name):?><option value="<?= e($id) ?>"><?= e($name) ?></option><?php endforeach;?></select><div class="duty-weekday-picks"><?php foreach($dutyShortWeekdays as $index=>$label):?><label><input type="checkbox" name="weekdays[]" value="<?= $index+1 ?>"><span><?= e($label) ?></span></label><?php endforeach;?></div><button class="btn btn-sm btn-info text-white">Gán lịch</button></form></div>
         <div class="duty-tool-box"><h6><i class="bi bi-arrow-left-right text-warning"></i> Đổi lịch trực</h6><form method="post" class="duty-tool-form" onsubmit="return confirm('Xác nhận đổi ngày trực của hai lượt đã chọn?')"><input type="hidden" name="action" value="duty_swap"><input type="hidden" name="month" value="<?= e($dutyMonth) ?>"><input type="hidden" name="section" value="assign"><select name="row_a" class="form-select form-select-sm" required><option value="">Lượt trực thứ nhất</option><?php foreach($dutyMonthRows as $row):?><option value="<?= e($row['id']??'') ?>"><?= e(date('d/m',strtotime($row['date']??''))) ?> · <?= e($row['teacher_name']??'') ?></option><?php endforeach;?></select><select name="row_b" class="form-select form-select-sm" required><option value="">Lượt trực thứ hai</option><?php foreach($dutyMonthRows as $row):?><option value="<?= e($row['id']??'') ?>"><?= e(date('d/m',strtotime($row['date']??''))) ?> · <?= e($row['teacher_name']??'') ?></option><?php endforeach;?></select><button class="btn btn-sm btn-outline-warning">Đổi lịch</button></form></div>
@@ -192,7 +195,7 @@ if (!function_exists('nt_duty_url')) {
         <input type="hidden" name="action" value="duty_bulk_save"><input type="hidden" name="month" value="<?= e($dutyMonth) ?>"><input type="hidden" name="confirm_mismatch" id="dutyConfirmMismatch" value="0">
         <div class="duty-bulk-bar"><div class="duty-bulk-status" id="dutyBulkStatus"><strong>Chấm trực tiếp trên danh sách</strong><span>Tích/bỏ các vòng tròn rồi lưu một lần.</span></div><button class="btn btn-sm btn-success text-white" type="submit"><i class="bi bi-floppy"></i> Lưu phân công</button></div>
         <div class="duty-matrix-wrap"><table class="duty-matrix"><thead><tr><th class="teacher-col">Giáo viên</th><th class="count-col">Lần</th><th class="count-col">CN</th><?php for($day=1;$day<=$dutyDays;$day++):$date=$dutyMonth.'-'.str_pad((string)$day,2,'0',STR_PAD_LEFT);$weekday=(int)date('N',strtotime($date));?><th class="<?= $weekday>=6?'duty-weekend-col':'' ?>"><small><?= e($dutyShortWeekdays[$weekday-1]) ?></small><br><?= $day ?></th><?php endfor;?></tr></thead><tbody>
-        <?php foreach ($dutyRosterMap as $teacherId=>$teacherName):$personalLimit=($dutyRosterLimits[$teacherId]??0)>0?$dutyRosterLimits[$teacherId]:(int)$dutySettings['max_per_month']; ?><tr data-duty-teacher="<?= e($teacherId) ?>"><td class="teacher-col"><i class="bi bi-person-circle text-info me-1"></i><strong><?= e($teacherName) ?></strong></td><td class="count-col"><span class="badge bg-light text-dark border"><span data-duty-total><?= (int)($dutyMonthStats[$teacherId]??0) ?></span>/<?= (int)$personalLimit ?></span></td><td class="count-col"><span class="badge bg-light text-warning border" data-duty-sundays><?= (int)($dutySundayStats[$teacherId]??0) ?></span></td><?php for($day=1;$day<=$dutyDays;$day++):$date=$dutyMonth.'-'.str_pad((string)$day,2,'0',STR_PAD_LEFT);$selected=isset($dutyByTeacher[$teacherId][$date]);$weekday=(int)date('N',strtotime($date));?><td class="<?= $weekday>=6?'duty-weekend-col':'' ?>"><label class="duty-matrix-choice" aria-label="<?= $selected?'Bỏ':'Thêm' ?> lịch trực <?= e($teacherName) ?> ngày <?= e(date('d/m/Y',strtotime($date))) ?>"><input type="checkbox" name="assignments[<?= e($teacherId) ?>][]" value="<?= e($date) ?>" data-duty-date="<?= e($date) ?>" data-duty-sunday="<?= $weekday===7?'1':'0' ?>" <?= $selected?'checked':'' ?>><span class="duty-matrix-day"><i class="bi bi-check"></i></span></label></td><?php endfor;?></tr><?php endforeach; ?>
+        <?php foreach ($dutyRosterMap as $teacherId=>$teacherName):$personalLimit=($dutyRosterLimits[$teacherId]??0)>0?$dutyRosterLimits[$teacherId]:(int)$dutySettings['max_per_month']; ?><tr data-duty-teacher="<?= e($teacherId) ?>"><td class="teacher-col"><i class="bi bi-person-circle text-info me-1"></i><strong><?= e($teacherName) ?></strong></td><td class="count-col"><span class="badge bg-light text-dark border"><span data-duty-total><?= (int)($dutyMonthStats[$teacherId]??0) ?></span>/<?= (int)$personalLimit ?></span></td><td class="count-col"><span class="badge bg-light text-warning border" data-duty-sundays><?= (int)($dutySundayStats[$teacherId]??0) ?></span></td><?php for($day=1;$day<=$dutyDays;$day++):$date=$dutyMonth.'-'.str_pad((string)$day,2,'0',STR_PAD_LEFT);$selected=isset($dutyByTeacher[$teacherId][$date]);$weekday=(int)date('N',strtotime($date));?><td class="<?= $weekday>=6?'duty-weekend-col':'' ?>"><label class="duty-matrix-choice" aria-label="<?= $selected?'Bỏ':'Thêm' ?> lịch trực <?= e($teacherName) ?> ngày <?= e(date('d/m/Y',strtotime($date))) ?>"><input type="checkbox" name="assignments[<?= e($teacherId) ?>][]" value="<?= e($date) ?>" data-duty-date="<?= e($date) ?>" data-duty-sunday="<?= $weekday===7?'1':'0' ?>" data-duty-male="<?= !empty($dutyTeacherMaleMap[$teacherId])?'1':'0' ?>" <?= $selected?'checked':'' ?>><span class="duty-matrix-day"><i class="bi bi-check"></i></span></label></td><?php endfor;?></tr><?php endforeach; ?>
         </tbody></table></div>
       </form>
       <?php endif;?>
@@ -201,22 +204,39 @@ if (!function_exists('nt_duty_url')) {
   <script>
   (function(){
     var form=document.getElementById('dutyBulkForm');if(!form)return;
-    var expected=<?= (int)$dutySettings['people_per_day'] ?>,days=<?= (int)$dutyDays ?>,month=<?= json_encode($dutyMonth) ?>,status=document.getElementById('dutyBulkStatus');
+    var expected=<?= (int)$dutySettings['people_per_day'] ?>,maxMale=<?= (int)($dutySettings['max_male_per_day']??0) ?>,days=<?= (int)$dutyDays ?>,month=<?= json_encode($dutyMonth) ?>,status=document.getElementById('dutyBulkStatus');
     function refresh(){
       form.querySelectorAll('tbody tr[data-duty-teacher]').forEach(function(row){
         var checked=row.querySelectorAll('input[data-duty-date]:checked');
         row.querySelector('[data-duty-total]').textContent=checked.length;
         row.querySelector('[data-duty-sundays]').textContent=Array.from(checked).filter(function(input){return input.dataset.dutySunday==='1'}).length;
       });
-      var counts={};form.querySelectorAll('input[data-duty-date]:checked').forEach(function(input){counts[input.dataset.dutyDate]=(counts[input.dataset.dutyDate]||0)+1});
-      var under=[],over=[];
-      for(var day=1;day<=days;day++){var date=month+'-'+String(day).padStart(2,'0'),count=counts[date]||0,label=String(day).padStart(2,'0')+'/'+month.slice(5,7);if(count<expected)under.push(label+' ('+count+'/'+expected+')');else if(count>expected)over.push(label+' ('+count+'/'+expected+')')}
-      status.classList.toggle('warning',under.length>0||over.length>0);
-      status.innerHTML='<strong>'+((under.length||over.length)?'Chưa đúng định mức '+expected+' người/ca':'Đã đủ '+expected+' người cho tất cả các ngày')+'</strong><span>'+(under.length?'Thiếu: '+under.length+' ngày. ':'')+(over.length?'Vượt: '+over.length+' ngày. ':'')+'Tích/bỏ vòng tròn rồi bấm Lưu phân công.</span>';
-      return {under:under,over:over};
+      var counts={},maleCounts={};
+      form.querySelectorAll('input[data-duty-date]:checked').forEach(function(input){
+        var date=input.dataset.dutyDate;counts[date]=(counts[date]||0)+1;
+        if(input.dataset.dutyMale==='1')maleCounts[date]=(maleCounts[date]||0)+1;
+      });
+      var under=[],over=[],maleOver=[];
+      for(var day=1;day<=days;day++){
+        var date=month+'-'+String(day).padStart(2,'0'),count=counts[date]||0,male=maleCounts[date]||0,label=String(day).padStart(2,'0')+'/'+month.slice(5,7);
+        if(count<expected)under.push(label+' ('+count+'/'+expected+')');else if(count>expected)over.push(label+' ('+count+'/'+expected+')');
+        if(maxMale>0&&male>maxMale)maleOver.push(label+' ('+male+'/'+maxMale+' nam)');
+      }
+      var warning=under.length>0||over.length>0||maleOver.length>0;
+      status.classList.toggle('warning',warning);
+      status.innerHTML='<strong>'+(warning?'Chưa đúng định mức ca trực':'Đã đúng định mức cho tất cả các ngày')+'</strong><span>'+(under.length?'Thiếu: '+under.length+' ngày. ':'')+(over.length?'Vượt người: '+over.length+' ngày. ':'')+(maleOver.length?'Vượt số nam: '+maleOver.length+' ngày. ':'')+'Tích/bỏ vòng tròn rồi bấm Lưu phân công.</span>';
+      return {under:under,over:over,maleOver:maleOver};
     }
     form.addEventListener('change',refresh);
-    form.addEventListener('submit',function(event){var mismatch=refresh();if(!mismatch.under.length&&!mismatch.over.length)return;var lines=[];if(mismatch.under.length)lines.push('Ngày thiếu: '+mismatch.under.slice(0,12).join(', ')+(mismatch.under.length>12?'…':''));if(mismatch.over.length)lines.push('Ngày vượt: '+mismatch.over.slice(0,12).join(', ')+(mismatch.over.length>12?'…':''));if(!confirm('Số người trực chưa đúng cài đặt '+expected+' người/ca.\\n\\n'+lines.join('\\n')+'\\n\\nBạn vẫn muốn lưu?')){event.preventDefault();return}document.getElementById('dutyConfirmMismatch').value='1'});
+    form.addEventListener('submit',function(event){
+      var mismatch=refresh();if(!mismatch.under.length&&!mismatch.over.length&&!mismatch.maleOver.length)return;
+      var lines=[];
+      if(mismatch.under.length)lines.push('Ngày thiếu người: '+mismatch.under.slice(0,12).join(', ')+(mismatch.under.length>12?'…':''));
+      if(mismatch.over.length)lines.push('Ngày vượt tổng người: '+mismatch.over.slice(0,12).join(', ')+(mismatch.over.length>12?'…':''));
+      if(mismatch.maleOver.length)lines.push('Ngày vượt số nam: '+mismatch.maleOver.slice(0,12).join(', ')+(mismatch.maleOver.length>12?'…':''));
+      if(!confirm('Phân công chưa đúng giới hạn đã cài đặt.\\n\\n'+lines.join('\\n')+'\\n\\nBạn vẫn muốn lưu?')){event.preventDefault();return}
+      document.getElementById('dutyConfirmMismatch').value='1';
+    });
     refresh();
   })();
   </script>
@@ -233,7 +253,7 @@ if (!function_exists('nt_duty_url')) {
 
 <?php elseif ($dutySection === 'settings'): ?>
   <div class="duty-settings-grid">
-    <section class="duty-settings-card"><h6><i class="bi bi-gear text-info"></i> Cài đặt chung</h6><p class="duty-help">Các giới hạn được dùng khi tự động phân công.</p><form method="post"><input type="hidden" name="action" value="duty_settings_save"><input type="hidden" name="month" value="<?= e($dutyMonth) ?>"><input type="hidden" name="section" value="settings"><div class="row g-2"><div class="col-6"><label class="form-label">Số người trực/ngày</label><input type="number" min="1" max="20" name="people_per_day" class="form-control" value="<?= (int)$dutySettings['people_per_day'] ?>"></div><div class="col-6"><label class="form-label">Tối đa lượt/người/tháng</label><input type="number" min="1" max="31" name="max_per_month" class="form-control" value="<?= (int)$dutySettings['max_per_month'] ?>"></div><div class="col-6"><label class="form-label">Bắt đầu ca</label><input type="time" name="start_time" class="form-control" value="<?= e($dutyStartTime) ?>"></div><div class="col-6"><label class="form-label">Kết thúc ca hôm sau</label><input type="time" name="end_time" class="form-control" value="<?= e($dutyEndTime) ?>"></div></div><button class="btn btn-info text-white mt-3"><i class="bi bi-floppy"></i> Lưu cài đặt</button></form></section>
+    <section class="duty-settings-card"><h6><i class="bi bi-gear text-info"></i> Cài đặt chung</h6><p class="duty-help">Các giới hạn được dùng khi tự động phân công.</p><form method="post"><input type="hidden" name="action" value="duty_settings_save"><input type="hidden" name="month" value="<?= e($dutyMonth) ?>"><input type="hidden" name="section" value="settings"><div class="row g-2"><div class="col-6"><label class="form-label">Số người trực/ngày</label><input type="number" min="1" max="20" name="people_per_day" class="form-control" value="<?= (int)$dutySettings['people_per_day'] ?>"></div><div class="col-6"><label class="form-label">Tối đa lượt/người/tháng</label><input type="number" min="1" max="31" name="max_per_month" class="form-control" value="<?= (int)$dutySettings['max_per_month'] ?>"></div><div class="col-6"><label class="form-label">Tối đa nam trong một ca</label><input type="number" min="0" max="20" name="max_male_per_day" class="form-control" value="<?= (int)($dutySettings['max_male_per_day']??0) ?>"><div class="form-text">Nhập 0 nếu không giới hạn.</div></div><div class="col-6"><label class="form-label">Bắt đầu ca</label><input type="time" name="start_time" class="form-control" value="<?= e($dutyStartTime) ?>"></div><div class="col-6"><label class="form-label">Kết thúc ca hôm sau</label><input type="time" name="end_time" class="form-control" value="<?= e($dutyEndTime) ?>"></div></div><button class="btn btn-info text-white mt-3"><i class="bi bi-floppy"></i> Lưu cài đặt</button></form></section>
     <section class="duty-settings-card"><h6><i class="bi bi-people text-info"></i> Tạo nhóm trực</h6><p class="duty-help">Nhóm giúp lưu sẵn danh sách giáo viên thường trực cùng nhau.</p><form method="post"><input type="hidden" name="action" value="duty_group_save"><input type="hidden" name="month" value="<?= e($dutyMonth) ?>"><input type="hidden" name="section" value="settings"><label class="form-label">Tên nhóm</label><input type="text" name="name" class="form-control mb-2" required placeholder="Ví dụ: Nhóm trực số 1"><label class="form-label">Thành viên</label><select name="teacher_ids[]" class="form-select" multiple size="6"><?php foreach($dutyTeacherMap as $id=>$name):?><option value="<?= e($id) ?>"><?= e($name) ?></option><?php endforeach;?></select><button class="btn btn-info text-white mt-3"><i class="bi bi-plus-lg"></i> Thêm nhóm</button></form></section>
   </div>
   <section class="duty-panel mt-3"><div class="duty-panel-head"><div><h6><i class="bi bi-person-lines-fill text-info"></i> Danh sách người trực</h6><div class="duty-help">Thêm, sửa hoặc xóa người được phép phân công. Xóa khỏi danh sách không làm mất lịch cũ.</div></div></div><div class="duty-panel-body">
