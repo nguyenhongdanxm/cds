@@ -117,7 +117,7 @@ $rootFiles = [
     'noitru_list.php','noitru_assign.php','noitru_assign_enhanced.php','noitru_assign_sync.php',
     'noitru_room_template.php','noitru_room_roles.php','noitru_room_roles_data.php','noitru_room_quick_save.php',
     'noitru_meal_quantity_data.php','noitru_medicine_excel.php','push_api.php','student_card_students.php',
-    'student_photo.php','student_verify.php','thoikhoabieu.php','tkb_xep.php','tkb_editor.php','thuvien.php','thuvien_book_supplement.php',
+    'student_photo.php','student_verify.php','thoikhoabieu.php','tkb_xep.php','tkb_editor.php','tkb_constraints.php','tkb_publish.php','thuvien.php','thuvien_book_supplement.php',
     'thuvien_bienban.php','thietbi_phieu.php','thidua.php','thidua_baiviet.php','thidua_phongnoitru.php',
     'thidua_phongnoitru_delete.php','thidua_phongnoitru_history_api.php','users.php','vanban.php','vanban_open.php',
     'vanban_preview.php','vanban_preview_file.php'
