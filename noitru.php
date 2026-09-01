@@ -463,10 +463,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $month = trim((string)($_POST['month'] ?? ''));
         if (!preg_match('/^\\d{4}-\\d{2}$/', $month)) throw new RuntimeException('Tháng phân công không hợp lệ.');
         $activeTeachers = [];
+        $teacherMale = [];
         foreach (csdl_teachers_all() as $teacher) {
             if (empty($teacher['active'])) continue;
             $id = (string)($teacher['id'] ?? '');
-            if ($id !== '') $activeTeachers[$id] = (string)($teacher['name'] ?? '');
+            if ($id === '') continue;
+            $activeTeachers[$id] = (string)($teacher['name'] ?? '');
+            $teacherMale[$id] = noitru_gender_is_male($teacher['gender'] ?? $teacher['gioi_tinh'] ?? '');
         }
         $rosterMap = [];
         foreach (noitru_duty_roster_all($activeTeachers) as $row) {
@@ -476,6 +479,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $submitted = is_array($_POST['assignments'] ?? null) ? $_POST['assignments'] : [];
         $selected = [];
         $counts = [];
+        $maleCounts = [];
         foreach ($submitted as $teacherId => $dates) {
             $teacherId = (string)$teacherId;
             if (!isset($rosterMap[$teacherId]) || !is_array($dates)) continue;
@@ -483,23 +487,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $date) || !str_starts_with($date, $month . '-')) continue;
                 $selected[$teacherId][] = $date;
                 $counts[$date] = ($counts[$date] ?? 0) + 1;
+                if (!empty($teacherMale[$teacherId])) $maleCounts[$date] = ($maleCounts[$date] ?? 0) + 1;
             }
         }
-        $expected = max(1, (int)(noitru_duty_settings()['people_per_day'] ?? 1));
+        $settings = noitru_duty_settings();
+        $expected = max(1, (int)($settings['people_per_day'] ?? 1));
+        $maxMale = max(0, (int)($settings['max_male_per_day'] ?? 0));
         $days = (int)date('t', strtotime($month . '-01'));
         $mismatches = [];
+        $genderMismatches = [];
         for ($day = 1; $day <= $days; $day++) {
             $date = $month . '-' . str_pad((string)$day, 2, '0', STR_PAD_LEFT);
             $count = (int)($counts[$date] ?? 0);
             if ($count !== $expected) $mismatches[] = date('d/m', strtotime($date)) . ': ' . $count . '/' . $expected;
+            $maleCount = (int)($maleCounts[$date] ?? 0);
+            if ($maxMale > 0 && $maleCount > $maxMale) $genderMismatches[] = date('d/m', strtotime($date)) . ': ' . $maleCount . '/' . $maxMale . ' nam';
         }
-        if ($mismatches && ($_POST['confirm_mismatch'] ?? '') !== '1') {
-            throw new RuntimeException('Cần xác nhận các ngày chưa đúng định mức: ' . implode(', ', array_slice($mismatches, 0, 12)));
+        if (($mismatches || $genderMismatches) && ($_POST['confirm_mismatch'] ?? '') !== '1') {
+            $parts = [];
+            if ($mismatches) $parts[] = 'số người: ' . implode(', ', array_slice($mismatches, 0, 8));
+            if ($genderMismatches) $parts[] = 'số nam: ' . implode(', ', array_slice($genderMismatches, 0, 8));
+            throw new RuntimeException('Cần xác nhận các ngày chưa đúng định mức ' . implode(' | ', $parts));
         }
         if (!noitru_duty_replace_roster_month($month, $selected, $rosterMap, $user['name'] ?? '')) {
             throw new RuntimeException('Không lưu được ma trận phân công trực.');
         }
-        flash('Đã lưu phân công trực tháng ' . date('m/Y', strtotime($month . '-01')) . ($mismatches ? ' (đã xác nhận ngày thiếu/vượt định mức).' : '.') , $mismatches ? 'warning' : 'success');
+        $hasWarnings = $mismatches || $genderMismatches;
+        flash('Đã lưu phân công trực tháng ' . date('m/Y', strtotime($month . '-01')) . ($hasWarnings ? ' (đã xác nhận cảnh báo định mức).' : '.') , $hasWarnings ? 'warning' : 'success');
         header('Location: ' . BASE_URL . 'noitru.php?tab=duty&section=assign&month=' . urlencode($month));
         exit;
     }
@@ -572,8 +586,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!preg_match('/^\d{4}-\d{2}$/', $month)) $month = date('Y-m');
         $section = trim($_POST['section'] ?? 'calendar');
         $teacherMap = [];
+        $teacherMaleMap = [];
         foreach (array_filter(csdl_teachers_all(), fn($teacher) => !empty($teacher['active'])) as $teacher) {
-            $teacherMap[(string)($teacher['id'] ?? '')] = (string)($teacher['name'] ?? '');
+            $tid = (string)($teacher['id'] ?? '');
+            if ($tid === '') continue;
+            $teacherMap[$tid] = (string)($teacher['name'] ?? '');
+            $teacherMaleMap[$tid] = noitru_gender_is_male($teacher['gender'] ?? $teacher['gioi_tinh'] ?? '');
         }
         $rosterRows = noitru_duty_roster_all($teacherMap);
         $rosterTeacherMap = [];
@@ -607,6 +625,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $settings = noitru_duty_settings();
             $perDay = (int)$settings['people_per_day'];
             $maxPerMonth = (int)$settings['max_per_month'];
+            $maxMale = max(0, (int)($settings['max_male_per_day'] ?? 0));
             $teacherIds = array_keys($rosterTeacherMap);
             $monthRows = noitru_duty_for_month($month);
             $counts = array_fill_keys($teacherIds, 0);
@@ -635,9 +654,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $isSunday = (int)date('N', strtotime($date)) === 7;
                 $need = max(0, $perDay - count($assigned[$date] ?? []));
                 for ($slot=0; $slot<$need; $slot++) {
-                    $candidates = array_values(array_filter($teacherIds, function ($tid) use ($counts, $maxPerMonth, $rosterLimits, $assigned, $date) {
+                    $maleAssigned = count(array_filter(array_keys($assigned[$date] ?? []), fn($tid) => !empty($teacherMaleMap[$tid])));
+                    $candidates = array_values(array_filter($teacherIds, function ($tid) use ($counts, $maxPerMonth, $rosterLimits, $assigned, $date, $maxMale, $maleAssigned, $teacherMaleMap) {
                         $limit = ($rosterLimits[$tid] ?? 0) > 0 ? $rosterLimits[$tid] : $maxPerMonth;
-                        return ($counts[$tid] ?? 0) < $limit && !isset($assigned[$date][$tid]);
+                        if (($counts[$tid] ?? 0) >= $limit || isset($assigned[$date][$tid])) return false;
+                        return $maxMale <= 0 || empty($teacherMaleMap[$tid]) || $maleAssigned < $maxMale;
                     }));
                     usort($candidates, function ($a, $b) use ($isSunday, $sundayCounts, $previousSundayCounts, $counts, $previousCounts, $rosterTeacherMap) {
                         if ($isSunday) {
@@ -645,7 +666,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             if ($cmp !== 0) return $cmp;
                         }
                         $cmp = (($counts[$a] ?? 0) + ($previousCounts[$a] ?? 0)) <=> (($counts[$b] ?? 0) + ($previousCounts[$b] ?? 0));
-                        return $cmp !== 0 ? $cmp : strcasecmp($rosterTeacherMap[$a] ?? '', $rosterTeacherMap[$b] ?? '');
+                        return $cmp !== 0 ? $cmp : csdl_compare_person_names($rosterTeacherMap[$a] ?? '', $rosterTeacherMap[$b] ?? '');
                     });
                     $picked = $candidates[0] ?? null;
                     if ($picked === null) break;
