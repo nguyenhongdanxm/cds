@@ -44,15 +44,19 @@ function td_teacher_team(array $teacher) {
   return 'Văn phòng';
 }
 function td_learning_column_id(array $columns): string {
-  foreach($columns as $column)if(csdl_text_sort_key((string)($column['name']??''))===csdl_text_sort_key('Học tập'))return(string)($column['id']??'');
+  $wanted=csdl_text_sort_key('Học tập');foreach($columns as $column)if(csdl_text_sort_key((string)($column['name']??''))===$wanted)return(string)($column['id']??'');
+  foreach($columns as $column)if(str_contains(csdl_text_sort_key((string)($column['name']??'')),$wanted))return(string)($column['id']??'');
   return '';
+}
+function td_class_key(string $name): string {
+  $key=csdl_text_sort_key($name);$key=preg_replace('/^lop\s*/','',$key);return preg_replace('/[^a-z0-9]+/','',$key);
 }
 function td_lesson_learning_scores(string $from,string $to,array $classes): array {
   $records=load_json(DATA_PATH.'/lesson_book_records.json',[]);
   $settings=load_json(DATA_PATH.'/lesson_book_settings.json',[]);
   $points=array_replace(['Tốt'=>10,'Khá'=>8,'Trung bình'=>6,'Yếu'=>4],(array)($settings['rating_points']??[]));
-  $classIds=[];foreach($classes as$class){$name=trim((string)($class['name']??''));if($name!=='')$classIds[csdl_text_sort_key($name)]=(string)($class['id']??'');}
-  $sums=[];foreach(is_array($records)?$records:[] as$row){$date=(string)($row['date']??'');$rating=(string)($row['rating']??'');$classKey=csdl_text_sort_key((string)($row['class']??''));if($date<$from||$date>$to||empty($row['signed_at'])||!isset($points[$rating],$classIds[$classKey]))continue;$cid=$classIds[$classKey];if(!isset($sums[$cid]))$sums[$cid]=['total'=>0.0,'count'=>0];$sums[$cid]['total']+=(float)$points[$rating];$sums[$cid]['count']++;}
+  $classIds=[];foreach($classes as$class){$name=trim((string)($class['name']??''));if($name!=='')$classIds[td_class_key($name)]=(string)($class['id']??'');}
+  $sums=[];foreach(is_array($records)?$records:[] as$row){$date=(string)($row['date']??'');$rating=(string)($row['rating']??'');$classKey=td_class_key((string)($row['class']??''));if($date<$from||$date>$to||empty($row['signed_at'])||!isset($points[$rating],$classIds[$classKey]))continue;$cid=$classIds[$classKey];if(!isset($sums[$cid]))$sums[$cid]=['total'=>0.0,'count'=>0];$sums[$cid]['total']+=(float)$points[$rating];$sums[$cid]['count']++;}
   $out=[];foreach($sums as$cid=>$sum)if($sum['count']>0)$out[$cid]=['score'=>round($sum['total']/$sum['count'],2),'lessons'=>$sum['count']];return$out;
 }
 $teachers = array_values(array_filter(csdl_teachers_all(), fn($row)=>!empty($row['active'])));
