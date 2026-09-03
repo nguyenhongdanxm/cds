@@ -18,3 +18,24 @@
     var footerY=H-82;ctx.strokeStyle='#d8e3ea';ctx.beginPath();ctx.moveTo(68,footerY-20);ctx.lineTo(W-68,footerY-20);ctx.stroke();var reporterSelect=document.querySelector('[name="reporter"]'),reporterName=reporterSelect?reporterSelect.value:(window.NT_ATT_REPORT_REPORTER||'');ctx.fillStyle='#475569';ctx.font='15px Arial';ctx.textAlign='left';ctx.fillText('Người báo cáo: '+reporterName,68,footerY+4);ctx.fillText('Thời điểm xuất: '+new Date().toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'}),68,footerY+30);ctx.textAlign='right';ctx.fillStyle='#64748b';ctx.font='bold 13px Arial';ctx.fillText('HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG - Quản lý nội trú',W-68,footerY+30);
   };
 })();
+
+(function(){
+  var dialog=document.getElementById('absenceDialog');if(!dialog||typeof window.rowData!=='function')return;
+  var PREFIX='[Có phép sau thời gian đăng ký bữa ăn] ';
+  var typeWrap=dialog.querySelector('input[name="absenceType"]')?.closest('.d-flex');
+  if(!typeWrap)return;
+  var mealWrap=document.createElement('div');mealWrap.className='form-check mb-3 p-2 rounded border bg-light';mealWrap.innerHTML='<input class="form-check-input" type="checkbox" id="absenceMealAfter"><label class="form-check-label fw-semibold" for="absenceMealAfter">Có phép sau thời gian đăng ký bữa ăn</label><div class="small text-muted ms-4">Có thể tích đồng thời với Có phép (P) hoặc Không phép (KP).</div>';
+  typeWrap.insertAdjacentElement('afterend',mealWrap);
+  var mealCheck=mealWrap.querySelector('input');
+  function data(row){return window.rowData(row)}
+  function clean(row){var d=data(row),v=String(d.reason.value||'');if(v.indexOf(PREFIX)===0){row.dataset.mealAfterRegistration='1';d.reason.value=v.slice(PREFIX.length).trim()}else if(!row.dataset.mealAfterRegistration)row.dataset.mealAfterRegistration='0';}
+  function refresh(row){var d=data(row),absent=!['present','late'].includes(d.status.value),meta=row.querySelector('.att-person-meta');if(!meta)return;var bits=[];if(absent){bits.push(d.excuse.value||'KP');if(row.dataset.mealAfterRegistration==='1')bits.push('Có phép sau thời gian đăng ký bữa ăn');if(d.reason.value)bits.push(d.reason.value)}meta.textContent=bits.join(' · ')}
+  document.querySelectorAll('.att-person').forEach(function(row){clean(row);refresh(row);row.addEventListener('click',function(){setTimeout(function(){mealCheck.checked=row.dataset.mealAfterRegistration==='1'},0)})});
+  document.querySelectorAll('.att-history-absent span').forEach(function(el){if((el.textContent||'').indexOf(PREFIX)>=0)el.textContent=el.textContent.replace(PREFIX,'Có phép sau thời gian đăng ký bữa ăn · ')});
+  var oldSave=window.saveAbsence;window.saveAbsence=function(){var row=window.activeRow;if(row)row.dataset.mealAfterRegistration=mealCheck.checked?'1':'0';oldSave();if(row)refresh(row)};
+  var oldPresent=window.markPresentFromDialog;window.markPresentFromDialog=function(){var row=window.activeRow;if(row)row.dataset.mealAfterRegistration='0';oldPresent();if(row)refresh(row)};
+  var oldSetAll=window.setAll;window.setAll=function(status){document.querySelectorAll('.att-person').forEach(function(row){row.dataset.mealAfterRegistration='0'});oldSetAll(status);document.querySelectorAll('.att-person').forEach(refresh)};
+  var oldConfirm=window.openConfirm;window.openConfirm=function(){oldConfirm();document.querySelectorAll('.att-person[data-meal-after-registration="1"]').forEach(function(row){if(!row.classList.contains('absent'))return;document.querySelectorAll('#confirmList .att-confirm-class div').forEach(function(line){if((line.textContent||'').indexOf(row.dataset.name)>=0&&!line.querySelector('.meal-after-badge')){var b=document.createElement('span');b.className='meal-after-badge badge text-bg-warning ms-2';b.textContent='Sau đăng ký bữa ăn';line.appendChild(b)}})})};
+  var oldSubmit=window.submitAttendanceForm;window.submitAttendanceForm=function(){document.querySelectorAll('.att-person').forEach(function(row){var d=data(row);if(row.dataset.mealAfterRegistration==='1'&&row.classList.contains('absent')&&String(d.reason.value||'').indexOf(PREFIX)!==0)d.reason.value=PREFIX+d.reason.value.trim()});oldSubmit()};
+  var oldDraw=window.drawReport;if(typeof oldDraw==='function')window.drawReport=function(){var changed=[];document.querySelectorAll('.att-person[data-meal-after-registration="1"]').forEach(function(row){if(!row.classList.contains('absent'))return;var d=data(row);changed.push([d.reason,d.reason.value]);d.reason.value='Có phép sau thời gian đăng ký bữa ăn'+(d.reason.value?' · '+d.reason.value:'')});try{return oldDraw()}finally{changed.forEach(function(x){x[0].value=x[1]})}};
+})();
