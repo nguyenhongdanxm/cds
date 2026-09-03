@@ -283,6 +283,39 @@ function cds_db_migrations()
                  VALUES ('meal_sql_read', '0', 'migration')",
             ),
         ),
+        '20260903_011_lesson_book_mysql_foundation' => array(
+            'description' => 'Sổ đầu bài MySQL có khóa chuẩn, chỉ mục và công tắc chuyển dần an toàn',
+            'statements' => array(
+                "CREATE TABLE IF NOT EXISTS cds_lesson_book_records (
+                    slot_id CHAR(64) NOT NULL,
+                    school_year_key VARCHAR(100) NOT NULL,
+                    week_key VARCHAR(100) NOT NULL,
+                    lesson_date DATE NOT NULL,
+                    session_code VARCHAR(30) NOT NULL DEFAULT '',
+                    timetable_period SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+                    class_key VARCHAR(100) NOT NULL,
+                    class_name VARCHAR(100) NOT NULL,
+                    subject_key VARCHAR(150) NOT NULL,
+                    subject_name VARCHAR(255) NOT NULL,
+                    ppct_period SMALLINT UNSIGNED NULL,
+                    status_code VARCHAR(30) NOT NULL DEFAULT 'pending',
+                    scheduled_teacher VARCHAR(255) NOT NULL DEFAULT '',
+                    actual_teacher VARCHAR(255) NOT NULL DEFAULT '',
+                    signed_at DATETIME NULL,
+                    source_updated_at DATETIME NULL,
+                    raw_json LONGTEXT NOT NULL,
+                    imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (slot_id),
+                    KEY idx_cds_lb_week (school_year_key, week_key, lesson_date),
+                    KEY idx_cds_lb_class_subject_ppct (school_year_key, class_key, subject_key, ppct_period),
+                    UNIQUE KEY uq_cds_lb_ppct (school_year_key, class_key, subject_key, ppct_period),
+                    KEY idx_cds_lb_teacher_date (actual_teacher, lesson_date),
+                    KEY idx_cds_lb_completion (school_year_key, signed_at, status_code)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "INSERT IGNORE INTO cds_runtime_settings(setting_key,setting_value,updated_by) VALUES('lesson_book_shadow_write','0','migration')",
+                "INSERT IGNORE INTO cds_runtime_settings(setting_key,setting_value,updated_by) VALUES('lesson_book_sql_read','0','migration')",
+            ),
+        ),
     );
 }
 
