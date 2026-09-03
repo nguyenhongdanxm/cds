@@ -12,7 +12,17 @@ define('LB_CURRICULUM_PERMISSIONS_FILE', DATA_PATH . '/lesson_book_curriculum_pe
 define('LB_SIGNATURES_DIR', DATA_PATH . '/lesson_book_signatures');
 require_once dirname(__DIR__, 2) . '/includes/database_lesson_book.php';
 function lb_rows(string $file): array {if($file===LB_RECORDS_FILE&&cds_lb_read_effective()){try{return cds_lb_sql_all();}catch(Throwable$e){$GLOBALS['cds_force_json_lb_read']=true;error_log('[CDS lesson book SQL fallback] '.$e->getMessage());}}$v=load_json($file,[]);return is_array($v)?array_values(array_filter($v,'is_array')):[];}
-function lb_write(string $file,array $rows): bool {if($file!==LB_RECORDS_FILE)return(bool)save_json($file,array_values($rows));$touched=[];$ok=cds_json_update($file,function($current)use($rows,&$touched){$map=[];foreach(array_values(array_filter(is_array($current)?$current:[],'is_array'))as$r)$map[(string)($r['slot_id']??'')]=$r;foreach($rows as$r){$id=(string)($r['slot_id']??'');if($id==='')continue;$old=$map[$id]??null;$newTime=strtotime((string)($r['updated_at']??$r['created_at']??''))?:0;$oldTime=is_array($old)?(strtotime((string)($old['updated_at']??$old['created_at']??''))?:0):-1;if($old===null||$newTime>=$oldTime){if($old!==$r)$touched[$id]=$r;$map[$id]=$r;}}return array_values($map);},[]);if(!$ok)return false;foreach($touched as$r)if(!cds_lb_shadow_upsert($r)){$GLOBALS['cds_force_json_lb_read']=true;}return true;}
+function lb_write(string $file,array $rows): bool {
+ if($file!==LB_RECORDS_FILE)return(bool)save_json($file,array_values($rows));
+ $touched=[];$ok=cds_json_update($file,function($current)use($rows,&$touched){
+  $map=[];foreach(array_values(array_filter(is_array($current)?$current:[],'is_array'))as$r)$map[(string)($r['slot_id']??'')]=$r;
+  foreach($rows as$r){$id=(string)($r['slot_id']??'');if($id==='')continue;$old=$map[$id]??null;$newTime=strtotime((string)($r['updated_at']??$r['created_at']??''))?:0;$oldTime=is_array($old)?(strtotime((string)($old['updated_at']??$old['created_at']??''))?:0):-1;if($old!==null&&$newTime<$oldTime)continue;
+   if(cds_lb_actual_status($r['status']??'')&&(int)($r['ppct_period']??0)>0){$target=cds_lb_enrich($r);$period=(int)$target['ppct_period'];$prior=$period===1;foreach($map as$otherId=>$other){if($otherId===$id||!cds_lb_actual_status($other['status']??''))continue;$other=cds_lb_enrich($other);if($other['school_year_key']!==$target['school_year_key']||$other['class_key']!==$target['class_key']||$other['subject_key']!==$target['subject_key'])continue;$used=(int)($other['ppct_period']??0);if($used===$period)return false;if($used===$period-1)$prior=true;}if(!$prior)return false;}
+   if($old!==$r)$touched[$id]=$r;$map[$id]=$r;
+  }return array_values($map);
+ },[]);
+ if(!$ok)return false;foreach($touched as$r)if(!cds_lb_shadow_upsert($r)){$GLOBALS['cds_force_json_lb_read']=true;}return true;
+}
 function lb_id(string $prefix='lb'): string { return $prefix.'_'.date('YmdHis').'_'.bin2hex(random_bytes(4)); }
 function lb_user(): array { return (array)(cds_user()?:[]); }
 function lb_is_admin(): bool { return (lb_user()['role']??'')==='admin'; }
