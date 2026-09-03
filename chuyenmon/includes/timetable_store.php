@@ -30,7 +30,7 @@ function tkb_week_calendar_meta(array $week):?array{
 function tkb_normalize_weeks(array $rows):array{
     $unique=[];$order=[];
     foreach(array_values(array_filter($rows,'is_array')) as $index=>$week){
-        foreach((array)($week['slots']??[])as&$slot)if(is_array($slot)&&isset($slot['subject']))$slot['subject']=tkb_subject_canonical((string)$slot['subject']);unset($slot);
+        if(!isset($week['slots'])||!is_array($week['slots']))$week['slots']=[];foreach($week['slots']as&$slot)if(is_array($slot)&&isset($slot['subject']))$slot['subject']=tkb_subject_canonical((string)$slot['subject']);unset($slot);
         $meta=tkb_week_calendar_meta($week);
         if($meta){
             $key=(string)$meta['key'];$week['school_week_key']=$key;$week['label']=(string)$meta['label'];
