@@ -1597,7 +1597,7 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
       <?php endforeach; ?>
     </div>
   </div></div>
-  <?php if ($mealState !== 'open'): ?><div class="alert alert-info py-2"><i class="bi bi-lock"></i> Có bữa ăn đã được chốt hoặc thông báo nghỉ. Chọn từng bữa để xem chi tiết.</div><?php endif; ?>
+  <?php if ($mealState !== 'open'): ?><div class="alert alert-info py-2"><i class="bi bi-lock"></i> <?php if($hasMealOff):?>Có bữa đã thông báo nghỉ; không thể cập nhật bữa nghỉ.<?php elseif($canEditLockedMeals):?>Bữa ăn đã khóa tự động theo giờ Việt Nam. Tài khoản của bạn có quyền sửa sau khóa.<?php else:?>Bữa ăn đã khóa tự động theo giờ Việt Nam. Chỉ Quản trị hoặc người có quyền Xóa trong mục Báo ăn mới được sửa.<?php endif;?></div><?php endif; ?>
   <form method="post" class="card card-soft meal-form-card" id="mealReportForm" data-regular-meals="<?= $meal==='all'?'sang,trua,toi':e($meal) ?>" onsubmit="return prepareMealConfirmation(event)">
     <input type="hidden" name="action" value="meals_save">
     <input type="hidden" name="date" value="<?= e($date) ?>"><input type="hidden" name="class_name" value="<?= e($className) ?>"><input type="hidden" name="meal" value="<?= e($meal) ?>">
