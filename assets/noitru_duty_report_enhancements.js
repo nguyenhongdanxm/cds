@@ -12,8 +12,7 @@
     incidents.value=incidentValue;
     oldTitle.textContent='3.4. Các sự việc phát sinh/vấn đề tồn đọng';
     incidents.placeholder='Nhập nội dung 3.4…';
-    var hint=oldTitle.nextElementSibling;
-    var title=document.createElement('div');title.className='report-subtitle';title.textContent='3.3. Thăm hỏi và đưa, đón học sinh';
+    var title=document.createElement('div');title.className='report-subtitle';title.textContent='3.3. Thăm hỏi và đưa, đón học sinh:';
     var newHint=document.createElement('div');newHint.className='report-entry-hint';newHint.textContent='Nhập nội dung thăm hỏi học sinh và việc đưa, đón học sinh trong ca trực (nếu có).';
     var area=document.createElement('textarea');area.className='report-entry';area.name='visits_transport';area.placeholder='Nhập nội dung 3.3…';area.value=visitValue;if(incidents.hasAttribute('readonly'))area.setAttribute('readonly','readonly');
     var preview=document.createElement('div');preview.className='report-entry-preview';preview.setAttribute('data-for','visits_transport');
