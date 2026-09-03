@@ -56,11 +56,7 @@ $ntInGroup=function($group)use($ntGroups,$nt_sec){return in_array($nt_sec,$ntGro
 <script src="<?= e(BASE_URL . 'assets/noitru_att_report_layout.js?v=20260903-4') ?>" defer></script>
 <script src="<?= e(BASE_URL . 'assets/noitru_att_reason_v2.js?v=20260903-4') ?>" defer></script>
 <script src="<?= e(BASE_URL . 'assets/noitru_att_absence_groups.js?v=20260903-4') ?>" defer></script>
+<script src="<?= e(BASE_URL . 'assets/noitru_meal_attendance_only.js?v=20260903-1') ?>" defer></script>
 <?php endif; ?>
-<?php if ($ntPage === 'noitru.php' && $ntTab === 'duty_report'): ?>
-<script src="<?= e(BASE_URL . 'assets/noitru_duty_report_enhancements.js?v=20260903-4') ?>" defer></script>
-<?php endif; ?>
-<?php if ($ntPage === 'noitru.php' && $ntTab === 'health' && (($_GET['health_view'] ?? 'record') === 'inventory')): ?>
-<script>window.BASE_URL=<?= json_encode(BASE_URL,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) ?>;</script>
-<script src="<?= e(BASE_URL . 'assets/noitru_medicine_excel.js?v=20260828-2') ?>" defer></script>
-<?php endif; ?>
+<?php if ($ntPage === 'noitru.php' && $ntTab === 'duty_report'): ?><script src="<?= e(BASE_URL . 'assets/noitru_duty_report_enhancements.js?v=20260903-4') ?>" defer></script><?php endif; ?>
+<?php if ($ntPage === 'noitru.php' && $ntTab === 'health' && (($_GET['health_view'] ?? 'record') === 'inventory')): ?><script>window.BASE_URL=<?= json_encode(BASE_URL,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) ?>;</script><script src="<?= e(BASE_URL . 'assets/noitru_medicine_excel.js?v=20260828-2') ?>" defer></script><?php endif; ?>
