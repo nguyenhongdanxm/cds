@@ -4,6 +4,9 @@ require_once __DIR__ . '/csdl_store.php';
 require_once __DIR__ . '/database_meals.php';
 require_once __DIR__ . '/database_meal_read.php';
 
+/* Toàn bộ mốc báo ăn dùng giờ Việt Nam, không phụ thuộc múi giờ PHP của hosting. */
+date_default_timezone_set('Asia/Ho_Chi_Minh');
+
 define('NOITRU_DIR', DATA_PATH . '/noitru');
 define('NOITRU_META', NOITRU_DIR . '/meta.json');
 define('NOITRU_BOARDERS', NOITRU_DIR . '/boarders_cache.json');
@@ -353,12 +356,19 @@ function noitru_meal_state($date, $meal) {
 
     $settings = noitru_meal_settings();
     $lockTime = $settings[$meal . '_lock_time'] ?? '23:59';
-    $lockDate = $meal === 'sang' ? date('Y-m-d', strtotime($date . ' -1 day')) : $date;
-    $deadline = strtotime($lockDate . ' ' . $lockTime . ':00');
-    if ($deadline !== false && time() >= $deadline) {
-        return ['date'=>$date, 'meal'=>$meal, 'status'=>'locked', 'auto_locked'=>true, 'deadline'=>date('c', $deadline)];
+    $timezone = new DateTimeZone('Asia/Ho_Chi_Minh');
+    $mealDate = DateTimeImmutable::createFromFormat('!Y-m-d', (string)$date, $timezone);
+    if (!$mealDate || !in_array($meal, ['sang','trua','toi'], true) || !preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d$/', (string)$lockTime)) {
+        return ['date'=>$date, 'meal'=>$meal, 'status'=>'open', 'deadline'=>''];
     }
-    return ['date'=>$date, 'meal'=>$meal, 'status'=>'open', 'deadline'=>$deadline ? date('c', $deadline) : ''];
+    $lockDate = $meal === 'sang' ? $mealDate->modify('-1 day') : $mealDate;
+    [$hour,$minute] = array_map('intval', explode(':', (string)$lockTime));
+    $deadline = $lockDate->setTime($hour, $minute, 0);
+    $now = new DateTimeImmutable('now', $timezone);
+    if ($now >= $deadline) {
+        return ['date'=>$date, 'meal'=>$meal, 'status'=>'locked', 'auto_locked'=>true, 'deadline'=>$deadline->format(DATE_ATOM), 'timezone'=>'Asia/Ho_Chi_Minh'];
+    }
+    return ['date'=>$date, 'meal'=>$meal, 'status'=>'open', 'deadline'=>$deadline->format(DATE_ATOM), 'timezone'=>'Asia/Ho_Chi_Minh'];
 }
 function noitru_meal_state_set($date, $meal, $status, $by = '') {
     if (!in_array($status, ['open','locked','off'], true)) $status = 'open';
