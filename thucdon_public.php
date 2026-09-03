@@ -1,0 +1,30 @@
+<?php
+require_once __DIR__.'/includes/noitru_store.php';
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+function public_menu_h($value):string{return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8');}
+$selected=trim((string)($_GET['date']??date('Y-m-d')));
+if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$selected)||strtotime($selected)===false)$selected=date('Y-m-d');
+$selectedDate=new DateTimeImmutable($selected,new DateTimeZone('Asia/Ho_Chi_Minh'));
+$weekStart=$selectedDate->modify('-'.((int)$selectedDate->format('N')-1).' days')->format('Y-m-d');
+$weekEnd=date('Y-m-d',strtotime($weekStart.' +6 days'));
+$menu=noitru_menu_for_week($weekStart);
+$meals=(array)($menu['meals']??[]);
+$days=['mon'=>'Thứ Hai','tue'=>'Thứ Ba','wed'=>'Thứ Tư','thu'=>'Thứ Năm','fri'=>'Thứ Sáu','sat'=>'Thứ Bảy','sun'=>'Chủ nhật'];
+$mealLabels=['sang'=>'Bữa sáng','trua'=>'Bữa trưa','toi'=>'Bữa tối'];
+$dates=[];$cursor=$weekStart;foreach($days as$key=>$label){$dates[$key]=$cursor;$cursor=date('Y-m-d',strtotime($cursor.' +1 day'));}
+$cellValue=static function($value):array{if(is_array($value))return array_values(array_filter(array_map('trim',$value)));return array_values(array_filter(array_map('trim',explode(',',(string)$value))));};
+$school=function_exists('school_name')?school_name():(defined('SCHOOL_NAME')?SCHOOL_NAME:'Nhà trường');
+?><!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thực đơn tuần · <?=public_menu_h($school)?></title>
+<style>
+:root{--green:#187556;--green2:#28a278;--cream:#fffaf0;--line:#dce7e2;--text:#1d2c35;--muted:#667780}*{box-sizing:border-box}body{margin:0;background:#f3f8f6;color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}.hero{padding:26px 18px;color:#fff;background:linear-gradient(120deg,#145c48,#2b9a75)}.inner,.main{max-width:1180px;margin:auto}.hero h1{margin:0 0 5px;font-size:clamp(1.5rem,4vw,2.15rem)}.hero p{margin:0;opacity:.88}.main{padding:18px}.picker{display:flex;gap:12px;align-items:end;justify-content:space-between;background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px 17px;box-shadow:0 6px 20px rgba(22,90,67,.06);margin-bottom:16px}.picker label{display:block;font-size:.83rem;font-weight:800;margin-bottom:5px}.picker input{height:42px;padding:0 12px;border:1px solid #bfd2ca;border-radius:10px;font-size:1rem}.picker button{height:42px;padding:0 18px;border:0;border-radius:10px;background:var(--green);color:#fff;font-weight:800}.range{text-align:right}.range strong{display:block;color:var(--green)}.range span{font-size:.82rem;color:var(--muted)}.menu-wrap{overflow:auto;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 6px 20px rgba(22,90,67,.05)}table{width:100%;min-width:900px;border-collapse:collapse;table-layout:fixed}th,td{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}thead th{padding:12px 6px;background:#e9f5f0;text-align:center;color:#245342}thead small{display:block;font-weight:600;color:#678075;margin-top:2px}.meal{width:105px;padding:12px 8px;background:#f2f8f5;color:var(--green);text-align:center}.cell{height:135px;padding:9px;vertical-align:top;background:#fff}.cell.selected,thead th.selected{background:#fff5d9}.dish{display:block;padding:6px 8px;margin-bottom:6px;border-radius:9px;background:#edf7f2;color:#234c3e;font-size:.84rem;font-weight:700}.empty{display:block;text-align:center;color:#a0aaa5;font-size:.8rem;padding-top:24px}.notice{padding:26px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:16px;color:var(--muted)}.foot{text-align:center;color:#76857e;font-size:.78rem;padding:22px 8px}@media(max-width:700px){.main{padding:12px}.hero{padding:20px 14px}.picker{display:grid;grid-template-columns:1fr}.picker input,.picker button{width:100%}.range{text-align:left}.cell{height:110px}}@media print{body{background:#fff}.picker,.foot{display:none}.main{max-width:none;padding:0}.hero{background:#fff;color:#111;padding:8px}.menu-wrap{box-shadow:none}}
+</style></head><body>
+<header class="hero"><div class="inner"><h1>Thực đơn tuần</h1><p><?=public_menu_h($school)?> · Xem công khai không cần đăng nhập</p></div></header>
+<main class="main">
+<form class="picker" method="get"><div><label for="date">Chọn một ngày cần xem</label><div style="display:flex;gap:8px"><input id="date" type="date" name="date" value="<?=public_menu_h($selected)?>" onchange="this.form.submit()"><button type="submit">Xem</button></div></div><div class="range"><strong>Tuần <?=date('d/m/Y',strtotime($weekStart))?> – <?=date('d/m/Y',strtotime($weekEnd))?></strong><span>Ngày đã chọn được tô màu vàng nhạt</span></div></form>
+<?php if(!$menu):?><div class="notice">Nhà trường chưa cập nhật thực đơn cho tuần chứa ngày <?=date('d/m/Y',strtotime($selected))?>.</div>
+<?php else:?><div class="menu-wrap"><table><thead><tr><th style="width:105px">Bữa ăn</th><?php foreach($days as$key=>$label):?><th class="<?=$dates[$key]===$selected?'selected':''?>"><?=public_menu_h($label)?><small><?=date('d/m',strtotime($dates[$key]))?></small></th><?php endforeach;?></tr></thead><tbody>
+<?php foreach($mealLabels as$mealKey=>$mealLabel):?><tr><th class="meal"><?=public_menu_h($mealLabel)?></th><?php foreach($days as$dayKey=>$label):$items=$cellValue($meals[$dayKey][$mealKey]??'');?><td class="cell <?=$dates[$dayKey]===$selected?'selected':''?>"><?php if($items):foreach($items as$dish):?><span class="dish"><?=public_menu_h($dish)?></span><?php endforeach;else:?><span class="empty">Chưa cập nhật</span><?php endif;?></td><?php endforeach;?></tr><?php endforeach;?>
+</tbody></table></div><?php endif;?>
+<div class="foot">Dữ liệu thực đơn được cập nhật trực tiếp từ hệ thống CDS · <?=date('d/m/Y H:i')?></div>
+</main></body></html>
