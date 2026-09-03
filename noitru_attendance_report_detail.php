@@ -30,7 +30,7 @@ foreach (noitru_att_shifts_all() as $shift) {
 }
 $shiftLabels['dot_xuat'] = $shiftLabels['dot_xuat'] ?? 'Điểm danh đột xuất';
 
-$prefix = '[Có phép sau thời gian đăng ký bữa ăn] ';
+$legacyPrefix = '[Có phép sau thời gian đăng ký bữa ăn] ';
 $rows = [];
 foreach (noitru_att_all() as $row) {
     if ((string)($row['date'] ?? '') !== $date) continue;
@@ -38,11 +38,13 @@ foreach (noitru_att_all() as $row) {
     if (!in_array($status, ['absent','excused'], true)) continue;
     $student = $studentMap[(string)($row['student_id'] ?? '')] ?? [];
     $reason = trim((string)($row['reason'] ?? ''));
-    $mealAfter = str_starts_with($reason, $prefix);
-    if ($mealAfter) $reason = trim(substr($reason, strlen($prefix)));
-    $shift = trim((string)($row['shift'] ?? '')) ?: 'dot_xuat';
     $excuse = trim((string)($row['excuse'] ?? ''));
+    $legacyLate = str_starts_with($reason, $legacyPrefix);
+    if ($legacyLate) $reason = trim(substr($reason, strlen($legacyPrefix)));
+    if ($legacyLate) $excuse = 'P_SAU_AN';
     if ($excuse === '') $excuse = $status === 'excused' ? 'P' : 'KP';
+    if (!in_array($excuse, ['P','P_SAU_AN','KP'], true)) $excuse = $status === 'excused' ? 'P' : 'KP';
+    $shift = trim((string)($row['shift'] ?? '')) ?: 'dot_xuat';
     $rows[] = [
         'shift' => $shift,
         'shift_label' => $shiftLabels[$shift] ?? $shift,
@@ -51,9 +53,16 @@ foreach (noitru_att_all() as $row) {
         'class' => (string)($student['class_name'] ?? ($row['class_name'] ?? '')),
         'status' => $status,
         'excuse' => $excuse,
-        'meal_after_registration' => $mealAfter,
+        'absence_type' => $excuse,
+        'meal_after_registration' => $excuse === 'P_SAU_AN',
         'reason' => $reason,
     ];
 }
+usort($rows, function($a,$b){
+    $ca=(string)($a['class']??'');$cb=(string)($b['class']??'');
+    $cmp=function_exists('csdl_compare_class_names')?csdl_compare_class_names($ca,$cb):strnatcasecmp($ca,$cb);
+    if($cmp!==0)return $cmp;
+    return strnatcasecmp((string)($a['name']??''),(string)($b['name']??''));
+});
 
 echo json_encode(['ok'=>true,'date'=>$date,'rows'=>$rows], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
