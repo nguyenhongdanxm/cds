@@ -14,7 +14,7 @@ $subMode=(string)($_GET['submode']??($_POST['return_submode']??'replace'));if(!i
 if(empty($_SESSION['tkb_csrf']))$_SESSION['tkb_csrf']=bin2hex(random_bytes(24));$csrf=(string)$_SESSION['tkb_csrf'];
 $teachers=array_values(array_filter(array_map('strval',(array)load_json(TEACHERS_FILE,[]))));$teachers=sort_teachers_by_ten($teachers);
 $classes=array_values(array_filter(array_map('strval',(array)load_json(CLASSES_FILE,[]))));sort($classes,SORT_NATURAL|SORT_FLAG_CASE);
-$subjects=array_values(array_filter(array_map('strval',(array)get_subjects())));sort($subjects,SORT_NATURAL|SORT_FLAG_CASE);
+$subjectData=(array)get_subjects();$subjects=[];foreach($subjectData as$key=>$row){$name='';if(!is_int($key))$name=trim((string)$key);elseif(is_string($row)||is_numeric($row))$name=trim((string)$row);elseif(is_array($row))$name=trim((string)($row['name']??$row['subject']??$row['label']??$row['title']??''));if($name!=='')$subjects[$name]=$name;}$subjects=array_values($subjects);sort($subjects,SORT_NATURAL|SORT_FLAG_CASE);
 $selfTeacher=trim((string)($user['teacher_name']??$user['name']??''));if($selfTeacher!==''&&!in_array($selfTeacher,$teachers,true)){foreach($teachers as$t)if(tkb_key($t)===tkb_key($selfTeacher)){$selfTeacher=$t;break;}}
 $isTeacher=(!$isAdmin&&!$canApprove&&$selfTeacher!==''&&in_array($selfTeacher,$teachers,true));
 function tkb_redirect(string $tab):never{header('Location: '.BASE_URL.'thoikhoabieu.php?tab='.$tab);exit;}
