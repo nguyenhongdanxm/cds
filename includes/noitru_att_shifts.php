@@ -30,13 +30,16 @@ if (!function_exists('noitru_att_shifts_save')) { function noitru_att_shifts_sav
 if (!function_exists('noitru_att_shift_now')) { function noitru_att_shift_now($time=null){$time=$time?:date('H:i');foreach(noitru_att_shifts_all() as $s){if(empty($s['active']))continue;$a=$s['start']??'';$b=$s['end']??'';if($a===''||$b==='')continue;$inside=$a<=$b?($time>=$a&&$time<=$b):($time>=$a||$time<=$b);if($inside)return $s['id'];}return 'dot_xuat';} }
 if (!function_exists('noitru_att_bulk')) { function noitru_att_bulk(array $ids,$date,$shift,$status,$by=''){foreach($ids as $sid){$sid=trim($sid);if($sid!=='')noitru_att_upsert(['date'=>$date,'shift'=>$shift,'student_id'=>$sid,'status'=>$status,'by'=>$by]);}} }
 
-/** Nhận diện ô điểm danh bữa ăn; các buổi điểm danh sinh hoạt thông thường trả về rỗng. */
+/** Nhận diện ô điểm danh bữa ăn; không phụ thuộc extension mbstring của hosting. */
 if (!function_exists('noitru_att_meal_for_shift')) {
 function noitru_att_meal_for_shift($shiftId,$shiftLabel='') {
-    $text=mb_strtolower(trim((string)$shiftId).' '.trim((string)$shiftLabel),'UTF-8');
-    if(preg_match('/(?:ăn|an|bữa|bua)[ _-]*sáng|(?:an|bua|meal)[_-]*sang/u',$text))return 'sang';
-    if(preg_match('/(?:ăn|an|bữa|bua)[ _-]*trưa|(?:an|bua|meal)[_-]*trua/u',$text))return 'trua';
-    if(preg_match('/(?:ăn|an|bữa|bua)[ _-]*tối|(?:an|bua|meal)[_-]*toi/u',$text))return 'toi';
+    $text=trim((string)$shiftId).' '.trim((string)$shiftLabel);
+    if(function_exists('mb_strtolower')) $text=mb_strtolower($text,'UTF-8');
+    else $text=strtolower($text);
+    /* Các chữ Ăn/Bữa có dấu vẫn được regex /iu nhận diện không phân biệt hoa thường. */
+    if(preg_match('/(?:ăn|an|bữa|bua)[ _-]*sáng|(?:an|bua|meal)[_-]*sang/iu',$text))return 'sang';
+    if(preg_match('/(?:ăn|an|bữa|bua)[ _-]*trưa|(?:an|bua|meal)[_-]*trua/iu',$text))return 'trua';
+    if(preg_match('/(?:ăn|an|bữa|bua)[ _-]*tối|(?:an|bua|meal)[_-]*toi/iu',$text))return 'toi';
     return '';
 }
 }
