@@ -269,10 +269,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $targetDates = [];
         for ($cursor = $longFrom; $cursor <= $longUntil; $cursor = date('Y-m-d', strtotime($cursor . ' +1 day'))) $targetDates[] = $cursor;
 
+        $canEditLockedMeals = function_exists('nt_meal_history_can_edit_locked') && nt_meal_history_can_edit_locked();
         foreach ($targetDates as $targetDate) foreach ($targetMeals as $targetMeal) {
             $state = noitru_meal_state($targetDate, $targetMeal)['status'] ?? 'open';
-            if ($state !== 'open') {
-                flash('Có bữa ăn trong khoảng đã chọn đã khóa hoặc thông báo nghỉ. Báo cáo chưa được cập nhật.', 'warning');
+            if ($state === 'off' || ($state === 'locked' && !$canEditLockedMeals)) {
+                flash($state === 'off' ? 'Bữa ăn đã được thông báo nghỉ nên không thể cập nhật.' : 'Bữa ăn đã tự động khóa. Chỉ tài khoản có quyền sửa dữ liệu sau khóa mới được cập nhật.', 'warning');
                 header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date) . '&class=' . urlencode($className) . '&meal=' . urlencode($meal)); exit;
             }
         }
@@ -1568,7 +1569,9 @@ form[method="post"]:not(#dutyReportForm){display:none!important}
     foreach ($viewMeals as $viewMeal) $mealStates[$viewMeal] = noitru_meal_state($date, $viewMeal)['status'] ?? 'open';
     $mealState = count(array_filter($mealStates, fn($state)=>$state==='open')) === count($mealStates) ? 'open' : (count(array_filter($mealStates, fn($state)=>$state==='locked')) === count($mealStates) ? 'locked' : 'mixed');
     $mealReport = $className !== '' && $meal !== 'all' ? noitru_meal_report_for($date, $className, $meal) : null;
-    $readOnly = $mealState !== 'open';
+    $canEditLockedMeals = function_exists('nt_meal_history_can_edit_locked') && nt_meal_history_can_edit_locked();
+    $hasMealOff = count(array_filter($mealStates, fn($state)=>$state==='off')) > 0;
+    $readOnly = $hasMealOff || ($mealState !== 'open' && !$canEditLockedMeals);
   ?>
   <?php if (($_GET['meal_view'] ?? '') === 'history'): ?>
     <?= nt_meal_history_panel_html() ?>
