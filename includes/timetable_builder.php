@@ -13,11 +13,17 @@ function ttb_workspace_create(string$name,string$weekKey='',string$copyFrom=''):
 function ttb_workspace_update_meta(string$id,array$patch):void{$rows=ttb_workspaces();foreach($rows as&$row)if(($row['id']??'')===$id){$row=array_merge($row,$patch,['updated_at'=>date('c')]);break;}unset($row);save_json(CDS_TTB_WORKSPACES_FILE,$rows);}
 function ttb_workspace_delete(string$id):array{if($id===''||$id==='legacy')return['ok'=>false,'message'=>'Phiên bản mặc định không thể xóa.'];$rows=ttb_workspaces();$found=null;$remaining=[];foreach($rows as$row){if((string)($row['id']??'')===$id){$found=$row;continue;}$remaining[]=$row;}if(!$found)return['ok'=>false,'message'=>'Không tìm thấy phiên bản làm việc cần xóa.'];if(!$remaining)return['ok'=>false,'message'=>'Phải giữ lại ít nhất một phiên bản làm việc.'];$file=ttb_workspace_file($id);$trash='';if(is_file($file)){$trash=$file.'.deleting_'.bin2hex(random_bytes(3));if(!@rename($file,$trash))return['ok'=>false,'message'=>'Không thể khóa tệp dữ liệu để xóa an toàn.'];}if(!save_json(CDS_TTB_WORKSPACES_FILE,array_values($remaining))){if($trash!=='')@rename($trash,$file);return['ok'=>false,'message'=>'Không thể cập nhật danh sách phiên bản; dữ liệu chưa bị xóa.'];}if((string)($_SESSION['ttb_workspace_id']??'')===$id)$_SESSION['ttb_workspace_id']=(string)($remaining[0]['id']??'legacy');if($trash!=='')@unlink($trash);return['ok'=>true,'message'=>'Đã xóa phiên bản “'.(string)($found['name']??'Phiên bản tuần').'”. TKB đã công bố không bị ảnh hưởng.'];}
 function ttb_canonicalize_subject_data(array$data):array{
-    foreach(['groups','fixed_lessons','subject_limit_exceptions']as$key)foreach((array)($data[$key]??[])as&$row)if(is_array($row)&&isset($row['subject']))$row['subject']=tkb_subject_canonical((string)$row['subject']);unset($row);
-    foreach((array)($data['subject_sequences']??[])as&$row)if(is_array($row)&&isset($row['subjects']))$row['subjects']=array_map(fn($v)=>tkb_subject_canonical((string)$v),(array)$row['subjects']);unset($row);
-    $rules=[];foreach((array)($data['subject_rules']??[])as$subject=>$rule)$rules[tkb_subject_canonical((string)$subject)]=$rule;$data['subject_rules']=$rules;
-    foreach((array)($data['plans']??[])as&$plan)foreach(['entries','unplaced']as$key)foreach((array)($plan[$key]??[])as&$entry)if(is_array($entry)&&isset($entry['subject']))$entry['subject']=tkb_subject_canonical((string)$entry['subject']);unset($entry);unset($plan);
-    return$data;
+    foreach(['groups','fixed_lessons','subject_limit_exceptions']as$key){
+        foreach($data[$key]as&$row)if(is_array($row)&&isset($row['subject']))$row['subject']=tkb_subject_canonical((string)$row['subject']);
+        unset($row);
+    }
+    foreach($data['subject_sequences']as&$row)if(is_array($row)&&isset($row['subjects']))$row['subjects']=array_map(fn($v)=>tkb_subject_canonical((string)$v),(array)$row['subjects']);
+    unset($row);
+    $rules=[];foreach($data['subject_rules']as$subject=>$rule)$rules[tkb_subject_canonical((string)$subject)]=$rule;$data['subject_rules']=$rules;
+    foreach($data['plans']as&$plan){
+        foreach(['entries','unplaced']as$key){if(!isset($plan[$key])||!is_array($plan[$key]))continue;foreach($plan[$key]as&$entry)if(is_array($entry)&&isset($entry['subject']))$entry['subject']=tkb_subject_canonical((string)$entry['subject']);unset($entry);}
+    }
+    unset($plan);return$data;
 }
 function ttb_data():array{$base=ttb_default();$id=ttb_workspace_id();$raw=load_json(ttb_workspace_file($id),[]);if(!is_array($raw))$raw=[];$data=array_merge($base,$raw);$data['settings']=array_merge($base['settings'],is_array($raw['settings']??null)?$raw['settings']:[]);foreach(['blocked','class_blocked','scope_blocks','special_slots','groups','fixed_lessons','double_lessons','subject_sequences','period_overrides','subject_rules','subject_limit_exceptions','plans']as$key)if(!is_array($data[$key]??null))$data[$key]=[];$data=ttb_canonicalize_subject_data($data);$data['_workspace_id']=$id;$data['_workspace']=ttb_workspace($id);$GLOBALS['CDS_TTB_CURRENT_DATA']=$data;return$data;}
 function ttb_save(array$data):bool{$data=ttb_canonicalize_subject_data($data);$id=(string)($data['_workspace_id']??ttb_workspace_id());unset($data['_workspace_id'],$data['_workspace']);$data['updated_at']=date('c');$ok=save_json(ttb_workspace_file($id),$data);if($ok)ttb_workspace_update_meta($id,[]);$data['_workspace_id']=$id;$data['_workspace']=ttb_workspace($id);$GLOBALS['CDS_TTB_CURRENT_DATA']=$data;return$ok;}
