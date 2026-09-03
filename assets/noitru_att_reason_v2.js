@@ -18,17 +18,20 @@
         +'<label class="nt-absence-type"><input type="radio" name="absenceType" value="P" checked><span><strong>Có phép</strong><small>Mặc định</small></span></label>'
         +'<label class="nt-absence-type"><input type="radio" name="absenceType" value="P_SAU_AN"><span><strong>Có phép sau thời gian đăng ký bữa ăn</strong><small>Báo nghỉ sau thời điểm chốt bữa ăn</small></span></label>'
         +'<label class="nt-absence-type"><input type="radio" name="absenceType" value="KP"><span><strong>Không phép</strong><small>Vắng không được phép</small></span></label>';
-      if(!document.getElementById('ntAbsenceTypeStyle')){var st=document.createElement('style');st.id='ntAbsenceTypeStyle';st.textContent='.nt-absence-type-grid{display:grid;gap:.55rem}.nt-absence-type{display:flex;align-items:center;gap:.7rem;padding:.7rem .8rem;border:1px solid #dbe4eb;border-radius:12px;background:#fff;cursor:pointer}.nt-absence-type:has(input:checked){border-color:#0ea5e9;background:#f0f9ff;box-shadow:0 0 0 2px rgba(14,165,233,.08)}.nt-absence-type input{width:1.05rem;height:1.05rem}.nt-absence-type span{display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap}.nt-absence-type strong{font-size:.92rem}.nt-absence-type small{color:#64748b;font-size:.72rem}';document.head.appendChild(st);}
+      if(!document.getElementById('ntAbsenceTypeStyle')){var st=document.createElement('style');st.id='ntAbsenceTypeStyle';st.textContent='.nt-absence-type-grid{display:grid;gap:.55rem}.nt-absence-type{display:flex;align-items:center;gap:.7rem;padding:.7rem .8rem;border:1px solid #dbe4eb;border-radius:12px;background:#fff;cursor:pointer}.nt-absence-type:has(input:checked){border-color:#0ea5e9;background:#f0f9ff;box-shadow:0 0 0 2px rgba(14,165,233,.08)}.nt-absence-type input{width:1.05rem;height:1.05rem}.nt-absence-type span{display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap}.nt-absence-type strong{font-size:.92rem}.nt-absence-type small{color:#64748b;font-size:.72rem}.nt-absence-reason-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin:-.25rem 0 1rem}.nt-absence-reason-stat{padding:.7rem .8rem;border:1px solid #dce5ec;border-radius:13px;background:#fff}.nt-absence-reason-stat strong{display:block;font-size:1.25rem;color:#b91c1c}.nt-absence-reason-stat span{font-size:.78rem;font-weight:700;color:#475569}@media(max-width:767px){.nt-absence-reason-summary{grid-template-columns:1fr}.nt-absence-reason-stat{display:flex;align-items:center;justify-content:space-between;gap:.7rem}.nt-absence-reason-stat strong{order:2}}';document.head.appendChild(st);}
     }
   }
+
+  var reasonStats=null,summary=document.querySelector('.att-summary');
+  if(summary){reasonStats=document.createElement('div');reasonStats.className='nt-absence-reason-summary';reasonStats.innerHTML='<div class="nt-absence-reason-stat"><strong data-count="P">0</strong><span>Có phép</span></div><div class="nt-absence-reason-stat"><strong data-count="P_SAU_AN">0</strong><span>Có phép sau thời gian đăng ký bữa ăn</span></div><div class="nt-absence-reason-stat"><strong data-count="KP">0</strong><span>Không phép</span></div>';summary.insertAdjacentElement('afterend',reasonStats);}
+  function updateReasonStats(){var counts={P:0,P_SAU_AN:0,KP:0};document.querySelectorAll('.att-person.absent').forEach(function(row){var d=data(row),code=d&&d.excuse.value||P;if(!counts.hasOwnProperty(code))code=(d&&d.status.value==='excused')?P:KP;counts[code]++;});if(reasonStats)Object.keys(counts).forEach(function(code){var el=reasonStats.querySelector('[data-count="'+code+'"]');if(el)el.textContent=counts[code];});}
 
   var baseUpdate=window.updateRow;
   window.updateRow=function(row){
     if(typeof baseUpdate==='function')baseUpdate(row);
     var d=data(row),meta=row&&row.querySelector('.att-person-meta');
-    if(!d||!meta)return;
-    var absent=!['present','late'].includes(d.status.value);
-    meta.textContent=absent?(label(d.excuse.value)+(d.reason.value?' · '+d.reason.value:'')):'';
+    if(d&&meta){var absent=!['present','late'].includes(d.status.value);meta.textContent=absent?(label(d.excuse.value)+(d.reason.value?' · '+d.reason.value:'')):'';}
+    updateReasonStats();
   };
 
   document.querySelectorAll('.att-person').forEach(function(row){
@@ -70,4 +73,5 @@
     if(search)search.addEventListener('input',applyFilter);
     applyFilter();
   }
+  updateReasonStats();
 })();
