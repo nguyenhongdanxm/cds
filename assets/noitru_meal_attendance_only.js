@@ -3,7 +3,7 @@
   var shift=form.querySelector('input[name="shift"]'),dateInput=form.querySelector('input[name="date"]');if(!shift||!dateInput)return;
   var opt=document.querySelector('.att-shift-select option:checked');
   var label=(opt?opt.textContent:'').trim(),text=(shift.value+' '+label).toLocaleLowerCase('vi');
-  var isMeal=/(ăn|an)[ _-]*sáng|(an|meal)[_-]*sang|(ăn|an)[ _-]*trưa|(an|meal)[_-]*trua|(ăn|an)[ _-]*tối|(an|meal)[_-]*toi/.test(text);
+  var isMeal=/(ăn|an|bữa|bua)[ _-]*sáng|(an|bua|meal)[_-]*sang|(ăn|an|bữa|bua)[ _-]*trưa|(an|bua|meal)[_-]*trua|(ăn|an|bữa|bua)[ _-]*tối|(an|bua|meal)[_-]*toi/.test(text);
   window.NT_ATT_IS_MEAL=isMeal;
 
   function notice(html,type){
@@ -11,7 +11,6 @@
     var anchor=document.querySelector('.att-summary');if(!anchor)return;
     var n=document.createElement('div');n.id='ntMealConnectionNotice';n.className='alert alert-'+(type||'info')+' py-2 px-3 mb-3';n.innerHTML=html;anchor.insertAdjacentElement('afterend',n);
   }
-  function refresh(){if(typeof window.updateReasonStats==='function')window.updateReasonStats();}
 
   var lateRadio=document.querySelector('input[name="absenceType"][value="P_SAU_AN"]');
   if(lateRadio){var lateLabel=lateRadio.closest('label');if(lateLabel)lateLabel.style.display=isMeal?'':'none';}
@@ -42,7 +41,6 @@
         var meta=row.querySelector('.att-person-meta');if(meta)meta.textContent='Có phép · Đã báo vắng trước khi chốt '+(res.meal_label||'bữa ăn');
         row.classList.add('nt-meal-prefilled');applied++;
       });
-      refresh();
       if(applied){notice('<i class="bi bi-link-45deg"></i> <strong>Đã kết nối Báo ăn:</strong> '+applied+' học sinh đã báo vắng trước khi chốt được tự chọn <strong>Có phép</strong>. Học sinh vắng phát sinh sau chốt: chọn <strong>Có phép sau thời gian đăng ký bữa ăn</strong>; vắng không phép: chọn <strong>Không phép</strong>.','success');}
       else{notice('<i class="bi bi-check-circle"></i> Đã đối chiếu '+(res.meal_label||label)+' ngày '+dateInput.value.split('-').reverse().join('/')+'. <strong>Không có học sinh báo vắng trước khi chốt</strong>.','info');}
     }).catch(function(){notice('<i class="bi bi-exclamation-triangle"></i> Không kết nối được dữ liệu Báo ăn. Vui lòng tải lại trang.','danger');});
