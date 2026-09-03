@@ -117,3 +117,50 @@ function noitru_att_bulk(array $studentIds, $date, $shift, $status, $by = '') {
     }
 }
 }
+
+/*
+ * Điểm danh bữa ăn kế thừa trực tiếp dữ liệu Báo ăn đã chốt.
+ * Script chỉ gắn vào trang noitru_attendance.php; endpoint JSON không bị ảnh hưởng.
+ */
+if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'noitru_attendance.php') {
+    register_shutdown_function(function () {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') return;
+        ?>
+<script id="ntMealAttendancePrefill">
+(function(){
+  var form=document.getElementById('attendanceForm');
+  if(!form||typeof window.rowData!=='function')return;
+  var dateInput=form.querySelector('input[name="date"]'),shiftInput=form.querySelector('input[name="shift"]');
+  if(!dateInput||!shiftInput)return;
+  var url=new URL('noitru_att_meal_prefill.php',location.href);
+  url.searchParams.set('date',dateInput.value);
+  url.searchParams.set('shift',shiftInput.value);
+  fetch(url.toString(),{credentials:'same-origin',headers:{'Accept':'application/json'}})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(res){
+      if(!res||!res.ok||!res.applied)return;
+      var wanted={};(res.student_ids||[]).forEach(function(id){wanted[String(id)]=true;});
+      var applied=0;
+      document.querySelectorAll('.att-person').forEach(function(row){
+        var sid=row.querySelector('input[name="sid[]"]');if(!sid||!wanted[String(sid.value)])return;
+        var d=window.rowData(row);if(!d)return;
+        d.status.value='excused';d.excuse.value='P';d.reason.value='';
+        row.dataset.mealPrefill='1';
+        if(typeof window.updateRow==='function')window.updateRow(row);
+        var meta=row.querySelector('.att-person-meta');if(meta)meta.textContent='Có phép · Đã báo vắng '+(res.meal_label||'bữa ăn');
+        applied++;
+      });
+      if(applied){
+        var summary=document.querySelector('.att-summary');
+        if(summary&&!document.getElementById('ntMealPrefillNotice')){
+          var note=document.createElement('div');note.id='ntMealPrefillNotice';note.className='alert alert-info py-2 px-3 mb-3';
+          note.innerHTML='<i class="bi bi-link-45deg"></i> <strong>Đã kết nối Báo ăn:</strong> tự đánh dấu <strong>'+applied+'</strong> học sinh <strong>Có phép</strong> theo '+(res.meal_label||'bữa ăn')+' ngày '+dateInput.value.split('-').reverse().join('/')+'. Người trực có thể bấm lại từng học sinh để điều chỉnh theo thực tế.';
+          summary.insertAdjacentElement('afterend',note);
+        }
+      }
+    }).catch(function(){});
+})();
+</script>
+        <?php
+    });
+}
