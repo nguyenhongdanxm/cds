@@ -144,7 +144,8 @@ function sizeCanvas(){
 function draw(){
   items=currentItems();
   const W=canvas.width, cx=W/2, r=W*0.46, n=Math.max(items.length,1), arc=Math.PI*2/n;
-  ctx.clearRect(0,0,W,W);\n  
+  ctx.clearRect(0,0,W,W);
+  
   ctx.save(); ctx.translate(cx,cx); ctx.rotate(angle);
   for(let i=0;i<n;i++){
     ctx.beginPath(); ctx.moveTo(0,0); ctx.fillStyle=colors[i%colors.length];
@@ -201,7 +202,8 @@ function pegClick(){
   const src=audioCtx.createBufferSource(), g=audioCtx.createGain();
   src.buffer=buf; g.gain.value=0.16+rate*0.08; src.connect(g); g.connect(audioCtx.destination); src.start();
   tone(2100+rate*700, 0.045, 'square', 0.09+rate*0.05);
-  tone(320, 0.03, 'triangle', 0.05);\n  tone(900+Math.min(700,speed*900),0.055,'sine',0.035);
+  tone(320, 0.03, 'triangle', 0.05);
+  tone(900+Math.min(700,speed*900),0.055,'sine',0.035);
 }
 function playShowBar(step){
   if(!audioCtx||!musicOn) return;
