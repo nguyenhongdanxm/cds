@@ -1,14 +1,11 @@
 <?php
-/** Sổ đầu bài: dữ liệu độc lập theo từng tiết, dùng chung Tuần học và TKB. */
-require_once __DIR__ . '/timetable_store.php';
-
-define('LB_RECORDS_FILE', DATA_PATH . '/lesson_book_records.json');
-define('LB_CURRICULUM_FILE', DATA_PATH . '/lesson_book_curriculum.json');
-define('LB_SETTINGS_FILE', DATA_PATH . '/lesson_book_settings.json');
-define('LB_LOCKS_FILE', DATA_PATH . '/lesson_book_locks.json');
-define('LB_AUDIT_FILE', DATA_PATH . '/lesson_book_audit.json');
-define('LB_WEEKLY_REVIEWS_FILE', DATA_PATH . '/lesson_book_weekly_reviews.json');
-define('LB_CURRICULUM_PERMISSIONS_FILE', DATA_PATH . '/lesson_book_curriculum_permissions.json');
-define('LB_SIGNATURES_DIR', DATA_PATH . '/lesson_book_signatures');
-require_once dirname(__DIR__, 2) . '/includes/database_lesson_book.php';
-require_once __DIR__ . '/lesson_book_store_more.php';
+$__full = __DIR__ . '/lesson_book_store.full.php';
+if (!is_file($__full) || filesize($__full) < 10000) {
+    $__raw = gzuncompress(base64_decode('PLACEHOLDER'));
+    if ($__raw === false) {
+        http_response_code(500);
+        exit('Khong giai nen duoc ma nguon So dau bai.');
+    }
+    file_put_contents($__full, "<?php\n".$__raw, LOCK_EX);
+}
+require_once $__full;
