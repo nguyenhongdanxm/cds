@@ -56,8 +56,8 @@ body{background:radial-gradient(circle at 50% 8%,#263b73 0,#0b0720 52%,#05030f 1
 .bar select{max-width:140px}
 .opt{background:#ffffff14;color:#fff}
 .opt.on{background:#22c55e;color:#052e16}
-.stage{position:relative;min-height:0;display:grid;place-items:center}
-canvas{display:block}
+.stage{position:relative;min-height:0;display:grid;place-items:center;background:radial-gradient(circle,#1e3a6d55 0,#08051a33 58%,transparent 72%);overflow:hidden}.show-title{position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:clamp(18px,3vw,34px);font-weight:950;letter-spacing:.08em;color:#ffe38a;text-shadow:0 0 10px #ff9f1c,0 3px 0 #7c2d12;z-index:4;white-space:nowrap}.show-title span{font-size:.48em;color:#fff;letter-spacing:.18em;margin-left:10px}.live-badge{position:absolute;top:18px;right:18px;border:1px solid #ffdc8a;border-radius:999px;padding:6px 12px;color:#ffe38a;font-size:11px;font-weight:900;letter-spacing:.12em;z-index:4}.live-badge.live{background:#dc2626;color:#fff;border-color:#fecaca;box-shadow:0 0 16px #ef4444}.credit{height:32px;font-size:11px}
+canvas{display:block;filter:drop-shadow(0 0 18px #ffd36a88)}
 #wheel{width:min(96vmin,100vw,100vh - 58px);height:min(96vmin,100vw,100vh - 58px);max-width:100%;max-height:calc(100vh - 58px)}
 .center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(18vmin,120px);height:min(18vmin,120px);border:6px solid #fff;border-radius:50%;background:radial-gradient(circle at 30% 28%,#fff,#ffd36a 46%,#c2410c);box-shadow:0 0 0 8px #f59e0b55,0 0 28px #ffd36a99,0 8px 24px #0008;font-weight:900;font-size:clamp(16px,3.2vmin,28px);color:#7c2d12;cursor:pointer;z-index:6}
 .center:disabled{opacity:.6}
@@ -95,7 +95,7 @@ canvas{display:block}
     <button class="opt" id="optEdit" type="button">Sửa nội dung</button>
     <a href="<?= htmlspecialchars($base) ?>hoclieu.php?tab=games">Học liệu</a>
   </div>
-  <div class="stage" id="stage">
+  <div class="stage" id="stage"><div class="show-title">VÒNG QUAY MAY MẮN <span>★ GAMESHOW ★</span></div><div class="live-badge" id="liveBadge">SẴN SÀNG</div>
     <canvas id="wheel" width="900" height="900"></canvas>
     <button class="center" id="spinBtn" type="button">QUAY</button>
     <div class="drawer" id="drawer">
@@ -103,7 +103,7 @@ canvas{display:block}
       <div id="box-task" hidden><h3>Nhiệm vụ</h3><div id="taskItems"></div><button class="add" id="addTask" type="button">Thêm ô quay</button><button class="add" id="presetTask" type="button">Nạp bộ nhiệm vụ mẫu</button></div>
     </div>
   </div>
-  <div class="credit">Hệ Sinh Thái Quản lý Nhà Trường - Thiết kế bởi thầy giáo Nguyễn Hồng Dân -</div>
+  <div class="credit"><span id="resultTicker">Chọn lớp hoặc nội dung rồi nhấn QUAY</span> · Hệ Sinh Thái Quản lý Nhà Trường - Thiết kế bởi thầy giáo Nguyễn Hồng Dân -</div>
 </div>
 <canvas class="confetti" id="confetti"></canvas>
 <div class="overlay" id="overlay"><div class="win"><div id="winTag">Kết quả</div><div class="big" id="winText">—</div><button type="button" id="closeWin">Quay tiếp</button></div></div>
@@ -144,7 +144,7 @@ function sizeCanvas(){
 function draw(){
   items=currentItems();
   const W=canvas.width, cx=W/2, r=W*0.46, n=Math.max(items.length,1), arc=Math.PI*2/n;
-  ctx.clearRect(0,0,W,W);
+  ctx.clearRect(0,0,W,W);\n  const pulse=1+Math.sin(Date.now()/180)*.012; ctx.save(); ctx.translate(cx,cx); ctx.scale(pulse,pulse); ctx.translate(-cx,-cx);
   ctx.save(); ctx.translate(cx,cx); ctx.rotate(angle);
   for(let i=0;i<n;i++){
     ctx.beginPath(); ctx.moveTo(0,0); ctx.fillStyle=colors[i%colors.length];
@@ -201,7 +201,7 @@ function pegClick(){
   const src=audioCtx.createBufferSource(), g=audioCtx.createGain();
   src.buffer=buf; g.gain.value=0.16+rate*0.08; src.connect(g); g.connect(audioCtx.destination); src.start();
   tone(2100+rate*700, 0.045, 'square', 0.09+rate*0.05);
-  tone(320, 0.03, 'triangle', 0.05);
+  tone(320, 0.03, 'triangle', 0.05);\n  tone(900+Math.min(700,speed*900),0.055,'sine',0.035);
 }
 function playShowBar(step){
   if(!audioCtx||!musicOn) return;
@@ -218,7 +218,7 @@ function playShowBar(step){
     for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.4);
     const s=audioCtx.createBufferSource(), g=audioCtx.createGain(); s.buffer=n; g.gain.value=0.1; s.connect(g); g.connect(audioCtx.destination); s.start();
   }
-  const runs=[392,523.3,659.3,783.9,659.3,523.3,587.3,698.5];
+  const runs=[261.6,329.6,392,523.3,659.3,523.3,392,329.6,293.7,369.9,440,587.3];
   tone(runs[step%runs.length], .12, 'triangle', 0.07);
   tone(runs[step%runs.length]*2, .07, 'square', 0.025);
   if(step%4===0){ tone(261.6,.2,'triangle',0.04); tone(329.6,.2,'triangle',0.03); tone(392,.2,'triangle',0.03); }
@@ -259,7 +259,7 @@ document.getElementById('spinBtn').onclick=function(){
   ensureAudio(); items=currentItems();
   if(spinning) return;
   if(items.length<2){ showWin(mode==='student'?'Chọn lớp hoặc bật lại Lặp lại tên.':'Cần ít nhất 2 ô.'); return; }
-  spinning=true; this.disabled=true; speed=0.5+Math.random()*0.18; lastTick=-1; startMusic(); requestAnimationFrame(tick);
+  spinning=true; this.disabled=true; speed=0.5+Math.random()*0.18; lastTick=-1; document.getElementById('liveBadge').classList.add('live');document.getElementById('liveBadge').textContent='ĐANG QUAY'; startMusic(); requestAnimationFrame(tick);
 };
 document.querySelectorAll('.modes button').forEach(btn=>btn.onclick=()=>{
   mode=btn.dataset.mode;
