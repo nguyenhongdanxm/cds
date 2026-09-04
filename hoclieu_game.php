@@ -44,11 +44,11 @@ $base = defined('BASE_URL') ? BASE_URL : '/';
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;overflow:hidden;font-family:"Segoe UI",system-ui,sans-serif;color:#fff}
-body{background:#0b0720}
+body{background:radial-gradient(circle at 50% 8%,#263b73 0,#0b0720 52%,#05030f 100%);letter-spacing:.01em}
 .app{height:100%;display:grid;grid-template-rows:auto 1fr 28px;min-height:0}
 .credit{height:28px;display:flex;align-items:center;justify-content:center;font-size:11px;opacity:.72;letter-spacing:.2px;background:#0006}
-.bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#120a2ccc;backdrop-filter:blur(8px);z-index:8}
-.bar b{white-space:nowrap}
+.bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#120a2ccc;backdrop-filter:blur(8px);z-index:8}
+.bar b{white-space:nowrap;font-size:clamp(17px,2.2vw,26px);letter-spacing:.04em;text-shadow:0 2px 8px #0008}
 .bar a{color:#ffd98a;text-decoration:none;font-weight:700;margin-left:auto}
 .modes button,.opt,.bar select{border:0;border-radius:999px;padding:7px 11px;font-weight:800;cursor:pointer}
 .modes button{background:#ffffff1a;color:#fff}
@@ -59,12 +59,12 @@ body{background:#0b0720}
 .stage{position:relative;min-height:0;display:grid;place-items:center}
 canvas{display:block}
 #wheel{width:min(96vmin,100vw,100vh - 58px);height:min(96vmin,100vw,100vh - 58px);max-width:100%;max-height:calc(100vh - 58px)}
-.center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(18vmin,120px);height:min(18vmin,120px);border:6px solid #fff;border-radius:50%;background:radial-gradient(circle at 30% 28%,#fff,#ffd36a 46%,#c2410c);box-shadow:0 0 0 8px #f59e0b55,0 8px 24px #0008;font-weight:900;font-size:clamp(16px,3.2vmin,28px);color:#7c2d12;cursor:pointer;z-index:6}
+.center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(18vmin,120px);height:min(18vmin,120px);border:6px solid #fff;border-radius:50%;background:radial-gradient(circle at 30% 28%,#fff,#ffd36a 46%,#c2410c);box-shadow:0 0 0 8px #f59e0b55,0 0 28px #ffd36a99,0 8px 24px #0008;font-weight:900;font-size:clamp(16px,3.2vmin,28px);color:#7c2d12;cursor:pointer;z-index:6}
 .center:disabled{opacity:.6}
 .pointer{position:absolute;left:50%;top:calc(50% - min(48vmin,50vh - 32px));transform:translate(-50%,-8px);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:26px solid #ffe38a;filter:drop-shadow(0 4px 6px #0008);z-index:7;pointer-events:none}
 .drawer{position:absolute;right:10px;top:10px;width:min(280px,86vw);background:#120a2ce8;border:1px solid #ffffff22;border-radius:16px;padding:12px;display:none;z-index:9}
 .drawer.show{display:block}
-.drawer h3{margin:0 0 8px;font-size:14px}
+.drawer h3{margin:0 0 8px;font-size:16px;color:#ffe9a8;text-shadow:0 1px 4px #000}
 .item-row{display:flex;gap:6px;margin-bottom:6px}
 .item-row input{flex:1;border:0;border-radius:8px;padding:7px}
 .item-row button,.add{border:0;border-radius:8px;padding:7px;cursor:pointer}
@@ -99,8 +99,8 @@ canvas{display:block}
     <canvas id="wheel" width="900" height="900"></canvas>
     <button class="center" id="spinBtn" type="button">QUAY</button>
     <div class="drawer" id="drawer">
-      <div id="box-prize"><h3>Phần thưởng</h3><div id="prizeItems"></div><button class="add" id="addPrize" type="button">Thêm</button></div>
-      <div id="box-task" hidden><h3>Nhiệm vụ</h3><div id="taskItems"></div><button class="add" id="addTask" type="button">Thêm</button></div>
+      <div id="box-prize"><h3>Phần thưởng</h3><div id="prizeItems"></div><button class="add" id="addPrize" type="button">Thêm ô quay</button><button class="add" id="presetPrize" type="button">Nạp bộ phần thưởng mẫu</button></div>
+      <div id="box-task" hidden><h3>Nhiệm vụ</h3><div id="taskItems"></div><button class="add" id="addTask" type="button">Thêm ô quay</button><button class="add" id="presetTask" type="button">Nạp bộ nhiệm vụ mẫu</button></div>
     </div>
   </div>
   <div class="credit">Hệ Sinh Thái Quản lý Nhà Trường - Thiết kế bởi thầy giáo Nguyễn Hồng Dân -</div>
@@ -113,7 +113,9 @@ const canvas=document.getElementById('wheel'), ctx=canvas.getContext('2d');
 const colors=['#ef4444','#f59e0b','#22c55e','#3b82f6','#a855f7','#f97316','#14b8a6','#ec4899','#84cc16','#06b6d4'];
 let mode='student', hideUsed=false, musicOn=true, editing=false;
 let prizes=JSON.parse(localStorage.getItem('cds_wheel_prizes')||'null')||['+1 điểm','Hát 1 bài','May mắn','Chọn bạn','Khen trước lớp','Ngôi sao vàng'];
+const prizePreset=['+2 điểm','Được chọn bài hát','Tràng pháo tay','Huy hiệu chăm học','Quyền chọn bạn cùng nhóm','Quà bất ngờ','Miễn một câu hỏi','Ngôi sao tuần này'];
 let tasks=JSON.parse(localStorage.getItem('cds_wheel_tasks')||'null')||['Nêu ý chính','Đặt câu hỏi','Tóm tắt 30 giây','Viết ví dụ','Giải thích từ khó','Mời bạn trả lời'];
+const taskPreset=['Đọc và giải thích một câu','Nêu một ví dụ thực tế','Tóm tắt bài trong 30 giây','Đặt câu hỏi cho cả lớp','Vẽ sơ đồ tư duy nhanh','Giải một câu vận dụng','Chia sẻ điều em nhớ nhất','Mời một bạn cùng trả lời'];
 let used={}, items=[], angle=0, spinning=false, speed=0, audioCtx=null, musicTimer=null, lastTick=-1, sparks=[];
 
 function sourceItems(){
@@ -273,6 +275,8 @@ document.getElementById('optMusic').onclick=function(){ musicOn=!musicOn; this.c
 document.getElementById('optEdit').onclick=function(){ editing=!editing; this.classList.toggle('on',editing); document.getElementById('drawer').classList.toggle('show',editing); };
 document.getElementById('addPrize').onclick=()=>{prizes.push('Phần thưởng mới');localStorage.setItem('cds_wheel_prizes',JSON.stringify(prizes));renderEditor('prizeItems',prizes,'cds_wheel_prizes');draw();};
 document.getElementById('addTask').onclick=()=>{tasks.push('Nhiệm vụ mới');localStorage.setItem('cds_wheel_tasks',JSON.stringify(tasks));renderEditor('taskItems',tasks,'cds_wheel_tasks');draw();};
+document.getElementById('presetPrize').onclick=()=>{prizes=prizePreset.slice();localStorage.setItem('cds_wheel_prizes',JSON.stringify(prizes));renderEditor('prizeItems',prizes,'cds_wheel_prizes');draw();};
+document.getElementById('presetTask').onclick=()=>{tasks=taskPreset.slice();localStorage.setItem('cds_wheel_tasks',JSON.stringify(tasks));renderEditor('taskItems',tasks,'cds_wheel_tasks');draw();};
 document.getElementById('closeWin').onclick=()=>{document.getElementById('overlay').classList.remove('show'); draw();};
 window.addEventListener('resize',()=>{sizeCanvas(); draw();});
 renderEditor('prizeItems',prizes,'cds_wheel_prizes');
