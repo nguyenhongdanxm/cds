@@ -45,7 +45,8 @@ $base = defined('BASE_URL') ? BASE_URL : '/';
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;overflow:hidden;font-family:"Segoe UI",system-ui,sans-serif;color:#fff}
 body{background:#0b0720}
-.app{height:100%;display:grid;grid-template-rows:52px 1fr;min-height:0}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr 28px;min-height:0}
+.credit{height:28px;display:flex;align-items:center;justify-content:center;font-size:11px;opacity:.72;letter-spacing:.2px;background:#0006}
 .bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#120a2ccc;backdrop-filter:blur(8px);z-index:8}
 .bar b{white-space:nowrap}
 .bar a{color:#ffd98a;text-decoration:none;font-weight:700;margin-left:auto}
@@ -88,7 +89,8 @@ canvas{display:block}
       <button data-mode="task">Nhiệm vụ</button>
     </div>
     <select id="classSelect"><option value="">Chọn lớp</option><?php foreach ($classNames as $name): ?><option><?= htmlspecialchars($name) ?></option><?php endforeach; ?></select>
-    <button class="opt on" id="optRepeat" type="button">Lặp lại tên</button>
+    <button class="opt" id="optHide" type="button">Giữ ô đã quay</button>
+    <button class="opt" id="optReset" type="button">Hiện lại tất cả</button>
     <button class="opt on" id="optMusic" type="button">Nhạc</button>
     <button class="opt" id="optEdit" type="button">Sửa nội dung</button>
     <a href="<?= htmlspecialchars($base) ?>hoclieu.php?tab=games">Học liệu</a>
@@ -101,6 +103,7 @@ canvas{display:block}
       <div id="box-task" hidden><h3>Nhiệm vụ</h3><div id="taskItems"></div><button class="add" id="addTask" type="button">Thêm</button></div>
     </div>
   </div>
+  <div class="credit">Hệ Sinh Thái Quản lý Nhà Trường - Thiết kế bởi thầy giáo Nguyễn Hồng Dân -</div>
 </div>
 <canvas class="confetti" id="confetti"></canvas>
 <div class="overlay" id="overlay"><div class="win"><div id="winTag">Kết quả</div><div class="big" id="winText">—</div><button type="button" id="closeWin">Quay tiếp</button></div></div>
@@ -108,17 +111,18 @@ canvas{display:block}
 const studentsByClass = <?= json_encode($studentsByClass, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 const canvas=document.getElementById('wheel'), ctx=canvas.getContext('2d');
 const colors=['#ef4444','#f59e0b','#22c55e','#3b82f6','#a855f7','#f97316','#14b8a6','#ec4899','#84cc16','#06b6d4'];
-let mode='student', repeat=true, musicOn=true, editing=false;
+let mode='student', hideUsed=false, musicOn=true, editing=false;
 let prizes=JSON.parse(localStorage.getItem('cds_wheel_prizes')||'null')||['+1 điểm','Hát 1 bài','May mắn','Chọn bạn','Khen trước lớp','Ngôi sao vàng'];
 let tasks=JSON.parse(localStorage.getItem('cds_wheel_tasks')||'null')||['Nêu ý chính','Đặt câu hỏi','Tóm tắt 30 giây','Viết ví dụ','Giải thích từ khó','Mời bạn trả lời'];
 let used={}, items=[], angle=0, spinning=false, speed=0, audioCtx=null, musicTimer=null, lastTick=-1, sparks=[];
 
-function currentItems(){
-  if(mode==='student'){
-    const all=(studentsByClass[document.getElementById('classSelect').value]||[]).slice();
-    return repeat ? all : all.filter(n=>!used[n]);
-  }
+function sourceItems(){
+  if(mode==='student') return (studentsByClass[document.getElementById('classSelect').value]||[]).slice();
   return mode==='prize'?prizes.slice():tasks.slice();
+}
+function currentItems(){
+  const all=sourceItems();
+  return hideUsed ? all.filter(n=>!used[n]) : all;
 }
 function renderEditor(id,list,key){
   const box=document.getElementById(id); box.innerHTML='';
@@ -201,19 +205,23 @@ function playShowBar(step){
   if(!audioCtx||!musicOn) return;
   const t=audioCtx.currentTime;
   const kick=audioCtx.createOscillator(), kg=audioCtx.createGain();
-  kick.frequency.setValueAtTime(150,t); kick.frequency.exponentialRampToValueAtTime(42,t+0.12);
-  kg.gain.setValueAtTime(0.13,t); kg.gain.exponentialRampToValueAtTime(0.0001,t+0.14);
-  kick.connect(kg); kg.connect(audioCtx.destination); kick.start(t); kick.stop(t+0.15);
+  kick.frequency.setValueAtTime(180,t); kick.frequency.exponentialRampToValueAtTime(48,t+0.09);
+  kg.gain.setValueAtTime(0.16,t); kg.gain.exponentialRampToValueAtTime(0.0001,t+0.11);
+  kick.connect(kg); kg.connect(audioCtx.destination); kick.start(t); kick.stop(t+0.12);
+  const hat=audioCtx.createBuffer(1,700,audioCtx.sampleRate), hd=hat.getChannelData(0);
+  for(let i=0;i<hd.length;i++) hd[i]=(Math.random()*2-1)*Math.pow(1-i/hd.length,4);
+  const hs=audioCtx.createBufferSource(), hg=audioCtx.createGain(); hs.buffer=hat; hg.gain.value=0.05; hs.connect(hg); hg.connect(audioCtx.destination); hs.start();
   if(step%2){
-    const n=audioCtx.createBuffer(1,1800,audioCtx.sampleRate), d=n.getChannelData(0);
-    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3);
-    const s=audioCtx.createBufferSource(), g=audioCtx.createGain(); s.buffer=n; g.gain.value=0.08; s.connect(g); g.connect(audioCtx.destination); s.start();
+    const n=audioCtx.createBuffer(1,1400,audioCtx.sampleRate), d=n.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.4);
+    const s=audioCtx.createBufferSource(), g=audioCtx.createGain(); s.buffer=n; g.gain.value=0.1; s.connect(g); g.connect(audioCtx.destination); s.start();
   }
-  const chord=[[261.6,329.6,392],[293.7,370,440],[329.6,415.3,493.9],[261.6,392,523.3]][step%4];
-  chord.forEach((f,i)=>tone(f,.18,'triangle',0.035));
-  tone(chord[0]*2,.1,'square',0.02);
+  const runs=[392,523.3,659.3,783.9,659.3,523.3,587.3,698.5];
+  tone(runs[step%runs.length], .12, 'triangle', 0.07);
+  tone(runs[step%runs.length]*2, .07, 'square', 0.025);
+  if(step%4===0){ tone(261.6,.2,'triangle',0.04); tone(329.6,.2,'triangle',0.03); tone(392,.2,'triangle',0.03); }
 }
-function startMusic(){ stopMusic(); if(!musicOn) return; let step=0; playShowBar(step); musicTimer=setInterval(()=>{ if(!spinning){stopMusic();return;} playShowBar(++step); }, 240); }
+function startMusic(){ stopMusic(); if(!musicOn) return; let step=0; playShowBar(step); musicTimer=setInterval(()=>{ if(!spinning){stopMusic();return;} playShowBar(++step); }, 160); }
 function stopMusic(){ if(musicTimer){ clearInterval(musicTimer); musicTimer=null; } }
 function fanfare(){ stopMusic(); [523,659,784,1046,784,1318,1046].forEach((f,i)=>setTimeout(()=>tone(f,.18,'triangle',.1), i*85)); }
 function burst(){
@@ -223,7 +231,7 @@ function burst(){
   let t=0; (function step(){ x.clearRect(0,0,c.width,c.height); bits.forEach(b=>{b.x+=b.vx;b.y+=b.vy;b.vy+=.28;b.a-=.012;x.globalAlpha=Math.max(b.a,0);x.fillStyle=b.c;x.fillRect(b.x,b.y,b.s,b.s);}); if(++t<90) requestAnimationFrame(step); })();
 }
 function showWin(text){
-  if(mode==='student' && !repeat && text) used[text]=1;
+  if(hideUsed && text) used[text]=1;
   document.getElementById('winTag').textContent=mode==='student'?'Mời lên bảng':(mode==='prize'?'Phần thưởng':'Nhiệm vụ');
   document.getElementById('winText').textContent=text;
   document.getElementById('overlay').classList.add('show');
@@ -259,7 +267,8 @@ document.querySelectorAll('.modes button').forEach(btn=>btn.onclick=()=>{
   draw();
 });
 document.getElementById('classSelect').onchange=draw;
-document.getElementById('optRepeat').onclick=function(){ repeat=!repeat; this.classList.toggle('on',repeat); this.textContent=repeat?'Lặp lại tên':'Không lặp tên'; draw(); };
+document.getElementById('optHide').onclick=function(){ hideUsed=!hideUsed; this.classList.toggle('on',hideUsed); this.textContent=hideUsed?'Ẩn ô đã quay':'Giữ ô đã quay'; draw(); };
+document.getElementById('optReset').onclick=function(){ used={}; draw(); };
 document.getElementById('optMusic').onclick=function(){ musicOn=!musicOn; this.classList.toggle('on',musicOn); if(!musicOn) stopMusic(); };
 document.getElementById('optEdit').onclick=function(){ editing=!editing; this.classList.toggle('on',editing); document.getElementById('drawer').classList.toggle('show',editing); };
 document.getElementById('addPrize').onclick=()=>{prizes.push('Phần thưởng mới');localStorage.setItem('cds_wheel_prizes',JSON.stringify(prizes));renderEditor('prizeItems',prizes,'cds_wheel_prizes');draw();};
