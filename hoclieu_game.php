@@ -56,12 +56,12 @@ body{background:radial-gradient(circle at 50% 8%,#263b73 0,#0b0720 52%,#05030f 1
 .bar select{max-width:140px}
 .opt{background:#ffffff14;color:#fff}
 .opt.on{background:#22c55e;color:#052e16}
-.stage{position:relative;min-height:0;display:grid;place-items:center;background:radial-gradient(circle,#1e3a6d55 0,#08051a33 58%,transparent 72%);overflow:hidden}.show-title{position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:clamp(18px,3vw,34px);font-weight:950;letter-spacing:.08em;color:#ffe38a;text-shadow:0 0 10px #ff9f1c,0 3px 0 #7c2d12;z-index:4;white-space:nowrap}.show-title span{font-size:.48em;color:#fff;letter-spacing:.18em;margin-left:10px}.live-badge{position:absolute;top:18px;right:18px;border:1px solid #ffdc8a;border-radius:999px;padding:6px 12px;color:#ffe38a;font-size:11px;font-weight:900;letter-spacing:.12em;z-index:4}.live-badge.live{background:#dc2626;color:#fff;border-color:#fecaca;box-shadow:0 0 16px #ef4444}.credit{height:32px;font-size:11px}
+.stage{position:relative;min-height:0;display:grid;place-items:center;background:radial-gradient(circle,#1e3a6d55 0,#08051a33 58%,transparent 72%);overflow:hidden}.show-title{position:absolute;top:3px;left:50%;transform:translateX(-50%);font-size:clamp(18px,3vw,34px);font-weight:950;letter-spacing:.08em;color:#ffe38a;text-shadow:0 0 10px #ff9f1c,0 3px 0 #7c2d12;z-index:4;white-space:nowrap}.show-title span{font-size:.48em;color:#fff;letter-spacing:.18em;margin-left:10px}.live-badge{position:absolute;top:18px;right:18px;border:1px solid #ffdc8a;border-radius:999px;padding:6px 12px;color:#ffe38a;font-size:11px;font-weight:900;letter-spacing:.12em;z-index:4}.live-badge.live{background:#dc2626;color:#fff;border-color:#fecaca;box-shadow:0 0 16px #ef4444}.credit{height:32px;font-size:11px}
 canvas{display:block;filter:drop-shadow(0 0 18px #ffd36a88)}
 #wheel{width:min(96vmin,100vw,100vh - 58px);height:min(96vmin,100vw,100vh - 58px);max-width:100%;max-height:calc(100vh - 58px)}
-.center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(18vmin,120px);height:min(18vmin,120px);border:6px solid #fff;border-radius:50%;background:radial-gradient(circle at 30% 28%,#fff,#ffd36a 46%,#c2410c);box-shadow:0 0 0 8px #f59e0b55,0 0 28px #ffd36a99,0 8px 24px #0008;font-weight:900;font-size:clamp(16px,3.2vmin,28px);color:#7c2d12;cursor:pointer;z-index:6}
+.center{position:absolute;left:50%;top:50%;z-index:12;transform:translate(-50%,-50%);width:min(18vmin,120px);height:min(18vmin,120px);border:6px solid #fff;border-radius:50%;background:radial-gradient(circle at 30% 28%,#fff,#ffd36a 46%,#c2410c);box-shadow:0 0 0 8px #f59e0b55,0 0 28px #ffd36a99,0 8px 24px #0008;font-weight:900;font-size:clamp(16px,3.2vmin,28px);color:#7c2d12;cursor:pointer;z-index:6}
 .center:disabled{opacity:.6}
-.pointer{position:absolute;left:50%;top:calc(50% - min(48vmin,50vh - 32px));transform:translate(-50%,-8px);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:26px solid #ffe38a;filter:drop-shadow(0 4px 6px #0008);z-index:7;pointer-events:none}
+.pointer{position:absolute;left:50%;top:calc(50% - min(48vmin,50vh - 32px) + 38px);transform:translate(-50%,-8px);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:26px solid #ffe38a;filter:drop-shadow(0 4px 6px #0008);z-index:7;pointer-events:none}
 .drawer{position:absolute;right:10px;top:10px;width:min(280px,86vw);background:#120a2ce8;border:1px solid #ffffff22;border-radius:16px;padding:12px;display:none;z-index:9}
 .drawer.show{display:block}
 .drawer h3{margin:0 0 8px;font-size:16px;color:#ffe9a8;text-shadow:0 1px 4px #000}
@@ -220,12 +220,12 @@ function playShowBar(step){
     for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.4);
     const s=audioCtx.createBufferSource(), g=audioCtx.createGain(); s.buffer=n; g.gain.value=0.1; s.connect(g); g.connect(audioCtx.destination); s.start();
   }
-  const runs=[261.6,329.6,392,523.3,659.3,523.3,392,329.6,293.7,369.9,440,587.3];
+  const runs=[392,523.3,659.3,783.9,1046.5,783.9,659.3,523.3,440,587.3,739.9,880,1174.7,880,739.9,587.3];
   tone(runs[step%runs.length], .12, 'triangle', 0.07);
   tone(runs[step%runs.length]*2, .07, 'square', 0.025);
   if(step%4===0){ tone(261.6,.2,'triangle',0.04); tone(329.6,.2,'triangle',0.03); tone(392,.2,'triangle',0.03); }
 }
-function startMusic(){ stopMusic(); if(!musicOn) return; let step=0; playShowBar(step); musicTimer=setInterval(()=>{ if(!spinning){stopMusic();return;} playShowBar(++step); }, 160); }
+function startMusic(){ stopMusic(); if(!musicOn) return; let step=0; playShowBar(step); musicTimer=setInterval(()=>{ if(!spinning){stopMusic();return;} playShowBar(++step); }, 135); }
 function stopMusic(){ if(musicTimer){ clearInterval(musicTimer); musicTimer=null; } }
 function fanfare(){ stopMusic(); [523,659,784,1046,784,1318,1046].forEach((f,i)=>setTimeout(()=>tone(f,.18,'triangle',.1), i*85)); }
 function burst(){
