@@ -10,9 +10,6 @@ if [ ! -d "$SOURCE_ROOT" ] || [ "$DEPLOY_ROOT" != "/home/capnachi/cds.noitruxinm
   exit 2
 fi
 
-# Tạm bỏ bước verify_chuyenmon_source: trên môi trường cPanel hiện tại bước này
-# thoát 255 ngay sau CDS_DEPLOY_1/6 và chặn toàn bộ deployment. Việc kiểm tra
-# nguồn sẽ được xử lý riêng, không để nó làm hỏng deploy của toàn hệ thống.
 echo "CDS_DEPLOY_1/6: bỏ qua kiểm tra nguồn Chuyên môn trên cPanel"
 
 echo "CDS_DEPLOY_2/6: sao chép tài nguyên và thư viện dùng chung"
@@ -45,6 +42,6 @@ echo "CDS_DEPLOY_5/6: tích hợp ảnh học sinh"
 
 echo "CDS_DEPLOY_6/6: sao chép các trang chính"
 cd "$SOURCE_ROOT"
-/usr/bin/timeout 45 /bin/cp activity.php admin.php hoclieu.php hoclieu_file.php chuyenmon.php csdl.php csdl_preweeks.php csdl_export.php csdl_student_cards.php danhgia.php dashboard_settings.php database_admin.php index.php login.php logout.php manifest.webmanifest noitru.php noitru_attendance.php noitru_list.php noitru_assign.php noitru_assign_enhanced.php noitru_assign_sync.php noitru_room_template.php noitru_room_roles.php noitru_room_roles_data.php noitru_room_quick_save.php push_api.php student_card_students.php student_photo.php student_verify.php sw.js thoikhoabieu.php thuvien.php thuvien_book_supplement.php thuvien_bienban.php thietbi_phieu.php thidua.php thidua_baiviet.php thidua_phongnoitru.php users.php vanban.php "$DEPLOY_ROOT"
+/usr/bin/timeout 45 /bin/cp activity.php admin.php hoclieu.php hoclieu_file.php hoclieu_game.php chuyenmon.php csdl.php csdl_preweeks.php csdl_export.php csdl_student_cards.php danhgia.php dashboard_settings.php database_admin.php index.php login.php logout.php manifest.webmanifest noitru.php noitru_attendance.php noitru_list.php noitru_assign.php noitru_assign_enhanced.php noitru_assign_sync.php noitru_room_template.php noitru_room_roles.php noitru_room_roles_data.php noitru_room_quick_save.php push_api.php student_card_students.php student_photo.php student_verify.php sw.js thoikhoabieu.php thuvien.php thuvien_book_supplement.php thuvien_bienban.php thietbi_phieu.php thidua.php thidua_baiviet.php thidua_phongnoitru.php users.php vanban.php "$DEPLOY_ROOT"
 
 echo "CDS_DEPLOY_OK"
