@@ -108,7 +108,7 @@ $directories = ['assets', 'includes', 'chuyenmon'];
 $rootFiles = [
     'activity.php','admin.php','notices.php','drive_viewer.php','public_notice.php',
     'public_drive_viewer.php','public_ktx_exit_file.php','drive_file.php','drive_settings.php',
-    'hoclieu.php','hoclieu_file.php',
+    'hoclieu.php','hoclieu_file.php','hoclieu_game.php',
     'chuyenmon.php','csdl.php','csdl_preweeks.php','csdl_export.php','csdl_export_filtered_excel.php',
     'csdl_statistics_export_xlsx.php','csdl_student_cards.php','danhgia.php','dashboard_settings.php',
     'database_admin.php','instance_settings.php','initial_setup.php','index.php','login.php','logout.php','manifest.php','manifest.webmanifest','sw.js',
@@ -123,11 +123,6 @@ $rootFiles = [
     'vanban_preview.php','vanban_preview_file.php'
 ];
 
-/*
- * Kiểm tra đầy đủ nguồn trước khi ghi bất kỳ tệp nào vào website. Nếu một
- * commit khai báo thiếu tệp hoặc thư mục, deploy dừng tại đây thay vì để lại
- * bản triển khai trộn giữa phiên bản cũ và mới.
- */
 foreach ($directories as $dir) {
     if (!is_dir($repoRoot . '/' . $dir)) {
         fwrite(STDERR, 'DEPLOY_SOURCE_MISSING: ' . $dir . "\n");
