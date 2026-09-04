@@ -27,6 +27,26 @@ function lb_write(string $file,array $rows): bool {
  foreach($touched as$r)if(!cds_lb_shadow_upsert($r)){$GLOBALS['cds_force_json_lb_read']=true;}
  return true;
 }
+function lb_class_student_names(string $class): array {
+ $class=trim($class);if($class==='')return[];
+ if(!isset($GLOBALS['lb_class_students'])||!is_array($GLOBALS['lb_class_students'])){
+  $map=[];
+  try{
+   $rows=[];
+   if(function_exists('csdl_students_all'))$rows=csdl_students_all();
+   elseif(function_exists('csdl_get_students'))$rows=csdl_get_students();
+   $classNames=[];if(function_exists('csdl_classes_all'))foreach(csdl_classes_all()as$c)$classNames[(string)($c['id']??'')]=trim((string)($c['name']??''));
+   foreach((array)$rows as$stu){if(!is_array($stu))continue;if(array_key_exists('active',$stu)&&empty($stu['active']))continue;$name=trim((string)($stu['name']??$stu['ho_ten']??''));if($name==='')continue;$cls=trim((string)($stu['class_name']??$stu['class']??$stu['lop']??''));if($cls===''&&!empty($stu['class_id']))$cls=$classNames[(string)$stu['class_id']]??'';if($cls==='')continue;$nk=lb_norm($cls);if($nk==='')continue;$map[$nk][$name]=true;$map[lb_norm(preg_replace('/^lớp\s+/iu','',$cls))][$name]=true;}
+   foreach($map as$k=>$names){$list=array_keys($names);usort($list,fn($a,$b)=>strnatcasecmp($a,$b));$map[$k]=$list;}
+  }catch(Throwable $e){error_log('[CDS lb students] '.$e->getMessage());$map=[];}
+  $GLOBALS['lb_class_students']=$map;
+ }
+ $key=lb_norm($class);$alt=lb_norm(preg_replace('/^lớp\s+/iu','',$class));
+ return $GLOBALS['lb_class_students'][$key]??$GLOBALS['lb_class_students'][$alt]??[];
+}
+function lb_visible_class_students(array $rows): array {
+ $out=[];foreach($rows as$r){$cls=trim((string)($r['class']??''));if($cls===''||isset($out[$cls]))continue;$out[$cls]=lb_class_student_names($cls);}return $out;
+}
 function lb_id(string $prefix='lb'): string { return $prefix.'_'.date('YmdHis').'_'.bin2hex(random_bytes(4)); }
 function lb_user(): array { return (array)(cds_user()?:[]); }
 function lb_is_admin(): bool { return (lb_user()['role']??'')==='admin'; }
