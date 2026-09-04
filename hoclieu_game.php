@@ -144,7 +144,7 @@ function sizeCanvas(){
 function draw(){
   items=currentItems();
   const W=canvas.width, cx=W/2, r=W*0.46, n=Math.max(items.length,1), arc=Math.PI*2/n;
-  ctx.clearRect(0,0,W,W);\n  const pulse=1+Math.sin(Date.now()/180)*.012; ctx.save(); ctx.translate(cx,cx); ctx.scale(pulse,pulse); ctx.translate(-cx,-cx);
+  ctx.clearRect(0,0,W,W);\n  
   ctx.save(); ctx.translate(cx,cx); ctx.rotate(angle);
   for(let i=0;i<n;i++){
     ctx.beginPath(); ctx.moveTo(0,0); ctx.fillStyle=colors[i%colors.length];
