@@ -15,8 +15,8 @@
     if(typeWrap){
       typeWrap.className='nt-absence-type-grid mb-3';
       typeWrap.innerHTML=''
-        +'<label class="nt-absence-type"><input type="radio" name="absenceType" value="P" checked><span><strong>Có phép</strong><small>Mặc định</small></span></label>'
-        +'<label class="nt-absence-type"><input type="radio" name="absenceType" value="P_SAU_AN"><span><strong>Có phép sau thời gian đăng ký bữa ăn</strong><small>Báo nghỉ sau thời điểm chốt bữa ăn</small></span></label>'
+        +'<label class="nt-absence-type"><input type="radio" name="absenceType" value="P"><span><strong>Có phép</strong></span></label>'
+        +'<label class="nt-absence-type"><input type="radio" name="absenceType" value="P_SAU_AN" checked><span><strong>Có phép sau thời gian đăng ký bữa ăn</strong><small>Mặc định · Báo nghỉ sau thời điểm chốt bữa ăn</small></span></label>'
         +'<label class="nt-absence-type"><input type="radio" name="absenceType" value="KP"><span><strong>Không phép</strong><small>Vắng không được phép</small></span></label>';
       if(!document.getElementById('ntAbsenceTypeStyle')){var st=document.createElement('style');st.id='ntAbsenceTypeStyle';st.textContent='.nt-absence-type-grid{display:grid;gap:.55rem}.nt-absence-type{display:flex;align-items:center;gap:.7rem;padding:.7rem .8rem;border:1px solid #dbe4eb;border-radius:12px;background:#fff;cursor:pointer}.nt-absence-type:has(input:checked){border-color:#0ea5e9;background:#f0f9ff;box-shadow:0 0 0 2px rgba(14,165,233,.08)}.nt-absence-type input{width:1.05rem;height:1.05rem}.nt-absence-type span{display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap}.nt-absence-type strong{font-size:.92rem}.nt-absence-type small{color:#64748b;font-size:.72rem}.nt-absence-reason-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin:-.25rem 0 1rem}.nt-absence-reason-stat{padding:.7rem .8rem;border:1px solid #dce5ec;border-radius:13px;background:#fff}.nt-absence-reason-stat strong{display:block;font-size:1.25rem;color:#b91c1c}.nt-absence-reason-stat span{font-size:.78rem;font-weight:700;color:#475569}@media(max-width:767px){.nt-absence-reason-summary{grid-template-columns:1fr}.nt-absence-reason-stat{display:flex;align-items:center;justify-content:space-between;gap:.7rem}.nt-absence-reason-stat strong{order:2}}';document.head.appendChild(st);}
     }
@@ -43,17 +43,17 @@
     if(d.excuse.value===LATE)d.status.value='excused';
     row.dataset.mealAfterRegistration='0';
     window.updateRow(row);
-    row.addEventListener('click',function(){setTimeout(function(){var x=data(row);if(!x)return;var code=x.excuse.value||P;if(!labels[code])code=P;var radio=document.querySelector('input[name="absenceType"][value="'+code+'"]');if(radio)radio.checked=true;},0);});
+    row.addEventListener('click',function(){setTimeout(function(){var x=data(row);if(!x)return;var code=x.excuse.value||LATE;if(!labels[code])code=LATE;var radio=document.querySelector('input[name="absenceType"][value="'+code+'"]');if(radio)radio.checked=true;},0);});
   });
 
   window.saveAbsence=function(){
     var row=window.activeRow;if(!row)return;var d=data(row);if(!d)return;
-    var radio=document.querySelector('input[name="absenceType"]:checked');var code=radio?radio.value:P;if(!labels[code])code=P;
+    var radio=document.querySelector('input[name="absenceType"]:checked');var code=radio?radio.value:LATE;if(!labels[code])code=LATE;
     d.excuse.value=code;d.status.value=code===KP?'absent':'excused';d.reason.value=(document.getElementById('absenceReason')||{}).value?document.getElementById('absenceReason').value.trim():'';row.dataset.mealAfterRegistration='0';
     window.updateRow(row);if(typeof window.closeDialog==='function')window.closeDialog('absenceDialog');
   };
   window.markPresentFromDialog=function(){var row=window.activeRow;if(!row)return;var d=data(row);if(!d)return;d.status.value='present';d.excuse.value='';d.reason.value='';row.dataset.mealAfterRegistration='0';window.updateRow(row);if(typeof window.closeDialog==='function')window.closeDialog('absenceDialog');};
-  window.setAll=function(status){document.querySelectorAll('.att-person').forEach(function(row){var d=data(row);if(!d)return;if(status==='absent'){d.status.value='excused';d.excuse.value=P;}else{d.status.value='present';d.excuse.value='';}d.reason.value='';row.dataset.mealAfterRegistration='0';window.updateRow(row);});};
+  window.setAll=function(status){document.querySelectorAll('.att-person').forEach(function(row){var d=data(row);if(!d)return;if(status==='absent'){d.status.value='excused';d.excuse.value=LATE;}else{d.status.value='present';d.excuse.value='';}d.reason.value='';row.dataset.mealAfterRegistration='0';window.updateRow(row);});};
 
   var oldConfirm=window.openConfirm;
   window.openConfirm=function(){
