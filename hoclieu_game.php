@@ -246,7 +246,7 @@ function showWin(text){
 }
 function tick(){
   if(!spinning) return;
-  angle+=speed; speed*=0.987;
+  angle+=speed; speed*=0.989;
   const idx=winnerIndex();
   if(idx!==lastTick){
     lastTick=idx; pegClick();
