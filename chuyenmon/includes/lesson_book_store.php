@@ -214,7 +214,7 @@ function lb_stat_group(array $rows,string $field): array {
   if($field==='actual_teacher'&&$name==='')$name=trim((string)($r['scheduled_teacher']??''));
   if($field==='week_label'&&$name==='')$name=trim((string)($r['week_key']??'Tuần'));
   if($name==='')$name='Chưa xác định';
-  if(!isset($groups[$name])){$groups[$name]=['name'=>$name,'scheduled'=>0,'saved'=>0,'completed'=>0,'incomplete'=>0,'actual'=>0.0,'off'=>0];foreach($keys as$k)$groups[$name][$k]=0;}
+  if(!isset($groups[$name])){$groups[$name]=['name'=>$name,'scheduled'=>0,'saved'=>0,'completed'=>0,'incomplete'=>0,'missing_ppct'=>0,'actual'=>0.0,'off'=>0];foreach($keys as$k)$groups[$name][$k]=0;}
   $groups[$name]['scheduled']++;
   $saved=!empty($r['_saved'])||!empty($r['created_at'])||!empty($r['updated_at']);
   $signed=!empty($r['signed_at'])||!empty($r['_completed']);
@@ -230,7 +230,7 @@ function lb_stat_group(array $rows,string $field): array {
 }
 function lb_stat_totals(array $rows): array {
  $g=lb_stat_group($rows,'__all');
- if(!$g)return ['name'=>'Tổng','scheduled'=>0,'saved'=>0,'completed'=>0,'incomplete'=>0,'actual'=>0.0,'off'=>0,'taught'=>0,'substitute'=>0,'makeup'=>0,'online'=>0,'holiday'=>0,'teacher_absent'=>0,'class_absent'=>0,'postponed'=>0,'cancelled'=>0,'pending'=>0];
+ if(!$g)return ['name'=>'Tổng','scheduled'=>0,'saved'=>0,'completed'=>0,'incomplete'=>0,'missing_ppct'=>0,'actual'=>0.0,'off'=>0,'taught'=>0,'substitute'=>0,'makeup'=>0,'online'=>0,'holiday'=>0,'teacher_absent'=>0,'class_absent'=>0,'postponed'=>0,'cancelled'=>0,'pending'=>0];
  $t=$g[0];$t['name']='Tổng';return $t;
 }
 function lb_set_lock(array $week,array $classes,bool $locked,string $reason=''): array {if(!lb_is_admin())return['ok'=>false,'message'=>'Chỉ quản trị được khóa/mở sổ.'];$rows=lb_rows(LB_LOCKS_FILE);foreach($classes as$class){$key=lb_lock_key((string)$week['key'],(string)$class,'main');$found=false;foreach($rows as&$r)if(($r['key']??'')===$key){$r=array_merge($r,['locked'=>$locked,'reason'=>$reason,'at'=>date('c'),'by'=>lb_teacher_name(),'automatic'=>false]);$found=true;break;}unset($r);if(!$found)$rows[]=['key'=>$key,'week_key'=>$week['key'],'class'=>$class,'type'=>'main','locked'=>$locked,'reason'=>$reason,'at'=>date('c'),'by'=>lb_teacher_name(),'automatic'=>false];}lb_write(LB_LOCKS_FILE,$rows);lb_audit($locked?'lock':'unlock',['classes'=>$classes,'reason'=>$reason]);return['ok'=>true,'message'=>$locked?'Đã khóa sổ.':'Đã mở khóa sổ.'];}
