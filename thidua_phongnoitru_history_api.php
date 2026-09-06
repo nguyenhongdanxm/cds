@@ -10,8 +10,8 @@ $user=current_user()??[]; $userName=trim((string)($user['name']??$user['teacher_
 if($_SERVER['REQUEST_METHOD']==='POST'){
   if(!tdr_is_room_admin()){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Chỉ Quản trị hệ thống được mở/khóa dữ liệu.'],JSON_UNESCAPED_UNICODE);exit;}
   $csrf=(string)($_POST['csrf']??''); if(empty($_SESSION['td_room_csrf'])||!hash_equals((string)$_SESSION['td_room_csrf'],$csrf)){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Phiên làm việc không hợp lệ.'],JSON_UNESCAPED_UNICODE);exit;}
-  $date=trim((string)($_POST['date']??''));$mode=(string)($_POST['mode']??'unlock'); if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$date)){http_response_code(400);echo json_encode(['ok'=>false,'message'=>'Ngày không hợp lệ.'],JSON_UNESCAPED_UNICODE);exit;}
-  tdr_set_date_unlock($date,$mode==='unlock',$userName);echo json_encode(['ok'=>true,'locked'=>tdr_date_locked($date),'message'=>$mode==='unlock'?'Đã mở khóa ngày chấm.':'Đã khóa lại ngày chấm.'],JSON_UNESCAPED_UNICODE);exit;
+  $dates=array_values(array_unique(array_filter(array_map('strval',(array)($_POST['dates']??[$_POST['date']??''])),fn($value)=>preg_match('/^\d{4}-\d{2}-\d{2}$/',$value))));$mode=(string)($_POST['mode']??'unlock'); if(!$dates){http_response_code(400);echo json_encode(['ok'=>false,'message'=>'Cần chọn ít nhất một ngày hợp lệ.'],JSON_UNESCAPED_UNICODE);exit;}
+  foreach($dates as $date)if(!tdr_set_date_unlock($date,$mode==='unlock',$userName)){http_response_code(500);echo json_encode(['ok'=>false,'message'=>'Không thể lưu trạng thái khóa dữ liệu.'],JSON_UNESCAPED_UNICODE);exit;}echo json_encode(['ok'=>true,'locked'=>tdr_date_locked($dates[0]),'message'=>$mode==='unlock'?'Đã mở khóa '.count($dates).' ngày chấm.':'Đã khóa lại '.count($dates).' ngày chấm.'],JSON_UNESCAPED_UNICODE);exit;
 }
 $date=trim((string)($_GET['date']??''));$room=trim((string)($_GET['room']??''));
 $rows=[];$roomSet=[];
