@@ -20,7 +20,9 @@ $variant=function(array $row)use($classOf,$targets,$subjectOf):?string{$subject=
 
 $preview=['pccm'=>0,'tkb'=>0,'ppct'=>0,'files'=>[]];
 $scan=function(string $file,string $kind)use(&$preview,$read,$variant){
-  $rows=$read($file);$count=0;foreach($rows as $row)if(is_array($row)&&$variant($row)!==null)$count++;
+  $rows=$read($file);$count=0;
+  if($kind==='tkb'){foreach($rows as $version)foreach((array)($version['entries']??[]) as $row)if(is_array($row)&&$variant($row)!==null)$count++;}
+  else foreach($rows as $row)if(is_array($row)&&$variant($row)!==null)$count++;
   if($count)$preview[$kind]+=$count;
   if($count)$preview['files'][]=['kind'=>$kind,'file'=>$file,'count'=>$count];
 };
@@ -34,7 +36,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&($_POST['action']??'')==='run'){
   $changed=['pccm'=>0,'tkb'=>0,'ppct'=>0];$seen=[];
   foreach($preview['files'] as $f){
     $rows=$read($f['file']);$dirty=false;
-    foreach($rows as &$row){if(!is_array($row))continue;$new=$variant($row);if($new===null)continue;$row['subject']=$new;$changed[$f['kind']]++;$dirty=true;}unset($row);
+    if($f['kind']==='tkb'){
+      foreach($rows as &$version)foreach((array)($version['entries']??[]) as $i=>$row){if(!is_array($row))continue;$new=$variant($row);if($new===null)continue;$version['entries'][$i]['subject']=$new;$changed[$f['kind']]++;$dirty=true;}unset($version);
+    }else{
+      foreach($rows as &$row){if(!is_array($row))continue;$new=$variant($row);if($new===null)continue;$row['subject']=$new;$changed[$f['kind']]++;$dirty=true;}unset($row);
+    }
     if($dirty)$write($f['file'],$rows);
   }
   $message='Đã chuyển đổi '.($changed['pccm']+$changed['tkb']+$changed['ppct']).' dòng: PCCM '.$changed['pccm'].', TKB '.$changed['tkb'].', PPCT '.$changed['ppct'].'. Sổ đầu bài cũ không bị thay đổi.';
