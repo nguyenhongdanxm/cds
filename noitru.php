@@ -938,6 +938,34 @@ if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'excel') {
     }
     require __DIR__ . '/includes/noitru_meal_day_export.php';
 }
+if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'period_csv') {
+    $from = trim((string)($_GET['from'] ?? date('Y-m-01')));
+    $to = trim((string)($_GET['to'] ?? date('Y-m-d')));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) $from = date('Y-m-01');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to) || $to < $from) $to = $from;
+    if ($to > date('Y-m-d', strtotime($from . ' +366 days'))) $to = date('Y-m-d', strtotime($from . ' +366 days'));
+    $summary = noitru_meal_period_summary($from, $to, $boarders);
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="tong-hop-suat-an-' . $from . '-' . $to . '.csv"');
+    echo "\xEF\xBB\xBF";
+    $fp = fopen('php://output', 'w');
+    fputcsv($fp, [$school ?? 'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN']);
+    fputcsv($fp, ['TỔNG HỢP SUẤT ĂN TỪ ' . date('d/m/Y', strtotime($from)) . ' ĐẾN ' . date('d/m/Y', strtotime($to))]);
+    fputcsv($fp, ['Ngày', 'Bữa sáng', 'Bữa trưa', 'Bữa tối', 'Tổng suất', 'Lớp/bữa đã báo', 'Lớp/bữa chưa báo']);
+    foreach ($summary['days'] as $date => $day) {
+        fputcsv($fp, [
+            date('d/m/Y', strtotime($date)), $day['sang'], $day['trua'], $day['toi'],
+            $day['sang'] + $day['trua'] + $day['toi'], $day['reported'], $day['missing'],
+        ]);
+    }
+    fputcsv($fp, [
+        'TỔNG CỘNG', $summary['total']['sang'], $summary['total']['trua'], $summary['total']['toi'],
+        $summary['total']['sang'] + $summary['total']['trua'] + $summary['total']['toi'],
+        $summary['total']['reported'], $summary['total']['missing'],
+    ]);
+    fclose($fp);
+    exit;
+}
 if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'csv') {
     $from = $_GET['from'] ?? date('Y-m-01');
     $to = $_GET['to'] ?? date('Y-m-d');
@@ -1472,7 +1500,21 @@ form[method="post"]{display:none!important}
   <?php
     $date = $_GET['date'] ?? date('Y-m-d');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = date('Y-m-d');
+    $periodType = ($_GET['period_type'] ?? 'month') === 'custom' ? 'custom' : 'month';
+    $periodMonth = $_GET['period_month'] ?? substr($date, 0, 7);
+    if (!preg_match('/^\d{4}-\d{2}$/', $periodMonth)) $periodMonth = date('Y-m');
+    $periodFrom = $_GET['period_from'] ?? ($periodMonth . '-01');
+    $periodTo = $_GET['period_to'] ?? date('Y-m-t', strtotime($periodMonth . '-01'));
+    if ($periodType === 'month') {
+      $periodFrom = $periodMonth . '-01';
+      $periodTo = date('Y-m-t', strtotime($periodFrom));
+    } else {
+      if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $periodFrom)) $periodFrom = date('Y-m-01');
+      if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $periodTo) || $periodTo < $periodFrom) $periodTo = $periodFrom;
+      if ($periodTo > date('Y-m-d', strtotime($periodFrom . ' +366 days'))) $periodTo = date('Y-m-d', strtotime($periodFrom . ' +366 days'));
+    }
     $overview = nt_meal_day_overview($date, $boarders);
+    $periodSummary = noitru_meal_period_summary($periodFrom, $periodTo, $boarders);
     $mealLabels = ['sang'=>'Bữa sáng','trua'=>'Bữa trưa','toi'=>'Bữa tối'];
     $mealSettings = noitru_meal_settings();
     $rice = noitru_rice_data();
@@ -1502,6 +1544,23 @@ form[method="post"]{display:none!important}
     </ul></div>
   </div>
   <form method="get" class="card card-soft mb-3"><div class="card-body d-flex align-items-end gap-2 flex-wrap"><input type="hidden" name="tab" value="meal_summary"><div><label class="form-label">Ngày chuẩn bị</label><input type="date" name="date" class="form-control" value="<?= e($date) ?>"></div><button class="btn btn-nt">Xem tổng hợp</button></div></form>
+  <section class="card card-soft mb-3">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2"><div><strong><i class="bi bi-calendar-range me-1"></i>Tổng hợp suất ăn theo kỳ</strong><div class="small text-muted">Chỉ tính lớp đã gửi báo ăn; bữa đã thông báo nghỉ không phát sinh suất.</div></div><a class="btn btn-outline-success btn-sm" href="<?= e(BASE_URL . 'noitru.php?tab=meal_summary&export=period_csv&from=' . urlencode($periodFrom) . '&to=' . urlencode($periodTo)) ?>"><i class="bi bi-download"></i> Xuất CSV</a></div>
+    <div class="card-body border-bottom">
+      <form method="get" class="row g-2 align-items-end"><input type="hidden" name="tab" value="meal_summary"><input type="hidden" name="date" value="<?= e($date) ?>">
+        <div class="col-12 col-md-2"><label class="form-label">Kiểu kỳ</label><select class="form-select" name="period_type" onchange="this.form.submit()"><option value="month" <?= $periodType==='month'?'selected':'' ?>>Theo tháng</option><option value="custom" <?= $periodType==='custom'?'selected':'' ?>>Khoảng ngày</option></select></div>
+        <?php if ($periodType === 'month'): ?><div class="col-12 col-md-3"><label class="form-label">Tháng</label><input class="form-control" type="month" name="period_month" value="<?= e($periodMonth) ?>"></div>
+        <?php else: ?><div class="col-12 col-md-3"><label class="form-label">Từ ngày</label><input class="form-control" type="date" name="period_from" value="<?= e($periodFrom) ?>"></div><div class="col-12 col-md-3"><label class="form-label">Đến ngày</label><input class="form-control" type="date" name="period_to" value="<?= e($periodTo) ?>"></div><?php endif; ?>
+        <div class="col-12 col-md-auto"><button class="btn btn-nt">Xem theo kỳ</button></div>
+      </form>
+    </div>
+    <div class="card-body"><div class="row g-2 text-center mb-3">
+      <?php foreach (['sang'=>'Bữa sáng','trua'=>'Bữa trưa','toi'=>'Bữa tối'] as $mealKey=>$label): ?><div class="col-4"><div class="border rounded-3 p-2 h-100"><small class="d-block text-muted"><?= e($label) ?></small><strong class="fs-5"><?= number_format($periodSummary['total'][$mealKey]) ?></strong><small class="d-block">suất</small></div></div><?php endforeach; ?>
+    </div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Ngày</th><th class="text-center">Sáng</th><th class="text-center">Trưa</th><th class="text-center">Tối</th><th class="text-center">Tổng suất</th><th class="text-center">Đã báo</th><th class="text-center">Chưa báo</th></tr></thead><tbody>
+      <?php foreach ($periodSummary['days'] as $summaryDate=>$summaryDay): ?><tr><td><a href="<?= e(BASE_URL . 'noitru.php?tab=meal_summary&date=' . urlencode($summaryDate)) ?>"><?= e(date('d/m/Y',strtotime($summaryDate))) ?></a></td><td class="text-center"><?= $summaryDay['sang'] ?></td><td class="text-center"><?= $summaryDay['trua'] ?></td><td class="text-center"><?= $summaryDay['toi'] ?></td><td class="text-center fw-bold"><?= $summaryDay['sang']+$summaryDay['trua']+$summaryDay['toi'] ?></td><td class="text-center"><?= $summaryDay['reported'] ?></td><td class="text-center"><?= $summaryDay['missing'] ?></td></tr><?php endforeach; ?>
+      <tr class="table-light fw-bold"><td>TỔNG CỘNG</td><td class="text-center"><?= $periodSummary['total']['sang'] ?></td><td class="text-center"><?= $periodSummary['total']['trua'] ?></td><td class="text-center"><?= $periodSummary['total']['toi'] ?></td><td class="text-center"><?= $periodSummary['total']['sang']+$periodSummary['total']['trua']+$periodSummary['total']['toi'] ?></td><td class="text-center"><?= $periodSummary['total']['reported'] ?></td><td class="text-center"><?= $periodSummary['total']['missing'] ?></td></tr>
+    </tbody></table></div></div>
+  </section>
   <?php if (allowed_classes()===null && $canEditCurrent): ?><details class="card card-soft mb-3"><summary class="card-body fw-bold"><i class="bi bi-sliders"></i> Cài đặt giờ khóa và định mức gạo</summary><form method="post" class="card-body border-top">
     <input type="hidden" name="action" value="meal_settings"><input type="hidden" name="date" value="<?= e($date) ?>">
     <div class="row g-3">

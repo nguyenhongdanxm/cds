@@ -340,6 +340,59 @@ function noitru_meals_summary($from, $to) {
     return $out;
 }
 
+function noitru_meal_period_summary($from, $to, array $students) {
+    $classes = [];
+    foreach ($students as $student) {
+        $class = trim((string)($student['class_name'] ?? '')) ?: '(Chưa lớp)';
+        $classes[$class][] = (string)($student['id'] ?? '');
+    }
+    ksort($classes, SORT_NATURAL);
+
+    $reports = [];
+    foreach (noitru_meal_reports_data()['reports'] ?? [] as $report) {
+        $date = (string)($report['date'] ?? '');
+        $class = trim((string)($report['class_name'] ?? '')) ?: '(Chưa lớp)';
+        $meal = (string)($report['meal'] ?? '');
+        if ($date >= $from && $date <= $to && isset($classes[$class]) && in_array($meal, ['sang', 'trua', 'toi'], true)) {
+            $reports[$date][$meal][$class] = true;
+        }
+    }
+
+    $meals = [];
+    foreach (noitru_meals_all() as $row) {
+        $date = (string)($row['date'] ?? '');
+        $studentId = (string)($row['student_id'] ?? '');
+        if ($date >= $from && $date <= $to && $studentId !== '') $meals[$date][$studentId] = $row;
+    }
+
+    $out = [
+        'days' => [],
+        'total' => ['sang'=>0, 'trua'=>0, 'toi'=>0, 'reported'=>0, 'missing'=>0],
+    ];
+    for ($date = $from; $date <= $to; $date = date('Y-m-d', strtotime($date . ' +1 day'))) {
+        $day = ['sang'=>0, 'trua'=>0, 'toi'=>0, 'reported'=>0, 'missing'=>0, 'states'=>[]];
+        foreach (['sang', 'trua', 'toi'] as $meal) {
+            $state = noitru_meal_state($date, $meal)['status'] ?? 'open';
+            $reportedClasses = $reports[$date][$meal] ?? [];
+            $day['reported'] += count($reportedClasses);
+            $day['missing'] += count($classes) - count($reportedClasses);
+            $day['states'][$meal] = $state;
+            if ($state === 'off') continue;
+
+            foreach ($reportedClasses as $class => $_) {
+                foreach ($classes[$class] as $studentId) {
+                    if (in_array($meals[$date][$studentId][$meal] ?? 'yes', ['yes', 'sick', 'guest'], true)) $day[$meal]++;
+                }
+            }
+            $out['total'][$meal] += $day[$meal];
+        }
+        $out['total']['reported'] += $day['reported'];
+        $out['total']['missing'] += $day['missing'];
+        $out['days'][$date] = $day;
+    }
+    return $out;
+}
+
 function noitru_rice_data() {
     noitru_ensure_dir();
     return load_json(NOITRU_RICE, [
