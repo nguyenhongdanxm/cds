@@ -179,8 +179,8 @@ function draw(){
     ctx.fillRect(s.x,s.y,4,4);
   });
   ctx.globalAlpha=1; ctx.restore();
-  ctx.beginPath();ctx.fillStyle='#fff7c2';ctx.shadowColor='#f59e0b';ctx.shadowBlur=14;
-  ctx.moveTo(cx, W-20);ctx.lineTo(cx-20,W-58);ctx.lineTo(cx+20,W-58);ctx.closePath();ctx.fill();ctx.shadowBlur=0;
+  ctx.beginPath();ctx.fillStyle='#fff7c2';ctx.shadowColor='#f59e0b';ctx.shadowBlur=22;
+  ctx.moveTo(cx, W-12);ctx.lineTo(cx-34,W-78);ctx.lineTo(cx+34,W-78);ctx.closePath();ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#c2410c';ctx.stroke();ctx.shadowBlur=0;
 }
 function winnerIndex(){
   const n=Math.max(items.length,1), arc=Math.PI*2/n;
@@ -239,7 +239,7 @@ function burst(){
   let t=0; (function step(){ x.clearRect(0,0,c.width,c.height); bits.forEach(b=>{b.x+=b.vx;b.y+=b.vy;b.vy+=.28;b.a-=.012;x.globalAlpha=Math.max(b.a,0);x.fillStyle=b.c;x.fillRect(b.x,b.y,b.s,b.s);}); if(++t<90) requestAnimationFrame(step); })();
 }
 function showWin(text){
-  if(hideUsed && text) used[text]=1;
+  if(hideUsed && text){ used[text]=1; draw(); }
   document.getElementById('winTag').textContent=mode==='student'?'Mời lên bảng':(mode==='prize'?'Phần thưởng':'Nhiệm vụ');
   document.getElementById('winText').textContent=text;
   document.getElementById('overlay').classList.add('show');
