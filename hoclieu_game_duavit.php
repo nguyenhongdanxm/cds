@@ -15,6 +15,6 @@ html,body{margin:0;height:100%;font-family:system-ui,sans-serif;background:#1018
 </head>
 <body>
 <div class="bar"><b>Đua vịt gắn tên học sinh</b><a href="<?=htmlspecialchars($base)?>hoclieu.php?tab=games">← Học liệu</a></div>
-<iframe src="https://giaoducsangtao.my.canva.site/duavit" title="Đua vịt gắn tên học sinh" allow="fullscreen; autoplay"></iframe>
+<iframe src="https://www.canva.com/design/DAHUcYXMwmI/tXLF6IOPhGVboG-Bt1FnNw/view?embed" title="Đua vịt gắn tên học sinh" allowfullscreen="allowfullscreen" allow="fullscreen"></iframe>
 </body>
 </html>
