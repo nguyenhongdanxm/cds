@@ -10,7 +10,7 @@
   function notice(html,type){
     var old=document.getElementById('ntMealConnectionNotice');if(old)old.remove();
     var anchor=document.querySelector('.att-summary');if(!anchor)return;
-    var n=document.createElement('div');n.id='ntMealConnectionNotice';n.className='alert alert-'+(type||'info')+' py-2 px-3 mb-3';n.innerHTML=html;anchor.insertAdjacentElement('afterend',n);
+    var n=document.createElement('div');n.id='ntMealConnectionNotice';n.className='alert alert-'+(type||'info')+' nt-meal-notice py-2 px-3 mb-3';n.innerHTML=html;anchor.insertAdjacentElement('afterend',n);if(!document.getElementById('ntMealNoticeStyle')){var st=document.createElement('style');st.id='ntMealNoticeStyle';st.textContent='.nt-meal-notice{font-size:.9rem;line-height:1.35}.nt-meal-notice strong{font-weight:750}@media(max-width:767px){.nt-meal-notice{font-size:.76rem;line-height:1.25;padding:.45rem .6rem!important;margin-bottom:.65rem!important}.nt-meal-notice .bi{font-size:.85rem}}';document.head.appendChild(st);}
   }
 
   var lateRadio=document.querySelector('input[name="absenceType"][value="P_SAU_AN"]');
@@ -40,8 +40,8 @@
   });
 
   if(applied){
-    notice('<i class="bi bi-link-45deg"></i> <strong>Đã kết nối Báo ăn:</strong> '+applied+' học sinh đã báo vắng trước khi chốt được tự chọn <strong>Có phép</strong>. Phát sinh sau chốt: chọn <strong>Có phép sau thời gian đăng ký bữa ăn</strong>; vắng không phép: chọn <strong>Không phép</strong>.','success');
+    notice('<i class="bi bi-link-45deg"></i> <strong>Báo ăn:</strong> '+applied+' HS đã báo vắng trước chốt → <strong>Có phép</strong>. Sau chốt → <strong>Sau chốt</strong>; không phép → <strong>K. phép</strong>.','success');
   }else{
-    notice('<i class="bi bi-check-circle"></i> Đã đối chiếu '+(res.meal_label||label)+' ngày '+dateInput.value.split('-').reverse().join('/')+'. <strong>Không có học sinh báo vắng trước khi chốt</strong>.','info');
+    notice('<i class="bi bi-check-circle"></i> Đã đối chiếu '+(res.meal_label||label)+'. <strong>Không có HS báo vắng trước chốt</strong>.','info');
   }
 })();
