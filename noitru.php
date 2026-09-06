@@ -1557,10 +1557,10 @@ form[method="post"]{display:none!important}
     </div>
     <div class="card-body"><div class="row g-2 text-center mb-3">
       <?php foreach (['sang'=>'Bữa sáng','trua'=>'Bữa trưa','toi'=>'Bữa tối'] as $mealKey=>$label): ?><div class="col-4"><div class="border rounded-3 p-2 h-100"><small class="d-block text-muted"><?= e($label) ?></small><strong class="fs-5"><?= number_format($periodSummary['total'][$mealKey]) ?></strong><small class="d-block">suất</small></div></div><?php endforeach; ?>
-    </div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Ngày</th><th class="text-center">Sáng</th><th class="text-center">Trưa</th><th class="text-center">Tối</th><th class="text-center">Tổng suất</th><th class="text-center">Đã báo</th><th class="text-center">Chưa báo</th></tr></thead><tbody>
+    </div><details class="border rounded-3"><summary class="px-3 py-2 fw-semibold" role="button"><i class="bi bi-table me-1"></i>Xem chi tiết suất ăn theo ngày</summary><div class="table-responsive border-top"><table class="table table-sm align-middle mb-0"><thead><tr><th>Ngày</th><th class="text-center">Sáng</th><th class="text-center">Trưa</th><th class="text-center">Tối</th><th class="text-center">Tổng suất</th><th class="text-center">Đã báo</th><th class="text-center">Chưa báo</th></tr></thead><tbody>
       <?php foreach ($periodSummary['days'] as $summaryDate=>$summaryDay): ?><tr><td><a href="<?= e(BASE_URL . 'noitru.php?tab=meal_summary&date=' . urlencode($summaryDate)) ?>"><?= e(date('d/m/Y',strtotime($summaryDate))) ?></a></td><td class="text-center"><?= $summaryDay['sang'] ?></td><td class="text-center"><?= $summaryDay['trua'] ?></td><td class="text-center"><?= $summaryDay['toi'] ?></td><td class="text-center fw-bold"><?= $summaryDay['sang']+$summaryDay['trua']+$summaryDay['toi'] ?></td><td class="text-center"><?= $summaryDay['reported'] ?></td><td class="text-center"><?= $summaryDay['missing'] ?></td></tr><?php endforeach; ?>
       <tr class="table-light fw-bold"><td>TỔNG CỘNG</td><td class="text-center"><?= $periodSummary['total']['sang'] ?></td><td class="text-center"><?= $periodSummary['total']['trua'] ?></td><td class="text-center"><?= $periodSummary['total']['toi'] ?></td><td class="text-center"><?= $periodSummary['total']['sang']+$periodSummary['total']['trua']+$periodSummary['total']['toi'] ?></td><td class="text-center"><?= $periodSummary['total']['reported'] ?></td><td class="text-center"><?= $periodSummary['total']['missing'] ?></td></tr>
-    </tbody></table></div></div>
+    </tbody></table></div></details></div>
   </section>
   <?php if (allowed_classes()===null && $canEditCurrent): ?><details class="card card-soft mb-3"><summary class="card-body fw-bold"><i class="bi bi-sliders"></i> Cài đặt giờ khóa và định mức gạo</summary><form method="post" class="card-body border-top">
     <input type="hidden" name="action" value="meal_settings"><input type="hidden" name="date" value="<?= e($date) ?>">
@@ -1991,6 +1991,13 @@ function mealExportBase(title,color,height){
   ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(70,155);ctx.lineTo(830,155);ctx.stroke();
   return {canvas:canvas,ctx:ctx,w:w};
 }
+function mealCropCanvas(canvas,height){
+  var cropped=document.createElement('canvas');
+  cropped.width=canvas.width;
+  cropped.height=Math.min(canvas.height,Math.ceil(height));
+  cropped.getContext('2d').drawImage(canvas,0,0);
+  return cropped;
+}
 function buildMealSummaryImage(){
   var data=window.ntMealDayData||{},meals=data.meals||{},keys=['sang','trua','toi'],totalEat=0,totalAbsent=0;
   keys.forEach(function(k){totalEat+=Number(meals[k]?.eat||0);totalAbsent+=Number(meals[k]?.absent||0)});
@@ -2034,8 +2041,8 @@ function buildMealSummaryImage(){
 function buildMealGroupsImage(){
   var data=window.ntMealDayData||{},meals=data.meals||{},keys=['sang','trua','toi'],rows=0;
   keys.forEach(function(k){var groups={};(meals[k]?.students||[]).forEach(function(s){groups[String(s.group||'Chưa xếp mâm')]=1});rows+=Math.max(1,Object.keys(groups).length)});
-  var base=mealExportBase('DS VẮNG THEO MÂM','#dc2626',Math.max(760,440+rows*76)),ctx=base.ctx,w=base.w;
   var total=keys.reduce(function(n,k){return n+Number(meals[k]?.absent||0)},0),x=70;
+  var base=mealExportBase('DS VẮNG THEO MÂM','#dc2626',Math.max(760,440+rows*48+total*35)),ctx=base.ctx,w=base.w;
   mealRoundRect(ctx,70,180,760,95,14,'#fff7f7','#fecaca');
   keys.forEach(function(k,i){var m=meals[k]||{};ctx.textAlign='center';ctx.fillStyle=k==='sang'?'#ea580c':(k==='trua'?'#16a34a':'#4f46e5');ctx.font='17px Arial';ctx.fillText(m.label||k,x+i*170+75,215);ctx.font='bold 28px Arial';ctx.fillText(String(m.absent||0),x+i*170+75,250)});
   ctx.fillStyle='#dc2626';ctx.font='17px Arial';ctx.fillText('TỔNG',760,215);ctx.font='bold 28px Arial';ctx.fillText(String(total),760,250);
@@ -2052,8 +2059,9 @@ function buildMealGroupsImage(){
       y+=mealWrap(ctx,text,245,y,565,25)+22;
     });y+=8;
   });
-  ctx.fillStyle='#64748b';ctx.font='15px Arial';ctx.textAlign='left';ctx.fillText('Người báo: '+(data.reporter||''),70,base.canvas.height-30);ctx.textAlign='right';ctx.fillText(new Date().toLocaleString('vi-VN'),830,base.canvas.height-30);
-  return base.canvas;
+  var contentHeight=y+48;
+  ctx.fillStyle='#64748b';ctx.font='15px Arial';ctx.textAlign='left';ctx.fillText('Người báo: '+(data.reporter||''),70,contentHeight-18);ctx.textAlign='right';ctx.fillText(new Date().toLocaleString('vi-VN'),830,contentHeight-18);
+  return mealCropCanvas(base.canvas,contentHeight);
 }
 function openMealDayExport(type){
   mealDayExport.type=type;mealDayExport.canvas=type==='groups'?buildMealGroupsImage():buildMealSummaryImage();
