@@ -197,7 +197,7 @@ function lb_import_curriculum(array $file,array $input=[]): array {
  if(!$isAdmin){
   $outside=[];foreach($incoming as$item)if(!lb_same($targetSubject,(string)$item['subject'])||$targetGrade!==(string)$item['grade'])$outside[]=(string)$item['subject'].' – Khối '.(string)$item['grade'];
   if($outside)return['ok'=>false,'message'=>'KHÔNG NHẬP DỮ LIỆU: tệp có Môn–Khối ngoài lựa chọn '.$targetSubject.' – Khối '.$targetGrade.' ('.implode(', ',array_slice(array_values(array_unique($outside)),0,5)).'). Mỗi tệp chỉ được chứa một Môn–Khối.'];
-  if(lb_curriculum_scope_exists($targetSubject,$targetGrade))return['ok'=>false,'message'=>'PPCT '.$targetSubject.' – Khối '.$targetGrade.' đã tồn tại. Giáo viên không được ghi đè; hãy liên hệ quản trị để kiểm tra hoặc xóa bản cũ trước khi tải lại.'];
+  if(lb_curriculum_scope_exists($targetSubject,$targetGrade,$applyScope,$applyTarget))return['ok'=>false,'message'=>'PPCT '.$targetSubject.' – Khối '.$targetGrade.' trong phạm vi đã chọn đã tồn tại. Giáo viên không được ghi đè; hãy liên hệ quản trị để kiểm tra hoặc xóa bản cũ trước khi tải lại.'];
  }
  $rows=lb_curriculum();$index=[];foreach($rows as$i=>$r)$rs=(string)($r['scope_type']??'school');$rt=trim((string)($r['scope_target']??''));$index[lb_norm((string)($r['subject']??'')).'|'.preg_replace('/\D+/','',(string)($r['grade']??'')).'|'.(int)($r['period']??0).'|'.$rs.'|'.lb_norm($rt)]=$i;$added=0;$updated=0;
  foreach($incoming as$key=>$item){if(isset($index[$key])){$rows[$index[$key]]=array_merge($rows[$index[$key]],$item,['updated_at'=>date('c'),'updated_by'=>lb_teacher_name()]);$updated++;}else{$rows[]=array_merge(['id'=>lb_id('ppct')],$item,['created_at'=>date('c'),'created_by'=>lb_teacher_name()]);$added++;}}
