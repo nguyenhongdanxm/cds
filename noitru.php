@@ -2201,8 +2201,7 @@ function buildMealSummaryImage(){
   var data=window.ntMealDayData||{},meals=data.meals||{},keys=['sang','trua','toi'],totalEat=0,totalAbsent=0;
   var kgText=function(value){return Number(value||0).toLocaleString('vi-VN',{minimumFractionDigits:3,maximumFractionDigits:3})};
   keys.forEach(function(k){totalEat+=Number(meals[k]?.eat||0);totalAbsent+=Number(meals[k]?.absent||0)});
-  var absentLines=0;keys.forEach(function(k){if(Number(meals[k]?.absent||0)>0)absentLines+=Math.max(2,Math.ceil((meals[k].students||[]).length/3))});
-  var base=mealExportBase('THỐNG KÊ BỮA ĂN','#0284c7',Math.max(930,760+absentLines*32)),ctx=base.ctx,w=base.w;
+  var base=mealExportBase('THỐNG KÊ BỮA ĂN','#0284c7',Math.max(1100,760+totalAbsent*55)),ctx=base.ctx,w=base.w;
   var colors={sang:['#fff7ed','#ea580c'],trua:['#ecfdf5','#16a34a'],toi:['#eef2ff','#4f46e5']};
   keys.forEach(function(k,i){
     var m=meals[k]||{},x=70+i*255,c=colors[k];
@@ -2234,9 +2233,13 @@ function buildMealSummaryImage(){
     y+=mealWrap(ctx,text,92,y+28,710,27)+38;
   });
   if(!any){ctx.fillStyle='#16a34a';ctx.font='bold 19px Arial';ctx.fillText('✓ Không có học sinh vắng ăn',92,y)}
-  ctx.fillStyle='#64748b';ctx.font='15px Arial';ctx.fillText('Người báo: '+(data.reporter||''),70,base.canvas.height-30);
-  ctx.textAlign='right';ctx.fillText(new Date().toLocaleString('vi-VN'),830,base.canvas.height-30);
-  return base.canvas;
+  var contentHeight=y+48;
+  ctx.fillStyle='#64748b';ctx.font='15px Arial';ctx.fillText('Người báo: '+(data.reporter||''),70,contentHeight-18);
+  ctx.textAlign='right';ctx.fillText(new Date().toLocaleString('vi-VN'),830,contentHeight-18);
+  return mealCropCanvas(base.canvas,contentHeight);
+}
+function mealGroupLabel(group){
+  return /^mâm\b/i.test(group)?group:'Mâm '+group;
 }
 function buildMealGroupsImage(){
   var data=window.ntMealDayData||{},meals=data.meals||{},keys=['sang','trua','toi'],rows=0;
@@ -2254,10 +2257,10 @@ function buildMealGroupsImage(){
     ctx.textAlign='right';ctx.fillStyle=students.length?'#dc2626':'#16a34a';ctx.fillText(students.length?students.length+' vắng':'✓ Đủ',810,y+27);y+=56;
     if(!students.length){y+=20;return}
     Object.keys(groups).sort(function(a,b){return a.localeCompare(b,'vi',{numeric:true})}).forEach(function(group){
-      var list=groups[group];ctx.textAlign='left';ctx.fillStyle=colors[k];ctx.font='bold 17px Arial';ctx.fillText('Mâm '+group+' ('+list.length+'):',92,y);
-      ctx.fillStyle='#334155';ctx.font='16px Arial';var text=list.map(function(s){return (s.name||'')+(s.class?' ('+s.class+')':'')}).join(', ');
-      y+=mealWrap(ctx,text,245,y,565,25)+22;
-    });y+=8;
+      var list=groups[group];ctx.textAlign='left';ctx.fillStyle=colors[k];ctx.font='bold 16px Arial';ctx.fillText(mealGroupLabel(group)+' ('+list.length+'):',92,y);
+      ctx.fillStyle='#334155';ctx.font='15px Arial';var text=list.map(function(s){return (s.name||'')+(s.class?' ('+s.class+')':'')}).join(', ');
+      y+=mealWrap(ctx,text,245,y,565,20)+10;
+    });y+=2;
   });
   var contentHeight=y+48;
   ctx.fillStyle='#64748b';ctx.font='15px Arial';ctx.textAlign='left';ctx.fillText('Người báo: '+(data.reporter||''),70,contentHeight-18);ctx.textAlign='right';ctx.fillText(new Date().toLocaleString('vi-VN'),830,contentHeight-18);
