@@ -44,7 +44,8 @@ $base = defined('BASE_URL') ? BASE_URL : '/';
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;overflow:hidden;font-family:"Segoe UI",system-ui,sans-serif;color:#fff}
-body{background:radial-gradient(circle at 50% 8%,#263b73 0,#0b0720 52%,#05030f 100%);letter-spacing:.01em}
+body{background:radial-gradient(circle at 50% 8%,#384f94 0,#10092d 48%,#05030f 100%);letter-spacing:.01em}
+body:before,body:after{content:"✦  ·  ✧  ·  ✦  ·  ✧  ·  ✦  ·  ✧  ·  ✦";position:fixed;inset:12% -10% auto;color:#ffe38a;opacity:.4;font-size:28px;letter-spacing:4vw;white-space:nowrap;pointer-events:none;animation:twinkle 3.8s ease-in-out infinite alternate}body:after{top:auto;bottom:12%;animation-delay:-1.9s;color:#a5f3fc}@keyframes twinkle{to{opacity:.08;transform:translateX(4vw) scale(1.08)}}
 .app{height:100%;display:grid;grid-template-rows:auto 1fr 28px;min-height:0}
 .credit{height:28px;display:flex;align-items:center;justify-content:center;font-size:11px;opacity:.72;letter-spacing:.2px;background:#0006}
 .bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#120a2ccc;backdrop-filter:blur(8px);z-index:8}
@@ -57,7 +58,7 @@ body{background:radial-gradient(circle at 50% 8%,#263b73 0,#0b0720 52%,#05030f 1
 .opt{background:#ffffff14;color:#fff}
 .opt.on{background:#22c55e;color:#052e16}
 .stage{position:relative;min-height:0;display:grid;place-items:center;background:radial-gradient(circle,#1e3a6d55 0,#08051a33 58%,transparent 72%);overflow:hidden}.show-title{position:absolute;top:3px;left:50%;transform:translateX(-50%);font-size:clamp(18px,3vw,34px);font-weight:950;letter-spacing:.08em;color:#ffe38a;text-shadow:0 0 10px #ff9f1c,0 3px 0 #7c2d12;z-index:4;white-space:nowrap}.show-title span{font-size:.48em;color:#fff;letter-spacing:.18em;margin-left:10px}.live-badge{position:absolute;top:18px;right:18px;border:1px solid #ffdc8a;border-radius:999px;padding:6px 12px;color:#ffe38a;font-size:11px;font-weight:900;letter-spacing:.12em;z-index:4}.live-badge.live{background:#dc2626;color:#fff;border-color:#fecaca;box-shadow:0 0 16px #ef4444}.credit{height:32px;font-size:11px}
-canvas{display:block;filter:drop-shadow(0 0 18px #ffd36a88)}
+canvas{display:block;filter:drop-shadow(0 0 18px #ffd36a88) drop-shadow(0 0 42px #a855f766)}
 #wheel{width:min(96vmin,100vw,100vh - 58px);height:min(96vmin,100vw,100vh - 58px);max-width:100%;max-height:calc(100vh - 58px)}
 .center{position:absolute;left:50%;top:50%;z-index:12;transform:translate(-50%,-50%);width:min(18vmin,120px);height:min(18vmin,120px);border:6px solid #fff;border-radius:50%;background:radial-gradient(circle at 30% 28%,#fff,#ffd36a 46%,#c2410c);box-shadow:0 0 0 8px #f59e0b55,0 0 28px #ffd36a99,0 8px 24px #0008;font-weight:900;font-size:clamp(16px,3.2vmin,28px);color:#7c2d12;cursor:pointer;z-index:6}
 .center:disabled{opacity:.6}
@@ -158,7 +159,7 @@ function draw(){
     ctx.beginPath(); ctx.fillStyle='#fff'; ctx.arc(r-2,0,4.5,0,Math.PI*2); ctx.fill();
     ctx.restore();
   }
-  ctx.beginPath(); ctx.lineWidth=14; ctx.strokeStyle='#ffffffcc'; ctx.arc(0,0,r+4,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.lineWidth=18; ctx.strokeStyle='#ffd36a'; ctx.arc(0,0,r+8,0,Math.PI*2); ctx.stroke();ctx.beginPath();ctx.lineWidth=5;ctx.strokeStyle='#fff8cf';ctx.arc(0,0,r+8,0,Math.PI*2);ctx.stroke();
   if(spinning){
     ctx.rotate(-angle);
     const glow=ctx.createRadialGradient(0,0,r*0.7,0,0,r+28);
@@ -177,12 +178,12 @@ function draw(){
     ctx.fillRect(s.x,s.y,4,4);
   });
   ctx.globalAlpha=1; ctx.restore();
-  ctx.beginPath(); ctx.fillStyle='#ffe38a';
-  ctx.moveTo(cx, 18); ctx.lineTo(cx-16, 48); ctx.lineTo(cx+16, 48); ctx.closePath(); ctx.fill();
+  ctx.beginPath();ctx.fillStyle='#fff7c2';ctx.shadowColor='#f59e0b';ctx.shadowBlur=14;
+  ctx.moveTo(cx, W-20);ctx.lineTo(cx-20,W-58);ctx.lineTo(cx+20,W-58);ctx.closePath();ctx.fill();ctx.shadowBlur=0;
 }
 function winnerIndex(){
   const n=Math.max(items.length,1), arc=Math.PI*2/n;
-  const a=((Math.PI*1.5-angle)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
+  const a=((Math.PI*.5-angle)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
   return Math.floor(a/arc)%n;
 }
 function ensureAudio(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==='suspended') audioCtx.resume(); }
