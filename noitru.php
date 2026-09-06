@@ -1,6 +1,7 @@
 <?php
 require_once 'includes/auth.php';
 require_once 'includes/noitru_store.php';
+require_once 'includes/noitru_assignment_store.php';
 require_login();
 require_module('noitru', 'view');
 $user = current_user();
@@ -788,7 +789,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $boarders = $tab === 'attendance'
     ? noitru_attendance_students_all()
-    : array_values(array_filter(noitru_boarders_live(), fn($student) => can_class($student['class_name'] ?? '')));
+    : array_values(array_filter(noitru_assignment_apply(noitru_boarders_live()), fn($student) => can_class($student['class_name'] ?? '')));
 $stats = noitru_stats();
 if (allowed_classes() !== null) {
     $stats['total'] = count($boarders);
