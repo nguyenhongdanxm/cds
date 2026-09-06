@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/lesson_book_store.php';
-require_once dirname(__DIR__) . '/includes/csdl_store.php';
 require_login();
 $scope=in_array((string)($_GET['scope']??''),['class','teacher'],true)?(string)$_GET['scope']:'class';
 $target=trim((string)($_GET[$scope]??''));
@@ -18,9 +17,7 @@ foreach($selected as$w){$rows=array_values(array_filter(lb_slots($w),function($r
 $validation=lb_print_validation($allRows);$settings=lb_settings();$ps=$settings['print'];
 $schoolYear=function_exists('cds_school_year_resolve')?(string)(cds_school_year_resolve()['label']??''):'';
 if($schoolYear==='')$schoolYear=date('Y',strtotime($selected[0]['start'])).' - '.date('Y',strtotime($selected[count($selected)-1]['end']));
-$homeroomName='';
-if($scope==='class')foreach(csdl_classes_all()as$classRow)if(lb_same($target,(string)($classRow['name']??''))){$teacher=csdl_teacher_find((string)($classRow['homeroom_teacher_id']??''));$homeroomName=trim((string)($teacher['name']??''));break;}
-if($homeroomName==='')$homeroomName=(string)($ps['homeroom_name']??'');
+$homeroomName=(string)($ps['homeroom_name']??'');
 function lbp_sig(array $r): string {$p=(string)($r['signature_path']??'');if($p===''||!is_file($p))return'';$raw=@file_get_contents($p);return$raw===false?'':'data:image/png;base64,'.base64_encode($raw);}
 function lbp_day(array $r): string {$n=(int)date('N',strtotime((string)$r['date']))+1;return'Thứ '.$n.'<br>'.date('d/m/Y',strtotime((string)$r['date']));}
 function lbp_scores(array $r): array {$rating=(string)($r['rating']??'');$sum=['Tốt'=>10,'Khá'=>8,'Trung bình'=>6,'Yếu'=>4][$rating]??'';return[$sum,$rating];}
