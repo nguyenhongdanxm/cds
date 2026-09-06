@@ -316,6 +316,41 @@ function cds_db_migrations()
                 "INSERT IGNORE INTO cds_runtime_settings(setting_key,setting_value,updated_by) VALUES('lesson_book_sql_read','0','migration')",
             ),
         ),
+        '20260907_012_game_question_bank' => array(
+            'description' => 'Ngân hàng câu hỏi kéo co theo tài khoản, có thể chia sẻ',
+            'statements' => array(
+                "CREATE TABLE IF NOT EXISTS cds_game_question_sets (
+                    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                    title VARCHAR(150) NOT NULL,
+                    owner_user_id VARCHAR(100) NOT NULL,
+                    owner_name VARCHAR(255) NOT NULL DEFAULT '',
+                    is_shared TINYINT(1) NOT NULL DEFAULT 0,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    KEY idx_cds_game_sets_owner (owner_user_id, updated_at),
+                    KEY idx_cds_game_sets_shared (is_shared, updated_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "CREATE TABLE IF NOT EXISTS cds_game_questions (
+                    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                    question_set_id BIGINT UNSIGNED NOT NULL,
+                    question_text TEXT NOT NULL,
+                    option_a TEXT NOT NULL,
+                    option_b TEXT NOT NULL,
+                    option_c TEXT NOT NULL,
+                    option_d TEXT NOT NULL,
+                    correct_option TINYINT UNSIGNED NOT NULL,
+                    sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    KEY idx_cds_game_questions_set_order (question_set_id, sort_order, id),
+                    CONSTRAINT fk_cds_game_questions_set
+                        FOREIGN KEY (question_set_id) REFERENCES cds_game_question_sets (id)
+                        ON UPDATE CASCADE ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            ),
+        ),
     );
 }
 
