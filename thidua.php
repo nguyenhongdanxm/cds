@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_store.php';
+require_once __DIR__ . '/chuyenmon/includes/lesson_book_store.php';
 require_login();
 require_module('thidua', 'view');
 register_shutdown_function(function(){require __DIR__.'/includes/module_switcher.php';});
@@ -52,8 +53,8 @@ function td_class_key(string $name): string {
   $key=csdl_text_sort_key($name);$key=preg_replace('/^lop\s*/','',$key);return preg_replace('/[^a-z0-9]+/','',$key);
 }
 function td_lesson_learning_scores(string $from,string $to,array $classes): array {
-  $records=load_json(DATA_PATH.'/lesson_book_records.json',[]);
-  $settings=load_json(DATA_PATH.'/lesson_book_settings.json',[]);
+  $records=function_exists('lb_rows')?lb_rows(LB_RECORDS_FILE):load_json(DATA_PATH.'/lesson_book_records.json',[]);
+  $settings=function_exists('lb_settings')?lb_settings():load_json(DATA_PATH.'/lesson_book_settings.json',[]);
   $points=array_replace(['Tốt'=>10,'Khá'=>8,'Trung bình'=>6,'Yếu'=>4],(array)($settings['rating_points']??[]));
   $classIds=[];foreach($classes as$class){$name=trim((string)($class['name']??''));if($name!=='')$classIds[td_class_key($name)]=(string)($class['id']??'');}
   $sums=[];foreach(is_array($records)?$records:[] as$row){$date=(string)($row['date']??'');$rating=(string)($row['rating']??'');$classKey=td_class_key((string)($row['class']??''));if($date<$from||$date>$to||!isset($points[$rating],$classIds[$classKey]))continue;$cid=$classIds[$classKey];if(!isset($sums[$cid]))$sums[$cid]=['total'=>0.0,'count'=>0];$sums[$cid]['total']+=(float)$points[$rating];$sums[$cid]['count']++;}
