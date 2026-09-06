@@ -13,11 +13,11 @@ header('Content-Disposition: attachment; filename="'.$filename.'"');
 $out=fopen('php://output','w');
 fwrite($out,"\xEF\xBB\xBF");
 fputcsv($out,['THONG KE SO DAU BAI',$from,$to],';');
-fputcsv($out,['Nhom','Ten','Tong TKB','Hoan thanh','Chua HT','Da day','Day thay','Day bu','Truc tuyen','Nghi/hoan/huy','Nghi le','GV nghi','Lop nghi','Hoan','Huy','Chua ghi','Ty le %'],';');
-foreach(['TONG'=>[lb_stat_totals($rows)],'GIAO VIEN'=>lb_stat_group($rows,'actual_teacher'),'MON'=>lb_stat_group($rows,'subject'),'LOP'=>lb_stat_group($rows,'class'),'TUAN'=>lb_stat_group($rows,'week_label')] as$group=>$list){
+fputcsv($out,['Nhom','Ten','Tong TKB','Hoan thanh','Chua HT','Thieu PPCT','Da day','Day thay','Day bu','Truc tuyen','Nghi/hoan/huy','Nghi le','GV nghi','Lop nghi','Hoan','Huy','Chua ghi','Ty le %'],';');
+foreach(['TONG'=>[lb_stat_totals($rows)],'GIAO VIEN'=>lb_stat_group($rows,'actual_teacher'),'TO'=>lb_stat_group($rows,'teacher_group'),'MON'=>lb_stat_group($rows,'subject'),'LOP'=>lb_stat_group($rows,'class'),'TUAN'=>lb_stat_group($rows,'week_label')] as$group=>$list){
  foreach($list as$g){
   $rate=$g['scheduled']?round($g['completed']*100/$g['scheduled'],1):0;
-  fputcsv($out,[$group,$g['name'],$g['scheduled'],$g['completed'],$g['incomplete'],$g['taught']??0,$g['substitute']??0,$g['makeup']??0,$g['online']??0,$g['off']??0,$g['holiday']??0,$g['teacher_absent']??0,$g['class_absent']??0,$g['postponed']??0,$g['cancelled']??0,$g['pending']??0,$rate],';');
+  fputcsv($out,[$group,$g['name'],$g['scheduled'],$g['completed'],$g['incomplete'],$g['missing_ppct']??0,$g['taught']??0,$g['substitute']??0,$g['makeup']??0,$g['online']??0,$g['off']??0,$g['holiday']??0,$g['teacher_absent']??0,$g['class_absent']??0,$g['postponed']??0,$g['cancelled']??0,$g['pending']??0,$rate],';');
  }
 }
 fputcsv($out,[],';');
