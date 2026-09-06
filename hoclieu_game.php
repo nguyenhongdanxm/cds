@@ -58,7 +58,7 @@ body:before,body:after{content:"✦  ·  ✧  ·  ✦  ·  ✧  ·  ✦  ·  ✧
 .opt{background:#ffffff14;color:#fff}
 .opt.on{background:#22c55e;color:#052e16}
 .stage{position:relative;min-height:0;display:grid;place-items:center;background:radial-gradient(circle,#1e3a6d55 0,#08051a33 58%,transparent 72%);overflow:hidden}.show-title{position:absolute;top:3px;left:50%;transform:translateX(-50%);font-size:clamp(18px,3vw,34px);font-weight:950;letter-spacing:.08em;color:#ffe38a;text-shadow:0 0 10px #ff9f1c,0 3px 0 #7c2d12;z-index:4;white-space:nowrap}.show-title span{font-size:.48em;color:#fff;letter-spacing:.18em;margin-left:10px}.live-badge{position:absolute;top:18px;right:18px;border:1px solid #ffdc8a;border-radius:999px;padding:6px 12px;color:#ffe38a;font-size:11px;font-weight:900;letter-spacing:.12em;z-index:4}.live-badge.live{background:#dc2626;color:#fff;border-color:#fecaca;box-shadow:0 0 16px #ef4444}.credit{height:32px;font-size:11px}
-.performer{position:absolute;bottom:3%;z-index:5;font-size:clamp(64px,13vmin,145px);filter:drop-shadow(0 8px 8px #0008);transform-origin:center bottom;animation:dance .72s ease-in-out infinite alternate}.performer.left{left:max(2vw,12px)}.performer.right{right:max(2vw,12px);animation-delay:-.36s}.performer:after{content:"♪";position:absolute;font-size:.38em;color:#ffe38a;top:-.3em;right:-.2em;animation:note 1.2s ease-in infinite}.stage.suspense .performer{animation:shiver .12s linear infinite;filter:drop-shadow(0 0 14px #facc15)}.stage.suspense .performer:after{content:"!";color:#fff;font-size:.5em}@keyframes dance{to{transform:rotate(-7deg) translateY(-12px)}}@keyframes shiver{25%{transform:translateX(-5px) rotate(-3deg)}75%{transform:translateX(5px) rotate(3deg)}}@keyframes note{to{transform:translateY(-28px);opacity:0}}
+.pointer-name{position:absolute;bottom:5%;left:50%;transform:translateX(-50%);z-index:5;max-width:min(72vw,540px);padding:10px 24px;border:2px solid #ffe38a;border-radius:999px;background:#160b35dd;color:#fff7c2;font-size:clamp(18px,3vw,32px);font-weight:900;text-align:center;text-shadow:0 2px 5px #000;box-shadow:0 0 20px #f59e0b88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stage.suspense .pointer-name{animation:pulse .16s linear infinite;background:#7c2d12}@keyframes pulse{50%{transform:translateX(-50%) scale(1.07);box-shadow:0 0 34px #fff}}
 canvas{display:block;filter:drop-shadow(0 0 18px #ffd36a88) drop-shadow(0 0 42px #a855f766)}
 #wheel{width:min(96vmin,100vw,100vh - 58px);height:min(96vmin,100vw,100vh - 58px);max-width:100%;max-height:calc(100vh - 58px)}
 .center{position:absolute;left:50%;top:50%;z-index:12;transform:translate(-50%,-50%);width:min(18vmin,120px);height:min(18vmin,120px);border:6px solid #fff;border-radius:50%;background:radial-gradient(circle at 30% 28%,#fff,#ffd36a 46%,#c2410c);box-shadow:0 0 0 8px #f59e0b55,0 0 28px #ffd36a99,0 8px 24px #0008;font-weight:900;font-size:clamp(16px,3.2vmin,28px);color:#7c2d12;cursor:pointer;z-index:6}
@@ -97,7 +97,7 @@ canvas{display:block;filter:drop-shadow(0 0 18px #ffd36a88) drop-shadow(0 0 42px
     <button class="opt" id="optEdit" type="button">Sửa nội dung</button>
     <a href="<?= htmlspecialchars($base) ?>hoclieu.php?tab=games">Học liệu</a>
   </div>
-  <div class="stage" id="stage"><div class="show-title">VÒNG QUAY MAY MẮN <span>★ GAMESHOW ★</span></div><div class="live-badge" id="liveBadge">SẴN SÀNG</div><div class="performer left" aria-label="Học sinh nam chơi đàn">🕺🎸</div><div class="performer right" aria-label="Học sinh nữ ca hát">💃🎤</div>
+  <div class="stage" id="stage"><div class="show-title">VÒNG QUAY MAY MẮN <span>★ GAMESHOW ★</span></div><div class="live-badge" id="liveBadge">SẴN SÀNG</div><div class="pointer-name" id="pointerName">Sẵn sàng quay</div>
     <canvas id="wheel" width="900" height="900"></canvas>
     <button class="center" id="spinBtn" type="button">QUAY</button>
     <div class="drawer" id="drawer">
@@ -251,6 +251,7 @@ function tick(){
   const idx=winnerIndex();
   if(idx!==lastTick){
     lastTick=idx; pegClick();
+    document.getElementById('pointerName').textContent=items[idx]||'...';
     const W=canvas.width, r=W*0.46;
     sparks.push({x:0,y:-r-6,vx:(Math.random()-.5)*3,vy:1+Math.random()*2,life:1});
   }
