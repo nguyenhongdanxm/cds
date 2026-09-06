@@ -16,7 +16,7 @@ function tt_catalogs(): array {
     $teachers=array_values(array_filter(csdl_teachers_all(),fn($r)=>!isset($r['active'])||!empty($r['active'])));
     $classes=array_values(array_filter(csdl_classes_all(),fn($r)=>!isset($r['active'])||!empty($r['active'])));
     $subjects=[];foreach($teachers as $teacher)foreach((array)($teacher['subjects']??$teacher['chuyen_mon']??[]) as $subject){$name=is_array($subject)?($subject['name']??''):$subject;if(trim((string)$name)!=='')$subjects[tt_norm($name)]=['id'=>tt_norm($name),'name'=>trim((string)$name)];}
-    foreach(['Toán','Ngữ văn','Tiếng Anh','KHTN','Vật lí','Hóa học','Sinh học','Lịch sử','Địa lí','LS&ĐL','GDCD','GDKT&PL','GDQP&AN','GDTC','Tin học','Công nghệ','Nghệ thuật','Âm nhạc','HĐTN','GDĐP'] as $name)$subjects[tt_norm($name)]=['id'=>tt_norm($name),'name'=>$name];
+    foreach(['Toán','Ngữ văn','Tiếng Anh','KHTN','Vật lí','Hóa học','Sinh học','Lịch sử','Địa lí','LS&ĐL','GDCD','GDKT&PL','GDQP&AN','GDTC','GDTC (Bóng rổ)','GDTC (Bóng chuyền)','Tin học','Công nghệ','Nghệ thuật','Âm nhạc','HĐTN','GDĐP'] as $name)$subjects[tt_norm($name)]=['id'=>tt_norm($name),'name'=>$name];
     return ['teacher'=>$teachers,'class'=>$classes,'subject'=>array_values($subjects)];
 }
 function tt_auto_target(string $type,string $raw,array $catalogs): array {
