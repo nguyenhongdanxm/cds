@@ -118,7 +118,7 @@ let prizes=JSON.parse(localStorage.getItem('cds_wheel_prizes')||'null')||['+1 đ
 const prizePreset=['+2 điểm','Được chọn bài hát','Tràng pháo tay','Huy hiệu chăm học','Quyền chọn bạn cùng nhóm','Quà bất ngờ','Miễn một câu hỏi','Ngôi sao tuần này'];
 let tasks=JSON.parse(localStorage.getItem('cds_wheel_tasks')||'null')||['Nêu ý chính','Đặt câu hỏi','Tóm tắt 30 giây','Viết ví dụ','Giải thích từ khó','Mời bạn trả lời'];
 const taskPreset=['Đọc và giải thích một câu','Nêu một ví dụ thực tế','Tóm tắt bài trong 30 giây','Đặt câu hỏi cho cả lớp','Vẽ sơ đồ tư duy nhanh','Giải một câu vận dụng','Chia sẻ điều em nhớ nhất','Mời một bạn cùng trả lời'];
-let used={}, items=[], angle=0, spinning=false, speed=0, audioCtx=null, musicTimer=null, lastTick=-1, sparks=[];
+let used={}, items=[], angle=0, spinning=false, speed=0, audioCtx=null, musicTimer=null, lastTick=-1, sparks=[], pointerKick=0;
 
 function sourceItems(){
   if(mode==='student') return (studentsByClass[document.getElementById('classSelect').value]||[]).slice();
@@ -157,7 +157,7 @@ function draw(){
     ctx.font='bold '+Math.max(11, Math.min(18, 520/n))+'px Segoe UI';
     ctx.textAlign='right'; ctx.shadowColor='#0008'; ctx.shadowBlur=4;
     ctx.fillText(String(items[i]||'...').slice(0,16), r-18, 5);
-    ctx.beginPath(); ctx.fillStyle='#fff'; ctx.arc(r-2,0,4.5,0,Math.PI*2); ctx.fill();
+    ctx.beginPath();ctx.fillStyle='#6b3414';ctx.arc(r+3,3,6.5,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.fillStyle='#fff7c2';ctx.arc(r,0,6.5,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.fillStyle='#fff';ctx.arc(r-2,-2,2.2,0,Math.PI*2);ctx.fill();
     ctx.restore();
   }
   ctx.beginPath(); ctx.lineWidth=18; ctx.strokeStyle='#ffd36a'; ctx.arc(0,0,r+8,0,Math.PI*2); ctx.stroke();ctx.beginPath();ctx.lineWidth=5;ctx.strokeStyle='#fff8cf';ctx.arc(0,0,r+8,0,Math.PI*2);ctx.stroke();
@@ -179,8 +179,7 @@ function draw(){
     ctx.fillRect(s.x,s.y,4,4);
   });
   ctx.globalAlpha=1; ctx.restore();
-  ctx.beginPath();ctx.fillStyle='#fff7c2';ctx.shadowColor='#f59e0b';ctx.shadowBlur=22;
-  ctx.moveTo(78, cx);ctx.lineTo(12,cx-34);ctx.lineTo(12,cx+34);ctx.closePath();ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#c2410c';ctx.stroke();ctx.shadowBlur=0;
+  ctx.save();ctx.translate(12,cx);ctx.rotate(-pointerKick*.22);ctx.beginPath();const pointerFill=ctx.createLinearGradient(0,-34,78,34);pointerFill.addColorStop(0,'#9a3412');pointerFill.addColorStop(.35,'#fff7c2');pointerFill.addColorStop(.7,'#f59e0b');pointerFill.addColorStop(1,'#7c2d12');ctx.fillStyle=pointerFill;ctx.shadowColor='#f59e0b';ctx.shadowBlur=22;ctx.moveTo(78,0);ctx.lineTo(0,-34);ctx.lineTo(0,34);ctx.closePath();ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#7c2d12';ctx.stroke();ctx.shadowBlur=0;ctx.restore();
 }
 function winnerIndex(){
   const n=Math.max(items.length,1), arc=Math.PI*2/n;
@@ -251,6 +250,7 @@ function tick(){
   const idx=winnerIndex();
   if(idx!==lastTick){
     lastTick=idx; pegClick();
+    pointerKick=1;
     document.getElementById('pointerName').textContent=items[idx]||'...';
     const W=canvas.width, r=W*0.46;
     sparks.push({x:0,y:-r-6,vx:(Math.random()-.5)*3,vy:1+Math.random()*2,life:1});
@@ -262,7 +262,7 @@ function tick(){
     document.getElementById('spinBtn').disabled=false;
     showWin(items[idx]||'Chưa có dữ liệu');
   }
-  draw(); requestAnimationFrame(tick);
+  pointerKick*=.76;draw(); requestAnimationFrame(tick);
 }
 document.getElementById('spinBtn').onclick=function(){
   ensureAudio(); items=currentItems();
