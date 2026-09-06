@@ -13,7 +13,7 @@ foreach($allAccessible as$r){$teacherName=trim((string)($r['actual_teacher']??$r
 $teachers=array_keys($teachers);$subjects=array_keys($subjects);$statClasses=array_keys($statClasses);sort($teachers,SORT_NATURAL);sort($subjects,SORT_NATURAL);sort($statClasses,SORT_NATURAL);
 $statRows=lb_stat_rows($statsFrom,$statsTo,$statsTeacher,$statsSubject,$statsClass,$statsCompletion);
 $tot=lb_stat_totals($statRows);
-$teacherStats=lb_stat_group($statRows,'actual_teacher');$subjectStats=lb_stat_group($statRows,'subject');$classStats=lb_stat_group($statRows,'class');$weekStats=lb_stat_group($statRows,'week_label');
+$teacherStats=lb_stat_group($statRows,'actual_teacher');$subjectStats=lb_stat_group($statRows,'subject');$classStats=lb_stat_group($statRows,'class');$groupStats=lb_stat_group($statRows,'teacher_group');$weekStats=lb_stat_group($statRows,'week_label');
 $exportQuery=array_filter(['stats_from'=>$statsFrom,'stats_to'=>$statsTo,'stats_teacher'=>$statsTeacher,'stats_subject'=>$statsSubject,'stats_class'=>$statsClass,'stats_completion'=>$statsCompletion,'stats_range'=>$statsRange,'stats_week'=>$statsWeekKey],'strlen');
 $rate=$tot['scheduled']?($tot['completed']*100/$tot['scheduled']):0;
 $statusCards=[
@@ -24,9 +24,10 @@ $statusCards=[
  ['Dạy thay',$tot['substitute'],'#7c3aed'],
  ['Dạy bù',$tot['makeup'],'#0f766e'],
  ['Nghỉ / hoãn / hủy',$tot['off'],'#b45309'],
+ ['Môn chưa có PPCT',$tot['missing_ppct'],'#be123c'],
  ['Tỷ lệ hoàn thành',number_format($rate,1,',','.').'%',$rate>=80?'#166534':'#b45309'],
 ];
-$cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT','taught'=>'Đã dạy','substitute'=>'Thay','makeup'=>'Bù','online'=>'Trực tuyến','off'=>'Nghỉ/hoãn/hủy','holiday'=>'Nghỉ lễ','teacher_absent'=>'GV nghỉ','class_absent'=>'Lớp nghỉ','postponed'=>'Hoãn','cancelled'=>'Hủy','pending'=>'Chưa ghi'];
+$cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT','missing_ppct'=>'Thiếu PPCT','taught'=>'Đã dạy','substitute'=>'Thay','makeup'=>'Bù','online'=>'Trực tuyến','off'=>'Nghỉ/hoãn/hủy','holiday'=>'Nghỉ lễ','teacher_absent'=>'GV nghỉ','class_absent'=>'Lớp nghỉ','postponed'=>'Hoãn','cancelled'=>'Hủy','pending'=>'Chưa ghi'];
 ?>
 <style>
 .lb-stat-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
@@ -87,12 +88,12 @@ $cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT
 <section class="lb-card">
  <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
   <div><h2 class="h5 mb-0">Bảng chỉ số theo đối tượng</h2><div class="lb-note">Tách theo tuần, giáo viên, môn hoặc lớp.</div></div>
-  <div class="lb-stat-switch"><?php foreach(['teacher'=>'Giáo viên','subject'=>'Môn','class'=>'Lớp','week'=>'Tuần']as$k=>$label):?><button type="button" data-stat-panel="<?=$k?>" class="<?=$k==='teacher'?'active':''?>"><?=e($label)?></button><?php endforeach;?></div>
+  <div class="lb-stat-switch"><?php foreach(['teacher'=>'Giáo viên','subject'=>'Môn','class'=>'Lớp','group'=>'Tổ','week'=>'Tuần']as$k=>$label):?><button type="button" data-stat-panel="<?=$k?>" class="<?=$k==='teacher'?'active':''?>"><?=e($label)?></button><?php endforeach;?></div>
  </div>
- <?php foreach(['teacher'=>$teacherStats,'subject'=>$subjectStats,'class'=>$classStats,'week'=>$weekStats]as$panel=>$groupRows):?>
+ <?php foreach(['teacher'=>$teacherStats,'subject'=>$subjectStats,'class'=>$classStats,'group'=>$groupStats,'week'=>$weekStats]as$panel=>$groupRows):?>
  <div class="lb-stat-panel <?=$panel==='teacher'?'active':''?>" data-stat-content="<?=$panel?>">
   <div class="table-responsive"><table class="table table-sm table-hover lb-stat-table">
-   <thead><tr><th><?=e(['teacher'=>'Giáo viên','subject'=>'Môn','class'=>'Lớp','week'=>'Tuần'][$panel])?></th><?php foreach($cols as$c=>$lab):?><th class="text-center"><?=e($lab)?></th><?php endforeach;?><th class="text-center">Tỷ lệ</th></tr></thead>
+   <thead><tr><th><?=e(['teacher'=>'Giáo viên','subject'=>'Môn','class'=>'Lớp','group'=>'Tổ','week'=>'Tuần'][$panel])?></th><?php foreach($cols as$c=>$lab):?><th class="text-center"><?=e($lab)?></th><?php endforeach;?><th class="text-center">Tỷ lệ</th></tr></thead>
    <tbody>
    <?php foreach($groupRows as$g):$gr=$g['scheduled']?($g['completed']*100/$g['scheduled']):0;?>
     <tr>
