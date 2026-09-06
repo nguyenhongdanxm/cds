@@ -58,6 +58,7 @@ body:before,body:after{content:"✦  ·  ✧  ·  ✦  ·  ✧  ·  ✦  ·  ✧
 .opt{background:#ffffff14;color:#fff}
 .opt.on{background:#22c55e;color:#052e16}
 .stage{position:relative;min-height:0;display:grid;place-items:center;background:radial-gradient(circle,#1e3a6d55 0,#08051a33 58%,transparent 72%);overflow:hidden}.show-title{position:absolute;top:3px;left:50%;transform:translateX(-50%);font-size:clamp(18px,3vw,34px);font-weight:950;letter-spacing:.08em;color:#ffe38a;text-shadow:0 0 10px #ff9f1c,0 3px 0 #7c2d12;z-index:4;white-space:nowrap}.show-title span{font-size:.48em;color:#fff;letter-spacing:.18em;margin-left:10px}.live-badge{position:absolute;top:18px;right:18px;border:1px solid #ffdc8a;border-radius:999px;padding:6px 12px;color:#ffe38a;font-size:11px;font-weight:900;letter-spacing:.12em;z-index:4}.live-badge.live{background:#dc2626;color:#fff;border-color:#fecaca;box-shadow:0 0 16px #ef4444}.credit{height:32px;font-size:11px}
+.performer{position:absolute;bottom:4%;z-index:5;font-size:clamp(52px,11vmin,120px);filter:drop-shadow(0 8px 8px #0008);transform-origin:center bottom;animation:dance .72s ease-in-out infinite alternate}.performer.left{left:max(2vw,12px)}.performer.right{right:max(2vw,12px);animation-delay:-.36s}.performer:after{content:"♪";position:absolute;font-size:.38em;color:#ffe38a;top:-.3em;right:-.2em;animation:note 1.2s ease-in infinite}.stage.suspense .performer{animation:shiver .12s linear infinite}.stage.suspense .performer:after{content:"!";color:#fff;font-size:.5em}@keyframes dance{to{transform:rotate(-7deg) translateY(-12px)}}@keyframes shiver{25%{transform:translateX(-5px) rotate(-3deg)}75%{transform:translateX(5px) rotate(3deg)}}@keyframes note{to{transform:translateY(-28px);opacity:0}}
 canvas{display:block;filter:drop-shadow(0 0 18px #ffd36a88) drop-shadow(0 0 42px #a855f766)}
 #wheel{width:min(96vmin,100vw,100vh - 58px);height:min(96vmin,100vw,100vh - 58px);max-width:100%;max-height:calc(100vh - 58px)}
 .center{position:absolute;left:50%;top:50%;z-index:12;transform:translate(-50%,-50%);width:min(18vmin,120px);height:min(18vmin,120px);border:6px solid #fff;border-radius:50%;background:radial-gradient(circle at 30% 28%,#fff,#ffd36a 46%,#c2410c);box-shadow:0 0 0 8px #f59e0b55,0 0 28px #ffd36a99,0 8px 24px #0008;font-weight:900;font-size:clamp(16px,3.2vmin,28px);color:#7c2d12;cursor:pointer;z-index:6}
@@ -96,7 +97,7 @@ canvas{display:block;filter:drop-shadow(0 0 18px #ffd36a88) drop-shadow(0 0 42px
     <button class="opt" id="optEdit" type="button">Sửa nội dung</button>
     <a href="<?= htmlspecialchars($base) ?>hoclieu.php?tab=games">Học liệu</a>
   </div>
-  <div class="stage" id="stage"><div class="show-title">VÒNG QUAY MAY MẮN <span>★ GAMESHOW ★</span></div><div class="live-badge" id="liveBadge">SẴN SÀNG</div>
+  <div class="stage" id="stage"><div class="show-title">VÒNG QUAY MAY MẮN <span>★ GAMESHOW ★</span></div><div class="live-badge" id="liveBadge">SẴN SÀNG</div><div class="performer left" aria-hidden="true">👦</div><div class="performer right" aria-hidden="true">👧</div>
     <canvas id="wheel" width="900" height="900"></canvas>
     <button class="center" id="spinBtn" type="button">QUAY</button>
     <div class="drawer" id="drawer">
@@ -221,6 +222,8 @@ function playShowBar(step){
     for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.4);
     const s=audioCtx.createBufferSource(), g=audioCtx.createGain(); s.buffer=n; g.gain.value=0.1; s.connect(g); g.connect(audioCtx.destination); s.start();
   }
+  if(step%4===2){tone(165,.11,'sine',.12);tone(82.4,.16,'triangle',.09)}
+  if(step%4===1||step%4===3){tone(120,.06,'square',.045)}
   const runs=[392,523.3,659.3,783.9,1046.5,783.9,659.3,523.3,440,587.3,739.9,880,1174.7,880,739.9,587.3];
   tone(runs[step%runs.length], .12, 'triangle', 0.07);
   tone(runs[step%runs.length]*2, .07, 'square', 0.025);
@@ -251,8 +254,10 @@ function tick(){
     const W=canvas.width, r=W*0.46;
     sparks.push({x:0,y:-r-6,vx:(Math.random()-.5)*3,vy:1+Math.random()*2,life:1});
   }
+  document.getElementById('stage').classList.toggle('suspense',speed<0.055);
   if(speed<0.0024){
     spinning=false; stopMusic();
+    document.getElementById('stage').classList.remove('suspense');
     document.getElementById('spinBtn').disabled=false;
     showWin(items[idx]||'Chưa có dữ liệu');
   }
