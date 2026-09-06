@@ -180,7 +180,7 @@ function draw(){
   });
   ctx.globalAlpha=1; ctx.restore();
   ctx.beginPath();ctx.fillStyle='#fff7c2';ctx.shadowColor='#f59e0b';ctx.shadowBlur=22;
-  ctx.moveTo(12, cx);ctx.lineTo(78,cx-34);ctx.lineTo(78,cx+34);ctx.closePath();ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#c2410c';ctx.stroke();ctx.shadowBlur=0;
+  ctx.moveTo(78, cx);ctx.lineTo(12,cx-34);ctx.lineTo(12,cx+34);ctx.closePath();ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#c2410c';ctx.stroke();ctx.shadowBlur=0;
 }
 function winnerIndex(){
   const n=Math.max(items.length,1), arc=Math.PI*2/n;
