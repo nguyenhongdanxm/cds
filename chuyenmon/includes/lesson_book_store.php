@@ -219,7 +219,7 @@ function lb_stat_group(array $rows,string $field): array {
   $saved=!empty($r['_saved'])||!empty($r['created_at'])||!empty($r['updated_at']);
   $signed=!empty($r['signed_at'])||!empty($r['_completed']);
   if($saved)$groups[$name]['saved']++;
-  if($signed)$groups[$name]['completed']++;else$groups[$name]['incomplete']++;
+  if($signed)$groups[$name]['completed']++;else$groups[$name]['incomplete']++;if(!empty($r['_ppct_missing']))$groups[$name]['missing_ppct']++;
   $status=lb_stat_status($r);
   if(isset($groups[$name][$status]))$groups[$name][$status]++;
   if(in_array($status,['taught','substitute','makeup','online'],true))$groups[$name]['actual']+=(float)($r['actual_periods']??1);
