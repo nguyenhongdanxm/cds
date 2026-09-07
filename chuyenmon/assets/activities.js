@@ -36,7 +36,7 @@ async function cmactOpenTab(url){
   shell.replaceWith(next);cmactInit(next);
  }catch(error){shell.style.opacity='1';alert('Không tải được nội dung tab. Hãy thử tải lại trang.');}
 }
-document.addEventListener('click',event=>{const button=event.target.closest('.subtabs button[data-tab-url]');if(!button)return;event.preventDefault();cmactOpenTab(new URL(button.dataset.tabUrl,location.href).href)});
+document.addEventListener('click',event=>{const button=event.target.closest('.subtabs [data-tab-url]');if(!button)return;event.preventDefault();cmactOpenTab(new URL(button.dataset.tabUrl||button.href,location.href).href)});
 function resetClub(){document.getElementById('clubForm').reset();document.getElementById('clubId').value='';document.querySelectorAll('#clubForm select[multiple]').forEach(cmactSyncPicker)}
 function editClub(c){document.getElementById('clubId').value=c.id||'';document.getElementById('clubName').value=c.name||'';document.getElementById('clubCode').value=c.code||'';document.getElementById('clubDescription').value=c.description||'';const teachers=c.teacher_ids||[],students=c.student_ids||[];const ts=document.getElementById('clubTeachers'),ss=document.getElementById('clubStudents');[...ts.options].forEach(o=>o.selected=teachers.includes(o.value));[...ss.options].forEach(o=>o.selected=students.includes(o.value));cmactSyncPicker(ts);cmactSyncPicker(ss);document.getElementById('clubForm').scrollIntoView({behavior:'smooth',block:'start'})}
 cmactInit();
