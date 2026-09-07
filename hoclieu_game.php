@@ -1,6 +1,110 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_login();
+
+const WHEEL_MUSIC_DIR = DATA_PATH . '/game_assets/wheel_music';
+const WHEEL_MUSIC_CONFIG = DATA_PATH . '/wheel_music.json';
+const WHEEL_MUSIC_MAX_BYTES = 20 * 1024 * 1024;
+
+function wheel_music_config(): array {
+    $config = load_json(WHEEL_MUSIC_CONFIG, ['tracks' => [], 'default' => '']);
+    $tracks = is_array($config['tracks'] ?? null) ? $config['tracks'] : [];
+    $safeTracks = [];
+    foreach ($tracks as $track) {
+        if (!is_array($track) || !preg_match('/^[a-f0-9]{32}\\.(mp3|ogg|wav)$/', (string)($track['file'] ?? ''))) continue;
+        if (is_file(WHEEL_MUSIC_DIR . '/' . $track['file'])) {
+            $safeTracks[] = [
+                'file' => (string)$track['file'],
+                'name' => trim((string)($track['name'] ?? 'Nhạc nền')) ?: 'Nhạc nền',
+                'mime' => (string)($track['mime'] ?? 'audio/mpeg'),
+                'size' => (int)($track['size'] ?? 0),
+                'created_at' => (string)($track['created_at'] ?? ''),
+            ];
+        }
+    }
+    $default = (string)($config['default'] ?? '');
+    if (!array_filter($safeTracks, fn(array $track): bool => $track['file'] === $default)) $default = '';
+    return ['tracks' => $safeTracks, 'default' => $default];
+}
+
+function wheel_music_save(array $config): void {
+    if (!save_json(WHEEL_MUSIC_CONFIG, $config)) throw new RuntimeException('Không lưu được cấu hình nhạc nền.');
+}
+
+function wheel_music_upload(array $upload): array {
+    if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) throw new RuntimeException('Hãy chọn một tệp nhạc hợp lệ.');
+    $size = (int)($upload['size'] ?? 0);
+    $tmp = (string)($upload['tmp_name'] ?? '');
+    if ($size < 1 || $size > WHEEL_MUSIC_MAX_BYTES || !is_uploaded_file($tmp)) throw new RuntimeException('Tệp nhạc phải nhỏ hơn hoặc bằng 20 MB.');
+    $extension = strtolower((string)pathinfo((string)($upload['name'] ?? ''), PATHINFO_EXTENSION));
+    $expectedMimes = [
+        'mp3' => ['audio/mpeg', 'audio/mp3', 'audio/x-mpeg'],
+        'ogg' => ['audio/ogg', 'application/ogg'],
+        'wav' => ['audio/wav', 'audio/x-wav', 'audio/wave'],
+    ];
+    if (!isset($expectedMimes[$extension])) throw new RuntimeException('Chỉ nhận tệp MP3, OGG hoặc WAV.');
+    $mime = function_exists('finfo_open') ? (new finfo(FILEINFO_MIME_TYPE))->file($tmp) : '';
+    if (!in_array($mime, $expectedMimes[$extension], true)) throw new RuntimeException('Nội dung tệp không khớp với định dạng âm thanh đã chọn.');
+    $header = (string)@file_get_contents($tmp, false, null, 0, 12);
+    $validHeader = ($extension === 'ogg' && str_starts_with($header, 'OggS'))
+        || ($extension === 'wav' && substr($header, 0, 4) === 'RIFF' && substr($header, 8, 4) === 'WAVE')
+        || ($extension === 'mp3' && (str_starts_with($header, 'ID3') || (isset($header[0], $header[1]) && ord($header[0]) === 0xff && (ord($header[1]) & 0xe0) === 0xe0)));
+    if (!$validHeader) throw new RuntimeException('Tệp âm thanh không có chữ ký định dạng hợp lệ.');
+    if (!is_dir(WHEEL_MUSIC_DIR) && !mkdir(WHEEL_MUSIC_DIR, 0755, true) && !is_dir(WHEEL_MUSIC_DIR)) throw new RuntimeException('Không tạo được thư mục nhạc nền.');
+    $file = bin2hex(random_bytes(16)) . '.' . $extension;
+    if (!move_uploaded_file($tmp, WHEEL_MUSIC_DIR . '/' . $file)) throw new RuntimeException('Không lưu được tệp nhạc lên máy chủ.');
+    @chmod(WHEEL_MUSIC_DIR . '/' . $file, 0644);
+    $originalName = basename((string)($upload['name'] ?? 'Nhạc nền'));
+    $displayName = function_exists('mb_substr') ? mb_substr($originalName, 0, 160, 'UTF-8') : substr($originalName, 0, 160);
+    return ['file' => $file, 'name' => $displayName, 'mime' => $mime, 'size' => $size, 'created_at' => date('c')];
+}
+
+$isWheelAdmin = (current_user()['role'] ?? '') === 'admin';
+if (empty($_SESSION['wheel_music_csrf'])) $_SESSION['wheel_music_csrf'] = bin2hex(random_bytes(32));
+$wheelMusicCsrf = (string)$_SESSION['wheel_music_csrf'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['music_action'])) {
+    if (!$isWheelAdmin || !hash_equals($wheelMusicCsrf, (string)($_POST['csrf'] ?? ''))) {
+        http_response_code(403);
+        exit('Không có quyền thực hiện thao tác này.');
+    }
+    try {
+        $musicConfig = wheel_music_config();
+        $action = (string)$_POST['music_action'];
+        if ($action === 'upload') {
+            $musicConfig['tracks'][] = wheel_music_upload(is_array($_FILES['music_file'] ?? null) ? $_FILES['music_file'] : []);
+            wheel_music_save($musicConfig);
+            $message = 'Đã tải nhạc nền lên.';
+        } elseif ($action === 'default') {
+            $selected = (string)($_POST['default_track'] ?? '');
+            if ($selected !== '' && !array_filter($musicConfig['tracks'], fn(array $track): bool => $track['file'] === $selected)) throw new RuntimeException('Bản nhạc đã chọn không tồn tại.');
+            $musicConfig['default'] = $selected;
+            wheel_music_save($musicConfig);
+            $message = $selected === '' ? 'Đã dùng nhạc tổng hợp của vòng quay.' : 'Đã chọn nhạc nền mặc định.';
+        } elseif ($action === 'delete') {
+            $file = (string)($_POST['track'] ?? '');
+            $found = false;
+            $musicConfig['tracks'] = array_values(array_filter($musicConfig['tracks'], function (array $track) use ($file, &$found): bool {
+                if ($track['file'] !== $file) return true;
+                $found = true;
+                $path = WHEEL_MUSIC_DIR . '/' . $track['file'];
+                if (is_file($path) && !unlink($path)) throw new RuntimeException('Không xóa được tệp nhạc.');
+                return false;
+            }));
+            if (!$found) throw new RuntimeException('Bản nhạc không tồn tại.');
+            if ($musicConfig['default'] === $file) $musicConfig['default'] = '';
+            wheel_music_save($musicConfig);
+            $message = 'Đã xóa bản nhạc.';
+        } else throw new RuntimeException('Thao tác không hợp lệ.');
+        $_SESSION['wheel_music_notice'] = ['message' => $message, 'type' => 'success'];
+    } catch (Throwable $e) {
+        $_SESSION['wheel_music_notice'] = ['message' => $e->getMessage(), 'type' => 'error'];
+    }
+    header('Location: ' . strtok((string)$_SERVER['REQUEST_URI'], '?'));
+    exit;
+}
+$wheelMusic = wheel_music_config();
+$wheelMusicNotice = $_SESSION['wheel_music_notice'] ?? null;
+unset($_SESSION['wheel_music_notice']);
 if (!function_exists('csdl_students_all')) {
     $csdl = __DIR__ . '/includes/csdl_store.php';
     if (is_file($csdl)) require_once $csdl;
@@ -34,6 +138,7 @@ if (function_exists('csdl_students_all')) {
 }
 $school = defined('SCHOOL_NAME') ? SCHOOL_NAME : 'CDS';
 $base = defined('BASE_URL') ? BASE_URL : '/';
+$wheelMusicUrl = $wheelMusic['default'] !== '' ? $base . 'data/game_assets/wheel_music/' . rawurlencode($wheelMusic['default']) : '';
 ?>
 <!doctype html>
 <html lang="vi">
@@ -79,6 +184,8 @@ canvas{display:block;filter:drop-shadow(0 0 18px #ffd36a88) drop-shadow(0 0 42px
 .win .big{font-size:clamp(28px,7vw,56px);font-weight:900;margin:8px 0 14px}
 .win button{border:0;border-radius:999px;padding:10px 18px;font-weight:800;background:#7c2d12;color:#fff}
 .confetti{position:fixed;inset:0;pointer-events:none;z-index:19}
+
+.music-dialog{width:min(680px,calc(100vw - 28px));max-height:88vh;overflow:auto;border:1px solid #ffffff33;border-radius:20px;padding:0;background:#15102f;color:#fff;box-shadow:0 24px 80px #000b}.music-dialog::backdrop{background:#05030fd9;backdrop-filter:blur(4px)}.music-head{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;padding:16px 18px;background:#201747;z-index:2}.music-head h2{margin:0;font-size:20px;color:#ffe38a}.music-close{border:0;border-radius:50%;width:36px;height:36px;background:#ffffff18;color:#fff;font-size:22px;cursor:pointer}.music-body{padding:18px}.music-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 14px;padding:12px;border:1px solid #ffffff1f;border-radius:14px;background:#ffffff08}.music-form input,.music-form select{min-width:220px;max-width:100%;padding:9px;border:0;border-radius:9px}.music-form button{border:0;border-radius:9px;padding:9px 13px;background:#22c55e;color:#052e16;font-weight:900;cursor:pointer}.music-form .danger{background:#e11d48;color:#fff}.music-form audio{width:min(250px,100%);height:36px}.music-form small{color:#dbeafe}.music-notice{margin-bottom:12px;padding:10px 12px;border-radius:10px;font-weight:800}.music-notice.success{background:#14532d;color:#dcfce7}.music-notice.error{background:#7f1d1d;color:#fee2e2}
 </style>
 </head>
 <body>
@@ -94,6 +201,7 @@ canvas{display:block;filter:drop-shadow(0 0 18px #ffd36a88) drop-shadow(0 0 42px
     <button class="opt" id="optHide" type="button">Giữ ô đã quay</button>
     <button class="opt" id="optReset" type="button">Hiện lại tất cả</button>
     <button class="opt on" id="optMusic" type="button">Nhạc</button>
+    <?php if ($isWheelAdmin): ?><button class="opt" id="musicManage" type="button">Cài nhạc</button><?php endif; ?>
     <button class="opt" id="optEdit" type="button">Sửa nội dung</button>
     <a href="<?= htmlspecialchars($base) ?>hoclieu.php?tab=games">Học liệu</a>
   </div>
@@ -108,8 +216,22 @@ canvas{display:block;filter:drop-shadow(0 0 18px #ffd36a88) drop-shadow(0 0 42px
   <div class="credit"><span id="resultTicker">Chọn lớp hoặc nội dung rồi nhấn QUAY</span> · Hệ Sinh Thái Quản lý Nhà Trường - Thiết kế bởi thầy giáo Nguyễn Hồng Dân -</div>
 </div>
 <canvas class="confetti" id="confetti"></canvas>
+<?php if ($isWheelAdmin): ?>
+<dialog class="music-dialog" id="musicDialog">
+  <div class="music-head"><h2>Quản lý nhạc nền vòng quay</h2><button class="music-close" id="musicClose" type="button" aria-label="Đóng">×</button></div>
+  <div class="music-body">
+    <?php if ($wheelMusicNotice): ?><div class="music-notice <?= htmlspecialchars((string)$wheelMusicNotice['type']) ?>"><?= htmlspecialchars((string)$wheelMusicNotice['message']) ?></div><?php endif; ?>
+    <form class="music-form" method="post" enctype="multipart/form-data"><input type="hidden" name="csrf" value="<?= htmlspecialchars($wheelMusicCsrf) ?>"><input type="hidden" name="music_action" value="upload"><input type="file" name="music_file" accept=".mp3,.ogg,.wav,audio/mpeg,audio/ogg,audio/wav" required><button type="submit">Tải nhạc lên</button><small>MP3, OGG hoặc WAV · tối đa 20 MB</small></form>
+    <form class="music-form" method="post"><input type="hidden" name="csrf" value="<?= htmlspecialchars($wheelMusicCsrf) ?>"><input type="hidden" name="music_action" value="default"><select name="default_track"><option value="">Nhạc tổng hợp của vòng quay</option><?php foreach ($wheelMusic['tracks'] as $track): ?><option value="<?= htmlspecialchars($track['file']) ?>"<?= $wheelMusic['default'] === $track['file'] ? ' selected' : '' ?>><?= htmlspecialchars($track['name']) ?> (<?= number_format($track['size'] / 1048576, 1) ?> MB)</option><?php endforeach; ?></select><button type="submit">Đặt làm mặc định</button></form>
+    <?php foreach ($wheelMusic['tracks'] as $track): ?><form class="music-form" method="post"><input type="hidden" name="csrf" value="<?= htmlspecialchars($wheelMusicCsrf) ?>"><input type="hidden" name="music_action" value="delete"><input type="hidden" name="track" value="<?= htmlspecialchars($track['file']) ?>"><strong><?= htmlspecialchars($track['name']) ?></strong><audio controls preload="none" src="<?= htmlspecialchars($base . 'data/game_assets/wheel_music/' . rawurlencode($track['file'])) ?>"></audio><button class="danger" type="submit" onclick="return confirm('Xóa bản nhạc này?')">Xóa</button></form><?php endforeach; ?>
+    <small>Nhạc mặc định sẽ bắt đầu khi người dùng bấm QUAY; trình duyệt không cho phép tự phát âm thanh trước thao tác đầu tiên.</small>
+  </div>
+</dialog>
+<?php endif; ?>
+
 <div class="overlay" id="overlay"><div class="win"><div id="winTag">Kết quả</div><div class="big" id="winText">—</div><button type="button" id="closeWin">Quay tiếp</button></div></div>
 <script>
+const configuredMusicUrl = <?= json_encode($wheelMusicUrl, JSON_UNESCAPED_SLASHES) ?>;
 const studentsByClass = <?= json_encode($studentsByClass, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 const canvas=document.getElementById('wheel'), ctx=canvas.getContext('2d');
 const colors=['#ef4444','#f59e0b','#22c55e','#3b82f6','#a855f7','#f97316','#14b8a6','#ec4899','#84cc16','#06b6d4'];
@@ -118,7 +240,7 @@ let prizes=JSON.parse(localStorage.getItem('cds_wheel_prizes')||'null')||['+1 đ
 const prizePreset=['+2 điểm','Được chọn bài hát','Tràng pháo tay','Huy hiệu chăm học','Quyền chọn bạn cùng nhóm','Quà bất ngờ','Miễn một câu hỏi','Ngôi sao tuần này'];
 let tasks=JSON.parse(localStorage.getItem('cds_wheel_tasks')||'null')||['Nêu ý chính','Đặt câu hỏi','Tóm tắt 30 giây','Viết ví dụ','Giải thích từ khó','Mời bạn trả lời'];
 const taskPreset=['Đọc và giải thích một câu','Nêu một ví dụ thực tế','Tóm tắt bài trong 30 giây','Đặt câu hỏi cho cả lớp','Vẽ sơ đồ tư duy nhanh','Giải một câu vận dụng','Chia sẻ điều em nhớ nhất','Mời một bạn cùng trả lời'];
-let used={}, items=[], angle=0, spinning=false, speed=0, audioCtx=null, musicTimer=null, lastTick=-1, sparks=[], pointerKick=0;
+let used={}, items=[], angle=0, spinning=false, speed=0, audioCtx=null, musicTimer=null, backgroundMusic=null, lastTick=-1, sparks=[], pointerKick=0;
 
 function sourceItems(){
   if(mode==='student') return (studentsByClass[document.getElementById('classSelect').value]||[]).slice();
@@ -228,8 +350,20 @@ function playShowBar(step){
   tone(runs[step%runs.length]*2, .07, 'square', 0.025);
   if(step%4===0){ tone(261.6,.2,'triangle',0.04); tone(329.6,.2,'triangle',0.03); tone(392,.2,'triangle',0.03); }
 }
-function startMusic(){ stopMusic(); if(!musicOn) return; let step=0; playShowBar(step); musicTimer=setInterval(()=>{ if(!spinning){stopMusic();return;} playShowBar(++step); }, 135); }
-function stopMusic(){ if(musicTimer){ clearInterval(musicTimer); musicTimer=null; } }
+function startMusic(){
+  stopMusic(); if(!musicOn) return;
+  if(configuredMusicUrl){
+    if(!backgroundMusic){ backgroundMusic=new Audio(configuredMusicUrl); backgroundMusic.loop=true; backgroundMusic.volume=.42; }
+    backgroundMusic.currentTime=0;
+    backgroundMusic.play().catch(()=>{});
+    return;
+  }
+  let step=0; playShowBar(step); musicTimer=setInterval(()=>{ if(!spinning){stopMusic();return;} playShowBar(++step); }, 135);
+}
+function stopMusic(){
+  if(musicTimer){ clearInterval(musicTimer); musicTimer=null; }
+  if(backgroundMusic){ backgroundMusic.pause(); backgroundMusic.currentTime=0; }
+}
 function fanfare(){ stopMusic(); [523,659,784,1046,784,1318,1046].forEach((f,i)=>setTimeout(()=>tone(f,.18,'triangle',.1), i*85)); }
 function burst(){
   const c=document.getElementById('confetti'), x=c.getContext('2d');
@@ -281,6 +415,13 @@ document.getElementById('classSelect').onchange=draw;
 document.getElementById('optHide').onclick=function(){ hideUsed=!hideUsed; this.classList.toggle('on',hideUsed); this.textContent=hideUsed?'Ẩn ô đã quay':'Giữ ô đã quay'; draw(); };
 document.getElementById('optReset').onclick=function(){ used={}; draw(); };
 document.getElementById('optMusic').onclick=function(){ musicOn=!musicOn; this.classList.toggle('on',musicOn); if(!musicOn) stopMusic(); };
+<?php if ($isWheelAdmin): ?>
+const musicDialog=document.getElementById('musicDialog');
+document.getElementById('musicManage').onclick=()=>musicDialog.showModal();
+document.getElementById('musicClose').onclick=()=>musicDialog.close();
+musicDialog.addEventListener('click',event=>{if(event.target===musicDialog) musicDialog.close();});
+<?php if ($wheelMusicNotice): ?>musicDialog.showModal();<?php endif; ?>
+<?php endif; ?>
 document.getElementById('optEdit').onclick=function(){ editing=!editing; this.classList.toggle('on',editing); document.getElementById('drawer').classList.toggle('show',editing); };
 document.getElementById('addPrize').onclick=()=>{prizes.push('Phần thưởng mới');localStorage.setItem('cds_wheel_prizes',JSON.stringify(prizes));renderEditor('prizeItems',prizes,'cds_wheel_prizes');draw();};
 document.getElementById('addTask').onclick=()=>{tasks.push('Nhiệm vụ mới');localStorage.setItem('cds_wheel_tasks',JSON.stringify(tasks));renderEditor('taskItems',tasks,'cds_wheel_tasks');draw();};
