@@ -23,6 +23,7 @@ required=(
   chuyenmon/kiemnhiem.php
   chuyenmon/xuat_bang.php
   chuyenmon/kehoach.php
+  chuyenmon/activities.php
   chuyenmon/baocao.php
   chuyenmon/dugio.php
   chuyenmon/phieudugio.php
