@@ -2,20 +2,19 @@
 $page_title='Hoạt động giáo dục';
 require_once 'includes/functions.php';
 require_login();
-$csdl=dirname(__DIR__).'/includes/csdl_store.php';if(is_file($csdl))require_once $csdl;
-const CM_ACTIVITY_FILE=DATA_PATH.'/cm_activities.json';
+if(!defined('CM_ACTIVITY_FILE'))define('CM_ACTIVITY_FILE',DATA_PATH.'/cm_activities.json');
 function cmact_default():array{return['clubs'=>[],'club_files'=>[],'online_enrollments'=>[],'online_settings'=>['rules'=>'','application_template'=>'','sessions'=>['Sáng','Chiều','Tối'],'default_start'=>'19:30','default_end'=>'21:00']];}
 function cmact_data():array{return array_replace_recursive(cmact_default(),(array)load_json(CM_ACTIVITY_FILE,[]));}
 function cmact_save(array $data):bool{return(bool)save_json(CM_ACTIVITY_FILE,$data);}
 function cmact_id(string $prefix):string{return$prefix.'_'.date('YmdHis').'_'.bin2hex(random_bytes(4));}
 function cmact_admin():bool{$u=current_user();return(string)($u['role']??'')==='admin';}
-function cmact_text($value,int $max=5000):string{return mb_substr(trim((string)$value),0,$max,'UTF-8');}
+function cmact_text($value,int $max=5000):string{$value=trim((string)$value);return function_exists('mb_substr')?mb_substr($value,0,$max,'UTF-8'):substr($value,0,$max);}
 function cmact_ids($value,array $allowed):array{$set=array_fill_keys(array_keys($allowed),true);return array_values(array_unique(array_filter(array_map('strval',is_array($value)?$value:[]),fn($id)=>isset($set[$id]))));}
 if(empty($_SESSION['cmact_csrf']))$_SESSION['cmact_csrf']=bin2hex(random_bytes(32));
 $csrf=(string)$_SESSION['cmact_csrf'];$data=cmact_data();
-$classes=function_exists('csdl_classes_all')?csdl_classes_all():[];$classMap=[];foreach($classes as$c)$classMap[(string)($c['id']??'')]=(string)($c['name']??'');
-$teachers=[];foreach(function_exists('csdl_teachers_all')?csdl_teachers_all():[] as$t){if(isset($t['active'])&&!$t['active'])continue;$id=(string)($t['id']??'');$name=cmact_text($t['name']??'',180);if($id!==''&&$name!=='')$teachers[$id]=$name;}natcasesort($teachers);
-$students=[];foreach(function_exists('csdl_students_all')?csdl_students_all():[] as$s){if(isset($s['active'])&&!$s['active'])continue;$id=(string)($s['id']??'');$name=cmact_text($s['name']??$s['ho_ten']??'',180);$class=cmact_text($s['class_name']??$s['class']??'',60);if($class===''&&!empty($s['class_id']))$class=$classMap[(string)$s['class_id']]??'';if($id!==''&&$name!=='')$students[$id]=['name'=>$name,'class'=>$class];}uasort($students,fn($a,$b)=>strnatcasecmp($a['class'].'|'.$a['name'],$b['class'].'|'.$b['name']));
+$classes=(array)load_json(DATA_PATH.'/classes.json',[]);$classMap=[];foreach($classes as$c)$classMap[(string)($c['id']??'')]=(string)($c['name']??'');
+$teachers=[];foreach((array)load_json(DATA_PATH.'/teachers.json',[]) as$t){if(isset($t['active'])&&!$t['active'])continue;$id=(string)($t['id']??'');$name=cmact_text($t['name']??'',180);if($id!==''&&$name!=='')$teachers[$id]=$name;}natcasesort($teachers);
+$students=[];foreach((array)load_json(DATA_PATH.'/students.json',[]) as$s){if(isset($s['active'])&&!$s['active'])continue;$id=(string)($s['id']??'');$name=cmact_text($s['name']??$s['ho_ten']??'',180);$class=cmact_text($s['class_name']??$s['class']??'',60);if($class===''&&!empty($s['class_id']))$class=$classMap[(string)$s['class_id']]??'';if($id!==''&&$name!=='')$students[$id]=['name'=>$name,'class'=>$class];}uasort($students,fn($a,$b)=>strnatcasecmp($a['class'].'|'.$a['name'],$b['class'].'|'.$b['name']));
 $tab=in_array((string)($_GET['tab']??'clubs'),['clubs','online'],true)?(string)$_GET['tab']:'clubs';
 $views=$tab==='clubs'?['list','files','settings']:['students','rules','form','settings'];$view=in_array((string)($_GET['view']??$views[0]),$views,true)?(string)$_GET['view']:$views[0];
 if($_SERVER['REQUEST_METHOD']==='POST'){
