@@ -1,6 +1,108 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_login();
+
+const DUCK_RACE_MUSIC_DIR = DATA_PATH . '/game_assets/duck_race_music';
+const DUCK_RACE_MUSIC_CONFIG = DATA_PATH . '/duck_race_music.json';
+const DUCK_RACE_MUSIC_MAX_BYTES = 20 * 1024 * 1024;
+
+function duck_race_music_config(): array {
+    $config = load_json(DUCK_RACE_MUSIC_CONFIG, ['tracks' => [], 'default' => '']);
+    $tracks = is_array($config['tracks'] ?? null) ? $config['tracks'] : [];
+    $safeTracks = [];
+    foreach ($tracks as $track) {
+        if (!is_array($track) || !preg_match('/^[a-f0-9]{32}\.(mp3|ogg|wav)$/', (string)($track['file'] ?? ''))) continue;
+        if (is_file(DUCK_RACE_MUSIC_DIR . '/' . $track['file'])) {
+            $safeTracks[] = [
+                'file' => (string)$track['file'],
+                'name' => trim((string)($track['name'] ?? 'Nhạc nền')) ?: 'Nhạc nền',
+                'mime' => (string)($track['mime'] ?? 'audio/mpeg'),
+                'size' => (int)($track['size'] ?? 0),
+                'created_at' => (string)($track['created_at'] ?? ''),
+            ];
+        }
+    }
+    $default = (string)($config['default'] ?? '');
+    if (!array_filter($safeTracks, fn(array $track): bool => $track['file'] === $default)) $default = '';
+    return ['tracks' => $safeTracks, 'default' => $default];
+}
+
+function duck_race_music_save(array $config): void {
+    if (!save_json(DUCK_RACE_MUSIC_CONFIG, $config)) throw new RuntimeException('Không lưu được cấu hình nhạc nền.');
+}
+
+function duck_race_music_upload(array $upload): array {
+    if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) throw new RuntimeException('Hãy chọn một tệp nhạc hợp lệ.');
+    $size = (int)($upload['size'] ?? 0);
+    $tmp = (string)($upload['tmp_name'] ?? '');
+    if ($size < 1 || $size > DUCK_RACE_MUSIC_MAX_BYTES || !is_uploaded_file($tmp)) throw new RuntimeException('Tệp nhạc phải nhỏ hơn hoặc bằng 20 MB.');
+    $extension = strtolower((string)pathinfo((string)($upload['name'] ?? ''), PATHINFO_EXTENSION));
+    $expectedMimes = [
+        'mp3' => ['audio/mpeg', 'audio/mp3', 'audio/x-mpeg'],
+        'ogg' => ['audio/ogg', 'application/ogg'],
+        'wav' => ['audio/wav', 'audio/x-wav', 'audio/wave'],
+    ];
+    if (!isset($expectedMimes[$extension])) throw new RuntimeException('Chỉ nhận tệp MP3, OGG hoặc WAV.');
+    $mime = function_exists('finfo_open') ? (new finfo(FILEINFO_MIME_TYPE))->file($tmp) : '';
+    if (!in_array($mime, $expectedMimes[$extension], true)) throw new RuntimeException('Nội dung tệp không khớp với định dạng âm thanh đã chọn.');
+    $header = (string)@file_get_contents($tmp, false, null, 0, 12);
+    $validHeader = ($extension === 'ogg' && str_starts_with($header, 'OggS'))
+        || ($extension === 'wav' && substr($header, 0, 4) === 'RIFF' && substr($header, 8, 4) === 'WAVE')
+        || ($extension === 'mp3' && (str_starts_with($header, 'ID3') || (isset($header[0], $header[1]) && ord($header[0]) === 0xff && (ord($header[1]) & 0xe0) === 0xe0)));
+    if (!$validHeader) throw new RuntimeException('Tệp âm thanh không có chữ ký định dạng hợp lệ.');
+    if (!is_dir(DUCK_RACE_MUSIC_DIR) && !mkdir(DUCK_RACE_MUSIC_DIR, 0755, true) && !is_dir(DUCK_RACE_MUSIC_DIR)) throw new RuntimeException('Không tạo được thư mục nhạc nền.');
+    $file = bin2hex(random_bytes(16)) . '.' . $extension;
+    if (!move_uploaded_file($tmp, DUCK_RACE_MUSIC_DIR . '/' . $file)) throw new RuntimeException('Không lưu được tệp nhạc lên máy chủ.');
+    @chmod(DUCK_RACE_MUSIC_DIR . '/' . $file, 0644);
+    return ['file' => $file, 'name' => mb_substr(basename((string)$upload['name']), 0, 160, 'UTF-8'), 'mime' => $mime, 'size' => $size, 'created_at' => date('c')];
+}
+
+$isDuckRaceAdmin = (current_user()['role'] ?? '') === 'admin';
+if (empty($_SESSION['duck_race_music_csrf'])) $_SESSION['duck_race_music_csrf'] = bin2hex(random_bytes(32));
+$duckRaceMusicCsrf = (string)$_SESSION['duck_race_music_csrf'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$isDuckRaceAdmin || !hash_equals($duckRaceMusicCsrf, (string)($_POST['csrf'] ?? ''))) {
+        http_response_code(403);
+        exit('Không có quyền thực hiện thao tác này.');
+    }
+    try {
+        $musicConfig = duck_race_music_config();
+        $action = (string)($_POST['music_action'] ?? '');
+        if ($action === 'upload') {
+            $musicConfig['tracks'][] = duck_race_music_upload(is_array($_FILES['music_file'] ?? null) ? $_FILES['music_file'] : []);
+            duck_race_music_save($musicConfig);
+            $message = 'Đã tải nhạc nền lên.';
+        } elseif ($action === 'default') {
+            $selected = (string)($_POST['default_track'] ?? '');
+            if ($selected !== '' && !array_filter($musicConfig['tracks'], fn(array $track): bool => $track['file'] === $selected)) throw new RuntimeException('Bản nhạc đã chọn không tồn tại.');
+            $musicConfig['default'] = $selected;
+            duck_race_music_save($musicConfig);
+            $message = $selected === '' ? 'Đã dùng nhạc tổng hợp mặc định.' : 'Đã chọn nhạc nền mặc định.';
+        } elseif ($action === 'delete') {
+            $file = (string)($_POST['track'] ?? '');
+            $found = false;
+            $musicConfig['tracks'] = array_values(array_filter($musicConfig['tracks'], function (array $track) use ($file, &$found): bool {
+                if ($track['file'] !== $file) return true;
+                $found = true;
+                $path = DUCK_RACE_MUSIC_DIR . '/' . $track['file'];
+                if (is_file($path) && !unlink($path)) throw new RuntimeException('Không xóa được tệp nhạc.');
+                return false;
+            }));
+            if (!$found) throw new RuntimeException('Bản nhạc không tồn tại.');
+            if ($musicConfig['default'] === $file) $musicConfig['default'] = '';
+            duck_race_music_save($musicConfig);
+            $message = 'Đã xóa bản nhạc.';
+        } else throw new RuntimeException('Thao tác không hợp lệ.');
+        $_SESSION['duck_race_music_notice'] = ['message' => $message, 'type' => 'success'];
+    } catch (Throwable $e) {
+        $_SESSION['duck_race_music_notice'] = ['message' => $e->getMessage(), 'type' => 'error'];
+    }
+    header('Location: ' . strtok((string)$_SERVER['REQUEST_URI'], '?'));
+    exit;
+}
+$duckRaceMusic = duck_race_music_config();
+$duckRaceMusicNotice = $_SESSION['duck_race_music_notice'] ?? null;
+unset($_SESSION['duck_race_music_notice']);
 if (!function_exists('csdl_students_all')) {
     $store = __DIR__ . '/includes/csdl_store.php';
     if (is_file($store)) require_once $store;
@@ -35,6 +137,7 @@ if (function_exists('csdl_students_all')) {
 sort($classNames, SORT_NATURAL);
 $base = defined('BASE_URL') ? BASE_URL : '/';
 $school = defined('SCHOOL_NAME') ? SCHOOL_NAME : 'CDS';
+$duckRaceMusicUrl = $duckRaceMusic['default'] !== '' ? $base . 'data/game_assets/duck_race_music/' . rawurlencode($duckRaceMusic['default']) : '';
 ?>
 <!doctype html>
 <html lang="vi">
@@ -60,6 +163,7 @@ body{background:linear-gradient(180deg,#75d4e6 0 20%,#e8fbf7 20%);overflow-x:hid
 .empty{display:grid;place-items:center;height:100%;text-align:center;color:#eaffff;font-weight:800;font-size:18px;padding:32px}.empty span{display:block;font-size:44px;margin-bottom:8px}.lower{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:15px;flex-wrap:wrap}.status{font-size:14px;font-weight:700;color:#24586a}.start{background:linear-gradient(135deg,#ff8b57,#ed5356);border:0;border-radius:16px;color:#fff;padding:13px 29px;font-size:17px;font-weight:950;letter-spacing:.06em;cursor:pointer;box-shadow:0 5px 0 #b63842}.start:hover{transform:translateY(-2px)}.start:disabled{opacity:.55;cursor:not-allowed;transform:none}.winners{background:#fff;border-radius:16px;padding:10px 14px;box-shadow:0 5px 16px #1f657222;display:flex;gap:8px;align-items:center;max-width:100%}.winners strong{white-space:nowrap}.winner-list{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#50717c}.race-options{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800}.race-options select{border:2px solid #9ddae5;border-radius:10px;padding:7px;color:var(--ink);font:inherit}
 .overlay{display:none;position:fixed;inset:0;z-index:20;place-items:center;background:#02293dcc;padding:18px}.overlay.show{display:grid}.winner-card{position:relative;overflow:hidden;width:min(520px,94vw);padding:34px 24px 28px;text-align:center;color:#0b415b;background:linear-gradient(145deg,#fff,#fff4c4);border:6px solid #fff;border-radius:28px;box-shadow:0 18px 55px #0008;animation:arrive .42s cubic-bezier(.2,1.5,.4,1)}@keyframes arrive{from{opacity:0;transform:scale(.55) rotate(-5deg)}}.cup{font-size:58px}.winner-card h2{font-size:17px;letter-spacing:.14em;margin:4px 0;color:#c76128}.winner-card .winner-name{font-size:clamp(29px,7vw,52px);font-weight:950;margin:8px 0 22px}.winner-card button{border:0;border-radius:999px;padding:11px 20px;background:#0b4a65;color:#fff;font-weight:900;cursor:pointer}.confetti{pointer-events:none;position:fixed;inset:0;z-index:21;overflow:hidden}.piece{position:absolute;width:10px;height:16px;animation:fall 2.4s linear forwards}@keyframes fall{to{transform:translate(var(--x),110vh) rotate(760deg);opacity:0}}
 .cheer{font-size:22px;letter-spacing:5px;animation:bounce .55s ease-in-out infinite alternate}@keyframes bounce{to{transform:translateY(-7px) rotate(3deg)}}@media(max-width:650px){.top{align-items:flex-start}.brand{padding-top:8px}.controls{margin-left:0}.back{display:none}.stadium{min-height:455px}.pond{height:300px}.finish{right:4%;width:28px}.duck{transform:translate(-50%,-50%) scale(.78)}.note{font-size:11px;max-width:90%;white-space:normal;text-align:center}.intro{align-items:flex-start}.timer{padding:5px 10px}}
+.music-settings{margin:0 auto 16px;max-width:1400px;padding:0 clamp(12px,3vw,28px)}.music-settings details{background:#fff;border-radius:14px;padding:12px 16px;box-shadow:0 4px 15px #174e6222}.music-settings summary{cursor:pointer;font-weight:900;color:#083b55}.music-settings form{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}.music-settings select,.music-settings input{max-width:100%;padding:8px;border:1px solid #9ddae5;border-radius:8px}.music-settings button{border:0;border-radius:8px;padding:8px 11px;background:#0b4a65;color:#fff;font-weight:800;cursor:pointer}.music-settings .danger{background:#bd3b3b}.music-settings small{color:#52717c}.music-notice{margin-top:10px;font-weight:700}.music-notice.error{color:#b42318}.music-notice.success{color:#16803c}
 </style>
 </head>
 <body>
@@ -71,6 +175,14 @@ body{background:linear-gradient(180deg,#75d4e6 0 20%,#e8fbf7 20%);overflow-x:hid
   <button class="btn" id="reset" type="button">↺ Làm mới</button>
   <a class="back" href="<?= htmlspecialchars($base) ?>hoclieu.php?tab=games">← Học liệu</a>
 </div></header>
+<?php if ($isDuckRaceAdmin): ?>
+<section class="music-settings"><details<?= $duckRaceMusicNotice ? ' open' : '' ?>><summary>⚙ Quản lý nhạc nền cuộc đua (quản trị viên)</summary>
+  <?php if ($duckRaceMusicNotice): ?><div class="music-notice <?= htmlspecialchars((string)$duckRaceMusicNotice['type']) ?>"><?= htmlspecialchars((string)$duckRaceMusicNotice['message']) ?></div><?php endif; ?>
+  <form method="post" enctype="multipart/form-data"><input type="hidden" name="csrf" value="<?= htmlspecialchars($duckRaceMusicCsrf) ?>"><input type="hidden" name="music_action" value="upload"><input type="file" name="music_file" accept=".mp3,.ogg,.wav,audio/mpeg,audio/ogg,audio/wav" required><button type="submit">Tải nhạc lên</button><small>MP3, OGG hoặc WAV · tối đa 20 MB</small></form>
+  <form method="post"><input type="hidden" name="csrf" value="<?= htmlspecialchars($duckRaceMusicCsrf) ?>"><input type="hidden" name="music_action" value="default"><select name="default_track"><option value="">Nhạc tổng hợp của trò chơi</option><?php foreach ($duckRaceMusic['tracks'] as $track): ?><option value="<?= htmlspecialchars($track['file']) ?>"<?= $duckRaceMusic['default'] === $track['file'] ? ' selected' : '' ?>><?= htmlspecialchars($track['name']) ?> (<?= number_format($track['size'] / 1048576, 1) ?> MB)</option><?php endforeach; ?></select><button type="submit">Chọn mặc định</button></form>
+  <?php foreach ($duckRaceMusic['tracks'] as $track): ?><form method="post"><input type="hidden" name="csrf" value="<?= htmlspecialchars($duckRaceMusicCsrf) ?>"><input type="hidden" name="music_action" value="delete"><input type="hidden" name="track" value="<?= htmlspecialchars($track['file']) ?>"><span><?= htmlspecialchars($track['name']) ?></span><button class="danger" type="submit" onclick="return confirm('Xóa bản nhạc này?')">Xóa</button></form><?php endforeach; ?>
+</details></section>
+<?php endif; ?>
 <main class="page">
  <div class="intro"><div><h1>Sẵn sàng về đích!</h1><p>Tất cả vịt cùng bơi trên một dòng sông — hãy chờ những màn bứt phá bất ngờ!</p></div><div class="timer"><span id="timer">00.00</span><small>THỜI GIAN</small></div></div>
  <section class="stadium"><div class="sky"><i class="cloud"></i><i class="cloud"></i></div><div class="stands"></div><div class="pond"><div class="finish"><b>VỀ ĐÍCH</b></div><div id="river" class="river"><div class="empty"><div><span>🦆</span>Hãy chọn một lớp để mở dòng sông.</div></div></div><i class="lily one"></i><i class="lily two"></i><div class="note" id="note">Tên mỗi học sinh hiển thị ngay trên lưng vịt</div></div></section>
@@ -79,8 +191,9 @@ body{background:linear-gradient(180deg,#75d4e6 0 20%,#e8fbf7 20%);overflow-x:hid
 <div class="overlay" id="overlay"><div class="winner-card"><div class="cup">🏆</div><div class="cheer">🙌 🎉 🦆 🎉 🙌</div><h2>NGƯỜI VỀ ĐÍCH ĐẦU TIÊN</h2><div class="winner-name" id="winnerName"></div><p>Khán giả đang reo hò chúc mừng!</p><button id="raceAgain" type="button">Đua lượt tiếp theo</button></div></div><div class="confetti" id="confetti"></div>
 <script>
 const studentsByClass = <?= json_encode($studentsByClass, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+const configuredMusicUrl = <?= json_encode($duckRaceMusicUrl, JSON_UNESCAPED_SLASHES) ?>;
 const $ = id => document.getElementById(id);
-let racers=[], winners=[], removeWinners=false, racing=false, startedAt=0, raf=0, audioContext=null, soundOn=false, lastQuack=0;
+let racers=[], winners=[], removeWinners=false, racing=false, startedAt=0, raf=0, audioContext=null, soundOn=false, lastQuack=0, backgroundMusic=null;
 const classSelect=$('classSelect'), river=$('river'), start=$('start'), timer=$('timer'), duration=$('duration');
 function shuffle(items){ for(let i=items.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[items[i],items[j]]=[items[j],items[i]]} return items }
 function savedWinners(){try{return JSON.parse(localStorage.getItem('cds_duck_winners_'+classSelect.value)||'[]')}catch(e){return[]}}
@@ -109,6 +222,8 @@ function tone(freq, seconds, type='sine', volume=.04){
 }
 function quack(){tone(480,.09,'square',.035);setTimeout(()=>tone(360,.12,'square',.025),65)}
 function music(){if(!soundOn||!racing)return;[523,659,784,659].forEach((n,i)=>setTimeout(()=>tone(n,.18,'triangle',.018),i*190));setTimeout(music,900)}
+function startBackgroundMusic(){if(!soundOn||!racing)return;if(!configuredMusicUrl){music();return}backgroundMusic ||= new Audio(configuredMusicUrl);backgroundMusic.loop=true;backgroundMusic.volume=.28;backgroundMusic.play().catch(()=>{});}
+function stopBackgroundMusic(){if(backgroundMusic){backgroundMusic.pause();backgroundMusic.currentTime=0;}}
 function splash(x,y){const ripple=document.createElement('i');ripple.className='ripple';ripple.style.left=x+'%';ripple.style.top=y+'%';river.appendChild(ripple);setTimeout(()=>ripple.remove(),900);if(Math.random()<.4){const drop=document.createElement('b');drop.className='splash';drop.textContent='💦';drop.style.left=x+'%';drop.style.top=y+'%';drop.style.setProperty('--sx',(Math.random()>.5?12:-12)+'px');river.appendChild(drop);setTimeout(()=>drop.remove(),700)}}
 function animate(now){
  const elapsed=now-startedAt, raceMs=+duration.value*1000, progress=Math.min(1,elapsed/raceMs);timer.textContent=(elapsed/1000).toFixed(2).padStart(5,'0');
@@ -118,7 +233,7 @@ function animate(now){
  if(progress<1){raf=requestAnimationFrame(animate);return} finishRace();
 }
 function finishRace(){
- racing=false; start.disabled=false;
+ racing=false; stopBackgroundMusic(); start.disabled=false;
  const duck=[...river.querySelectorAll('.duck')].sort((a,b)=>+b.dataset.rank- +a.dataset.rank)[0];
  duck.classList.add('winner');const name=duck.dataset.name;
  if(!winners.includes(name)){winners.push(name);saveWinners();showWinners()}
@@ -126,14 +241,14 @@ function finishRace(){
 }
 function begin(){
  if(racing||racers.length<2)return;racing=true;start.disabled=true;$('status').textContent='Xuất phát! Cổ vũ thật lớn nào!';
- shuffle([...river.querySelectorAll('.duck')]).forEach((duck,i)=>{duck.dataset.rank=i;duck.classList.remove('winner')});startedAt=performance.now();lastQuack=startedAt;quack();music();raf=requestAnimationFrame(animate);
+ shuffle([...river.querySelectorAll('.duck')]).forEach((duck,i)=>{duck.dataset.rank=i;duck.classList.remove('winner')});startedAt=performance.now();lastQuack=startedAt;quack();startBackgroundMusic();raf=requestAnimationFrame(animate);
 }
 function confetti(){const box=$('confetti'), colors=['#ffd452','#ff785a','#35c8df','#7ecf74','#b078d1'];box.innerHTML='';for(let i=0;i<90;i++){const p=document.createElement('i');p.className='piece';p.style.left=Math.random()*100+'vw';p.style.top=(-10-Math.random()*35)+'px';p.style.background=colors[i%colors.length];p.style.setProperty('--x',(-120+Math.random()*240)+'px');p.style.animationDelay=Math.random()*.35+'s';box.appendChild(p)}setTimeout(()=>box.innerHTML='',3000)}
 classSelect.addEventListener('change',loadClass);
 $('shuffle').onclick=()=>{if(!racing&&classSelect.value){render();$('status').textContent='Đã xáo lại các làn đua.'}};
 $('removeWinners').onclick=function(){if(racing)return;removeWinners=!removeWinners;this.classList.toggle('active',removeWinners);this.textContent='Loại người thắng: '+(removeWinners?'Bật':'Tắt');render()};
 $('reset').onclick=()=>{if(racing)return;winners=[];saveWinners();showWinners();timer.textContent='00.00';render();$('status').textContent='Đã khôi phục tất cả học sinh.'};
-$('sound').onclick=function(){soundOn=!soundOn;this.classList.toggle('active',soundOn);this.setAttribute('aria-pressed',String(soundOn));this.textContent='♪ Âm thanh: '+(soundOn?'Bật':'Tắt');if(soundOn){tone(523,.12,'triangle',.04);if(racing)music()}};
+$('sound').onclick=function(){soundOn=!soundOn;this.classList.toggle('active',soundOn);this.setAttribute('aria-pressed',String(soundOn));this.textContent='♪ Âm thanh: '+(soundOn?'Bật':'Tắt');if(soundOn){tone(523,.12,'triangle',.04);if(racing)startBackgroundMusic()}else stopBackgroundMusic()};
 start.onclick=begin;$('raceAgain').onclick=()=>{$('overlay').classList.remove('show');timer.textContent='00.00';render()};
 </script>
 </body>
