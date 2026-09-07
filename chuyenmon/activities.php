@@ -12,9 +12,9 @@ function cmact_text($value,int $max=5000):string{$value=trim((string)$value);ret
 function cmact_ids($value,array $allowed):array{$set=array_fill_keys(array_keys($allowed),true);return array_values(array_unique(array_filter(array_map('strval',is_array($value)?$value:[]),fn($id)=>isset($set[$id]))));}
 if(empty($_SESSION['cmact_csrf']))$_SESSION['cmact_csrf']=bin2hex(random_bytes(32));
 $csrf=(string)$_SESSION['cmact_csrf'];$data=cmact_data();
-$classes=(array)load_json(DATA_PATH.'/classes.json',[]);$classMap=[];foreach($classes as$c)$classMap[(string)($c['id']??'')]=(string)($c['name']??'');
-$teachers=[];foreach((array)load_json(DATA_PATH.'/teachers.json',[]) as$t){if(isset($t['active'])&&!$t['active'])continue;$id=(string)($t['id']??'');$name=cmact_text($t['name']??'',180);if($id!==''&&$name!=='')$teachers[$id]=$name;}natcasesort($teachers);
-$students=[];foreach((array)load_json(DATA_PATH.'/students.json',[]) as$s){if(isset($s['active'])&&!$s['active'])continue;$id=(string)($s['id']??'');$name=cmact_text($s['name']??$s['ho_ten']??'',180);$class=cmact_text($s['class_name']??$s['class']??'',60);if($class===''&&!empty($s['class_id']))$class=$classMap[(string)$s['class_id']]??'';if($id!==''&&$name!=='')$students[$id]=['name'=>$name,'class'=>$class];}uasort($students,fn($a,$b)=>strnatcasecmp($a['class'].'|'.$a['name'],$b['class'].'|'.$b['name']));
+$coreData=dirname(__DIR__).'/data';$classes=(array)load_json($coreData.'/classes.json',[]);$classMap=[];foreach($classes as$c)$classMap[(string)($c['id']??'')]=(string)($c['name']??'');
+$teachers=[];foreach((array)load_json($coreData.'/teachers.json',[]) as$t){if(isset($t['active'])&&!$t['active'])continue;$id=(string)($t['id']??'');$name=cmact_text($t['name']??'',180);if($id!==''&&$name!=='')$teachers[$id]=$name;}natcasesort($teachers);
+$students=[];foreach((array)load_json($coreData.'/students.json',[]) as$s){if(isset($s['active'])&&!$s['active'])continue;$id=(string)($s['id']??'');$name=cmact_text($s['name']??$s['ho_ten']??'',180);$class=cmact_text($s['class_name']??$s['class']??'',60);if($class===''&&!empty($s['class_id']))$class=$classMap[(string)$s['class_id']]??'';if($id!==''&&$name!=='')$students[$id]=['name'=>$name,'class'=>$class];}uasort($students,fn($a,$b)=>strnatcasecmp($a['class'].'|'.$a['name'],$b['class'].'|'.$b['name']));
 $tab=in_array((string)($_GET['tab']??'clubs'),['clubs','online'],true)?(string)$_GET['tab']:'clubs';
 $views=$tab==='clubs'?['list','files','settings']:['students','rules','form','settings'];$view=in_array((string)($_GET['view']??$views[0]),$views,true)?(string)$_GET['view']:$views[0];
 if($_SERVER['REQUEST_METHOD']==='POST'){
@@ -37,7 +37,7 @@ $page_title=$tab==='clubs'?'Các câu lạc bộ':'Học Online';
 require_once 'includes/header.php';
 ?>
 <style>
-.activity-shell{max-width:1280px;margin:auto}.activity-hero{background:linear-gradient(135deg,#174b75,#2d7db0);color:#fff;border-radius:22px;padding:24px;margin-bottom:18px}.activity-hero h1{font-weight:900;margin:0}.subtabs{display:flex;gap:8px;flex-wrap:wrap;background:#fff;padding:9px;border-radius:16px;box-shadow:0 5px 18px #183b5b14;margin-bottom:18px}.subtabs a{padding:10px 16px;border-radius:11px;text-decoration:none;color:#355672;font-weight:800}.subtabs a.active{background:#1f6190;color:#fff}.panel{background:#fff;border:1px solid #dbe7f0;border-radius:18px;padding:20px;margin-bottom:18px;box-shadow:0 7px 24px #1c527014}.club-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}.club-card{border:1px solid #d7e4ed;border-radius:16px;padding:17px;background:linear-gradient(145deg,#fff,#f6fbff)}.club-card h3{font-size:1.1rem;font-weight:900}.badge-soft{display:inline-block;padding:5px 9px;border-radius:999px;background:#e6f4ff;color:#176195;font-size:.78rem;font-weight:800}.member-list{columns:2;column-gap:24px}.member{break-inside:avoid;padding:7px 0;border-bottom:1px dashed #dbe5ec}.check-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px}.check-chip{border:1px solid #cbdbe6;border-radius:10px;padding:8px;text-align:center}.table-wrap{overflow:auto}.empty-state{padding:34px;text-align:center;color:#688096;background:#f7fafc;border-radius:14px}.content-box{white-space:pre-wrap;line-height:1.75}.form-select[multiple]{min-height:210px}@media(max-width:700px){.member-list{columns:1}.activity-hero{padding:18px}.panel{padding:14px}}
+.activity-shell{max-width:1280px;margin:auto}.activity-hero{background:linear-gradient(135deg,#174b75,#2d7db0);color:#fff;border-radius:22px;padding:24px;margin-bottom:18px}.activity-hero h1{font-weight:900;margin:0}.subtabs{display:flex;gap:8px;flex-wrap:wrap;background:#fff;padding:9px;border-radius:16px;box-shadow:0 5px 18px #183b5b14;margin-bottom:18px}.subtabs a{padding:10px 16px;border-radius:11px;text-decoration:none;color:#355672;font-weight:800}.subtabs a.active{background:#1f6190;color:#fff}.panel{background:#fff;border:1px solid #dbe7f0;border-radius:18px;padding:20px;margin-bottom:18px;box-shadow:0 7px 24px #1c527014}.club-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}.club-card{border:1px solid #d7e4ed;border-radius:16px;padding:17px;background:linear-gradient(145deg,#fff,#f6fbff)}.club-card h3{font-size:1.1rem;font-weight:900}.badge-soft{display:inline-block;padding:5px 9px;border-radius:999px;background:#e6f4ff;color:#176195;font-size:.78rem;font-weight:800}.member-list{columns:2;column-gap:24px}.member{break-inside:avoid;padding:7px 0;border-bottom:1px dashed #dbe5ec}.check-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px}.check-chip{border:1px solid #cbdbe6;border-radius:10px;padding:8px;text-align:center}.table-wrap{overflow:auto}.empty-state{padding:34px;text-align:center;color:#688096;background:#f7fafc;border-radius:14px}.content-box{white-space:pre-wrap;line-height:1.75}.form-select[multiple]{min-height:210px}.pick-list{border:1px solid #cbdbe6;border-radius:12px;max-height:260px;overflow:auto;padding:8px;background:#fff}.pick-item{display:flex;gap:9px;align-items:center;padding:8px 9px;border-radius:9px;cursor:pointer;margin:0}.pick-item:hover{background:#eef7fd}.pick-item input{width:18px;height:18px;flex:0 0 auto}.pick-empty{padding:14px;color:#718397;text-align:center}@media(max-width:700px){.member-list{columns:1}.activity-hero{padding:18px}.panel{padding:14px}}
 </style>
 <div class="activity-shell">
  <section class="activity-hero"><div class="small text-uppercase opacity-75 fw-bold">Kế hoạch – Thực hiện</div><h1><i class="bi <?= $tab==='clubs'?'bi-people-fill':'bi-laptop' ?>"></i> <?=e($page_title)?></h1><p class="mb-0 mt-2"><?= $tab==='clubs'?'Quản lý danh sách, thành viên và hồ sơ hoạt động của các câu lạc bộ.':'Quản lý học sinh, lịch học, quy định và mẫu đơn học online.' ?></p></section>
@@ -62,9 +62,48 @@ require_once 'includes/header.php';
  <?php endif;?>
 </div>
 <script>
-function filterSelect(inputId,selectId){const input=document.getElementById(inputId),select=document.getElementById(selectId);if(!input||!select)return;input.addEventListener('input',()=>{const q=input.value.toLocaleLowerCase('vi');[...select.options].forEach(o=>o.hidden=!o.text.toLocaleLowerCase('vi').includes(q))})}
-filterSelect('studentFilter','clubStudents');filterSelect('onlineFilter','onlineStudents');
-function resetClub(){document.getElementById('clubForm').reset();document.getElementById('clubId').value=''}
-function editClub(c){document.getElementById('clubId').value=c.id||'';document.getElementById('clubName').value=c.name||'';document.getElementById('clubCode').value=c.code||'';document.getElementById('clubDescription').value=c.description||'';const teachers=c.teacher_ids||[],students=c.student_ids||[];[...document.getElementById('clubTeachers').options].forEach(o=>o.selected=teachers.includes(o.value));[...document.getElementById('clubStudents').options].forEach(o=>o.selected=students.includes(o.value));window.scrollTo({top:0,behavior:'smooth'})}
+function cmactEnhanceSelect(select){
+ if(!select||select.dataset.enhanced==='1')return;
+ select.dataset.enhanced='1';select.removeAttribute('required');select.style.display='none';
+ const box=document.createElement('div');box.className='pick-list';box.dataset.for=select.id||'';
+ [...select.options].forEach(option=>{
+  const label=document.createElement('label');label.className='pick-item';
+  const check=document.createElement('input');check.type='checkbox';check.checked=option.selected;check.value=option.value;
+  check.addEventListener('change',()=>{option.selected=check.checked;select.dispatchEvent(new Event('change',{bubbles:true}))});
+  const text=document.createElement('span');text.textContent=option.text;
+  label.append(check,text);box.appendChild(label);
+ });
+ select.insertAdjacentElement('afterend',box);
+}
+function cmactSyncPicker(select){
+ const box=select&&select.nextElementSibling;if(!box||!box.classList.contains('pick-list'))return;
+ [...select.options].forEach((option,i)=>{const input=box.children[i]&&box.children[i].querySelector('input');if(input)input.checked=option.selected});
+}
+function filterPicker(inputId,selectId){
+ const input=document.getElementById(inputId),select=document.getElementById(selectId);if(!input||!select)return;
+ const apply=()=>{const q=input.value.toLocaleLowerCase('vi');const box=select.nextElementSibling;if(!box)return;[...select.options].forEach((o,i)=>{if(box.children[i])box.children[i].hidden=!o.text.toLocaleLowerCase('vi').includes(q)})};
+ input.addEventListener('input',apply);
+}
+function cmactInit(root=document){
+ root.querySelectorAll('select[multiple]').forEach(cmactEnhanceSelect);
+ filterPicker('studentFilter','clubStudents');filterPicker('onlineFilter','onlineStudents');
+ root.querySelectorAll('form').forEach(form=>{if(form.dataset.cmactChecked)return;form.dataset.cmactChecked='1';form.addEventListener('submit',e=>{const requiredMulti=form.querySelector('select[multiple][name="student_ids[]"]');if(requiredMulti&&![...requiredMulti.options].some(o=>o.selected)){e.preventDefault();alert('Hãy tích chọn ít nhất một học sinh.')}})});
+}
+async function cmactOpenTab(url,push=true){
+ const shell=document.querySelector('.activity-shell');if(!shell)return location.href=url;
+ shell.style.opacity='.55';
+ try{
+  const response=await fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest'}});
+  if(!response.ok)throw new Error('HTTP '+response.status);
+  const doc=new DOMParser().parseFromString(await response.text(),'text/html');
+  const next=doc.querySelector('.activity-shell');if(!next)throw new Error('Thiếu nội dung');
+  shell.replaceWith(next);cmactInit(next);if(push)history.pushState({cmact:true},'',url);
+ }catch(error){location.href=url}
+}
+document.addEventListener('click',event=>{const link=event.target.closest('.subtabs a');if(!link||event.ctrlKey||event.metaKey||event.shiftKey)return;event.preventDefault();cmactOpenTab(link.href)});
+window.addEventListener('popstate',()=>cmactOpenTab(location.href,false));
+function resetClub(){document.getElementById('clubForm').reset();document.getElementById('clubId').value='';document.querySelectorAll('#clubForm select[multiple]').forEach(cmactSyncPicker)}
+function editClub(c){document.getElementById('clubId').value=c.id||'';document.getElementById('clubName').value=c.name||'';document.getElementById('clubCode').value=c.code||'';document.getElementById('clubDescription').value=c.description||'';const teachers=c.teacher_ids||[],students=c.student_ids||[];const ts=document.getElementById('clubTeachers'),ss=document.getElementById('clubStudents');[...ts.options].forEach(o=>o.selected=teachers.includes(o.value));[...ss.options].forEach(o=>o.selected=students.includes(o.value));cmactSyncPicker(ts);cmactSyncPicker(ss);document.getElementById('clubForm').scrollIntoView({behavior:'smooth',block:'start'})}
+cmactInit();
 </script>
 <?php require_once 'includes/footer.php'; ?>
