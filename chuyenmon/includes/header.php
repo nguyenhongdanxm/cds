@@ -112,11 +112,7 @@ require_once __DIR__ . '/cds_module_switcher.php';
 
 <?php if ($logged): ?>
 
-<li class="nav-item">
-  <a class="nav-link <?= $current==='index'?'active':'' ?><?= $cmDisabled('cm.dashboard') ?>" href="<?= BASE_URL ?>index.php" <?= !$cmMenuCan('cm.dashboard')?'aria-disabled="true" tabindex="-1"':'' ?>>
-    <i class="bi bi-house-door"></i> Trang chủ
-  </a>
-</li>
+
 
 <li class="nav-item">
   <a class="nav-link <?= $current==='sodaubai'?'active':'' ?><?= $cmDisabled('cm.dashboard') ?>" href="<?= BASE_URL ?>sodaubai.php">
