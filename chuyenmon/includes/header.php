@@ -154,6 +154,8 @@ require_once __DIR__ . '/cds_module_switcher.php';
     <li><a class="dropdown-item <?= ($current==='kehoach' && ($tab_q===''||$tab_q==='vanban'))?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=vanban">Kế hoạch giáo dục</a></li>
     <li><a class="dropdown-item <?= ($current==='kehoach' && $tab_q==='thongbao')?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=thongbao">Thông báo</a></li>
     <li><a class="dropdown-item <?= ($current==='kehoach' && $tab_q==='chitieu')?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=chitieu">Chỉ tiêu</a></li>
+    <li><a class="dropdown-item <?= ($current==='activities' && $tab_q==='clubs')?'active':'' ?>" href="<?= BASE_URL ?>activities.php?tab=clubs&view=list">Các CLB</a></li>
+    <li><a class="dropdown-item <?= ($current==='activities' && $tab_q==='online')?'active':'' ?>" href="<?= BASE_URL ?>activities.php?tab=online&view=students">Học Online</a></li>
   </ul>
 </li>
 
