@@ -21,9 +21,9 @@ function filterPicker(inputId,selectId){
  input.addEventListener('input',apply);
 }
 let cmactSlotIndex=0;
-function cmactAddScheduleSlot(){
+function cmactAddScheduleSlot(preset={}){
  const host=document.getElementById('scheduleSlots');if(!host)return;const i=cmactSlotIndex++;
- const row=document.createElement('div');row.className='schedule-slot';row.innerHTML='<div class="d-flex justify-content-between align-items-center mb-2"><strong>Khung '+(i+1)+'</strong><button type="button" class="btn btn-sm btn-outline-danger remove-schedule-slot"><i class="bi bi-trash"></i></button></div><div class="schedule-slot-days mb-2">'+['2','3','4','5','6','7','CN'].map(d=>'<label><input type="checkbox" name="slots['+i+'][days][]" value="'+d+'"> '+(d==='CN'?'Chủ nhật':'Thứ '+d)+'</label>').join('')+'</div><div class="row g-2"><div class="col-md-4"><select class="form-select" name="slots['+i+'][session]"><option>Sáng</option><option>Chiều</option><option>Tối</option></select></div><div class="col-md-4"><input type="time" class="form-control" name="slots['+i+'][start_time]" value="19:30" required></div><div class="col-md-4"><input type="time" class="form-control" name="slots['+i+'][end_time]" value="21:00" required></div></div>';
+ const row=document.createElement('div');row.className='schedule-slot';const selectedDays=preset.days||[];row.innerHTML='<div class="d-flex justify-content-between align-items-center mb-2"><strong>Khung '+(i+1)+'</strong><button type="button" class="btn btn-sm btn-outline-danger remove-schedule-slot"><i class="bi bi-trash"></i></button></div><div class="schedule-slot-days mb-2">'+['2','3','4','5','6','7','CN'].map(d=>'<label><input type="checkbox" name="slots['+i+'][days][]" value="'+d+'" '+(selectedDays.includes(d)?'checked':'')+'> '+(d==='CN'?'Chủ nhật':'Thứ '+d)+'</label>').join('')+'</div><div class="row g-2"><div class="col-md-4"><select class="form-select" name="slots['+i+'][session]">'+['Sáng','Chiều','Tối'].map(s=>'<option '+(s===(preset.session||'')?'selected':'')+'>'+s+'</option>').join('')+'</select></div><div class="col-md-4"><input type="time" class="form-control" name="slots['+i+'][start_time]" value="'+(preset.start_time||'19:30')+'" required></div><div class="col-md-4"><input type="time" class="form-control" name="slots['+i+'][end_time]" value="'+(preset.end_time||'21:00')+'" required></div></div>';
  host.appendChild(row);
 }
 function cmactInit(root=document){
@@ -48,3 +48,11 @@ function editClub(c){document.getElementById('clubId').value=c.id||'';document.g
 cmactInit();
 
 document.addEventListener('click',event=>{if(event.target.closest('#addScheduleSlot'))cmactAddScheduleSlot();const remove=event.target.closest('.remove-schedule-slot');if(remove){const rows=document.querySelectorAll('.schedule-slot');if(rows.length<=1){alert('Cần giữ ít nhất một khung lịch.');return;}remove.closest('.schedule-slot').remove();}});
+
+function cmactResetOnlineEdit(){
+ const form=document.getElementById('onlineEnrollmentForm');if(!form)return;form.reset();document.getElementById('onlineEnrollmentId').value='';document.getElementById('scheduleSlots').innerHTML='';cmactSlotIndex=0;cmactAddScheduleSlot();const select=document.getElementById('onlineStudents');[...select.options].forEach(o=>o.selected=false);cmactSyncPicker(select);document.getElementById('cancelOnlineEdit').classList.add('d-none');document.querySelector('#saveOnlineEnrollment span').textContent='Lưu đăng ký';
+}
+document.addEventListener('click',event=>{
+ const edit=event.target.closest('.edit-online-enrollment');if(edit){const record=JSON.parse(decodeURIComponent(edit.dataset.record));const form=document.getElementById('onlineEnrollmentForm');if(!form)return;document.getElementById('onlineEnrollmentId').value=record.id||'';const select=document.getElementById('onlineStudents');[...select.options].forEach(o=>o.selected=o.value===(record.student_id||''));cmactSyncPicker(select);form.elements.program_start.value=record.program_start||'';form.elements.program_end.value=record.program_end||'';form.elements.program.value=record.program||'';form.elements.note.value=record.note||'';const host=document.getElementById('scheduleSlots');host.innerHTML='';cmactSlotIndex=0;let slots=record.slots||[];if(!slots.length)slots=[{days:record.days||[],session:record.session||'',start_time:record.start_time||'',end_time:record.end_time||''}];slots.forEach(cmactAddScheduleSlot);document.getElementById('cancelOnlineEdit').classList.remove('d-none');document.querySelector('#saveOnlineEnrollment span').textContent='Cập nhật đăng ký';form.scrollIntoView({behavior:'smooth',block:'start'});}
+ if(event.target.closest('#cancelOnlineEdit'))cmactResetOnlineEdit();
+});
