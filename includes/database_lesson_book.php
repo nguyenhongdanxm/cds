@@ -39,6 +39,11 @@ function cds_lb_subject_key($subject){
         'vat-ly'=>'vat-li','khtn-ly'=>'vat-li','khtn-vat-li'=>'vat-li',
         'hoa-hoc'=>'hoa','khtn-hoa-hoc'=>'hoa','khtn-hoa'=>'hoa',
         'sinh-hoc'=>'sinh','khtn-sinh-hoc'=>'sinh','khtn-sinh'=>'sinh',
+        'gdqp'=>'giao-duc-quoc-phong-va-an-ninh',
+        'gdqp-an'=>'giao-duc-quoc-phong-va-an-ninh',
+        'giao-duc-qp-an'=>'giao-duc-quoc-phong-va-an-ninh',
+        'quoc-phong-an-ninh'=>'giao-duc-quoc-phong-va-an-ninh',
+        'giao-duc-quoc-phong-an-ninh'=>'giao-duc-quoc-phong-va-an-ninh',
     ];return$aliases[$key]??$key;
 }
 function cds_lb_school_year_key(array $row){
