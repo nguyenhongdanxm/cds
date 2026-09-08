@@ -20,7 +20,7 @@ $lab = $labels[$bulk_entity] ?? 'mục';
     <i class="bi bi-download"></i> Xuất đã chọn
   </button><?php endif; ?>
   <?php if ($canBulkDelete): ?><button type="button" class="btn btn-sm btn-outline-danger" onclick="csdlDeleteSelected('<?= e($bulk_entity) ?>')">
-    <i class="bi bi-trash"></i> Xóa đã chọn
+    <i class="bi <?= $bulk_entity==='students'?'bi-person-dash':'bi-trash' ?>"></i> <?= $bulk_entity==='students'?'Cho nghỉ đã chọn':'Xóa đã chọn' ?>
   </button><?php endif; ?>
 </div>
 <form method="post" id="bulkForm-<?= e($bulk_entity) ?>" class="d-none">
