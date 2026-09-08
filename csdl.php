@@ -24,7 +24,7 @@ require_perm($tabPermissions[$tab]);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $editActions = ['teacher_save'=>'csdl.teachers','class_save'=>'csdl.classes','student_save'=>'csdl.students'];
-    $deleteActions = ['teacher_delete'=>'csdl.teachers','class_delete'=>'csdl.classes','student_delete'=>'csdl.students'];
+    $deleteActions = ['teacher_delete'=>'csdl.teachers','class_delete'=>'csdl.classes','student_delete'=>'csdl.students','student_deactivate'=>'csdl.students'];
     $yearActions = ['year_set_current','year_save','year_week_save'];
     if (isset($editActions[$action])) require_perm_level($editActions[$action], 'edit');
     if (isset($deleteActions[$action])) require_perm_level($deleteActions[$action], 'delete');
@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ' . BASE_URL . 'csdl.php?tab=students'); exit;
         }
     }
-    if ($action === 'student_delete') {
+    if ($action === 'student_delete' || $action === 'student_deactivate') {
         $targetStudent = csdl_student_find(trim($_POST['id'] ?? ''));
         $targetClass = $targetStudent ? csdl_class_find($targetStudent['class_id'] ?? '') : null;
         if (!$targetClass || !can_class($targetClass['name'] ?? '')) {
@@ -169,14 +169,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'parent_phone' => trim($_POST['parent_phone'] ?? ''),
             'note' => trim($_POST['note'] ?? ''),
             'active' => !empty($_POST['active']),
+            'departure_date' => !empty($_POST['active']) ? '' : trim($_POST['departure_date'] ?? ''),
+            'departure_type' => !empty($_POST['active']) ? '' : trim($_POST['departure_type'] ?? ''),
+            'departure_reason' => !empty($_POST['active']) ? '' : trim($_POST['departure_reason'] ?? ''),
         ]);
         flash('Đã lưu học sinh.');
         header('Location: ' . BASE_URL . 'csdl.php?tab=students');
         exit;
     }
+    if ($action === 'student_deactivate') {
+        $id = trim($_POST['id'] ?? '');
+        $date = trim($_POST['departure_date'] ?? '');
+        $type = trim($_POST['departure_type'] ?? 'Nghỉ học');
+        $reason = trim($_POST['departure_reason'] ?? '');
+        if (csdl_student_deactivate($id, $date, $type, $reason)) {
+            flash('Đã ghi nhận ' . $type . ' từ ngày ' . csdl_io_fmt_date($date) . '. Hồ sơ và dữ liệu lịch sử vẫn được giữ nguyên.', 'success');
+        } else {
+            flash('Không tìm thấy học sinh cần cập nhật.', 'danger');
+        }
+        header('Location: ' . BASE_URL . 'csdl.php?tab=students');
+        exit;
+    }
     if ($action === 'student_delete') {
         csdl_student_delete(trim($_POST['id'] ?? ''));
-        flash('Đã xóa học sinh.', 'warning');
+        flash('Đã chuyển thao tác xóa thành nghỉ học từ hôm nay; dữ liệu lịch sử vẫn được giữ.', 'warning');
         header('Location: ' . BASE_URL . 'csdl.php?tab=students');
         exit;
     }
@@ -560,14 +576,10 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
             <td class="small"><?= e($s['parent_name'] ?? '') ?></td>
             <td><?= !empty($s['boarder']) ? '<span class="badge bg-info">Có</span>' : '' ?></td>
             <td class="small"><?= e($s['room_ktx'] ?? '') ?></td>
-            <td><?= !empty($s['active']) ? '<span class="badge bg-success">Học</span>' : '<span class="badge bg-secondary">Nghỉ</span>' ?></td>
+            <td><?php if(!empty($s['active'])):?><span class="badge bg-success">Học</span><?php if(!empty($s['departure_date'])):?><small class="d-block text-warning-emphasis">đến <?=e(csdl_io_fmt_date($s['departure_date']))?></small><?php endif;?><?php else:?><span class="badge bg-secondary"><?=e($s['departure_type']??'Nghỉ học')?></span><?php if(!empty($s['departure_date'])):?><small class="d-block text-muted">từ <?=e(csdl_io_fmt_date($s['departure_date']))?></small><?php endif;?><?php endif;?></td>
             <td class="text-nowrap">
               <?php if ($canCsdlEdit): ?><a class="btn btn-sm btn-outline-primary" href="?tab=students&edit=<?= urlencode($s['id']) ?>"><i class="bi bi-pencil"></i></a><?php endif; ?>
-              <?php if ($canCsdlDelete): ?><form method="post" class="d-inline" onsubmit="return confirm('Xóa?')">
-                <input type="hidden" name="action" value="student_delete">
-                <input type="hidden" name="id" value="<?= e($s['id']) ?>">
-                <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
-              </form><?php endif; ?>
+              <?php if ($canCsdlDelete && !empty($s['active'])): ?><button type="button" class="btn btn-sm btn-outline-warning student-departure-btn" data-bs-toggle="modal" data-bs-target="#modalStudentDeparture" data-id="<?=e($s['id'])?>" data-name="<?=e($s['name']??'')?>"><i class="bi bi-person-dash"></i></button><?php endif; ?>
             </td>
           </tr>
         <?php endforeach; endif; ?>
@@ -575,7 +587,19 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
       </table>
     </div>
   </div></div>
-  <?php if ($canCsdlEdit) include __DIR__ . '/includes/csdl_modal_student.php'; ?>
+  <?php if ($canCsdlDelete): ?>
+  <div class="modal fade" id="modalStudentDeparture" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><form method="post">
+    <input type="hidden" name="action" value="student_deactivate"><input type="hidden" name="id" id="departureStudentId">
+    <div class="modal-header"><h5 class="modal-title">Nghỉ học / chuyển trường</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><div class="alert alert-info py-2">Hồ sơ học sinh và toàn bộ dữ liệu điểm danh, báo ăn, y tế trước đây vẫn được giữ.</div>
+      <div class="mb-3"><label class="form-label">Học sinh</label><input id="departureStudentName" class="form-control" readonly></div>
+      <div class="row g-3"><div class="col-sm-6"><label class="form-label">Ngày hiệu lực *</label><input type="date" name="departure_date" class="form-control" value="<?=date('Y-m-d')?>" required></div>
+      <div class="col-sm-6"><label class="form-label">Hình thức *</label><select name="departure_type" class="form-select" required><option>Chuyển trường</option><option>Nghỉ học</option><option>Thôi học</option><option>Hoàn thành chương trình</option><option>Khác</option></select></div></div>
+      <div class="mt-3"><label class="form-label">Lý do/Ghi chú</label><textarea name="departure_reason" class="form-control" rows="3"></textarea></div>
+    </div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button><button class="btn btn-warning" type="submit"><i class="bi bi-person-dash"></i> Xác nhận</button></div>
+  </form></div></div></div>
+  <?php endif; ?>
+    <?php if ($canCsdlEdit) include __DIR__ . '/includes/csdl_modal_student.php'; ?>
 
 <?php elseif ($tab === 'years'): ?>
   <?php include __DIR__ . '/includes/csdl_tab_years.php'; ?>
@@ -595,6 +619,13 @@ function resetTeacherForm(){
   var t=document.getElementById('modalTeacherTitle'); if(t) t.textContent='Thêm giáo viên';
   var a=document.getElementById('tact'); if(a) a.checked=true;
 }
+document.querySelectorAll('.student-departure-btn').forEach(function(button){
+  button.addEventListener('click',function(){
+    var id=document.getElementById('departureStudentId'),name=document.getElementById('departureStudentName');
+    if(id)id.value=button.dataset.id||'';
+    if(name)name.value=button.dataset.name||'';
+  });
+});
 function resetStudentForm(){
   var f=document.querySelector('#modalStudent form');
   if(!f)return;
