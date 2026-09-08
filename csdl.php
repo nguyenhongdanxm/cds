@@ -150,8 +150,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'student_save') {
+        $studentId = trim($_POST['id'] ?? '');
+        $currentStudent = $studentId !== '' ? csdl_student_find($studentId) : null;
+        $studentActive = !empty($_POST['active']);
         csdl_student_save([
-            'id' => trim($_POST['id'] ?? ''),
+            'id' => $studentId,
             'name' => trim($_POST['name'] ?? ''),
             'code' => trim($_POST['code'] ?? ''),
             'cccd' => trim($_POST['cccd'] ?? ''),
@@ -168,10 +171,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'parent_name' => trim($_POST['parent_name'] ?? ''),
             'parent_phone' => trim($_POST['parent_phone'] ?? ''),
             'note' => trim($_POST['note'] ?? ''),
-            'active' => !empty($_POST['active']),
-            'departure_date' => !empty($_POST['active']) ? '' : trim($_POST['departure_date'] ?? ''),
-            'departure_type' => !empty($_POST['active']) ? '' : trim($_POST['departure_type'] ?? ''),
-            'departure_reason' => !empty($_POST['active']) ? '' : trim($_POST['departure_reason'] ?? ''),
+            'active' => $studentActive,
+            'departure_date' => $studentActive ? '' : (string)($currentStudent['departure_date'] ?? ''),
+            'departure_type' => $studentActive ? '' : (string)($currentStudent['departure_type'] ?? ''),
+            'departure_reason' => $studentActive ? '' : (string)($currentStudent['departure_reason'] ?? ''),
         ]);
         flash('Đã lưu học sinh.');
         header('Location: ' . BASE_URL . 'csdl.php?tab=students');
