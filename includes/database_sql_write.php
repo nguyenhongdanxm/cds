@@ -373,13 +373,27 @@ function cds_core_sql_primary_year_save($entityId, array $originalYears, array $
     return true;
 }
 
+function cds_core_sql_normalize_compare_row($table, array $row)
+{
+    // Danh sách đọc có thể đã bù số 0/chuẩn hóa ngày để hiển thị.
+    // Chuẩn hóa cả raw_json MySQL trước khi so sánh để không báo nhầm là
+    // một thay đổi đồng thời; ID và nội dung nghiệp vụ vẫn được so khớp đầy đủ.
+    if ($table === 'cds_students' && function_exists('csdl_student_normalize_identifiers')) {
+        return csdl_student_normalize_identifiers($row);
+    }
+    if ($table === 'cds_teachers' && function_exists('csdl_teacher_normalize_fields')) {
+        return csdl_teacher_normalize_fields($row);
+    }
+    return $row;
+}
+
 function cds_core_sql_assert_unchanged_rows(PDO $pdo, $table, $entityId, array $rows)
 {
     $expected = array();
     foreach ($rows as $row) {
         $id = (string)($row['id'] ?? '');
         if ($id !== '' && $id !== (string)$entityId) {
-            $expected[$id] = cds_read_verify_hash($row);
+            $expected[$id] = cds_read_verify_hash(cds_core_sql_normalize_compare_row($table, $row));
         }
     }
     $actual = array();
@@ -389,7 +403,7 @@ function cds_core_sql_assert_unchanged_rows(PDO $pdo, $table, $entityId, array $
         if ($id === (string)$entityId) continue;
         $row = json_decode((string)($dbRow['raw_json'] ?? ''), true);
         if (!is_array($row)) throw new RuntimeException('MySQL có raw_json không hợp lệ.');
-        $actual[$id] = cds_read_verify_hash($row);
+        $actual[$id] = cds_read_verify_hash(cds_core_sql_normalize_compare_row($table, $row));
     }
     ksort($expected);
     ksort($actual);

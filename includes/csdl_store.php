@@ -448,10 +448,10 @@ function csdl_teacher_normalize_date($value): string {
 }
 
 function csdl_teacher_normalize_fields(array $teacher): array {
-    $teacher['cccd'] = csdl_student_fixed_digits($teacher['cccd'] ?? '', 12);
-    $teacher['phone'] = csdl_student_fixed_digits($teacher['phone'] ?? '', 10);
+    if (array_key_exists('cccd', $teacher)) $teacher['cccd'] = csdl_student_fixed_digits($teacher['cccd'], 12);
+    if (array_key_exists('phone', $teacher)) $teacher['phone'] = csdl_student_fixed_digits($teacher['phone'], 10);
     foreach (['dob', 'join_date', 'he_so_from'] as $field) {
-        $teacher[$field] = csdl_teacher_normalize_date($teacher[$field] ?? '');
+        if (array_key_exists($field, $teacher)) $teacher[$field] = csdl_teacher_normalize_date($teacher[$field]);
     }
     return $teacher;
 }
@@ -573,10 +573,10 @@ function csdl_student_fixed_digits($value, $length): string {
 }
 
 function csdl_student_normalize_identifiers(array $student): array {
-    $student['code'] = csdl_student_fixed_digits($student['code'] ?? '', 10);
-    $student['cccd'] = csdl_student_fixed_digits($student['cccd'] ?? '', 12);
-    $student['phone'] = csdl_student_fixed_digits($student['phone'] ?? '', 10);
-    $student['parent_phone'] = csdl_student_fixed_digits($student['parent_phone'] ?? '', 10);
+    if (array_key_exists('code', $student)) $student['code'] = csdl_student_fixed_digits($student['code'], 10);
+    if (array_key_exists('cccd', $student)) $student['cccd'] = csdl_student_fixed_digits($student['cccd'], 12);
+    if (array_key_exists('phone', $student)) $student['phone'] = csdl_student_fixed_digits($student['phone'], 10);
+    if (array_key_exists('parent_phone', $student)) $student['parent_phone'] = csdl_student_fixed_digits($student['parent_phone'], 10);
     return $student;
 }
 
