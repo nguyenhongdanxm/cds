@@ -555,7 +555,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
             <td class="small"><?= e($s['cccd'] ?? '') ?></td>
             <td><?= e(class_name_by_id($s['class_id'] ?? '', $classes)) ?></td>
             <td><?= e($s['gender'] ?? '') ?></td>
-            <td class="small"><?= e($s['dob'] ?? '') ?></td>
+            <td class="small"><?= e(csdl_io_fmt_date(csdl_io_parse_date($s['dob'] ?? ''))) ?></td>
             <td class="small"><?= e($s['phone'] ?? '') ?></td>
             <td class="small"><?= e($s['parent_name'] ?? '') ?></td>
             <td><?= !empty($s['boarder']) ? '<span class="badge bg-info">Có</span>' : '' ?></td>
