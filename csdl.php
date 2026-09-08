@@ -374,11 +374,14 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
     $bulk_entity = 'teachers';
     include __DIR__ . '/includes/csdl_bulk_bar.php';
   ?>
-  <div class="d-flex justify-content-between align-items-center mb-2">
+  <div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
     <h5 class="mb-0">Bảng giáo viên (<?= count($teachers) ?>)</h5>
-    <?php if ($canCsdlEdit): ?><button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTeacher" onclick="resetTeacherForm()">
-      <i class="bi bi-plus-lg"></i> Thêm giáo viên
-    </button><?php endif; ?>
+    <div class="d-flex gap-2">
+      <a class="btn btn-success btn-sm" href="<?= BASE_URL ?>csdl_staff_cards.php"><i class="bi bi-person-badge"></i> Tạo & in thẻ CBGV</a>
+      <?php if ($canCsdlEdit): ?><button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTeacher" onclick="resetTeacherForm()">
+        <i class="bi bi-plus-lg"></i> Thêm giáo viên
+      </button><?php endif; ?>
+    </div>
   </div>
   <div class="card card-soft"><div class="card-body p-0">
     <div class="table-responsive">
