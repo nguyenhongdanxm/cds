@@ -515,6 +515,30 @@ function csdl_students_recover_rows() {
  * Học sinh có hiệu lực trong danh sách nghiệp vụ tại một ngày cụ thể.
  * Hồ sơ vẫn được giữ vĩnh viễn để tra cứu tên trong các bản ghi lịch sử.
  */
+/**
+ * Chuẩn hóa các trường định danh hiển thị mà không thay đổi ID nội bộ.
+ * Chỉ bù số 0 cho giá trị hoàn toàn là số và không cắt giá trị dài hơn.
+ */
+function csdl_student_fixed_digits($value, $length): string {
+    $value = trim((string)$value);
+    if (preg_match('/^="(.*)"$/s', $value, $m)) $value = str_replace('""', '"', $m[1]);
+    if (isset($value[0]) && $value[0] === "'") $value = substr($value, 1);
+    if (preg_match('/^\d+\.0+$/', $value)) $value = preg_replace('/\.0+$/', '', $value);
+    $value = preg_replace('/\s+/', '', $value);
+    if ($value !== '' && preg_match('/^\d+$/', $value) && strlen($value) < (int)$length) {
+        return str_pad($value, (int)$length, '0', STR_PAD_LEFT);
+    }
+    return $value;
+}
+
+function csdl_student_normalize_identifiers(array $student): array {
+    $student['code'] = csdl_student_fixed_digits($student['code'] ?? '', 10);
+    $student['cccd'] = csdl_student_fixed_digits($student['cccd'] ?? '', 12);
+    $student['phone'] = csdl_student_fixed_digits($student['phone'] ?? '', 10);
+    $student['parent_phone'] = csdl_student_fixed_digits($student['parent_phone'] ?? '', 10);
+    return $student;
+}
+
 function csdl_student_is_active_on(array $student, $date = null): bool {
     $date = trim((string)($date ?? date('Y-m-d')));
     $departureDate = trim((string)($student['departure_date'] ?? ''));
@@ -525,6 +549,7 @@ function csdl_student_is_active_on(array $student, $date = null): bool {
 function csdl_students_apply_effective_status(array $rows): array {
     foreach ($rows as &$student) {
         if (!is_array($student)) continue;
+        $student = csdl_student_normalize_identifiers($student);
         $student['active'] = csdl_student_is_active_on($student);
     }
     unset($student);
@@ -572,6 +597,7 @@ function csdl_student_find($id) {
 }
 
 function csdl_student_save($data) {
+    $data = csdl_student_normalize_identifiers((array)$data);
     $rows = csdl_students_all();
     $id = $data['id'] ?? '';
     $found = false;
