@@ -1,4 +1,11 @@
-<?php /** Modal HS — $editing, $classes */ ?>
+<?php
+/** Modal HS — $editing, $classes */
+$editingDob = '';
+if (!empty($editing['dob'])) {
+  $parsedDob = csdl_io_parse_date($editing['dob']);
+  if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $parsedDob)) $editingDob = $parsedDob;
+}
+?>
 <div class="modal fade" id="modalStudent" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
@@ -31,7 +38,7 @@
                 <option value="Nữ" <?= (($editing['gender'] ?? '')==='Nữ')?'selected':'' ?>>Nữ</option>
               </select></div>
             <div class="col-md-3"><label class="form-label small">Ngày sinh</label>
-              <input type="date" name="dob" class="form-control" value="<?= e($editing['dob'] ?? '') ?>"></div>
+              <input type="date" name="dob" class="form-control" value="<?= e($editingDob) ?>"></div>
             <div class="col-md-3"><label class="form-label small">Dân tộc</label>
               <input type="text" name="ethnicity" class="form-control" value="<?= e($editing['ethnicity'] ?? '') ?>"></div>
             <div class="col-md-4"><label class="form-label small">SĐT HS</label>
