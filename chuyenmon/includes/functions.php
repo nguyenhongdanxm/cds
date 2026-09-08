@@ -706,7 +706,7 @@ function require_login() {
         $educationPlanSelfService = cds_current_page_feature() === 'cm.kehoach'
             && in_array($action, ['save_plan', 'delete_plan'], true);
         $lessonBookScript = basename($_SERVER['PHP_SELF'] ?? '');
-        $lessonBookSelfService = ($lessonBookScript === 'sodaubai.php' && in_array($action, ['save_record','sign_record','upload_signature'], true))
+        $lessonBookSelfService = ($lessonBookScript === 'sodaubai.php' && in_array($action, ['save_record','save_and_sign','sign_record','upload_signature','save_weekly_review'], true))
             || ($lessonBookScript === 'sodaubai_export.php' && $action === 'export_book')
             || ($lessonBookScript === 'sodaubai_ppct_import_v2.php' && $action === 'import_curriculum');
         $requiredLevel = ($observationSelfService || $fileCheckSelfService || $educationPlanSelfService || $lessonBookSelfService)
