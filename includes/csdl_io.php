@@ -14,13 +14,34 @@ require_once __DIR__ . '/csdl_sync.php';
 define('CSDL_CSV_SEP', ';');
 
 function csdl_io_parse_date($s) {
-    $s = trim((string)$s);
+    $s = function_exists('csdl_io_plain_text') ? csdl_io_plain_text($s) : trim((string)$s);
     if ($s === '') return '';
-    if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $s, $m)) {
-        return sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]);
+
+    // Giá trị chuẩn từ input type=date hoặc MySQL.
+    if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T].*)?$/', $s, $m)) {
+        $y=(int)$m[1];$mo=(int)$m[2];$d=(int)$m[3];
+        return checkdate($mo,$d,$y) ? sprintf('%04d-%02d-%02d',$y,$mo,$d) : '';
     }
-    if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $s)) return $s;
-    return $s;
+
+    // CSV Việt Nam: ngày/tháng/năm, chấp nhận cả năm 2 chữ số.
+    if (preg_match('/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2}|\d{4})$/', $s, $m)) {
+        $d=(int)$m[1];$mo=(int)$m[2];$yearText=(string)$m[3];$y=(int)$yearText;
+        if (strlen($yearText) === 2) {
+            $currentTwoDigit=(int)date('y');
+            $y = $y <= $currentTwoDigit ? 2000+$y : 1900+$y;
+        }
+        return checkdate($mo,$d,$y) ? sprintf('%04d-%02d-%02d',$y,$mo,$d) : '';
+    }
+
+    // Số sê-ri ngày của Excel (hệ 1900).
+    if (preg_match('/^\d+(?:\.\d+)?$/', $s)) {
+        $serial=(int)floor((float)$s);
+        if ($serial >= 1 && $serial <= 100000) {
+            $ts=strtotime('1899-12-30 +' . $serial . ' days');
+            if ($ts !== false) return date('Y-m-d',$ts);
+        }
+    }
+    return '';
 }
 
 function csdl_io_fmt_date($s) {
