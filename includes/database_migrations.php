@@ -374,6 +374,7 @@ function cds_db_migrations()
                     KEY idx_cds_lb_weekly_review_actor (updated_by, updated_at)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
             ),
+        ),
 
     );
 }
