@@ -426,7 +426,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
             <td><strong><?= e($t['name'] ?? '') ?></strong></td>
             <td class="small"><?= e($t['cccd'] ?? '') ?></td>
             <td><?= e($t['gender'] ?? '') ?></td>
-            <td class="small"><?= e($t['dob'] ?? '') ?></td>
+            <td class="small"><?= e(csdl_io_fmt_date(csdl_io_parse_date($t['dob'] ?? ''))) ?></td>
             <td class="small"><?= e($t['phone'] ?? '') ?></td>
             <td class="small"><?= e($t['specialty'] ?? '') ?></td>
             <td class="small"><?= e($to) ?></td>
