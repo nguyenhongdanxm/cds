@@ -96,3 +96,41 @@ function cds_lb_mutate_json($operation,$slotId,array $row=[]){
         return$next;},[]);
     if(!$ok)return['ok'=>false,'row'=>$result,'message'=>$error];$shadow=$operation==='delete'?cds_lb_shadow_delete($slotId):cds_lb_shadow_upsert((array)$result);if(!$shadow){$GLOBALS['cds_force_json_lb_read']=true;unset($GLOBALS['cds_lb_read_status']);}return['ok'=>true,'shadow_ok'=>$shadow,'row'=>$result];
 }
+
+
+/** Nhận xét tuần: MySQL là nguồn chính; JSON tiếp tục được duy trì làm bản sao dự phòng. */
+function cds_lb_weekly_review_table_ready(){
+    if(array_key_exists('cds_lb_weekly_review_table_ready',$GLOBALS))return(bool)$GLOBALS['cds_lb_weekly_review_table_ready'];
+    try{$s=cds_db()->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='cds_lesson_book_weekly_reviews'");return$GLOBALS['cds_lb_weekly_review_table_ready']=((int)$s->fetchColumn()===1);}
+    catch(Throwable$e){error_log('[CDS weekly review table] '.$e->getMessage());return$GLOBALS['cds_lb_weekly_review_table_ready']=false;}
+}
+function cds_lb_weekly_review_school_year(array $row){
+    $key=trim((string)($row['school_year_key']??''));if($key!=='')return$key;
+    if(function_exists('cds_school_year_resolve')){$year=cds_school_year_resolve();if(is_array($year))return(string)($year['id']??$year['label']??'unknown');}
+    return'unknown';
+}
+function cds_lb_weekly_review_enrich(array $row){
+    $row['school_year_key']=cds_lb_weekly_review_school_year($row);$row['week_key']=trim((string)($row['week_key']??''));$row['class']=trim((string)($row['class']??''));
+    $row['class_key']=cds_lb_normalize($row['class']);$row['type']=in_array((string)($row['type']??''),['homeroom','leadership'],true)?(string)$row['type']:'homeroom';
+    $row['key']=(string)($row['key']??($row['week_key'].'|'.$row['class_key'].'|'.$row['type']));
+    $row['review_key']=hash('sha256',$row['school_year_key'].'|'.$row['week_key'].'|'.$row['class_key'].'|'.$row['type']);
+    return$row;
+}
+function cds_lb_weekly_review_write(PDO $pdo,array $row,$ignoreExisting=false){
+    $row=cds_lb_weekly_review_enrich($row);if($row['week_key']===''||$row['class_key']===''||trim((string)($row['content']??''))==='')throw new RuntimeException('Nhận xét tuần thiếu tuần, lớp hoặc nội dung.');
+    $verb=$ignoreExisting?'INSERT IGNORE':'INSERT';$tail=$ignoreExisting?'':" ON DUPLICATE KEY UPDATE week_label=VALUES(week_label),class_name=VALUES(class_name),content=VALUES(content),updated_by=VALUES(updated_by),updated_at=VALUES(updated_at),raw_json=VALUES(raw_json)";
+    $sql=$verb." INTO cds_lesson_book_weekly_reviews(review_key,school_year_key,week_key,week_label,class_key,class_name,review_type,content,created_by,updated_by,created_at,updated_at,raw_json) VALUES(?,?,?,?,?,?,?,?,?,?,COALESCE(?,NOW()),COALESCE(?,NOW()),?)".$tail;
+    $pdo->prepare($sql)->execute([$row['review_key'],$row['school_year_key'],$row['week_key'],(string)($row['week_label']??''),$row['class_key'],$row['class'],$row['type'],(string)$row['content'],(string)($row['created_by']??$row['updated_by']??''),(string)($row['updated_by']??$row['created_by']??''),cds_lb_datetime($row['created_at']??''),cds_lb_datetime($row['updated_at']??$row['created_at']??''),cds_lb_json($row)]);
+    return$row;
+}
+function cds_lb_weekly_reviews_import_json(array $rows){
+    if(!cds_lb_weekly_review_table_ready()||!$rows)return false;$pdo=cds_db();$pdo->beginTransaction();try{foreach($rows as$row)if(is_array($row)&&trim((string)($row['content']??''))!=='')cds_lb_weekly_review_write($pdo,$row,true);$pdo->commit();return true;}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();error_log('[CDS weekly review import] '.$e->getMessage());return false;}
+}
+function cds_lb_weekly_reviews_sql($weekKey='',$class=''){
+    if(!cds_lb_weekly_review_table_ready())return[];$where=[];$values=[];$year=cds_lb_weekly_review_school_year([]);
+    if($year!=='unknown'){$where[]='school_year_key=?';$values[]=$year;}if((string)$weekKey!==''){$where[]='week_key=?';$values[]=(string)$weekKey;}if((string)$class!==''){$where[]='class_key=?';$values[]=cds_lb_normalize($class);}
+    $s=cds_db()->prepare('SELECT raw_json FROM cds_lesson_book_weekly_reviews'.($where?' WHERE '.implode(' AND ',$where):'').' ORDER BY class_name,review_type');$s->execute($values);$out=[];while($raw=$s->fetchColumn()){$row=json_decode((string)$raw,true);if(is_array($row))$out[]=$row;}return$out;
+}
+function cds_lb_weekly_review_upsert(array $row){
+    if(!cds_lb_weekly_review_table_ready())return false;$pdo=cds_db();$pdo->beginTransaction();try{$saved=cds_lb_weekly_review_write($pdo,$row,false);$pdo->commit();return$saved;}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();error_log('[CDS weekly review save] '.$e->getMessage());return false;}
+}

@@ -351,6 +351,31 @@ function cds_db_migrations()
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
             ),
         ),
+        '20260908_013_lesson_book_weekly_reviews_mysql' => array(
+            'description' => 'Nhận xét tuần Sổ đầu bài lưu MySQL an toàn theo năm học, tuần, lớp và loại nhận xét',
+            'statements' => array(
+                "CREATE TABLE IF NOT EXISTS cds_lesson_book_weekly_reviews (
+                    review_key CHAR(64) NOT NULL,
+                    school_year_key VARCHAR(100) NOT NULL,
+                    week_key VARCHAR(100) NOT NULL,
+                    week_label VARCHAR(255) NOT NULL DEFAULT '',
+                    class_key VARCHAR(100) NOT NULL,
+                    class_name VARCHAR(100) NOT NULL,
+                    review_type VARCHAR(30) NOT NULL,
+                    content TEXT NOT NULL,
+                    created_by VARCHAR(255) NOT NULL DEFAULT '',
+                    updated_by VARCHAR(255) NOT NULL DEFAULT '',
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    raw_json LONGTEXT NOT NULL,
+                    PRIMARY KEY (review_key),
+                    UNIQUE KEY uq_cds_lb_weekly_review (school_year_key, week_key, class_key, review_type),
+                    KEY idx_cds_lb_weekly_review_week (school_year_key, week_key, class_name),
+                    KEY idx_cds_lb_weekly_review_actor (updated_by, updated_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            ),
+        ),
+
     );
 }
 
