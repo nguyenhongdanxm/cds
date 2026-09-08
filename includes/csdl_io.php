@@ -40,6 +40,38 @@ function csdl_io_bool_in($v) {
     return in_array($v, ['1', 'x', 'có', 'co', 'yes', 'true', 'y'], true);
 }
 
+/** Gỡ kiểu văn bản của Excel khi người dùng mở/lưu lại CSV. */
+function csdl_io_plain_text($v) {
+    $v = trim((string)$v);
+    if (preg_match('/^="(.*)"$/s', $v, $m)) $v = str_replace('""', '"', $m[1]);
+    if (isset($v[0]) && $v[0] === "'") $v = substr($v, 1);
+    // Excel đôi khi xuất số nguyên thành 123.0.
+    if (preg_match('/^\d+\.0+$/', $v)) $v = preg_replace('/\.0+$/', '', $v);
+    return trim($v);
+}
+
+/** Chỉ bù số 0 bên trái cho giá trị hoàn toàn là số; không cắt giá trị dài hơn. */
+function csdl_io_fixed_digits($v, $length) {
+    $v = csdl_io_plain_text($v);
+    $compact = preg_replace('/\s+/', '', $v);
+    if ($compact !== '' && preg_match('/^\d+$/', $compact) && strlen($compact) < (int)$length) {
+        return str_pad($compact, (int)$length, '0', STR_PAD_LEFT);
+    }
+    return $compact;
+}
+
+/** Ép Excel hiểu mã/CCCD/SĐT là văn bản khi mở CSV. */
+function csdl_io_excel_text($v) {
+    $v = csdl_io_plain_text($v);
+    if ($v === '') return '';
+    return '="' . str_replace('"', '""', $v) . '"';
+}
+
+function csdl_io_is_text_identifier_header($header) {
+    $h = mb_strtolower(trim((string)$header), 'UTF-8');
+    return in_array($h, ['mã hs','mã gv','cccd','sđt','sđt hs','sđt ph','điện thoại'], true);
+}
+
 /** Luôn bọc "..." — tránh lẫn cột khi có dấu phẩy/chấm phẩy trong địa chỉ */
 function csdl_io_csv_escape($v) {
     $v = str_replace(["\r\n", "\r", "\n"], ' ', (string)$v);
@@ -59,7 +91,11 @@ function csdl_io_send_csv($filename, array $headers, array $rows) {
     echo implode($sep, $line) . "\r\n";
     foreach ($rows as $row) {
         $line = [];
-        foreach ($row as $cell) $line[] = csdl_io_csv_escape($cell);
+        foreach ($row as $index => $cell) {
+            $header = $headers[$index] ?? '';
+            if (csdl_io_is_text_identifier_header($header)) $cell = csdl_io_excel_text($cell);
+            $line[] = csdl_io_csv_escape($cell);
+        }
         echo implode($sep, $line) . "\r\n";
     }
     exit;
@@ -71,11 +107,11 @@ function csdl_io_teacher_flat(array $t) {
     return [
         'code' => $t['code'] ?? '',
         'name' => $t['name'] ?? '',
-        'cccd' => $t['cccd'] ?? '',
+        'cccd' => csdl_io_fixed_digits($t['cccd'] ?? '', 12),
         'dob' => csdl_io_fmt_date($t['dob'] ?? ''),
         'gender' => $t['gender'] ?? '',
         'ethnicity' => $t['ethnicity'] ?? '',
-        'phone' => $t['phone'] ?? '',
+        'phone' => csdl_io_fixed_digits($t['phone'] ?? '', 10),
         'email' => $t['email'] ?? '',
         'hometown' => $t['hometown'] ?? '',
         'address' => $t['address'] ?? '',
@@ -123,18 +159,18 @@ function csdl_io_student_flat(array $s, array $classes) {
         if (($c['id'] ?? '') === $cid) { $cn = $c['name'] ?? ''; break; }
     }
     return [
-        'code' => $s['code'] ?? '',
+        'code' => csdl_io_fixed_digits($s['code'] ?? '', 10),
         'name' => $s['name'] ?? '',
-        'cccd' => $s['cccd'] ?? '',
+        'cccd' => csdl_io_fixed_digits($s['cccd'] ?? '', 12),
         'class_name' => $cn,
         'dob' => csdl_io_fmt_date($s['dob'] ?? ''),
         'gender' => $s['gender'] ?? '',
         'ethnicity' => $s['ethnicity'] ?? '',
         'hometown' => $s['hometown'] ?? '',
         'address' => $s['address'] ?? '',
-        'phone' => $s['phone'] ?? '',
+        'phone' => csdl_io_fixed_digits($s['phone'] ?? '', 10),
         'parent_name' => $s['parent_name'] ?? '',
-        'parent_phone' => $s['parent_phone'] ?? '',
+        'parent_phone' => csdl_io_fixed_digits($s['parent_phone'] ?? '', 10),
         'boarder' => csdl_io_bool_out($s['boarder'] ?? false),
         'room_ktx' => $s['room_ktx'] ?? '',
         'meal_group' => $s['meal_group'] ?? '',
@@ -292,7 +328,7 @@ function csdl_io_map_headers(array $headers, array $schema) {
 function csdl_io_cell(array $row, array $map, $key) {
     if (!isset($map[$key])) return '';
     $i = $map[$key];
-    return isset($row[$i]) ? trim((string)$row[$i]) : '';
+    return isset($row[$i]) ? csdl_io_plain_text($row[$i]) : '';
 }
 
 function csdl_io_import_teachers($tmpPath) {
@@ -316,12 +352,14 @@ function csdl_io_import_teachers($tmpPath) {
         $old = $by[$key] ?? null;
         $p = ['name' => $name, 'active' => true];
 
-        foreach (['code', 'gender', 'ethnicity', 'phone', 'email', 'hometown', 'address', 'teaching_level', 'chuc_vu', 'bac', 'hang', 'cap_luong', 'he_so', 'note'] as $f) {
+        foreach (['code', 'gender', 'ethnicity', 'email', 'hometown', 'address', 'teaching_level', 'chuc_vu', 'bac', 'hang', 'cap_luong', 'he_so', 'note'] as $f) {
             $v = csdl_io_cell($row, $map, $f);
             if ($v !== '') $p[$f] = $v;
         }
-        $cccd = preg_replace('/\s+/', '', csdl_io_cell($row, $map, 'cccd'));
+        $cccd = csdl_io_fixed_digits(csdl_io_cell($row, $map, 'cccd'), 12);
         if ($cccd !== '') $p['cccd'] = $cccd;
+        $phone = csdl_io_fixed_digits(csdl_io_cell($row, $map, 'phone'), 10);
+        if ($phone !== '') $p['phone'] = $phone;
 
         foreach (['dob', 'join_date', 'he_so_from'] as $f) {
             $v = csdl_io_parse_date(csdl_io_cell($row, $map, $f));
@@ -430,8 +468,8 @@ function csdl_io_import_students($tmpPath) {
 
     $byCode = []; $byCccd = []; $byNameClass = [];
     foreach (csdl_students_all() as $s) {
-        if (!empty($s['code'])) $byCode[mb_strtolower(trim($s['code']), 'UTF-8')] = $s;
-        if (!empty($s['cccd'])) $byCccd[preg_replace('/\s+/', '', $s['cccd'])] = $s;
+        if (!empty($s['code'])) $byCode[mb_strtolower(csdl_io_fixed_digits($s['code'], 10), 'UTF-8')] = $s;
+        if (!empty($s['cccd'])) $byCccd[csdl_io_fixed_digits($s['cccd'], 12)] = $s;
         $byNameClass[csdl_norm_name($s['name'] ?? '') . '|' . ($s['class_id'] ?? '')] = $s;
     }
 
@@ -442,8 +480,8 @@ function csdl_io_import_students($tmpPath) {
 
         $className = csdl_io_cell($row, $map, 'class_name');
         $classId = $className !== '' ? ($cBy[csdl_norm_name($className)] ?? '') : '';
-        $code = csdl_io_cell($row, $map, 'code');
-        $cccd = preg_replace('/\s+/', '', csdl_io_cell($row, $map, 'cccd'));
+        $code = csdl_io_fixed_digits(csdl_io_cell($row, $map, 'code'), 10);
+        $cccd = csdl_io_fixed_digits(csdl_io_cell($row, $map, 'cccd'), 12);
 
         $old = null;
         if ($code !== '' && isset($byCode[mb_strtolower($code, 'UTF-8')])) {
@@ -459,10 +497,14 @@ function csdl_io_import_students($tmpPath) {
         if ($cccd !== '') $p['cccd'] = $cccd;
         if ($classId !== '') $p['class_id'] = $classId;
 
-        foreach (['gender', 'ethnicity', 'hometown', 'address', 'phone', 'parent_name', 'parent_phone', 'room_ktx', 'meal_group', 'note'] as $f) {
+        foreach (['gender', 'ethnicity', 'hometown', 'address', 'parent_name', 'room_ktx', 'meal_group', 'note'] as $f) {
             $v = csdl_io_cell($row, $map, $f);
             if ($v !== '') $p[$f] = $v;
         }
+        $phone = csdl_io_fixed_digits(csdl_io_cell($row, $map, 'phone'), 10);
+        if ($phone !== '') $p['phone'] = $phone;
+        $parentPhone = csdl_io_fixed_digits(csdl_io_cell($row, $map, 'parent_phone'), 10);
+        if ($parentPhone !== '') $p['parent_phone'] = $parentPhone;
         $dob = csdl_io_parse_date(csdl_io_cell($row, $map, 'dob'));
         if ($dob !== '') $p['dob'] = $dob;
         if (isset($map['boarder'])) $p['boarder'] = csdl_io_bool_in(csdl_io_cell($row, $map, 'boarder'));
