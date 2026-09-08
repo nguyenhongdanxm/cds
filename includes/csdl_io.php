@@ -196,6 +196,9 @@ function csdl_io_student_flat(array $s, array $classes) {
         'room_ktx' => $s['room_ktx'] ?? '',
         'meal_group' => $s['meal_group'] ?? '',
         'active' => csdl_io_bool_out($s['active'] ?? true),
+        'departure_date' => csdl_io_fmt_date($s['departure_date'] ?? ''),
+        'departure_type' => $s['departure_type'] ?? '',
+        'departure_reason' => $s['departure_reason'] ?? '',
         'note' => $s['note'] ?? '',
     ];
 }
@@ -518,7 +521,7 @@ function csdl_io_import_students($tmpPath) {
         if ($cccd !== '') $p['cccd'] = $cccd;
         if ($classId !== '') $p['class_id'] = $classId;
 
-        foreach (['gender', 'ethnicity', 'hometown', 'address', 'parent_name', 'room_ktx', 'meal_group', 'note'] as $f) {
+        foreach (['gender', 'ethnicity', 'hometown', 'address', 'parent_name', 'room_ktx', 'meal_group', 'departure_type', 'departure_reason', 'note'] as $f) {
             $v = csdl_io_cell($row, $map, $f);
             if ($v !== '') $p[$f] = $v;
         }
@@ -528,6 +531,11 @@ function csdl_io_import_students($tmpPath) {
         if ($parentPhone !== '') $p['parent_phone'] = $parentPhone;
         $dob = csdl_io_parse_date(csdl_io_cell($row, $map, 'dob'));
         if ($dob !== '') $p['dob'] = $dob;
+        $departureDate = csdl_io_parse_date(csdl_io_cell($row, $map, 'departure_date'));
+        if ($departureDate !== '') {
+            $p['departure_date'] = $departureDate;
+            $p['active'] = $departureDate > date('Y-m-d');
+        }
         if (isset($map['boarder'])) $p['boarder'] = csdl_io_bool_in(csdl_io_cell($row, $map, 'boarder'));
         if (isset($map['active'])) {
             $av = csdl_io_cell($row, $map, 'active');
