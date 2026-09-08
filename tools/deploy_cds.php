@@ -72,7 +72,7 @@ $rootFiles = [
     'public_drive_viewer.php','public_ktx_exit_file.php','drive_file.php','drive_settings.php',
     'hoclieu.php','hoclieu_file.php','hoclieu_game.php','hoclieu_game_keoco.php','hoclieu_game_chopnot.php','hoclieu_game_duavit.php','hoclieu_game_loto.php',
     'chuyenmon.php','csdl.php','csdl_preweeks.php','csdl_export.php','csdl_export_filtered_excel.php',
-    'csdl_statistics_export_xlsx.php','csdl_student_cards.php','danhgia.php','dashboard_settings.php',
+    'csdl_statistics_export_xlsx.php','csdl_student_cards.php','csdl_staff_cards.php','staff_card_teachers.php','staff_photo.php','staff_verify.php','danhgia.php','dashboard_settings.php',
     'database_admin.php','instance_settings.php','initial_setup.php','index.php','login.php','logout.php','manifest.php','manifest.webmanifest','sw.js',
     'noitru.php','noitru_overview_api.php','noitru_duty_drive.php','noitru_exit.php','noitru_exit_manager.php',
     'noitru_exit_drive_api.php','noitru_exit_check_api.php','noitru_exit_check.php','noitru_attendance.php',
