@@ -420,12 +420,52 @@ function csdl_class_delete($id) {
 }
 
 /* —— Giáo viên —— */
+/** Chuẩn hóa ngày về YYYY-MM-DD; giữ nguyên giá trị lạ để tránh mất dữ liệu. */
+function csdl_teacher_normalize_date($value): string {
+    $value = trim((string)$value);
+    if (preg_match('/^="(.*)"$/s', $value, $m)) $value = str_replace('""', '"', $m[1]);
+    if (isset($value[0]) && $value[0] === "'") $value = substr($value, 1);
+    if ($value === '') return '';
+
+    if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T].*)?$/', $value, $m)) {
+        return checkdate((int)$m[2], (int)$m[3], (int)$m[1])
+            ? sprintf('%04d-%02d-%02d', (int)$m[1], (int)$m[2], (int)$m[3]) : $value;
+    }
+    if (preg_match('/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{2}|\d{4})$/', $value, $m)) {
+        $year = (int)$m[3];
+        if (strlen($m[3]) === 2) $year += $year <= (int)date('y') ? 2000 : 1900;
+        return checkdate((int)$m[2], (int)$m[1], $year)
+            ? sprintf('%04d-%02d-%02d', $year, (int)$m[2], (int)$m[1]) : $value;
+    }
+    if (preg_match('/^\d+(?:\.\d+)?$/', $value)) {
+        $serial = (int)floor((float)$value);
+        if ($serial >= 1 && $serial <= 100000) {
+            $timestamp = strtotime('1899-12-30 +' . $serial . ' days');
+            if ($timestamp !== false) return date('Y-m-d', $timestamp);
+        }
+    }
+    return $value;
+}
+
+function csdl_teacher_normalize_fields(array $teacher): array {
+    $teacher['cccd'] = csdl_student_fixed_digits($teacher['cccd'] ?? '', 12);
+    $teacher['phone'] = csdl_student_fixed_digits($teacher['phone'] ?? '', 10);
+    foreach (['dob', 'join_date', 'he_so_from'] as $field) {
+        $teacher[$field] = csdl_teacher_normalize_date($teacher[$field] ?? '');
+    }
+    return $teacher;
+}
+
 function csdl_teachers_all() {
     $rows = cds_core_sql_rows('teachers');
     if (!is_array($rows)) {
         $rows = load_json(CSDL_TEACHERS, []);
         cds_read_verify_rows('teachers', $rows);
     }
+    foreach ($rows as &$teacher) {
+        if (is_array($teacher)) $teacher = csdl_teacher_normalize_fields($teacher);
+    }
+    unset($teacher);
     // Mọi danh sách giáo viên dùng chung thứ tự theo tên gọi cuối cùng.
     usort($rows, static fn($a, $b) => csdl_compare_person_names(
         (string)($a['name'] ?? ''),
@@ -442,6 +482,7 @@ function csdl_teacher_find($id) {
 }
 
 function csdl_teacher_save($data) {
+    $data = csdl_teacher_normalize_fields((array)$data);
     $rows = csdl_teachers_all();
     $id = $data['id'] ?? '';
     $found = false;
