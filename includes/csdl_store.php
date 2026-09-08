@@ -511,9 +511,30 @@ function csdl_students_recover_rows() {
     return ['rows'=>[],'source'=>''];
 }
 
+/**
+ * Học sinh có hiệu lực trong danh sách nghiệp vụ tại một ngày cụ thể.
+ * Hồ sơ vẫn được giữ vĩnh viễn để tra cứu tên trong các bản ghi lịch sử.
+ */
+function csdl_student_is_active_on(array $student, $date = null): bool {
+    $date = trim((string)($date ?? date('Y-m-d')));
+    $departureDate = trim((string)($student['departure_date'] ?? ''));
+    if ($departureDate !== '' && $date >= $departureDate) return false;
+    return !isset($student['active']) || !empty($student['active']);
+}
+
+function csdl_students_apply_effective_status(array $rows): array {
+    foreach ($rows as &$student) {
+        if (!is_array($student)) continue;
+        $student['active'] = csdl_student_is_active_on($student);
+    }
+    unset($student);
+    return $rows;
+}
+
 function csdl_students_all() {
     $sqlRows = cds_core_sql_rows('students');
     if (is_array($sqlRows)) {
+        $sqlRows = csdl_students_apply_effective_status($sqlRows);
         $classMap = [];
         foreach (csdl_classes_all() as $class) {
             $classMap[(string)($class['id'] ?? '')] = (string)($class['name'] ?? '');
@@ -534,6 +555,7 @@ function csdl_students_all() {
         }
     }
     cds_read_verify_rows('students', $rows);
+    $rows = csdl_students_apply_effective_status($rows);
     $classMap = [];
     foreach (csdl_classes_all() as $class) {
         $classMap[(string)($class['id'] ?? '')] = (string)($class['name'] ?? '');
@@ -576,12 +598,26 @@ function csdl_student_save($data) {
     return $id;
 }
 
+function csdl_student_deactivate($id, $departureDate = '', $departureType = 'Nghỉ học', $reason = '') {
+    $student = csdl_student_find($id);
+    if (!$student) return false;
+    $departureDate = trim((string)$departureDate);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $departureDate)) $departureDate = date('Y-m-d');
+    $departureType = trim((string)$departureType) ?: 'Nghỉ học';
+    csdl_student_save([
+        'id' => $id,
+        'active' => $departureDate > date('Y-m-d'),
+        'departure_date' => $departureDate,
+        'departure_type' => $departureType,
+        'departure_reason' => trim((string)$reason),
+        'departure_updated_at' => csdl_now(),
+    ]);
+    return true;
+}
+
+/** Tương thích lệnh cũ: không xóa cứng, chỉ kết thúc hiệu lực từ hôm nay. */
 function csdl_student_delete($id) {
-    $rows = array_values(array_filter(csdl_students_all(), fn($s) => ($s['id'] ?? '') !== $id));
-    if (!cds_core_sql_primary_save('student', $id, $rows, CSDL_STUDENTS)) {
-        save_json(CSDL_STUDENTS, $rows);
-        cds_shadow_refresh_core('student', $id);
-    }
+    return csdl_student_deactivate($id, date('Y-m-d'), 'Nghỉ học', 'Chuyển từ thao tác xóa cũ');
 }
 
 function csdl_stats() {
