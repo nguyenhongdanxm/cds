@@ -20,7 +20,7 @@ foreach ($ids as $id) {
         csdl_class_delete($id);
         $n++;
     } elseif ($entity === 'students') {
-        csdl_student_delete($id);
+        csdl_student_deactivate($id, date('Y-m-d'), 'Nghỉ học', 'Cập nhật hàng loạt');
         $n++;
     }
 }
@@ -28,7 +28,9 @@ $batchCommit = true;
 } finally {
     $shadowSyncOk = cds_shadow_batch_end($batchCommit);
 }
-$message = "Đã xóa $n mục đã chọn.";
+$message = $entity === 'students'
+    ? "Đã chuyển $n học sinh sang trạng thái nghỉ từ hôm nay; hồ sơ lịch sử được giữ nguyên."
+    : "Đã xóa $n mục đã chọn.";
 if (!$shadowSyncOk) $message .= ' Lô chưa hoàn tất hoặc bản dự phòng cần quản trị kiểm tra.';
 flash($message, 'warning');
 $back = in_array($entity, ['teachers', 'classes', 'students'], true) ? $entity : 'overview';
