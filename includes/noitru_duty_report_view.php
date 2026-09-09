@@ -145,11 +145,15 @@ $disciplineText = $entryValue('discipline', $disciplineText);
     if(typeof window.html2pdf!=='function')throw new Error('Chưa tải được bộ tạo PDF. Vui lòng kiểm tra mạng và thử lại.');
     sync();
     const stage=document.createElement('div');
-    stage.style.cssText='position:fixed;left:-12000px;top:0;width:210mm;background:#fff;z-index:-1';
+    stage.style.cssText='position:fixed;left:-12000px;top:0;width:175mm;background:#fff;z-index:-1';
     const clone=paper.cloneNode(true);
     clone.classList.add('preview-mode');
     clone.querySelectorAll('.report-entry,.report-entry-hint').forEach(function(el){el.remove();});
     clone.querySelectorAll('.report-entry-preview').forEach(function(el){el.style.display='block';});
+    clone.querySelectorAll('.report-attendance tr,.report-signatures').forEach(function(el){
+      el.style.breakInside='avoid';
+      el.style.pageBreakInside='avoid';
+    });
     clone.querySelectorAll('.report-subtitle').forEach(function(title){
       const content=title.nextElementSibling;
       if(!content||!content.classList.contains('report-entry-preview'))return;
@@ -160,12 +164,12 @@ $disciplineText = $entryValue('discipline', $disciplineText);
       block.appendChild(title);
       block.appendChild(content);
     });
-    clone.style.cssText='width:210mm;min-height:297mm;margin:0;padding:18mm 15mm 18mm 20mm;box-shadow:none;transform:none;background:#fff';
+    clone.style.cssText='box-sizing:border-box;width:175mm;min-height:0;margin:0;padding:0;box-shadow:none;transform:none;background:#fff';
     stage.appendChild(clone);
     document.body.appendChild(stage);
     try{
       return await window.html2pdf().set({
-        margin:0,
+        margin:[18,15,18,20],
         filename:'Biên bản trực nội trú.pdf',
         image:{type:'jpeg',quality:0.98},
         html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',scrollX:0,scrollY:0},
