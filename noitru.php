@@ -591,7 +591,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ' . BASE_URL . 'noitru.php?tab=duty_report&date=' . urlencode($reportDate));
             exit;
         }
-        $defaultReportText = fn($key) => trim((string)($_POST[$key] ?? '')) ?: 'Không có';
+        $defaultReportText = function($key) {
+            $value = trim((string)($_POST[$key] ?? ''));
+            $value = trim((string)preg_replace('/\[\[NT[^\]]*\]\]\s*/u', '', $value));
+            return $value !== '' ? $value : 'Không có';
+        };
         $saved = noitru_duty_report_save([
             'date'=>$reportDate,
             'location'=>$_POST['location'] ?? 'Pà Vầy Sủ',
