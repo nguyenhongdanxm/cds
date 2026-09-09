@@ -195,10 +195,25 @@ if (!function_exists('nt_duty_url')) {
   <div class="duty-request-grid mb-3">
     <section class="duty-panel"><div class="duty-panel-head"><div><h6><i class="bi bi-arrow-left-right text-info"></i> Đăng ký đổi lịch trực</h6><div class="duty-help">Chọn một lịch của mình và một lịch muốn đổi. Lịch chính thức chỉ thay đổi sau khi được duyệt.</div></div></div><div class="duty-panel-body" style="display:block;min-height:220px">
       <?php if(!$myFutureDuties): ?>
-        <div class="alert alert-info mb-0"><strong>Chưa tìm thấy lịch trực của <?=e($dutyCurrentTeacherName?:'tài khoản này')?> trong tháng <?=e(date('m/Y',strtotime($dutyMonthStart)))?>.</strong><br>Hãy chuyển tháng bằng nút mũi tên phía trên hoặc kiểm tra tên giáo viên liên kết với tài khoản.</div>
-      <?php else: ?>
-        <form method="post"><input type="hidden" name="action" value="duty_swap_request_create"><input type="hidden" name="month" value="<?=e($dutyMonth)?>"><label class="form-label">Lịch trực của tôi</label><select name="source_duty_id" class="form-select mb-3" required><option value="">Chọn ngày cần đổi</option><?php foreach($myFutureDuties as $row):?><option value="<?=e($row['id']??'')?>"><?=e(date('d/m/Y',strtotime($row['date']??'')))?> · <?=e($row['teacher_name']??'')?></option><?php endforeach;?></select><label class="form-label">Đổi với giáo viên/ngày</label><select name="target_duty_id" class="form-select mb-3" required><option value="">Chọn lịch muốn đổi</option><?php foreach($otherFutureDuties as $row):?><option value="<?=e($row['id']??'')?>"><?=e(date('d/m/Y',strtotime($row['date']??'')))?> · <?=e($row['teacher_name']??'')?></option><?php endforeach;?></select><label class="form-label">Lý do</label><textarea name="reason" class="form-control mb-3" rows="3" required placeholder="Nhập lý do đề nghị đổi lịch"></textarea><button class="btn btn-info text-white"><i class="bi bi-send"></i> Gửi yêu cầu</button></form>
+        <div class="alert alert-info"><strong>Chưa tìm thấy lịch trực của <?=e($dutyCurrentTeacherName?:'tài khoản này')?> trong tháng <?=e(date('m/Y',strtotime($dutyMonthStart)))?>.</strong><br>Hãy chuyển tháng bằng nút mũi tên phía trên hoặc kiểm tra tên giáo viên liên kết với tài khoản.</div>
       <?php endif; ?>
+      <form method="post">
+        <input type="hidden" name="action" value="duty_swap_request_create">
+        <input type="hidden" name="month" value="<?=e($dutyMonth)?>">
+        <label class="form-label fw-semibold">Lịch trực của tôi</label>
+        <select name="source_duty_id" class="form-select mb-3" required <?=!$myFutureDuties?'disabled':''?>>
+          <option value=""><?= $myFutureDuties?'Chọn ngày cần đổi':'Không có lịch trực phù hợp trong tháng này' ?></option>
+          <?php foreach($myFutureDuties as $row):?><option value="<?=e($row['id']??'')?>"><?=e(date('d/m/Y',strtotime($row['date']??'')))?> · <?=e($row['teacher_name']??'')?></option><?php endforeach;?>
+        </select>
+        <label class="form-label fw-semibold">Đổi với giáo viên/ngày</label>
+        <select name="target_duty_id" class="form-select mb-3" required <?=!$otherFutureDuties?'disabled':''?>>
+          <option value=""><?= $otherFutureDuties?'Chọn lịch muốn đổi':'Không có lịch của giáo viên khác để đổi' ?></option>
+          <?php foreach($otherFutureDuties as $row):?><option value="<?=e($row['id']??'')?>"><?=e(date('d/m/Y',strtotime($row['date']??'')))?> · <?=e($row['teacher_name']??'')?></option><?php endforeach;?>
+        </select>
+        <label class="form-label fw-semibold">Lý do</label>
+        <textarea name="reason" class="form-control mb-3" rows="3" required placeholder="Nhập lý do đề nghị đổi lịch" <?=!$myFutureDuties||!$otherFutureDuties?'disabled':''?>></textarea>
+        <button class="btn btn-info text-white" <?=!$myFutureDuties||!$otherFutureDuties?'disabled':''?>><i class="bi bi-send"></i> Gửi yêu cầu</button>
+      </form>
     </div></section>
     <section class="duty-panel"><div class="duty-panel-head"><div><h6><i class="bi bi-info-circle text-warning"></i> Quy trình xử lý</h6><div class="duty-help">Yêu cầu được lưu lại để theo dõi.</div></div></div><div class="duty-panel-body small"><ol class="mb-0"><li>Giáo viên chọn hai lượt trực và ghi lý do.</li><li>Người quản lý lịch trực xem xét yêu cầu.</li><li>Khi duyệt, hệ thống hoán đổi đúng hai giáo viên giữa hai ngày.</li><li>Nếu lịch gốc đã thay đổi, yêu cầu cũ sẽ không được áp dụng.</li></ol></div></section>
   </div>
