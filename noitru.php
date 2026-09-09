@@ -611,7 +611,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $teacherId=trim((string)($user['teacher_id']??''));
         $teacherName=trim((string)($user['teacher_name']??$user['name']??''));
         if($teacherId===''&&$teacherName!=='')foreach(csdl_teachers_all() as $teacher){$candidateName=trim((string)($teacher['name']??''));$same=function_exists('mb_strtolower')?mb_strtolower($candidateName,'UTF-8')===mb_strtolower($teacherName,'UTF-8'):strtolower($candidateName)===strtolower($teacherName);if($same){$teacherId=(string)($teacher['id']??'');break;}}
-        [$saved,$message]=noitru_duty_swap_request_create($teacherId,$teacherName,trim((string)($_POST['source_duty_id']??'')),trim((string)($_POST['target_duty_id']??'')),(string)($_POST['reason']??''));
+        $sourceDutyId=trim((string)($_POST['source_duty_id']??''));
+        foreach(noitru_duty_all() as $dutyRow){if(($dutyRow['id']??'')!==$sourceDutyId)continue;$scheduledName=trim((string)($dutyRow['teacher_name']??''));$sameName=function_exists('mb_strtolower')?mb_strtolower($scheduledName,'UTF-8')===mb_strtolower($teacherName,'UTF-8'):strtolower($scheduledName)===strtolower($teacherName);if($sameName)$teacherId=(string)($dutyRow['teacher_id']??$teacherId);break;}
+        [$saved,$message]=noitru_duty_swap_request_create($teacherId,$teacherName,$sourceDutyId,trim((string)($_POST['target_duty_id']??'')),(string)($_POST['reason']??''));
         flash($message,$saved?'success':'danger');
         header('Location: '.BASE_URL.'noitru.php?tab=duty&section=requests&month='.urlencode((string)($_POST['month']??date('Y-m'))));exit;
     }
