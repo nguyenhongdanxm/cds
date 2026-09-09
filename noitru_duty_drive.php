@@ -99,6 +99,13 @@ if ($existingId !== '') {
     );
     $updated = json_decode($update['body'], true);
     if ($update['ok'] && !empty($updated['id'])) {
+        /* Chuẩn hóa lại tên cả với tệp đã được tạo bởi phiên bản cũ. */
+        cds_drive_http(
+            'https://www.googleapis.com/drive/v3/files/'.rawurlencode($existingId).'?supportsAllDrives=true&fields=id,name',
+            'PATCH',
+            ['Authorization: Bearer '.$token['token'], 'Content-Type: application/json; charset=UTF-8'],
+            json_encode(['name'=>$filename,'appProperties'=>['cdsType'=>'duty_reports','cdsReportDate'=>$date]], JSON_UNESCAPED_UNICODE)
+        );
         $result = ['ok'=>true,'id'=>$updated['id'],'name'=>$filename,'webViewLink'=>$updated['webViewLink'] ?? ''];
         $action = 'update';
     }
