@@ -54,8 +54,8 @@ $css = <<<'CSS'
 @page WordSection1{size:595.3pt 841.9pt;margin:51pt 42.5pt 51pt 56.7pt}
 html,body{margin:0;padding:0;background:#fff;color:#000;font-family:"Times New Roman",serif;font-size:13pt;line-height:1.25}
 .page{page:WordSection1;width:100%;box-sizing:border-box}
-.report-national{display:table;width:100%;table-layout:fixed;text-align:center;font-weight:700}
-.report-national>div{display:table-cell;vertical-align:top}.report-national>div:first-child{width:40%}.report-national>div:last-child{width:60%;padding-left:8mm}
+.report-national{width:100%;table-layout:fixed;border-collapse:collapse;text-align:center;font-weight:700}
+.report-national td{border:0;vertical-align:top;padding:0}.report-national td:first-child{width:40%}.report-national td:last-child{width:60%;padding-left:8mm}
 .report-national p{margin:0}.report-national .report-agency{font-weight:400}.underline{display:inline-block;border-bottom:1px solid #000;padding-bottom:2px}
 .report-place{text-align:right;font-style:italic;margin:7mm 0 4mm}h1{margin:0;text-align:center;font-size:15pt;font-weight:700}.report-year{text-align:center;font-weight:700;margin:1mm 0 6mm}
 .report-section{margin:2.5mm 0}.report-section-title,.report-subtitle{font-weight:700}.report-info-line{margin:1.2mm 0 1.2mm 5mm}.report-info-label{display:inline-block;width:25mm;font-weight:700}
@@ -66,28 +66,79 @@ html,body{margin:0;padding:0;background:#fff;color:#000;font-family:"Times New R
 .report-signatures strong{display:block}.report-sign-name{margin-top:11mm;text-align:center}.report-empty{color:#555;font-style:italic}
 CSS;
 $html = '<!doctype html><html><head><meta charset="UTF-8"><meta name="ProgId" content="Word.Document"><style>'.$css.'</style></head><body><div class="page">'.$content.'</div></body></html>';
-$result = cds_drive_upload_bytes("\xEF\xBB\xBF".$html, $filename, 'application/msword', 'duty_reports');
-if (empty($result['ok'])) {
+$bytes = "\xEF\xBB\xBF".$html;
+$settings = cds_drive_settings();
+$folder = cds_drive_folder('duty_reports', $settings);
+if (empty($settings['enabled']) || $folder === '') {
     http_response_code(500);
-    echo json_encode($result, JSON_UNESCAPED_UNICODE);
+    echo json_encode(['ok'=>false,'message'=>'Drive chưa bật hoặc chưa cấu hình thư mục Biên bản trực nội trú.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
-$result['webViewLink'] = 'https://drive.google.com/file/d/'.rawurlencode((string)$result['id']).'/view';
-if (function_exists('cds_drive_history_add')) {
-    $settings = cds_drive_settings();
-    cds_drive_history_add([
-        'action'=>'upload',
-        'type'=>'duty_reports',
-        'name'=>$filename,
-        'file_id'=>(string)$result['id'],
-        'folder_id'=>(string)($settings['folders']['duty_reports'] ?? ''),
-        'mime'=>'application/msword',
-        'web_view'=>$result['webViewLink'],
-        'date'=>$date,
-        'report_date'=>$date,
-        'source_action'=>'page:/noitru.php?tab=duty_report',
-    ]);
+$token = cds_drive_token($settings);
+if (empty($token['ok'])) {
+    http_response_code(500);
+    echo json_encode($token, JSON_UNESCAPED_UNICODE);
+    exit;
 }
+
+/* Một ngày chỉ có một tệp: tìm đúng file Word đã lưu của ngày này để cập nhật nội dung. */
+$existingId = '';
+foreach (cds_drive_history() as $old) {
+    if (($old['type'] ?? '') !== 'duty_reports' || ($old['report_date'] ?? $old['date'] ?? '') !== $date) continue;
+    if (($old['mime'] ?? '') !== 'application/msword' && strtolower((string)pathinfo((string)($old['name'] ?? ''), PATHINFO_EXTENSION)) !== 'doc') continue;
+    if (!empty($old['file_id'])) { $existingId = (string)$old['file_id']; break; }
+}
+$result = [];
+$action = 'create';
+if ($existingId !== '') {
+    $update = cds_drive_http(
+        'https://www.googleapis.com/upload/drive/v3/files/'.rawurlencode($existingId).'?uploadType=media&supportsAllDrives=true&fields=id,name,webViewLink',
+        'PATCH',
+        ['Authorization: Bearer '.$token['token'], 'Content-Type: application/msword'],
+        $bytes
+    );
+    $updated = json_decode($update['body'], true);
+    if ($update['ok'] && !empty($updated['id'])) {
+        $result = ['ok'=>true,'id'=>$updated['id'],'name'=>$filename,'webViewLink'=>$updated['webViewLink'] ?? ''];
+        $action = 'update';
+    }
+}
+if (empty($result['ok'])) {
+    $boundary = 'cds-duty-' . bin2hex(random_bytes(12));
+    $meta = json_encode([
+        'name'=>$filename,
+        'parents'=>[$folder],
+        'appProperties'=>['cdsType'=>'duty_reports','cdsReportDate'=>$date],
+    ], JSON_UNESCAPED_UNICODE);
+    $body = "--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$meta\r\n"
+        . "--$boundary\r\nContent-Type: application/msword\r\n\r\n$bytes\r\n--$boundary--";
+    $upload = cds_drive_http(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink',
+        'POST',
+        ['Authorization: Bearer '.$token['token'], 'Content-Type: multipart/related; boundary='.$boundary],
+        $body
+    );
+    $created = json_decode($upload['body'], true);
+    if (!$upload['ok'] || empty($created['id'])) {
+        http_response_code(500);
+        echo json_encode(['ok'=>false,'message'=>$created['error']['message'] ?? 'Không lưu được tệp Word lên Drive.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $result = ['ok'=>true,'id'=>$created['id'],'name'=>$filename,'webViewLink'=>$created['webViewLink'] ?? ''];
+}
+if (empty($result['webViewLink'])) $result['webViewLink'] = 'https://drive.google.com/file/d/'.rawurlencode((string)$result['id']).'/view';
+cds_drive_history_add([
+    'action'=>$action,
+    'type'=>'duty_reports',
+    'name'=>$filename,
+    'file_id'=>(string)$result['id'],
+    'folder_id'=>$folder,
+    'mime'=>'application/msword',
+    'web_view'=>$result['webViewLink'],
+    'date'=>$date,
+    'report_date'=>$date,
+    'source_action'=>'page:/noitru.php?tab=duty_report',
+]);
 $result['filename'] = $filename;
 $result['format'] = 'word';
 echo json_encode($result, JSON_UNESCAPED_UNICODE);
