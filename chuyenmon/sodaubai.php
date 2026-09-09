@@ -50,6 +50,15 @@ $slots=lb_slots($week);$me=lb_teacher_name();$date=(string)($_GET['date']??'');i
 $classes=[];foreach($slots as$r)if(lb_can_view($r))$classes[(string)$r['class']]=true;$classes=array_keys($classes);sort($classes,SORT_NATURAL);
 $viewTeachers=[];foreach($slots as$r)if(lb_can_view($r)){foreach(['scheduled_teacher','actual_teacher']as$f){$n=trim((string)($r[$f]??''));if($n!=='')$viewTeachers[$n]=true;}}$viewTeachers=array_keys($viewTeachers);sort($viewTeachers,SORT_NATURAL);
 $visible=array_values(array_filter($slots,function($r)use($date,$classFilter,$viewMode,$teacherFilter){if($date!==''&&($r['date']??'')!==$date)return false;if($viewMode==='class'&&$classFilter!==''&&!lb_same($classFilter,(string)($r['class']??'')))return false;if($viewMode==='teacher'&&$teacherFilter!==''&&!lb_same($teacherFilter,(string)($r['actual_teacher']??''))&&!lb_same($teacherFilter,(string)($r['scheduled_teacher']??'')))return false;return lb_can_view($r);}));
+/* Chỉ sắp xếp phần hiển thị: ngày -> Sáng -> Chiều -> tiết TKB. */
+usort($visible,static function($a,$b){
+ $dateCmp=strcmp((string)($a['date']??''),(string)($b['date']??''));if($dateCmp!==0)return$dateCmp;
+ $sessionRank=static function($row){$session=lb_norm((string)($row['session']??''));if(strpos($session,'sang')!==false||$session==='am'||$session==='morning')return 0;if(strpos($session,'chieu')!==false||$session==='pm'||$session==='afternoon')return 1;return 2;};
+ $sessionCmp=$sessionRank($a)<=>$sessionRank($b);if($sessionCmp!==0)return$sessionCmp;
+ $periodCmp=((int)($a['period']??0))<=>((int)($b['period']??0));if($periodCmp!==0)return$periodCmp;
+ $classCmp=strnatcasecmp((string)($a['class']??''),(string)($b['class']??''));if($classCmp!==0)return$classCmp;
+ return strnatcasecmp((string)($a['subject']??''),(string)($b['subject']??''));
+});
 $groupCounts=[];foreach($visible as$r){$dk=(string)$r['date'];$sk=$dk.'|'.(string)$r['session'];$groupCounts['d:'.$dk]=($groupCounts['d:'.$dk]??0)+1;$groupCounts['s:'.$sk]=($groupCounts['s:'.$sk]??0)+1;}$seenDate=[];$seenSession=[];
 $statusLabels=['pending'=>'Chưa hoàn thành','taught'=>'Đã dạy','substitute'=>'Dạy thay','makeup'=>'Dạy bù','online'=>'Trực tuyến','holiday'=>'Nghỉ lễ','teacher_absent'=>'GV nghỉ','class_absent'=>'Lớp nghỉ','postponed'=>'Hoãn','cancelled'=>'Hủy'];
 require_once __DIR__ . '/includes/header.php';
