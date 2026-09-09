@@ -116,7 +116,7 @@ $disciplineText = $entryValue('discipline', $disciplineText);
 <form method="post" id="dutyReportForm" data-csrf="<?=e(cds_drive_csrf_token())?>" data-date="<?=e($reportDate)?>" data-drive-endpoint="<?=e(BASE_URL.'noitru_duty_drive.php')?>">
   <input type="hidden" name="action" value="duty_report_save"><input type="hidden" name="date" value="<?= e($reportDate) ?>"><input type="hidden" name="location" value="<?= e($location) ?>"><input type="hidden" name="shift_label" value="<?= e($shiftLabel) ?>">
   <div class="duty-report-actions"><button class="btn btn-outline-info" type="button" id="toggleDutyPreview"><i class="bi bi-eye"></i> Xem trước</button><button class="btn btn-info text-white" id="saveDutyReport" <?= !$canEditCurrent?'disabled':'' ?>><i class="bi bi-floppy"></i> Lưu biên bản</button><button class="btn btn-outline-primary" type="button" onclick="printDutyReport()"><i class="bi bi-printer"></i> In / Xuất PDF</button></div>
-  <div class="drive-save-note" id="dutySaveStatus">Khi lưu, biên bản đồng thời được cập nhật vào đúng tệp Word của ngày đang mở trên Google Drive.</div>
+  <div class="drive-save-note" id="dutySaveStatus">Khi lưu, biên bản đồng thời được tạo thành PDF đúng bản xem trước A4 và cập nhật vào Drive.</div>
   <div class="duty-report-preview-wrap"><article class="duty-report-paper">
     <table class="report-national"><tr><td><p class="report-agency">SỞ GD&amp;ĐT TUYÊN QUANG</p><p>TRƯỜNG PTDT NỘI TRÚ<br><span class="underline">THCS&amp;THPT XÍN MẦN</span></p></td><td><p>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p><p><span class="underline">Độc lập - Tự do - Hạnh phúc</span></p></td></tr></table>
     <div class="report-place">Pà Vầy Sủ, ngày <?= (int)date('d',strtotime($reportDate)) ?> tháng <?= (int)date('m',strtotime($reportDate)) ?> năm <?= e(date('Y',strtotime($reportDate))) ?></div>
@@ -133,19 +133,34 @@ $disciplineText = $entryValue('discipline', $disciplineText);
   </article></div>
 </form>
 
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"></script>
 <script>
 (function(){
   const form=document.getElementById('dutyReportForm'),paper=form?.querySelector('.duty-report-paper'),toggle=document.getElementById('toggleDutyPreview'),saveBtn=document.getElementById('saveDutyReport'),saveStatus=document.getElementById('dutySaveStatus');
   function sync(){form?.querySelectorAll('.report-entry').forEach(function(input){const out=form.querySelector('.report-entry-preview[data-for="'+input.name+'"]');if(out)out.textContent=input.value.trim()||'Không có';});}
   function setPreview(on){sync();paper?.classList.toggle('preview-mode',on);if(toggle)toggle.innerHTML=on?'<i class="bi bi-pencil-square"></i> Tiếp tục nhập':'<i class="bi bi-eye"></i> Xem trước';}
-  function exportHtml(){
+  async function createPdfBlob(){
+    if(typeof window.html2pdf!=='function')throw new Error('Chưa tải được bộ tạo PDF. Vui lòng kiểm tra mạng và thử lại.');
     sync();
+    const stage=document.createElement('div');
+    stage.style.cssText='position:fixed;left:-12000px;top:0;width:210mm;background:#fff;z-index:-1';
     const clone=paper.cloneNode(true);
     clone.classList.add('preview-mode');
     clone.querySelectorAll('.report-entry,.report-entry-hint').forEach(function(el){el.remove();});
     clone.querySelectorAll('.report-entry-preview').forEach(function(el){el.style.display='block';});
-    clone.removeAttribute('style');
-    return clone.innerHTML;
+    clone.style.cssText='width:210mm;min-height:297mm;margin:0;padding:18mm 15mm 18mm 20mm;box-shadow:none;transform:none;background:#fff';
+    stage.appendChild(clone);
+    document.body.appendChild(stage);
+    try{
+      return await window.html2pdf().set({
+        margin:0,
+        filename:'Biên bản trực nội trú.pdf',
+        image:{type:'jpeg',quality:0.98},
+        html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',scrollX:0,scrollY:0},
+        jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true},
+        pagebreak:{mode:['css','legacy'],avoid:['tr','.report-signatures']}
+      }).from(clone).toPdf().outputPdf('blob');
+    }finally{stage.remove();}
   }
   toggle?.addEventListener('click',function(){setPreview(!paper.classList.contains('preview-mode'));});
   form?.querySelectorAll('.report-entry').forEach(function(input){input.addEventListener('input',sync);});sync();
@@ -159,18 +174,21 @@ $disciplineText = $entryValue('discipline', $disciplineText);
     try{
       const localResponse=await fetch(window.location.href,{method:'POST',body:new FormData(form),credentials:'same-origin'});
       if(!localResponse.ok)throw new Error('Không lưu được nội dung biên bản vào hệ thống.');
+      saveBtn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span> Đang tạo PDF A4…';
+      if(saveStatus)saveStatus.textContent='Đã lưu dữ liệu. Đang dựng PDF từ đúng bản xem trước A4…';
+      const pdfBlob=await createPdfBlob();
       saveBtn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span> Đang cập nhật Drive…';
-      if(saveStatus)saveStatus.textContent='Đã lưu dữ liệu. Đang tạo hoặc cập nhật tệp Word trên Google Drive…';
+      if(saveStatus)saveStatus.textContent='Đã tạo PDF. Đang cập nhật đúng tệp của ngày này trên Google Drive…';
       const fd=new FormData();
       fd.append('csrf',form.dataset.csrf||'');
       fd.append('date',form.dataset.date||'');
-      fd.append('content',exportHtml());
+      fd.append('pdf',pdfBlob,'bien-ban-truc-noi-tru.pdf');
       const driveResponse=await fetch(form.dataset.driveEndpoint,{method:'POST',body:fd,credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}});
       let data={};try{data=await driveResponse.json();}catch(e){throw new Error('Máy chủ Drive trả về dữ liệu không hợp lệ.');}
-      if(!driveResponse.ok||!data.ok)throw new Error(data.message||'Không cập nhật được tệp Word trên Drive.');
+      if(!driveResponse.ok||!data.ok)throw new Error(data.message||'Không cập nhật được tệp PDF trên Drive.');
       saveBtn.innerHTML='<i class="bi bi-check-circle"></i> Đã lưu thành công';
-      if(saveStatus){saveStatus.className='drive-save-note text-success fw-semibold';saveStatus.textContent='Đã lưu biên bản và cập nhật tệp “'+(data.filename||'Biên bản trực nội trú')+'” trên Google Drive.';}
-      setTimeout(function(){saveBtn.innerHTML=oldHtml;saveBtn.disabled=false;},2200);
+      if(saveStatus){saveStatus.className='drive-save-note text-success fw-semibold';saveStatus.textContent='Đã lưu biên bản và cập nhật tệp PDF “'+(data.filename||'Biên bản trực nội trú')+'” trên Google Drive.';}
+      setTimeout(function(){saveBtn.innerHTML=oldHtml;saveBtn.disabled=false=false;},2200);
     }catch(error){
       saveBtn.innerHTML=oldHtml;saveBtn.disabled=false;
       if(saveStatus){saveStatus.className='drive-save-note text-danger fw-semibold';saveStatus.textContent=error.message||'Không thể hoàn tất lưu biên bản.';}
