@@ -68,7 +68,7 @@ if (!is_dir($target) && !mkdir($target, 0755, true) && !is_dir($target)) { fwrit
 
 $directories = ['assets', 'includes', 'chuyenmon'];
 $rootFiles = [
-    'activity.php','admin.php','notices.php','drive_viewer.php','public_notice.php',
+    'activity.php','admin.php','admin_operation_settings.php','notices.php','drive_viewer.php','public_notice.php',
     'public_drive_viewer.php','public_ktx_exit_file.php','drive_file.php','drive_settings.php',
     'hoclieu.php','hoclieu_file.php','hoclieu_game.php','hoclieu_game_keoco.php','hoclieu_game_chopnot.php','hoclieu_game_duavit.php','hoclieu_game_loto.php',
     'chuyenmon.php','csdl.php','csdl_preweeks.php','csdl_export.php','csdl_export_filtered_excel.php',
