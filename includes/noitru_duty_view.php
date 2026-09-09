@@ -197,7 +197,7 @@ if (!function_exists('nt_duty_url')) {
       <?php if(!$myFutureDuties): ?>
         <div class="alert alert-info"><strong>Chưa tìm thấy lịch trực của <?=e($dutyCurrentTeacherName?:'tài khoản này')?> trong tháng <?=e(date('m/Y',strtotime($dutyMonthStart)))?>.</strong><br>Hãy chuyển tháng bằng nút mũi tên phía trên hoặc kiểm tra tên giáo viên liên kết với tài khoản.</div>
       <?php endif; ?>
-      <form method="post">
+      <form method="post" id="dutySwapRequestForm">
         <input type="hidden" name="action" value="duty_swap_request_create">
         <input type="hidden" name="month" value="<?=e($dutyMonth)?>">
         <label class="form-label fw-semibold">Lịch trực của tôi</label>
@@ -224,7 +224,7 @@ if (!function_exists('nt_duty_url')) {
     var mine=<?=json_encode(array_values($myFutureDuties),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP)?>;
     var others=<?=json_encode(array_values($otherFutureDuties),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP)?>;
     var month=<?=json_encode($dutyMonth,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;
-    var form=document.createElement('form');form.method='post';
+    var form=document.createElement('form');form.method='post';form.id='dutySwapRequestForm';
     form.innerHTML='<input type="hidden" name="action" value="duty_swap_request_create"><input type="hidden" name="month"><label class="form-label fw-semibold">Lịch trực của tôi</label><select name="source_duty_id" class="form-select mb-3" required></select><label class="form-label fw-semibold">Đổi với giáo viên/ngày</label><select name="target_duty_id" class="form-select mb-3" required></select><label class="form-label fw-semibold">Lý do</label><textarea name="reason" class="form-control mb-3" rows="3" required placeholder="Nhập lý do đề nghị đổi lịch"></textarea><button class="btn btn-info text-white"><i class="bi bi-send"></i> Gửi yêu cầu</button>';
     form.elements.month.value=month;
     function fill(select,rows,empty){var first=document.createElement('option');first.value='';first.textContent=empty;select.appendChild(first);rows.forEach(function(row){var option=document.createElement('option'),parts=String(row.date||'').split('-');option.value=row.id||'';option.textContent=(parts.length===3?parts[2]+'/'+parts[1]+'/'+parts[0]:row.date||'')+' · '+(row.teacher_name||'');select.appendChild(option)});select.disabled=!rows.length;}
