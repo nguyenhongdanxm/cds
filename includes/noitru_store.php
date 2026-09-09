@@ -20,6 +20,7 @@ define('NOITRU_DUTY_SETTINGS', NOITRU_DIR . '/duty_settings.json');
 define('NOITRU_DUTY_MANAGERS', NOITRU_DIR . '/duty_managers.json');
 define('NOITRU_DUTY_GROUPS', NOITRU_DIR . '/duty_groups.json');
 define('NOITRU_DUTY_ROSTER', NOITRU_DIR . '/duty_roster.json');
+define('NOITRU_DUTY_SWAP_REQUESTS', NOITRU_DIR . '/duty_swap_requests.json');
 define('NOITRU_DUTY_REPORTS', NOITRU_DIR . '/duty_reports.json');
 define('NOITRU_DUTY_REPORT_SETTINGS', NOITRU_DIR . '/duty_report_settings.json');
 define('NOITRU_HEALTH', NOITRU_DIR . '/health.json');
@@ -942,6 +943,48 @@ function noitru_duty_replace_roster_month($month, array $selectedByTeacher, arra
 }
 function noitru_duty_delete($id) {
     save_json(NOITRU_DUTY, array_values(array_filter(noitru_duty_all(), fn($r) => ($r['id'] ?? '') !== $id)));
+}
+function noitru_duty_swap_requests_all(): array {
+    noitru_ensure_dir();
+    $rows = load_json(NOITRU_DUTY_SWAP_REQUESTS, []);
+    usort($rows, fn($a,$b) => strcmp((string)($b['created_at']??''), (string)($a['created_at']??'')));
+    return $rows;
+}
+function noitru_duty_swap_request_create(string $requesterId, string $requesterName, string $sourceDutyId, string $targetDutyId, string $reason=''): array {
+    if ($requesterId==='' || $sourceDutyId==='' || $targetDutyId==='' || $sourceDutyId===$targetDutyId) return [false,'Thông tin đổi lịch chưa hợp lệ.'];
+    $source=$target=null;
+    foreach(noitru_duty_all() as $row){if(($row['id']??'')===$sourceDutyId)$source=$row;if(($row['id']??'')===$targetDutyId)$target=$row;}
+    if(!$source || !$target || (string)($source['teacher_id']??'')!==$requesterId) return [false,'Không tìm thấy lịch trực của giáo viên đăng ký.'];
+    if(($source['date']??'')===($target['date']??'')) return [false,'Hai lịch trực phải thuộc hai ngày khác nhau.'];
+    if(($source['date']??'')<date('Y-m-d') || ($target['date']??'')<date('Y-m-d')) return [false,'Chỉ được đăng ký đổi lịch chưa diễn ra.'];
+    if((string)($target['teacher_id']??'')===$requesterId) return [false,'Hãy chọn lịch của giáo viên khác.'];
+    $rows=noitru_duty_swap_requests_all();
+    foreach($rows as $row)if(($row['status']??'')==='pending' && (($row['source_duty_id']??'')===$sourceDutyId || ($row['target_duty_id']??'')===$targetDutyId)) return [false,'Một trong hai lịch trực đang có yêu cầu chờ duyệt.'];
+    $rows[]=['id'=>noitru_uid('dsrc'),'requester_id'=>$requesterId,'requester_name'=>$requesterName,'source_duty_id'=>$sourceDutyId,'source_date'=>$source['date']??'','source_teacher_id'=>$source['teacher_id']??'','source_teacher_name'=>$source['teacher_name']??'','target_duty_id'=>$targetDutyId,'target_date'=>$target['date']??'','target_teacher_id'=>$target['teacher_id']??'','target_teacher_name'=>$target['teacher_name']??'','reason'=>trim($reason),'status'=>'pending','created_at'=>noitru_now()];
+    return [save_json(NOITRU_DUTY_SWAP_REQUESTS,$rows),'Đã gửi yêu cầu đổi lịch trực để chờ duyệt.'];
+}
+function noitru_duty_swap_request_decide(string $id, string $decision, string $by, string $note=''): array {
+    if(!in_array($decision,['approved','rejected'],true)) return [false,'Quyết định không hợp lệ.'];
+    noitru_ensure_dir();$lock=fopen(NOITRU_DIR.'/.duty.lock','c');if($lock===false||!flock($lock,LOCK_EX)){if(is_resource($lock))fclose($lock);return [false,'Lịch trực đang được cập nhật, vui lòng thử lại.'];}
+    try{
+        $requests=noitru_duty_swap_requests_all();$requestIndex=null;
+        foreach($requests as $i=>$request)if(($request['id']??'')===$id){$requestIndex=$i;break;}
+        if($requestIndex===null || ($requests[$requestIndex]['status']??'')!=='pending') return [false,'Yêu cầu không còn ở trạng thái chờ duyệt.'];
+        if($decision==='approved'){
+            $duties=noitru_duty_all();$sourceIndex=$targetIndex=null;
+            foreach($duties as $i=>$row){if(($row['id']??'')===($requests[$requestIndex]['source_duty_id']??''))$sourceIndex=$i;if(($row['id']??'')===($requests[$requestIndex]['target_duty_id']??''))$targetIndex=$i;}
+            if($sourceIndex===null||$targetIndex===null) return [false,'Lịch trực gốc đã thay đổi hoặc bị xóa.'];
+            if(($duties[$sourceIndex]['date']??'')!==($requests[$requestIndex]['source_date']??'')||($duties[$targetIndex]['date']??'')!==($requests[$requestIndex]['target_date']??'')||($duties[$sourceIndex]['teacher_id']??'')!==($requests[$requestIndex]['source_teacher_id']??'')||($duties[$targetIndex]['teacher_id']??'')!==($requests[$requestIndex]['target_teacher_id']??'')) return [false,'Lịch trực đã thay đổi; không thể duyệt yêu cầu cũ.'];
+            foreach($duties as $i=>$row){if($i===$sourceIndex||$i===$targetIndex)continue;if((($row['date']??'')===($duties[$sourceIndex]['date']??'')&&($row['teacher_id']??'')===($duties[$targetIndex]['teacher_id']??''))||(($row['date']??'')===($duties[$targetIndex]['date']??'')&&($row['teacher_id']??'')===($duties[$sourceIndex]['teacher_id']??'')))return [false,'Không thể duyệt vì một giáo viên đã có lịch trực trong ngày sau khi đổi.'];}
+            [$duties[$sourceIndex]['teacher_id'],$duties[$targetIndex]['teacher_id']]=[$duties[$targetIndex]['teacher_id'],$duties[$sourceIndex]['teacher_id']];
+            [$duties[$sourceIndex]['teacher_name'],$duties[$targetIndex]['teacher_name']]=[$duties[$targetIndex]['teacher_name'],$duties[$sourceIndex]['teacher_name']];
+            $duties[$sourceIndex]['note']='Đổi lịch đã duyệt: '.($requests[$requestIndex]['requester_name']??'');$duties[$targetIndex]['note']=$duties[$sourceIndex]['note'];
+            $duties[$sourceIndex]['updated_at']=$duties[$targetIndex]['updated_at']=noitru_now();
+            if(!save_json(NOITRU_DUTY,$duties)) return [false,'Không cập nhật được lịch trực.'];
+        }
+        $requests[$requestIndex]['status']=$decision;$requests[$requestIndex]['decision_by']=$by;$requests[$requestIndex]['decision_note']=trim($note);$requests[$requestIndex]['decided_at']=noitru_now();
+        return [save_json(NOITRU_DUTY_SWAP_REQUESTS,$requests),$decision==='approved'?'Đã duyệt và cập nhật lịch trực.':'Đã từ chối yêu cầu đổi lịch.'];
+    }finally{flock($lock,LOCK_UN);fclose($lock);}
 }
 
 /* —— Biên bản trực nội trú hằng ngày —— */
