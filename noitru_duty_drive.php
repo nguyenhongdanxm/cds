@@ -73,6 +73,21 @@ if (empty($result['ok'])) {
     exit;
 }
 $result['webViewLink'] = 'https://drive.google.com/file/d/'.rawurlencode((string)$result['id']).'/view';
+if (function_exists('cds_drive_history_add')) {
+    $settings = cds_drive_settings();
+    cds_drive_history_add([
+        'action'=>'upload',
+        'type'=>'duty_reports',
+        'name'=>$filename,
+        'file_id'=>(string)$result['id'],
+        'folder_id'=>(string)($settings['folders']['duty_reports'] ?? ''),
+        'mime'=>'application/msword',
+        'web_view'=>$result['webViewLink'],
+        'date'=>$date,
+        'report_date'=>$date,
+        'source_action'=>'page:/noitru.php?tab=duty_report',
+    ]);
+}
 $result['filename'] = $filename;
 $result['format'] = 'word';
 echo json_encode($result, JSON_UNESCAPED_UNICODE);
