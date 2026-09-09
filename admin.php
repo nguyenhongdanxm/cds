@@ -4,6 +4,7 @@ require_once __DIR__ . '/includes/modules.php';
 require_once __DIR__ . '/includes/dashboard_data.php';
 require_once __DIR__ . '/includes/push_notifications.php';
 require_once __DIR__ . '/includes/account_profile.php';
+require_once __DIR__ . '/includes/dashboard_operation_store.php';
 require_login();
 
 $user = current_user();
@@ -117,6 +118,8 @@ $avatarUpper = function_exists('mb_strtoupper') ? mb_strtoupper($avatar, 'UTF-8'
 $duty = $dashboard['noitru']['duty'] ?? null;
 $dutyHours = $duty ? intdiv((int)$duty['remaining'], 3600) : 0;
 $dutyMinutes = $duty ? intdiv((int)$duty['remaining'] % 3600, 60) : 0;
+$operationGroups = cds_operation_for_date(date('Y-m-d'));
+$operationGroupLabels = cds_operation_groups();
 $pushNotifications = cds_push_notifications_for_user($user, 12);
 $pushReadIds = array_flip(cds_push_read_ids($user));
 $pushUnread = cds_push_unread_count($user);
@@ -262,8 +265,9 @@ $pushUnread = cds_push_unread_count($user);
     </div>
 
     <?php if(can_module('noitru','view')): ?><section class="panel operation-panel">
-      <div class="panel-head"><div><span class="section-kicker">Nội trú</span><h2>Vận hành hôm nay</h2></div><a href="noitru.php?tab=overview">Xem chi tiết <i class="bi bi-arrow-right"></i></a></div>
+      <div class="panel-head"><div><span class="section-kicker">Toàn trường</span><h2>Vận hành hôm nay</h2></div><?php if($isAdmin):?><a href="admin_operation_settings.php"><i class="bi bi-gear"></i> Cài đặt</a><?php endif;?></div>
       <div class="operation-grid">
+        <?php foreach(['management'=>'bi-person-badge-fill','departments'=>'bi-diagram-3-fill','youth'=>'bi-stars'] as $groupKey=>$groupIcon):$groupPeople=$operationGroups[$groupKey]??[];?><article class="operation-group-box"><span class="op-icon"><i class="bi <?=e($groupIcon)?>"></i></span><div class="op-copy"><span><?=e($operationGroupLabels[$groupKey]??'')?></span><?php if($groupPeople):?><strong><?=e(implode(', ',$groupPeople))?></strong><small>Phân công hiển thị hôm nay</small><?php else:?><strong>Chưa phân công</strong><small>Chưa có lịch hiển thị trong ngày</small><?php endif;?></div></article><?php endforeach;?>
         <article class="duty-box"><span class="op-icon"><i class="bi bi-calendar2-check"></i></span><div class="op-copy"><span>Lịch trực hiện tại</span><?php if($duty && $duty['people']): ?><strong><?= e(implode(', ',$duty['people'])) ?></strong><small><?= e($duty['start']) ?> – <?= e($duty['end']) ?> hôm sau · còn <?= $dutyHours ?>h <?= $dutyMinutes ?>p</small><?php else: ?><strong>Chưa phân công</strong><small>Chưa có người trực trong ca hiện tại</small><?php endif; ?><?php if($duty && $duty['managers']): ?><em>Quản lý: <?= e(implode(', ',$duty['managers'])) ?></em><?php endif; ?></div></article>
         <article class="attendance-box"><span class="op-icon"><i class="bi bi-person-check-fill"></i></span><div class="op-copy"><span>3 lần điểm danh gần nhất</span><?php if($adminAttendanceRecent): ?><div class="attendance-recent"><?php foreach($adminAttendanceRecent as $attendance): ?><div><strong><b><?= (int)$attendance['present'] ?>/<?= (int)$attendance['total'] ?></b></strong><small><?= e($attendance['shift_label']) ?> · <?= date('d/m/Y',strtotime($attendance['date'])) ?><?= $attendance['by']!==''?' · '.e($attendance['by']):'' ?></small></div><?php endforeach; ?></div><?php else: ?><strong>Chưa có dữ liệu</strong><small>Chưa ghi nhận báo cáo điểm danh</small><?php endif; ?></div><a href="noitru_attendance.php" aria-label="Mở điểm danh"><i class="bi bi-chevron-right"></i></a></article>
       </div>
