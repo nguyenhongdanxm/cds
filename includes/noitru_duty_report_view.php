@@ -169,7 +169,7 @@ $disciplineText = $entryValue('discipline', $disciplineText);
     document.body.appendChild(stage);
     try{
       return await window.html2pdf().set({
-        margin:[18,15,18,20],
+        margin:[18,20,18,15],
         filename:'Biên bản trực nội trú.pdf',
         image:{type:'jpeg',quality:0.98},
         html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',scrollX:0,scrollY:0},
