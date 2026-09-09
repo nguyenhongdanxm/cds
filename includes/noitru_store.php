@@ -21,6 +21,7 @@ define('NOITRU_DUTY_MANAGERS', NOITRU_DIR . '/duty_managers.json');
 define('NOITRU_DUTY_GROUPS', NOITRU_DIR . '/duty_groups.json');
 define('NOITRU_DUTY_ROSTER', NOITRU_DIR . '/duty_roster.json');
 define('NOITRU_DUTY_REPORTS', NOITRU_DIR . '/duty_reports.json');
+define('NOITRU_DUTY_REPORT_SETTINGS', NOITRU_DIR . '/duty_report_settings.json');
 define('NOITRU_HEALTH', NOITRU_DIR . '/health.json');
 define('NOITRU_MEDICINES', NOITRU_DIR . '/medicines.json');
 define('NOITRU_MEDICINE_TX', NOITRU_DIR . '/medicine_transactions.json');
@@ -953,6 +954,58 @@ function noitru_duty_report_for_date($date) {
         if (($row['date'] ?? '') === $date) return $row;
     }
     return null;
+}
+function noitru_duty_report_lock_settings(): array {
+    noitru_ensure_dir();
+    return array_merge([
+        'auto_lock_enabled' => false,
+        'auto_lock_after_days' => 1,
+        'lock_time' => '06:00',
+    ], load_json(NOITRU_DUTY_REPORT_SETTINGS, []));
+}
+function noitru_duty_report_lock_settings_save(array $data): bool {
+    noitru_ensure_dir();
+    $settings = [
+        'auto_lock_enabled' => !empty($data['auto_lock_enabled']),
+        'auto_lock_after_days' => max(1, min(30, (int)($data['auto_lock_after_days'] ?? 1))),
+        'lock_time' => preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string)($data['lock_time'] ?? ''))
+            ? (string)$data['lock_time'] : '06:00',
+        'updated_by' => trim((string)($data['updated_by'] ?? '')),
+        'updated_at' => noitru_now(),
+    ];
+    return save_json(NOITRU_DUTY_REPORT_SETTINGS, $settings);
+}
+function noitru_duty_report_lock_status(string $date, ?array $report = null): array {
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) return ['locked'=>false, 'source'=>'invalid', 'locked_at'=>null];
+    $report = $report ?? noitru_duty_report_for_date($date) ?? [];
+    $override = (string)($report['lock_override'] ?? '');
+    if ($override === 'locked') return ['locked'=>true, 'source'=>'manual', 'locked_at'=>$report['locked_at'] ?? null];
+    if ($override === 'unlocked') return ['locked'=>false, 'source'=>'manual', 'locked_at'=>null];
+    $settings = noitru_duty_report_lock_settings();
+    if (empty($settings['auto_lock_enabled'])) return ['locked'=>false, 'source'=>'open', 'locked_at'=>null];
+    $days = max(1, (int)($settings['auto_lock_after_days'] ?? 1));
+    $time = (string)($settings['lock_time'] ?? '06:00');
+    $lockAt = strtotime($date . ' +' . $days . ' days ' . $time);
+    return ['locked'=>time() >= $lockAt, 'source'=>'automatic', 'locked_at'=>date('c', $lockAt)];
+}
+function noitru_duty_report_set_lock(string $date, bool $locked, string $by = ''): bool {
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) return false;
+    $rows = noitru_duty_reports_all();
+    $found = false;
+    foreach ($rows as $index => $row) {
+        if (($row['date'] ?? '') !== $date) continue;
+        $rows[$index]['lock_override'] = $locked ? 'locked' : 'unlocked';
+        $rows[$index]['locked_at'] = $locked ? noitru_now() : null;
+        $rows[$index]['locked_by'] = trim($by);
+        $found = true;
+        break;
+    }
+    if (!$found) $rows[] = [
+        'id'=>noitru_uid('bbtruc'), 'date'=>$date, 'lock_override'=>$locked?'locked':'unlocked',
+        'locked_at'=>$locked?noitru_now():null, 'locked_by'=>trim($by), 'created_at'=>noitru_now(),
+    ];
+    usort($rows, fn($a,$b) => strcmp((string)($b['date']??''), (string)($a['date']??'')));
+    return save_json(NOITRU_DUTY_REPORTS, $rows);
 }
 function noitru_duty_report_save(array $data) {
     $rows = noitru_duty_reports_all();
