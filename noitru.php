@@ -1340,7 +1340,7 @@ body{background:#f8f0f4}
 .badge-room{background:#fce8f0;color:#a61e5c}
 .badge-meal{background:#e8f5e9;color:#2e7d32}
 <?php if (!$canEditCurrent): ?>
-form[method="post"]:not(#dutyReportForm){display:none!important}
+form[method="post"]:not(#dutyReportForm):not(#dutySwapRequestForm){display:none!important}
 <?php endif; ?>
 </style>
 </head>
