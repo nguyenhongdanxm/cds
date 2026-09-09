@@ -987,6 +987,18 @@ function noitru_duty_swap_request_decide(string $id, string $decision, string $b
     }finally{flock($lock,LOCK_UN);fclose($lock);}
 }
 
+function noitru_duty_swap_request_delete(string $id): array {
+    if ($id==='') return [false,'Yêu cầu đổi lịch không hợp lệ.'];
+    noitru_ensure_dir();$lock=fopen(NOITRU_DIR.'/.duty.lock','c');
+    if($lock===false||!flock($lock,LOCK_EX)){if(is_resource($lock))fclose($lock);return [false,'Dữ liệu đổi lịch đang được cập nhật, vui lòng thử lại.'];}
+    try{
+        $requests=noitru_duty_swap_requests_all();
+        $kept=array_values(array_filter($requests,fn($request)=>(string)($request['id']??'')!==$id));
+        if(count($kept)===count($requests)) return [false,'Không tìm thấy yêu cầu đổi lịch.'];
+        return [save_json(NOITRU_DUTY_SWAP_REQUESTS,$kept),'Đã xóa yêu cầu đổi lịch trực.'];
+    }finally{flock($lock,LOCK_UN);fclose($lock);}
+}
+
 /* —— Biên bản trực nội trú hằng ngày —— */
 function noitru_duty_reports_all() {
     noitru_ensure_dir();
