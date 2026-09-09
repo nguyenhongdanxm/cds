@@ -83,7 +83,8 @@ uksort($attendanceByShift,function($a,$b)use($shiftSort){$compare=($shiftSort[$a
 $location = trim((string)($report['location'] ?? ''));
 if ($location === '' || in_array($location, ['Pà Vầy Sủ', 'Xã Pà Vầy Sủ'], true)) $location = 'Phòng trực nội trú';
 $shiftLabel = (string)($report['shift_label'] ?? ($startTime . ' ngày ' . date('d/m/Y',strtotime($reportDate)) . ' đến ' . $endTime . ' ngày ' . date('d/m/Y',strtotime($nextDate))));
-$field = fn($key) => (string)($report[$key] ?? '');
+$cleanReportText = static fn($value): string => trim((string)preg_replace('/\[\[NT[^\]]*\]\]\s*/u', '', (string)$value));
+$field = fn($key) => $cleanReportText($report[$key] ?? '');
 $oldParts = array_values(array_filter(array_map('trim', [$field('discipline'),$field('hygiene'),$field('safety'),$field('health')]), fn($value)=>$value!==''));
 $disciplineText = implode("\n", array_values(array_unique($oldParts)));
 $suggestions = [
@@ -137,7 +138,8 @@ $disciplineText = $entryValue('discipline', $disciplineText);
 <script>
 (function(){
   const form=document.getElementById('dutyReportForm'),paper=form?.querySelector('.duty-report-paper'),toggle=document.getElementById('toggleDutyPreview'),saveBtn=document.getElementById('saveDutyReport'),saveStatus=document.getElementById('dutySaveStatus');
-  function sync(){form?.querySelectorAll('.report-entry').forEach(function(input){const out=form.querySelector('.report-entry-preview[data-for="'+input.name+'"]');if(out)out.textContent=input.value.trim()||'Không có';});}
+  function cleanReportText(value){return String(value||'').replace(/\[\[NT[^\]]*\]\]\s*/g,'').trim();}
+  function sync(){form?.querySelectorAll('.report-entry').forEach(function(input){const out=form.querySelector('.report-entry-preview[data-for="'+input.name+'"]');if(out)out.textContent=cleanReportText(input.value)||'Không có';});}
   function setPreview(on){sync();paper?.classList.toggle('preview-mode',on);if(toggle)toggle.innerHTML=on?'<i class="bi bi-pencil-square"></i> Tiếp tục nhập':'<i class="bi bi-eye"></i> Xem trước';}
   async function createPdfBlob(){
     if(typeof window.html2pdf!=='function')throw new Error('Chưa tải được bộ tạo PDF. Vui lòng kiểm tra mạng và thử lại.');
@@ -148,6 +150,16 @@ $disciplineText = $entryValue('discipline', $disciplineText);
     clone.classList.add('preview-mode');
     clone.querySelectorAll('.report-entry,.report-entry-hint').forEach(function(el){el.remove();});
     clone.querySelectorAll('.report-entry-preview').forEach(function(el){el.style.display='block';});
+    clone.querySelectorAll('.report-subtitle').forEach(function(title){
+      const content=title.nextElementSibling;
+      if(!content||!content.classList.contains('report-entry-preview'))return;
+      const block=document.createElement('div');
+      block.className='pdf-content-block';
+      block.style.cssText='break-inside:avoid;page-break-inside:avoid';
+      title.parentNode.insertBefore(block,title);
+      block.appendChild(title);
+      block.appendChild(content);
+    });
     clone.style.cssText='width:210mm;min-height:297mm;margin:0;padding:18mm 15mm 18mm 20mm;box-shadow:none;transform:none;background:#fff';
     stage.appendChild(clone);
     document.body.appendChild(stage);
@@ -158,7 +170,7 @@ $disciplineText = $entryValue('discipline', $disciplineText);
         image:{type:'jpeg',quality:0.98},
         html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',scrollX:0,scrollY:0},
         jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true},
-        pagebreak:{mode:['css','legacy'],avoid:['tr','.report-signatures']}
+        pagebreak:{mode:['css','legacy'],avoid:['tr','.report-signatures','.pdf-content-block']}
       }).from(clone).toPdf().outputPdf('blob');
     }finally{stage.remove();}
   }
