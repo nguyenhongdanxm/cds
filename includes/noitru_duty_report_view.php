@@ -115,8 +115,8 @@ $disciplineText = $entryValue('discipline', $disciplineText);
 
 <form method="post" id="dutyReportForm">
   <input type="hidden" name="action" value="duty_report_save"><input type="hidden" name="date" value="<?= e($reportDate) ?>"><input type="hidden" name="location" value="<?= e($location) ?>"><input type="hidden" name="shift_label" value="<?= e($shiftLabel) ?>">
-  <div class="duty-report-actions"><button class="btn btn-outline-info" type="button" id="toggleDutyPreview"><i class="bi bi-eye"></i> Xem trước</button><button class="btn btn-info text-white" <?= !$canEditCurrent?'disabled':'' ?>><i class="bi bi-floppy"></i> Lưu biên bản</button><button class="btn btn-outline-primary" type="button" onclick="printDutyReport()"><i class="bi bi-printer"></i> In / Xuất PDF</button><button class="btn btn-success" type="button" id="saveDutyDrive" data-csrf="<?=e(cds_drive_csrf_token())?>" data-date="<?=e($reportDate)?>" data-endpoint="<?=e(BASE_URL.'noitru_duty_drive.php')?>"><i class="bi bi-google"></i> Lưu Google Docs</button></div>
-  <div class="drive-save-note">Google Docs được tạo từ bản xem trước A4; mở để xem và có thể tải xuống PDF từ Google Docs.</div>
+  <div class="duty-report-actions"><button class="btn btn-outline-info" type="button" id="toggleDutyPreview"><i class="bi bi-eye"></i> Xem trước</button><button class="btn btn-info text-white" <?= !$canEditCurrent?'disabled':'' ?>><i class="bi bi-floppy"></i> Lưu biên bản</button><button class="btn btn-outline-primary" type="button" onclick="printDutyReport()"><i class="bi bi-printer"></i> In / Xuất PDF</button><button class="btn btn-success" type="button" id="saveDutyDrive" data-csrf="<?=e(cds_drive_csrf_token())?>" data-date="<?=e($reportDate)?>" data-endpoint="<?=e(BASE_URL.'noitru_duty_drive.php')?>"><i class="bi bi-file-earmark-word"></i> Lưu Word vào Drive</button></div>
+  <div class="drive-save-note">Mỗi biên bản được lưu thành một tệp Word riêng, đúng khổ A4 và giữ nguyên đầy đủ nội dung.</div>
   <div class="duty-report-preview-wrap"><article class="duty-report-paper">
     <div class="report-national"><div><p class="report-agency">SỞ GD&amp;ĐT TUYÊN QUANG</p><p>TRƯỜNG PTDT NỘI TRÚ<br><span class="underline">THCS&amp;THPT XÍN MẦN</span></p></div><div><p>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p><p><span class="underline">Độc lập - Tự do - Hạnh phúc</span></p></div></div>
     <div class="report-place">Pà Vầy Sủ, ngày <?= (int)date('d',strtotime($reportDate)) ?> tháng <?= (int)date('m',strtotime($reportDate)) ?> năm <?= e(date('Y',strtotime($reportDate))) ?></div>
@@ -151,16 +151,16 @@ $disciplineText = $entryValue('discipline', $disciplineText);
   form?.querySelectorAll('.report-entry').forEach(function(input){input.addEventListener('input',sync);});sync();
   driveBtn?.addEventListener('click',async function(){
     const popup=window.open('about:blank','_blank');
-    const oldHtml=driveBtn.innerHTML;driveBtn.disabled=true;driveBtn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span> Đang tạo Google Docs…';
+    const oldHtml=driveBtn.innerHTML;driveBtn.disabled=true;driveBtn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span> Đang tạo tệp Word…';
     try{
       const fd=new FormData();fd.append('csrf',driveBtn.dataset.csrf||'');fd.append('date',driveBtn.dataset.date||'');fd.append('content',exportHtml());
       const res=await fetch(driveBtn.dataset.endpoint,{method:'POST',body:fd,credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}});
       let data={};try{data=await res.json();}catch(e){throw new Error('Máy chủ trả về dữ liệu không hợp lệ.');}
-      if(!res.ok||!data.ok)throw new Error(data.message||'Không tạo được Google Docs.');
+      if(!res.ok||!data.ok)throw new Error(data.message||'Không tạo được tệp Word.');
       if(popup){popup.location=data.webViewLink;popup.focus();}else window.location.href=data.webViewLink;
-      driveBtn.innerHTML='<i class="bi bi-check-circle"></i> Đã lưu Google Docs';
+      driveBtn.innerHTML='<i class="bi bi-check-circle"></i> Đã lưu Word';
       setTimeout(function(){driveBtn.innerHTML=oldHtml;driveBtn.disabled=false;},1800);
-    }catch(error){if(popup)popup.close();alert(error.message||'Không thể lưu Google Docs.');driveBtn.innerHTML=oldHtml;driveBtn.disabled=false;}
+    }catch(error){if(popup)popup.close();alert(error.message||'Không thể lưu tệp Word.');driveBtn.innerHTML=oldHtml;driveBtn.disabled=false;}
   });
   window.printDutyReport=function(){setPreview(true);window.print();};
   window.prepareDutyReportPreview=function(){setPreview(true);};
