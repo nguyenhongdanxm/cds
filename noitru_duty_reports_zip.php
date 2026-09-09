@@ -53,7 +53,7 @@ function noitru_duty_word_document(string $article): string {
     $css = <<<'CSS'
 @page WordSection1{size:595.3pt 841.9pt;margin:51pt 42.5pt 51pt 56.7pt}
 html,body{margin:0;padding:0;background:#fff;color:#000;font-family:"Times New Roman",serif;font-size:13pt;line-height:1.25}.duty-report-paper{page:WordSection1;width:100%;box-sizing:border-box}
-.report-national{display:table;width:100%;table-layout:fixed;text-align:center;font-weight:700}.report-national>div{display:table-cell;vertical-align:top}.report-national>div:first-child{width:40%}.report-national>div:last-child{width:60%;padding-left:8mm}
+.report-national{width:100%;table-layout:fixed;border-collapse:collapse;text-align:center;font-weight:700}.report-national td{border:0;padding:0;vertical-align:top}.report-national td:first-child{width:40%}.report-national td:last-child{width:60%;padding-left:8mm}
 .report-national p{margin:0}.report-national .report-agency{font-weight:400}.underline{display:inline-block;border-bottom:1px solid #000;padding-bottom:2px}.report-place{text-align:right;font-style:italic;margin:7mm 0 4mm}
 h1{margin:0;text-align:center;font-size:15pt;font-weight:700}.report-year{text-align:center;font-weight:700;margin:1mm 0 6mm}.report-section{margin:2.5mm 0}.report-section-title,.report-subtitle{font-weight:700}
 .report-info-line{margin:1.2mm 0 1.2mm 5mm}.report-info-label{display:inline-block;width:25mm;font-weight:700}.report-text,.report-entry-preview{display:block;white-space:pre-wrap;text-align:justify}
