@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'duty_settings_save'=>'nt.lichtruc', 'duty_group_save'=>'nt.lichtruc', 'duty_group_delete'=>'nt.lichtruc',
         'duty_swap'=>'nt.lichtruc', 'duty_assign_weekday'=>'nt.lichtruc', 'duty_manager_weekday'=>'nt.lichtruc',
         'duty_roster_save'=>'nt.lichtruc', 'duty_roster_delete'=>'nt.lichtruc',
-        'duty_report_save'=>'nt.lichtruc',
+        'duty_report_save'=>'nt.lichtruc', 'duty_report_lock'=>'nt.lichtruc', 'duty_report_lock_settings'=>'nt.lichtruc',
         'health_save'=>'nt.yte', 'health_delete'=>'nt.yte',
         'medicine_save'=>'nt.yte', 'medicine_restock'=>'nt.yte', 'medicine_delete'=>'nt.yte',
         'menu_save'=>'nt.thucdon', 'menu_dish_add'=>'nt.thucdon', 'menu_dish_delete'=>'nt.thucdon',
@@ -136,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $requiredLevel = substr($action, -7) === '_delete' || $action === 'duty_month_clear' ? 'delete' : 'edit';
         require_perm_level($actionPerms[$action], $requiredLevel);
     }
-    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_state_bulk','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
+    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_state_bulk','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','duty_report_lock','duty_report_lock_settings','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
         noitru_require_global_scope();
     }
     if (in_array($action, ['rice_settings','rice_in','rice_issue','rice_delete'], true)) {
@@ -565,8 +565,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . BASE_URL . 'noitru.php?tab=duty');
         exit;
     }
+    if ($action === 'duty_report_lock') {
+        $reportDate = trim((string)($_POST['date'] ?? ''));
+        $locked = ($_POST['mode'] ?? 'lock') === 'lock';
+        $saved = noitru_duty_report_set_lock($reportDate, $locked, (string)($user['name'] ?? ''));
+        flash($saved ? ($locked ? 'Đã khóa biên bản ngày đã chọn.' : 'Đã mở khóa biên bản ngày đã chọn.') : 'Không cập nhật được trạng thái khóa.', $saved ? 'success' : 'danger');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=duty_report&date=' . urlencode($reportDate));
+        exit;
+    }
+    if ($action === 'duty_report_lock_settings') {
+        $saved = noitru_duty_report_lock_settings_save([
+            'auto_lock_enabled'=>isset($_POST['auto_lock_enabled']),
+            'auto_lock_after_days'=>$_POST['auto_lock_after_days'] ?? 1,
+            'lock_time'=>$_POST['lock_time'] ?? '06:00',
+            'updated_by'=>$user['name'] ?? '',
+        ]);
+        flash($saved ? 'Đã lưu lịch khóa biên bản tự động.' : 'Không lưu được lịch khóa.', $saved ? 'success' : 'danger');
+        header('Location: ' . BASE_URL . 'noitru.php?tab=duty_report&date=' . urlencode((string)($_POST['date'] ?? date('Y-m-d'))));
+        exit;
+    }
     if ($action === 'duty_report_save') {
         $reportDate = trim($_POST['date'] ?? date('Y-m-d'));
+        if (!empty(noitru_duty_report_lock_status($reportDate)['locked'])) {
+            flash('Biên bản ngày đã chọn đang bị khóa. Quản trị viên phải mở khóa trước khi sửa.', 'danger');
+            header('Location: ' . BASE_URL . 'noitru.php?tab=duty_report&date=' . urlencode($reportDate));
+            exit;
+        }
         $defaultReportText = fn($key) => trim((string)($_POST[$key] ?? '')) ?: 'Không có';
         $saved = noitru_duty_report_save([
             'date'=>$reportDate,
@@ -995,7 +1019,8 @@ $tabs = [
 ];
 $tabs = array_filter($tabs, fn($info, $key) => can_perm($tabPerms[$key] ?? ''), ARRAY_FILTER_USE_BOTH);
 $canEditCurrent = $tab === 'duty_report'
-    ? noitru_can_edit_duty_report((string)($_GET['date'] ?? date('Y-m-d')))
+    ? (noitru_can_edit_duty_report((string)($_GET['date'] ?? date('Y-m-d')))
+        && empty(noitru_duty_report_lock_status((string)($_GET['date'] ?? date('Y-m-d')))['locked']))
     : can_edit_perm($tabPerms[$tab] ?? '');
 $canDeleteCurrent = can_delete_perm($tabPerms[$tab] ?? '');
 
