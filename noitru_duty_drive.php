@@ -34,39 +34,51 @@ $headers = ['Authorization: Bearer '.$token['token']];
 
 $history = cds_drive_history();
 $existingId = '';
-$obsoleteIds = [];
 foreach ($history as $old) {
     if (($old['type'] ?? '') !== 'duty_reports' || ($old['report_date'] ?? $old['date'] ?? '') !== $date || empty($old['file_id'])) continue;
-    $id = (string)$old['file_id'];
     $isPdf = ($old['mime'] ?? '') === 'application/pdf' || strtolower((string)pathinfo((string)($old['name'] ?? ''), PATHINFO_EXTENSION)) === 'pdf';
-    if ($isPdf && $existingId === '') $existingId = $id;
-    else $obsoleteIds[$id] = true;
+    if ($isPdf) { $existingId = (string)$old['file_id']; break; }
 }
 
 $result = [];
 $action = 'create';
 if ($existingId !== '') {
-    $update = cds_drive_http(
-        'https://www.googleapis.com/upload/drive/v3/files/'.rawurlencode($existingId).'?uploadType=media&supportsAllDrives=true&fields=id,name,webViewLink',
-        'PATCH',
-        array_merge($headers, ['Content-Type: application/pdf']),
-        $bytes
+    /* Chỉ cập nhật khi file còn tồn tại; nếu đang trong thùng rác thì phục hồi về đúng thư mục. */
+    $check = cds_drive_http(
+        'https://www.googleapis.com/drive/v3/files/'.rawurlencode($existingId).'?supportsAllDrives=true&fields=id,name,mimeType,trashed,parents',
+        'GET',
+        $headers
     );
-    $updated = json_decode($update['body'], true);
-    if ($update['ok'] && !empty($updated['id'])) {
-        cds_drive_http(
-            'https://www.googleapis.com/drive/v3/files/'.rawurlencode($existingId).'?supportsAllDrives=true&fields=id,name',
+    $fileInfo = json_decode($check['body'], true);
+    if ($check['ok'] && !empty($fileInfo['id']) && ($fileInfo['mimeType'] ?? '') === 'application/pdf') {
+        $metadataUrl = 'https://www.googleapis.com/drive/v3/files/'.rawurlencode($existingId).'?supportsAllDrives=true&fields=id,name,parents,trashed';
+        if (!in_array($folder, (array)($fileInfo['parents'] ?? []), true)) $metadataUrl .= '&addParents='.rawurlencode($folder);
+        $restore = cds_drive_http(
+            $metadataUrl,
             'PATCH',
             array_merge($headers, ['Content-Type: application/json; charset=UTF-8']),
-            json_encode(['name'=>$filename,'appProperties'=>['cdsType'=>'duty_reports','cdsReportDate'=>$date]], JSON_UNESCAPED_UNICODE)
+            json_encode([
+                'name'=>$filename,
+                'trashed'=>false,
+                'appProperties'=>['cdsType'=>'duty_reports','cdsReportDate'=>$date],
+            ], JSON_UNESCAPED_UNICODE)
         );
-        $result = ['ok'=>true,'id'=>$updated['id'],'name'=>$filename,'webViewLink'=>$updated['webViewLink'] ?? ''];
-        $action = 'update';
-        unset($obsoleteIds[$existingId]);
+        if ($restore['ok']) {
+            $update = cds_drive_http(
+                'https://www.googleapis.com/upload/drive/v3/files/'.rawurlencode($existingId).'?uploadType=media&supportsAllDrives=true&fields=id,name,webViewLink',
+                'PATCH',
+                array_merge($headers, ['Content-Type: application/pdf']),
+                $bytes
+            );
+            $updated = json_decode($update['body'], true);
+            if ($update['ok'] && !empty($updated['id'])) {
+                $result = ['ok'=>true,'id'=>$updated['id'],'name'=>$filename,'webViewLink'=>$updated['webViewLink'] ?? ''];
+                $action = 'update';
+            }
+        }
     }
 }
 if (empty($result['ok'])) {
-    if ($existingId !== '') $obsoleteIds[$existingId] = true;
     $boundary = 'cds-duty-pdf-' . bin2hex(random_bytes(12));
     $meta = json_encode([
         'name'=>$filename,
@@ -76,7 +88,7 @@ if (empty($result['ok'])) {
     $body = "--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$meta\r\n"
         . "--$boundary\r\nContent-Type: application/pdf\r\n\r\n$bytes\r\n--$boundary--";
     $createdResponse = cds_drive_http(
-        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink',
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink,parents',
         'POST',
         array_merge($headers, ['Content-Type: multipart/related; boundary='.$boundary]),
         $body
@@ -86,16 +98,7 @@ if (empty($result['ok'])) {
     $result = ['ok'=>true,'id'=>$created['id'],'name'=>$filename,'webViewLink'=>$created['webViewLink'] ?? ''];
 }
 
-/* Chỉ giữ một biên bản của ngày: các bản Word/PDF cũ được chuyển vào thùng rác Drive. */
-foreach (array_keys($obsoleteIds) as $oldId) {
-    if ($oldId === (string)$result['id']) continue;
-    cds_drive_http(
-        'https://www.googleapis.com/drive/v3/files/'.rawurlencode($oldId).'?supportsAllDrives=true&fields=id,trashed',
-        'PATCH',
-        array_merge($headers, ['Content-Type: application/json']),
-        '{"trashed":true}'
-    );
-}
+/* Không tự động xóa hoặc chuyển tệp vào thùng rác trong quá trình lưu. */
 if (empty($result['webViewLink'])) $result['webViewLink'] = 'https://drive.google.com/file/d/'.rawurlencode((string)$result['id']).'/view';
 cds_drive_history_add([
     'action'=>$action,
