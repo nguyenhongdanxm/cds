@@ -188,7 +188,7 @@ $disciplineText = $entryValue('discipline', $disciplineText);
       if(!driveResponse.ok||!data.ok)throw new Error(data.message||'Không cập nhật được tệp PDF trên Drive.');
       saveBtn.innerHTML='<i class="bi bi-check-circle"></i> Đã lưu thành công';
       if(saveStatus){saveStatus.className='drive-save-note text-success fw-semibold';saveStatus.textContent='Đã lưu biên bản và cập nhật tệp PDF “'+(data.filename||'Biên bản trực nội trú')+'” trên Google Drive.';}
-      setTimeout(function(){saveBtn.innerHTML=oldHtml;saveBtn.disabled=false=false;},2200);
+      setTimeout(function(){saveBtn.innerHTML=oldHtml;saveBtn.disabled=false;},2200);
     }catch(error){
       saveBtn.innerHTML=oldHtml;saveBtn.disabled=false;
       if(saveStatus){saveStatus.className='drive-save-note text-danger fw-semibold';saveStatus.textContent=error.message||'Không thể hoàn tất lưu biên bản.';}
