@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'duty_toggle'=>'nt.lichtruc', 'duty_auto'=>'nt.lichtruc', 'duty_copy'=>'nt.lichtruc',
         'duty_month_clear'=>'nt.lichtruc', 'duty_manager_save'=>'nt.lichtruc',
         'duty_settings_save'=>'nt.lichtruc', 'duty_group_save'=>'nt.lichtruc', 'duty_group_delete'=>'nt.lichtruc',
-        'duty_swap'=>'nt.lichtruc', 'duty_assign_weekday'=>'nt.lichtruc', 'duty_manager_weekday'=>'nt.lichtruc',
+        'duty_swap'=>'nt.lichtruc', 'duty_swap_request_decide'=>'nt.lichtruc', 'duty_assign_weekday'=>'nt.lichtruc', 'duty_manager_weekday'=>'nt.lichtruc',
         'duty_roster_save'=>'nt.lichtruc', 'duty_roster_delete'=>'nt.lichtruc',
         'duty_report_save'=>'nt.lichtruc', 'duty_report_lock'=>'nt.lichtruc', 'duty_report_lock_settings'=>'nt.lichtruc',
         'health_save'=>'nt.yte', 'health_delete'=>'nt.yte',
@@ -136,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $requiredLevel = substr($action, -7) === '_delete' || $action === 'duty_month_clear' ? 'delete' : 'edit';
         require_perm_level($actionPerms[$action], $requiredLevel);
     }
-    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_state_bulk','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','duty_report_lock','duty_report_lock_settings','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
+    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_state_bulk','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_swap_request_decide','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','duty_report_lock','duty_report_lock_settings','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
         noitru_require_global_scope();
     }
     if (in_array($action, ['rice_settings','rice_in','rice_issue','rice_delete'], true)) {
@@ -606,6 +606,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash($saved ? 'Đã lưu nội dung biên bản trực.' : 'Không lưu được biên bản trực.', $saved ? 'success' : 'danger');
         header('Location: ' . BASE_URL . 'noitru.php?tab=duty_report&date=' . urlencode($reportDate));
         exit;
+    }
+    if ($action === 'duty_swap_request_create') {
+        $teacherId=trim((string)($user['teacher_id']??''));
+        $teacherName=trim((string)($user['teacher_name']??$user['name']??''));
+        if($teacherId===''&&$teacherName!=='')foreach(csdl_teachers_all() as $teacher){$candidateName=trim((string)($teacher['name']??''));$same=function_exists('mb_strtolower')?mb_strtolower($candidateName,'UTF-8')===mb_strtolower($teacherName,'UTF-8'):strtolower($candidateName)===strtolower($teacherName);if($same){$teacherId=(string)($teacher['id']??'');break;}}
+        [$saved,$message]=noitru_duty_swap_request_create($teacherId,$teacherName,trim((string)($_POST['source_duty_id']??'')),trim((string)($_POST['target_duty_id']??'')),(string)($_POST['reason']??''));
+        flash($message,$saved?'success':'danger');
+        header('Location: '.BASE_URL.'noitru.php?tab=duty&section=requests&month='.urlencode((string)($_POST['month']??date('Y-m'))));exit;
+    }
+    if ($action === 'duty_swap_request_decide') {
+        [$saved,$message]=noitru_duty_swap_request_decide(trim((string)($_POST['request_id']??'')),(string)($_POST['decision']??''),(string)($user['name']??''),(string)($_POST['decision_note']??''));
+        flash($message,$saved?'success':'danger');
+        header('Location: '.BASE_URL.'noitru.php?tab=duty&section=requests&month='.urlencode((string)($_POST['month']??date('Y-m'))));exit;
     }
     if (str_starts_with($action, 'duty_')) {
         $month = trim($_POST['month'] ?? date('Y-m'));

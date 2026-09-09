@@ -1,11 +1,11 @@
 <?php
 /** Giao diện quản lý lịch trực nội trú. */
 $dutySection = $_GET['section'] ?? 'calendar';
-$dutySections = ['calendar','assign','manage','stats','settings'];
+$dutySections = ['calendar','requests','assign','manage','stats','settings'];
 if (!in_array($dutySection, $dutySections, true)) $dutySection = 'calendar';
 // Lịch trực là nghiệp vụ toàn trường: quyền Sửa là chốt quản lý đầy đủ.
 $canManageDuty = $canEditCurrent;
-if (!$canManageDuty && !in_array($dutySection, ['calendar','stats'], true)) $dutySection = 'calendar';
+if (!$canManageDuty && !in_array($dutySection, ['calendar','requests','stats'], true)) $dutySection = 'calendar';
 
 $dutyMonth = trim($_GET['month'] ?? date('Y-m'));
 if (!preg_match('/^\d{4}-\d{2}$/', $dutyMonth)) $dutyMonth = date('Y-m');
@@ -28,6 +28,12 @@ foreach ($teachers as $teacher) {
     $dutyTeacherMap[$teacherId] = (string)($teacher['name'] ?? '');
     $dutyTeacherMaleMap[$teacherId] = noitru_gender_is_male($teacher['gender'] ?? $teacher['gioi_tinh'] ?? '');
 }
+$dutyCurrentTeacherId=trim((string)($user['teacher_id']??''));
+$dutyCurrentTeacherName=trim((string)($user['teacher_name']??$user['name']??''));
+if($dutyCurrentTeacherId==='' && $dutyCurrentTeacherName!=='')foreach($dutyTeacherMap as $id=>$name)if(function_exists('mb_strtolower')&&mb_strtolower(trim($name),'UTF-8')===mb_strtolower($dutyCurrentTeacherName,'UTF-8')||!function_exists('mb_strtolower')&&strtolower(trim($name))===strtolower($dutyCurrentTeacherName)){$dutyCurrentTeacherId=$id;break;}
+$dutySwapRequests=noitru_duty_swap_requests_all();
+$dutySwapRequests=array_values(array_filter($dutySwapRequests,fn($row)=>str_starts_with((string)($row['source_date']??''),$dutyMonth.'-')||str_starts_with((string)($row['target_date']??''),$dutyMonth.'-')));
+if(!$canManageDuty)$dutySwapRequests=array_values(array_filter($dutySwapRequests,fn($row)=>(string)($row['requester_id']??'')===$dutyCurrentTeacherId||(string)($row['target_teacher_id']??'')===$dutyCurrentTeacherId));
 $dutyRoster = noitru_duty_roster_all($dutyTeacherMap);
 $dutyRosterMap = [];
 $dutyRosterLimits = [];
@@ -116,6 +122,7 @@ if (!function_exists('nt_duty_url')) {
 @media(max-width:991.98px){.duty-calendar{grid-template-columns:repeat(4,minmax(0,1fr))}.duty-calendar-blank{display:none}.duty-stat-cards{grid-template-columns:1fr 1fr}.duty-settings-grid,.duty-tools-grid{grid-template-columns:1fr}.duty-tabs{overflow-x:auto;display:flex}.duty-tabs a{flex:0 0 auto;min-width:128px}.duty-roster-form{grid-template-columns:1fr 100px}.duty-roster-form .roster-note{grid-column:1/-1}}
 @media(max-width:575.98px){.duty-page-head p{font-size:.78rem}.duty-current{padding:.85rem}.duty-current-top{display:block}.duty-time-pill{display:inline-block;margin-top:.45rem}.duty-tabs a{min-width:112px;font-size:.74rem}.duty-calendar{grid-template-columns:1fr 1fr;gap:.45rem}.duty-day{min-height:132px}.duty-toolbar{padding:.65rem}.duty-toolbar-actions{width:100%}.duty-toolbar-actions>*{flex:1}.duty-toolbar-actions .form-select{width:100%!important}.duty-stat-cards{gap:.45rem}.duty-stat-card{padding:.75rem}.duty-stat-card strong{font-size:1.2rem}.duty-panel-body{padding:.7rem}.duty-manager-table form{min-width:520px}.duty-matrix .teacher-col{min-width:170px}}
 </style>
+<style>.duty-tabs{grid-template-columns:repeat(6,minmax(0,1fr))}.duty-request-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.duty-status{display:inline-block;padding:.25rem .55rem;border-radius:999px;font-size:.72rem;font-weight:700}.duty-status.pending{background:#fef3c7;color:#92400e}.duty-status.approved{background:#dcfce7;color:#166534}.duty-status.rejected{background:#fee2e2;color:#991b1b}@media(max-width:900px){.duty-request-grid{grid-template-columns:1fr}}</style>
 
 <div class="duty-page-head">
   <div><h4><i class="bi bi-calendar2-week duty-title-icon"></i> Lịch trực</h4><p>Quản lý phân công trực · Ca từ <?= e($dutyStartTime) ?> đến <?= e($dutyEndTime) ?> hôm sau</p></div>
@@ -136,13 +143,14 @@ if (!function_exists('nt_duty_url')) {
   <?php
   $dutyTabItems = [
       'calendar'=>['bi-calendar3','Lịch trực'],
+      'requests'=>['bi-arrow-left-right','Đăng ký đổi lịch'],
       'assign'=>['bi-people','Phân công'],
       'manage'=>['bi-shield-check','Quản lý trực'],
       'stats'=>['bi-bar-chart','Thống kê'],
       'settings'=>['bi-gear','Cài đặt'],
   ];
   foreach ($dutyTabItems as $key=>$item):
-      if (!$canManageDuty && !in_array($key, ['calendar','stats'], true)) continue;
+      if (!$canManageDuty && !in_array($key, ['calendar','requests','stats'], true)) continue;
   ?>
   <a class="<?= $dutySection===$key?'active':'' ?>" href="<?= e(nt_duty_url($key,$dutyMonth)) ?>"><i class="bi <?= e($item[0]) ?>"></i><?= e($item[1]) ?></a>
   <?php endforeach; ?>
@@ -175,6 +183,16 @@ if (!function_exists('nt_duty_url')) {
     </article>
     <?php endfor; ?>
   </div>
+
+<?php elseif ($dutySection === 'requests'): ?>
+  <?php $myFutureDuties=array_values(array_filter($dutyMonthRows,fn($row)=>(string)($row['teacher_id']??'')===$dutyCurrentTeacherId&&($row['date']??'')>=$dutyToday));$otherFutureDuties=array_values(array_filter($dutyMonthRows,fn($row)=>(string)($row['teacher_id']??'')!==$dutyCurrentTeacherId&&($row['date']??'')>=$dutyToday)); ?>
+  <div class="duty-request-grid mb-3">
+    <section class="duty-panel"><div class="duty-panel-head"><div><h6><i class="bi bi-arrow-left-right text-info"></i> Đăng ký đổi lịch trực</h6><div class="duty-help">Chọn một lịch của mình và một lịch muốn đổi. Lịch chính thức chỉ thay đổi sau khi được duyệt.</div></div></div><div class="duty-panel-body">
+      <?php if($dutyCurrentTeacherId===''):?><div class="alert alert-warning mb-0">Tài khoản chưa liên kết với hồ sơ giáo viên nên chưa thể đăng ký.</div><?php elseif(!$myFutureDuties):?><div class="alert alert-info mb-0">Bạn không có lịch trực sắp tới trong tháng này.</div><?php else:?><form method="post"><input type="hidden" name="action" value="duty_swap_request_create"><input type="hidden" name="month" value="<?=e($dutyMonth)?>"><label class="form-label">Lịch trực của tôi</label><select name="source_duty_id" class="form-select mb-3" required><option value="">Chọn ngày cần đổi</option><?php foreach($myFutureDuties as $row):?><option value="<?=e($row['id']??'')?>"><?=e(date('d/m/Y',strtotime($row['date']??'')))?></option><?php endforeach;?></select><label class="form-label">Đổi với giáo viên/ngày</label><select name="target_duty_id" class="form-select mb-3" required><option value="">Chọn lịch muốn đổi</option><?php foreach($otherFutureDuties as $row):?><option value="<?=e($row['id']??'')?>"><?=e(date('d/m/Y',strtotime($row['date']??'')))?> · <?=e($row['teacher_name']??'')?></option><?php endforeach;?></select><label class="form-label">Lý do</label><textarea name="reason" class="form-control mb-3" rows="3" required placeholder="Nhập lý do đề nghị đổi lịch"></textarea><button class="btn btn-info text-white"><i class="bi bi-send"></i> Gửi yêu cầu</button></form><?php endif;?>
+    </div></section>
+    <section class="duty-panel"><div class="duty-panel-head"><div><h6><i class="bi bi-info-circle text-warning"></i> Quy trình xử lý</h6><div class="duty-help">Yêu cầu được lưu lại để theo dõi.</div></div></div><div class="duty-panel-body small"><ol class="mb-0"><li>Giáo viên chọn hai lượt trực và ghi lý do.</li><li>Người quản lý lịch trực xem xét yêu cầu.</li><li>Khi duyệt, hệ thống hoán đổi đúng hai giáo viên giữa hai ngày.</li><li>Nếu lịch gốc đã thay đổi, yêu cầu cũ sẽ không được áp dụng.</li></ol></div></section>
+  </div>
+  <section class="duty-panel"><div class="duty-panel-head"><div><h6><?= $canManageDuty?'Yêu cầu đổi lịch cần xử lý':'Yêu cầu liên quan đến tôi' ?></h6><div class="duty-help"><?= $canManageDuty?'Duyệt hoặc từ chối; thao tác duyệt sẽ cập nhật lịch trực ngay.':'Theo dõi trạng thái các yêu cầu đã gửi hoặc liên quan.' ?></div></div></div><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Ngày gửi</th><th>Người đề nghị</th><th>Đổi lịch</th><th>Lý do</th><th>Trạng thái</th><?php if($canManageDuty):?><th>Xử lý</th><?php endif;?></tr></thead><tbody><?php foreach($dutySwapRequests as $request):?><tr><td><?=e(!empty($request['created_at'])?date('d/m/Y H:i',strtotime($request['created_at'])):'')?></td><td><strong><?=e($request['requester_name']??'')?></strong></td><td><?=e($request['source_teacher_name']??'')?> · <?=e(date('d/m/Y',strtotime($request['source_date']??'')))?><br><i class="bi bi-arrow-down-up text-info"></i> <?=e($request['target_teacher_name']??'')?> · <?=e(date('d/m/Y',strtotime($request['target_date']??'')))?></td><td><?=e($request['reason']??'')?><?php if(!empty($request['decision_note'])):?><div class="text-muted small">Phản hồi: <?=e($request['decision_note'])?></div><?php endif;?></td><td><span class="duty-status <?=e($request['status']??'pending')?>"><?=e(['pending'=>'Chờ duyệt','approved'=>'Đã duyệt','rejected'=>'Từ chối'][$request['status']??'pending']??'Chờ duyệt')?></span></td><?php if($canManageDuty):?><td><?php if(($request['status']??'')==='pending'):?><form method="post" class="d-flex gap-1 flex-wrap"><input type="hidden" name="action" value="duty_swap_request_decide"><input type="hidden" name="request_id" value="<?=e($request['id']??'')?>"><input type="hidden" name="month" value="<?=e($dutyMonth)?>"><input type="text" name="decision_note" class="form-control form-control-sm" placeholder="Ghi chú"><button name="decision" value="approved" class="btn btn-sm btn-success" onclick="return confirm('Duyệt và cập nhật lịch trực?')">Duyệt</button><button name="decision" value="rejected" class="btn btn-sm btn-outline-danger">Từ chối</button></form><?php else:?><small><?=e($request['decision_by']??'')?><?=!empty($request['decided_at'])?' · '.e(date('d/m/Y H:i',strtotime($request['decided_at']))):''?></small><?php endif;?></td><?php endif;?></tr><?php endforeach;?><?php if(!$dutySwapRequests):?><tr><td colspan="<?= $canManageDuty?6:5 ?>" class="text-center text-muted py-4">Chưa có yêu cầu đổi lịch.</td></tr><?php endif;?></tbody></table></div></section>
 
 <?php elseif ($dutySection === 'assign'): ?>
   <section class="duty-panel">
