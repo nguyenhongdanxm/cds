@@ -72,5 +72,5 @@
 /* Vận hành hôm nay: bốn lực lượng theo lưới 2x2, điểm danh dùng trọn hàng cuối. */
 .operation-grid>.operation-group-box,.operation-grid>.duty-box{min-height:80px}
 .operation-grid>.attendance-box{grid-column:1/-1;min-height:76px}
-.operation-people i{font-size:.78em;font-weight:300;font-style:italic;color:#60758a;white-space:nowrap}
+.operation-people{margin-top:3px;font-size:15px;line-height:1.25}.operation-people b{font-weight:700}.operation-note{font-size:.78em!important;font-weight:400!important;font-style:italic;color:#60758a;white-space:nowrap}
 @media(max-width:640px){.operation-grid>.attendance-box{grid-column:auto}}
