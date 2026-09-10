@@ -10,6 +10,12 @@ function cds_operation_add_assignment(array $data): array {
     return[cds_operation_save_assignments($rows),'Đã thêm lịch hiển thị trên trang Tổng quan.'];
 }
 function cds_operation_delete_assignment(string $id): bool {$rows=cds_operation_assignments();return cds_operation_save_assignments(array_values(array_filter($rows,fn($row)=>(string)($row['id']??'')!==$id)));}
+function cds_operation_update_assignment(string $id,array $data): array {
+    $groups=cds_operation_groups();$group=trim((string)($data['group']??''));$teacherId=trim((string)($data['teacher_id']??''));$teacherName=trim((string)($data['teacher_name']??''));$start=trim((string)($data['start_date']??''));$end=trim((string)($data['end_date']??''));$weekdays=array_values(array_unique(array_filter(array_map('intval',(array)($data['weekdays']??[])),fn($day)=>$day>=1&&$day<=7)));sort($weekdays);
+    if($id===''||!isset($groups[$group])||$teacherId===''||$teacherName===''||!$weekdays||!preg_match('/^\d{4}-\d{2}-\d{2}$/',$start)||!preg_match('/^\d{4}-\d{2}-\d{2}$/',$end)||$start>$end)return[false,'Thông tin cập nhật chưa hợp lệ.'];
+    $rows=cds_operation_assignments();$found=false;foreach($rows as&$row)if((string)($row['id']??'')===$id){$row=array_merge($row,['group'=>$group,'teacher_id'=>$teacherId,'teacher_name'=>$teacherName,'weekdays'=>$weekdays,'start_date'=>$start,'end_date'=>$end,'note'=>trim((string)($data['note']??'')),'updated_at'=>date('c'),'updated_by'=>trim((string)($data['updated_by']??''))]);$found=true;break;}unset($row);
+    if(!$found)return[false,'Không tìm thấy lịch cần sửa.'];return[cds_operation_save_assignments($rows),'Đã cập nhật lịch hiển thị.'];
+}
 function cds_operation_for_date(string $date): array {
     $result=array_fill_keys(array_keys(cds_operation_groups()),[]);$weekday=(int)date('N',strtotime($date));
     foreach(cds_operation_assignments()as$row){$group=(string)($row['group']??'');if(!isset($result[$group])||$date<(string)($row['start_date']??'')||$date>(string)($row['end_date']??''))continue;if(!in_array($weekday,array_map('intval',(array)($row['weekdays']??[])),true))continue;$name=trim((string)($row['teacher_name']??''));$note=trim((string)($row['note']??''));if($name==='')continue;$duplicate=false;foreach($result[$group]as$person)if((string)($person['name']??'')===$name&&(string)($person['note']??'')===$note){$duplicate=true;break;}if(!$duplicate)$result[$group][]=['name'=>$name,'note'=>$note];}
