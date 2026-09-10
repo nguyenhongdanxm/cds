@@ -72,4 +72,5 @@
 /* Vận hành hôm nay: bốn lực lượng theo lưới 2x2, điểm danh dùng trọn hàng cuối. */
 .operation-grid>.operation-group-box,.operation-grid>.duty-box{min-height:80px}
 .operation-grid>.attendance-box{grid-column:1/-1;min-height:76px}
+.operation-people i{font-size:.82em;font-weight:500;font-style:italic;color:#60758a;white-space:nowrap}
 @media(max-width:640px){.operation-grid>.attendance-box{grid-column:auto}}
