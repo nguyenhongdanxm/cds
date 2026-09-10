@@ -83,7 +83,10 @@ uksort($attendanceByShift,function($a,$b)use($shiftSort){$compare=($shiftSort[$a
 $location = trim((string)($report['location'] ?? ''));
 if ($location === '' || in_array($location, ['Pà Vầy Sủ', 'Xã Pà Vầy Sủ'], true)) $location = 'Phòng trực nội trú';
 $shiftLabel = (string)($report['shift_label'] ?? ($startTime . ' ngày ' . date('d/m/Y',strtotime($reportDate)) . ' đến ' . $endTime . ' ngày ' . date('d/m/Y',strtotime($nextDate))));
-$cleanReportText = static fn($value): string => trim((string)preg_replace('/\[\[NT[^\]]*\]\]\s*/u', '', (string)$value));
+$cleanReportText = static function($value): string {
+    $value = str_replace(['[[NT3.3_THAM_HOI_DUA_DON]]', '[[NT3.4_SU_VIEC]]'], '', (string)$value);
+    return trim((string)preg_replace('/\[\[NT[^\]]*\]\]\s*/u', '', $value));
+};
 $field = fn($key) => $cleanReportText($report[$key] ?? '');
 $oldParts = array_values(array_filter(array_map('trim', [$field('discipline'),$field('hygiene'),$field('safety'),$field('health')]), fn($value)=>$value!==''));
 $disciplineText = implode("\n", array_values(array_unique($oldParts)));
@@ -147,7 +150,7 @@ $disciplineText = $entryValue('discipline', $disciplineText);
 <script>
 (function(){
   const form=document.getElementById('dutyReportForm'),paper=form?.querySelector('.duty-report-paper'),toggle=document.getElementById('toggleDutyPreview'),saveBtn=document.getElementById('saveDutyReport'),saveStatus=document.getElementById('dutySaveStatus');
-  function cleanReportText(value){return String(value||'').replace(/\[\[NT[^\]]*\]\]\s*/g,'').trim();}
+  function cleanReportText(value){return String(value||'').split('[[NT3.3_THAM_HOI_DUA_DON]]').join('').split('[[NT3.4_SU_VIEC]]').join('').replace(/\[\[NT[^\]]*\]\]\s*/g,'').trim();}
   function sync(){form?.querySelectorAll('.report-entry').forEach(function(input){const out=form.querySelector('.report-entry-preview[data-for="'+input.name+'"]');if(out)out.textContent=cleanReportText(input.value)||'Không có';});}
   function setPreview(on){sync();paper?.classList.toggle('preview-mode',on);if(toggle)toggle.innerHTML=on?'<i class="bi bi-pencil-square"></i> Tiếp tục nhập':'<i class="bi bi-eye"></i> Xem trước';}
   async function createPdfBlob(){
@@ -205,7 +208,7 @@ $disciplineText = $entryValue('discipline', $disciplineText);
     }finally{stage.remove();}
   }
   toggle?.addEventListener('click',function(){setPreview(!paper.classList.contains('preview-mode'));});
-  form?.querySelectorAll('.report-entry').forEach(function(input){input.addEventListener('input',sync);});sync();
+  form?.querySelectorAll('.report-entry').forEach(function(input){input.value=cleanReportText(input.value);input.addEventListener('input',sync);});sync();
   form?.addEventListener('submit',async function(event){
     event.preventDefault();
     if(!saveBtn||saveBtn.disabled)return;
