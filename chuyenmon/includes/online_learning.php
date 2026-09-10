@@ -99,3 +99,64 @@ function cmact_store_online_template(array $upload): array {
     if (!move_uploaded_file($tmp, $dir . '/' . $stored)) throw new RuntimeException('Không lưu được tệp mẫu đơn trên máy chủ.');
     return ['stored_name' => $stored, 'original_name' => cmact_text($original, 180), 'size' => $size, 'uploaded_at' => date('c')];
 }
+
+function cmact_sanitize_rich_html($value, int $max = 50000): string {
+    $html = trim((string)$value);
+    if ($html === '') return '';
+    if (strlen($html) > $max) $html = substr($html, 0, $max);
+    if (!preg_match('/<\/?[a-z][^>]*>/i', $html)) $html = nl2br(htmlspecialchars($html, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false);
+    if (!class_exists('DOMDocument')) {
+        $safe = strip_tags($html, '<p><div><br><strong><b><em><i><u><s><h1><h2><h3><h4><ul><ol><li><blockquote><table><thead><tbody><tr><th><td>');
+        return (string)preg_replace('/\s+(?:on\w+|style|href|src)\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)/iu', '', $safe);
+    }
+    $doc = new DOMDocument('1.0', 'UTF-8');
+    $previous = libxml_use_internal_errors(true);
+    $doc->loadHTML('<?xml encoding="UTF-8"><div id="cm-rich-root">' . $html . '</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+    libxml_clear_errors();
+    libxml_use_internal_errors($previous);
+    $root = $doc->getElementById('cm-rich-root');
+    if (!$root) return '';
+    $allowed = ['p','div','br','strong','b','em','i','u','s','h1','h2','h3','h4','ul','ol','li','blockquote','a','span','font','table','thead','tbody','tr','th','td'];
+    $clean = function (DOMNode $parent) use (&$clean, $allowed): void {
+        for ($node = $parent->firstChild; $node;) {
+            $next = $node->nextSibling;
+            if ($node instanceof DOMComment) $parent->removeChild($node);
+            elseif ($node instanceof DOMElement) {
+                $tag = strtolower($node->tagName);
+                if (!in_array($tag, $allowed, true)) {
+                    $clean($node);
+                    while ($node->firstChild) $parent->insertBefore($node->firstChild, $node);
+                    $parent->removeChild($node);
+                } else {
+                    foreach (iterator_to_array($node->attributes) as $attribute) {
+                        $name = strtolower($attribute->name);
+                        $value = trim($attribute->value);
+                        $keep = false;
+                        if ($tag === 'a' && $name === 'href' && preg_match('#^(https?://|mailto:|/)#i', $value)) $keep = true;
+                        elseif ($tag === 'a' && in_array($name, ['title','target'], true)) $keep = true;
+                        elseif ($tag === 'font' && in_array($name, ['face','size','color'], true) && !preg_match('/[<>"\']/', $value)) $keep = true;
+                        elseif (in_array($tag, ['p','div','h1','h2','h3','h4','td','th'], true) && $name === 'align' && in_array(strtolower($value), ['left','center','right','justify'], true)) $keep = true;
+                        elseif ($name === 'style') {
+                            $parts = [];
+                            foreach (explode(';', $value) as $rule) {
+                                if (!str_contains($rule, ':')) continue;
+                                [$property, $setting] = array_map('trim', explode(':', $rule, 2));
+                                $property = strtolower($property);
+                                if (in_array($property, ['text-align','font-family','font-size','color','background-color'], true) && preg_match('/^[#(),.%\-\w\s"\']+$/u', $setting) && !preg_match('/url|expression/i', $setting)) $parts[] = $property . ':' . $setting;
+                            }
+                            if ($parts) {$node->setAttribute('style', implode(';', $parts));$keep = true;}
+                        }
+                        if (!$keep) $node->removeAttribute($attribute->name);
+                    }
+                    if ($tag === 'a' && $node->hasAttribute('href')) $node->setAttribute('rel', 'noopener noreferrer');
+                    $clean($node);
+                }
+            }
+            $node = $next;
+        }
+    };
+    $clean($root);
+    $output = '';
+    foreach ($root->childNodes as $child) $output .= $doc->saveHTML($child);
+    return trim($output);
+}
