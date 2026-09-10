@@ -1524,10 +1524,6 @@ form[method="post"]:not(#dutyReportForm):not(#dutySwapRequestForm){display:none!
               <span class="overview-duty-role-label"><i class="bi bi-person-check"></i> Người trực</span>
               <div class="overview-duty-names"><?php if ($blockRows): foreach ($blockRows as $dutyRow): ?><span class="overview-duty-name"><?= e($dutyRow['teacher_name'] ?? 'Chưa rõ') ?></span><?php endforeach; else: ?><span class="overview-duty-unassigned">Chưa phân công</span><?php endif; ?></div>
             </div>
-            <div class="overview-duty-role">
-              <span class="overview-duty-role-label"><i class="bi bi-shield-check"></i> Quản lý</span>
-              <div><?php if ($blockManagerNames): ?><div class="overview-duty-names"><?php foreach ($blockManagerNames as $managerName): ?><span class="overview-duty-name manager"><?= e($managerName) ?></span><?php endforeach; ?></div><?php else: ?><span class="overview-duty-unassigned">Chưa phân công quản lý</span><?php endif; ?><?php if (trim((string)($blockManager['note'] ?? '')) !== ''): ?><div class="overview-duty-note"><i class="bi bi-chat-left-text"></i> <?= e($blockManager['note']) ?></div><?php endif; ?></div>
-            </div>
           </div>
           <?php endforeach; ?>
         </div>
