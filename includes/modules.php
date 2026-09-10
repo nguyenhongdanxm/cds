@@ -58,6 +58,13 @@ function get_ecosystem_modules() {
             'icon' => 'bi-trophy', 'color' => '#ffc107',
             'status' => 'live', 'url' => BASE_URL . 'thidua.php', 'external' => false,
         ],
+        [
+            'id' => 'trolyai', 'num' => 9,
+            'title' => 'Trợ lý AI',
+            'subtitle' => 'Văn bản · pháp lý · dạy và học',
+            'icon' => 'bi-stars', 'color' => '#7c3aed',
+            'status' => 'live', 'url' => BASE_URL . 'trolyai.php', 'external' => false,
+        ],
     ];
 
     /*

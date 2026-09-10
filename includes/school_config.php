@@ -91,6 +91,7 @@ if (!function_exists('cds_school_config')) {
                     'hoclieu' => true,
                     'noitru' => true,
                     'thidua' => true,
+                    'trolyai' => true,
                     'yte' => true,
                 ],
             ];

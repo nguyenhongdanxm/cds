@@ -9,7 +9,7 @@ require_once __DIR__ . '/modules.php';
 $switchUser = function_exists('current_user') ? current_user() : (function_exists('cds_user') ? cds_user() : ($_SESSION['cds_user'] ?? null));
 if (!$switchUser) return;
 $switchRootUrl = '/';
-$switchRoutes = ['chuyenmon'=>'/chuyenmon/','vanban'=>'/vanban.php','thuvien'=>'/thuvien.php','csdl'=>'/csdl.php','hoclieu'=>'/hoclieu.php','noitru'=>'/noitru.php','thidua'=>'/thidua.php'];
+$switchRoutes = ['chuyenmon'=>'/chuyenmon/','vanban'=>'/vanban.php','thuvien'=>'/thuvien.php','csdl'=>'/csdl.php','hoclieu'=>'/hoclieu.php','noitru'=>'/noitru.php','thidua'=>'/thidua.php','trolyai'=>'/trolyai.php'];
 $switchModules = [];
 foreach (get_ecosystem_modules() as $module) {
     $id = (string)($module['id'] ?? '');
@@ -38,8 +38,8 @@ $switchCurrentPath = basename($switchRequestPath);
   <div class="cds-launcher-backdrop" data-cds-close></div>
   <button class="cds-launcher-button" type="button" data-cds-open aria-expanded="false" aria-label="Chuyển trang" title="Chuyển trang (Alt + M)"><i class="bi bi-grid-3x3-gap-fill"></i><span>Chuyển trang</span><kbd>Alt + M</kbd></button>
   <section class="cds-launcher-panel" role="dialog" aria-modal="true" aria-label="Bộ chuyển trang CDS">
-    <header class="cds-launcher-head"><div><strong>Đi đến nhanh</strong><small><?=e($switchUser['name']??'')?> · 9 phân hệ chính của CDS</small></div><button class="cds-launcher-close" type="button" data-cds-close aria-label="Đóng">×</button></header>
-    <div class="cds-launcher-search"><i class="bi bi-search"></i><input type="search" data-cds-search placeholder="Tìm trong 9 phân hệ..." autocomplete="off"><span>ESC để đóng</span></div>
+    <header class="cds-launcher-head"><div><strong>Đi đến nhanh</strong><small><?=e($switchUser['name']??'')?> · <?=count($switchModules)+1?> phân hệ chính của CDS</small></div><button class="cds-launcher-close" type="button" data-cds-close aria-label="Đóng">×</button></header>
+    <div class="cds-launcher-search"><i class="bi bi-search"></i><input type="search" data-cds-search placeholder="Tìm trong hệ sinh thái..." autocomplete="off"><span>ESC để đóng</span></div>
     <div class="cds-launcher-body">
       <section class="cds-launcher-section"><div class="cds-launcher-section-title"><span>Hệ sinh thái CDS</span><span><?=count($switchModules)+1?> mục</span></div><div class="cds-launcher-grid" data-cds-links>
         <a class="cds-launcher-link <?=$switchCurrentPath==='admin.php'&&!isset($_GET['view'])?'active':''?>" href="<?=e($switchRootUrl.'admin.php')?>" style="--cds-color:#2563eb" data-search="tổng quan trang chủ hệ sinh thái dashboard"><i class="bi bi-speedometer2"></i><span><strong>Tổng quan</strong><small>Trang điều hành hệ sinh thái</small></span><?php if($switchCurrentPath==='admin.php'&&!isset($_GET['view'])):?><em class="cds-launcher-current"></em><?php endif;?></a>

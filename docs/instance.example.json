@@ -27,6 +27,7 @@
       "hoclieu": true,
       "noitru": false,
       "thidua": true,
+      "trolyai": true,
       "yte": false
     },
     "chuyenmon": {
@@ -67,6 +68,14 @@
     },
     "types": {},
     "bindings": {}
+  },
+  "ai": {
+    "enabled": false,
+    "base_url": "https://codecraftapi.com/v1",
+    "api_key": "",
+    "model": "gpt-5.6-luna",
+    "max_input_chars": 20000,
+    "max_tokens": 3000
   },
   "deployment": {
     "target_path": "/home/USER/example.edu.vn"

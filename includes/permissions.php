@@ -19,6 +19,7 @@ function permission_modules_catalog() {
         'hoclieu'   => ['label' => 'Học liệu và thi', 'icon' => 'bi-laptop', 'page' => 'hoclieu.php'],
         'noitru'    => ['label' => 'Quản lý nội trú', 'icon' => 'bi-building', 'page' => 'noitru.php'],
         'thidua'    => ['label' => 'Thi đua', 'icon' => 'bi-trophy', 'page' => 'thidua.php'],
+        'trolyai'    => ['label' => 'Trợ lý AI', 'icon' => 'bi-stars', 'page' => 'trolyai.php'],
     ];
 }
 
@@ -99,6 +100,12 @@ function permission_features_catalog() {
         'tb.baoduong' => ['module' => 'thuvien', 'label' => 'Bảo dưỡng – sửa chữa', 'group' => 'Thiết bị'],
         'tb.kiemke'   => ['module' => 'thuvien', 'label' => 'Kiểm kê tài sản', 'group' => 'Thiết bị'],
 
+        // Trợ lý AI
+        'ai.vanban'   => ['module' => 'trolyai', 'label' => 'Trợ lý xử lý văn bản', 'group' => 'Trợ lý AI'],
+        'ai.phaply'   => ['module' => 'trolyai', 'label' => 'Trợ lý văn bản pháp lý', 'group' => 'Trợ lý AI'],
+        'ai.dayhoc'   => ['module' => 'trolyai', 'label' => 'Trợ lý dạy và học', 'group' => 'Trợ lý AI'],
+        'ai.cauhinh'  => ['module' => 'trolyai', 'label' => 'Cấu hình API và mô hình', 'group' => 'Quản trị Trợ lý AI'],
+
     ];
 }
 
@@ -129,28 +136,28 @@ function permission_default_groups() {
         'bgh' => [
             'label' => 'Ban giám hiệu',
             'access' => array_merge(
-                $view(array_merge($cmView, $ntView, array_merge(['csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','csdl.export','vb.xem','hl.xem','hl.kiemtra','hl.lienket','td.all_data'], $tdSections))),
+                $view(array_merge($cmView, $ntView, array_merge(['csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','csdl.export','vb.xem','hl.xem','hl.kiemtra','hl.lienket','td.all_data','ai.vanban','ai.phaply','ai.dayhoc'], $tdSections))),
                 $edit($cmEdit)
             ),
         ],
         'totruong' => [
             'label' => 'Tổ trưởng chuyên môn',
             'access' => array_merge(
-                $view(array_merge(['cm.dashboard','cm.tracuu','cm.thongke','cm.kehoach','csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','vb.xem','hl.xem','hl.kiemtra','hl.lienket'], $cmReports)),
+                $view(array_merge(['cm.dashboard','cm.tracuu','cm.thongke','cm.kehoach','csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','vb.xem','hl.xem','hl.kiemtra','hl.lienket','ai.vanban','ai.phaply','ai.dayhoc'], $cmReports)),
                 $edit(['cm.pccm','td.teacher_attendance'])
             ),
         ],
         'gvcn' => [
             'label' => 'Giáo viên chủ nhiệm',
-            'access' => array_merge($view(['cm.dashboard','cm.tracuu','cm.baocao.dugio','csdl.overview','csdl.students','nt.danhsach','td.student_score','vb.xem','hl.xem','hl.kiemtra','hl.lienket']), $edit(array_merge($ntEdit, ['cm.baocao.tiendo']))),
+            'access' => array_merge($view(['cm.dashboard','cm.tracuu','cm.baocao.dugio','csdl.overview','csdl.students','nt.danhsach','td.student_score','vb.xem','hl.xem','hl.kiemtra','hl.lienket','ai.vanban','ai.dayhoc']), $edit(array_merge($ntEdit, ['cm.baocao.tiendo']))),
         ],
         'gv' => [
             'label' => 'Giáo viên',
-            'access' => array_merge($view(array_merge(['cm.dashboard','cm.tracuu','nt.danhsach','vb.xem','hl.xem','hl.kiemtra','hl.lienket'], array_values(array_diff($cmReports, ['cm.baocao.tiendo'])))), $edit(['cm.baocao.tiendo'])),
+            'access' => array_merge($view(array_merge(['cm.dashboard','cm.tracuu','nt.danhsach','vb.xem','hl.xem','hl.kiemtra','hl.lienket','ai.vanban','ai.dayhoc'], array_values(array_diff($cmReports, ['cm.baocao.tiendo'])))), $edit(['cm.baocao.tiendo'])),
         ],
         'qlnt' => [
             'label' => 'Cán bộ nội trú / y tế',
-            'access' => array_merge($view(['csdl.overview','csdl.students']), $edit(array_keys(array_filter(
+            'access' => array_merge($view(['csdl.overview','csdl.students','ai.vanban']), $edit(array_keys(array_filter(
                 permission_features_catalog(),
                 fn($meta, $code) => ($meta['module'] ?? '') === 'noitru' && $code !== 'nt.diemdanh.quantri',
                 ARRAY_FILTER_USE_BOTH
@@ -158,22 +165,22 @@ function permission_default_groups() {
         ],
         'vanthu' => [
             'label' => 'Văn thư',
-            'access' => array_merge($view(['csdl.overview','csdl.teachers','csdl.classes','csdl.students']), $edit(['vb.xem','vb.quanly','vb.layso','vb.hosoluutru','vb.tuongtac'])),
+            'access' => array_merge($view(['csdl.overview','csdl.teachers','csdl.classes','csdl.students','ai.vanban','ai.phaply']), $edit(['vb.xem','vb.quanly','vb.layso','vb.hosoluutru','vb.tuongtac'])),
         ],
         'ketoan' => [
             'label' => 'Kế toán',
-            'access' => array_merge($view(['csdl.overview','csdl.students','csdl.export']), ['nt.baoan'=>'delete']),
+            'access' => array_merge($view(['csdl.overview','csdl.students','csdl.export','ai.vanban']), ['nt.baoan'=>'delete']),
         ],
         'doandoi' => [
             'label' => 'Đoàn – Đội',
             'access' => array_merge(
-                $view(array_merge(['cm.dashboard','cm.tracuu','csdl.overview','csdl.students','nt.danhsach','hl.xem','hl.kiemtra','hl.lienket','td.all_data'], $tdSections)),
+                $view(array_merge(['cm.dashboard','cm.tracuu','csdl.overview','csdl.students','nt.danhsach','hl.xem','hl.kiemtra','hl.lienket','td.all_data','ai.vanban','ai.dayhoc'], $tdSections)),
                 $edit(array_merge($tdNonAttendance, ['tt.bientap']))
             ),
         ],
         'thuvien_thietbi' => [
             'label' => 'Thư viện – Thiết bị',
-            'access' => array_merge($view(['csdl.overview','hl.xem']), $edit(['tv.danhmuc','tv.muontra','tv.thongke','tb.danhmuc','tb.nguongoc','tb.muontra','tb.baoduong','tb.kiemke'])),
+            'access' => array_merge($view(['csdl.overview','hl.xem','ai.vanban','ai.dayhoc']), $edit(['tv.danhmuc','tv.muontra','tv.thongke','tb.danhmuc','tb.nguongoc','tb.muontra','tb.baoduong','tb.kiemke'])),
         ],
     ];
 }
@@ -297,6 +304,15 @@ function permission_groups_all() {
         if ($version < 7 && !isset($group['access']['vb.tuongtac'])) {
             $group['access']['vb.tuongtac'] = $group['access']['vb.quanly'] ?? 'none';
         }
+        if ($version < 12) {
+            $aiByGroup = [
+                'bgh'=>['ai.vanban','ai.phaply','ai.dayhoc'], 'totruong'=>['ai.vanban','ai.phaply','ai.dayhoc'],
+                'gvcn'=>['ai.vanban','ai.dayhoc'], 'gv'=>['ai.vanban','ai.dayhoc'], 'qlnt'=>['ai.vanban'],
+                'vanthu'=>['ai.vanban','ai.phaply'], 'ketoan'=>['ai.vanban'],
+                'doandoi'=>['ai.vanban','ai.dayhoc'], 'thuvien_thietbi'=>['ai.vanban','ai.dayhoc'],
+            ];
+            foreach ($aiByGroup[$groupKey] ?? [] as $code) if (!isset($group['access'][$code])) $group['access'][$code] = 'view';
+        }
     }
     unset($group);
     return $saved;
@@ -313,7 +329,7 @@ function permission_groups_save(array $groups) {
             $level = $group['access'][$code] ?? 'none';
             $access[$code] = in_array($level, ['none','view','edit','delete'], true) ? $level : 'none';
         }
-        $clean[$key] = ['version' => 11, 'label' => $label !== '' ? $label : $key, 'access' => $access];
+        $clean[$key] = ['version' => 12, 'label' => $label !== '' ? $label : $key, 'access' => $access];
     }
     if (!$clean || !save_json(permission_groups_file(), $clean)) return false;
     $check = load_json(permission_groups_file(), []);
