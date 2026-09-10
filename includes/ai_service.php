@@ -4,35 +4,71 @@
 function cds_ai_defaults(): array {
     return [
         'enabled' => false,
-        'base_url' => 'https://codecraftapi.com/v1',
-        'api_key' => '',
-        'model' => 'gpt-5.6-luna',
+        'provider' => 'codecraft',
+        'providers' => [
+            'codecraft'=>['api_key'=>'','model'=>'gpt-5.6-luna'],
+            'openai'=>['api_key'=>'','model'=>'gpt-5-mini'],
+            'gemini'=>['api_key'=>'','model'=>'gemini-3.8-flash'],
+            'anthropic'=>['api_key'=>'','model'=>'claude-sonnet-4-6'],
+        ],
         'max_input_chars' => 20000,
         'max_tokens' => 3000,
     ];
 }
 
+function cds_ai_provider_catalog(): array {
+    return [
+        'codecraft'=>['label'=>'CodeCraft API','icon'=>'bi-code-square','endpoint'=>'https://codecraftapi.com/v1','models'=>['gpt-5.6-luna','gemma-2-2b','claude-opus-4.8']],
+        'openai'=>['label'=>'OpenAI · ChatGPT','icon'=>'bi-openai','endpoint'=>'https://api.openai.com/v1','models'=>['gpt-5','gpt-5-mini','gpt-4.1']],
+        'gemini'=>['label'=>'Google Gemini','icon'=>'bi-google','endpoint'=>'https://generativelanguage.googleapis.com/v1beta','models'=>['gemini-3.8-flash','gemini-3.8-pro']],
+        'anthropic'=>['label'=>'Anthropic Claude','icon'=>'bi-chat-square-heart','endpoint'=>'https://api.anthropic.com/v1','models'=>['claude-sonnet-4-6','claude-opus-4-6','claude-haiku-4-5']],
+    ];
+}
+
 function cds_ai_settings(): array {
     $saved = function_exists('cds_instance_config') ? cds_instance_config('ai', []) : [];
-    return array_merge(cds_ai_defaults(), is_array($saved) ? $saved : []);
+    $saved = is_array($saved) ? $saved : [];
+    $settings = array_replace_recursive(cds_ai_defaults(), $saved);
+    // Tự chuyển cấu hình CodeCraft bản đầu sang cấu trúc nhiều nhà cung cấp.
+    if (!empty($saved['api_key'])) $settings['providers']['codecraft']['api_key'] = (string)$saved['api_key'];
+    if (!empty($saved['model'])) $settings['providers']['codecraft']['model'] = (string)$saved['model'];
+    return $settings;
 }
 
 function cds_ai_save_settings(array $values): bool {
     if (!function_exists('cds_instance_config') || !function_exists('cds_instance_save')) return false;
     $instance = cds_instance_config();
     if (!is_array($instance)) $instance = [];
-    $old = cds_ai_settings();
-    $key = trim((string)($values['api_key'] ?? ''));
+    $old = cds_ai_settings(); $catalog = cds_ai_provider_catalog();
+    $provider = trim((string)($values['provider'] ?? 'codecraft'));
+    if (!isset($catalog[$provider])) $provider = 'codecraft';
+    $providers = [];
+    foreach ($catalog as $key=>$meta) {
+        $newKey = trim((string)($values['api_key_'.$key] ?? ''));
+        $model = trim((string)($values['model_'.$key] ?? ''));
+        $providers[$key] = [
+            'api_key'=>$newKey !== '' ? $newKey : (string)($old['providers'][$key]['api_key'] ?? ''),
+            'model'=>$model !== '' ? $model : (string)($old['providers'][$key]['model'] ?? $meta['models'][0]),
+        ];
+    }
     $instance['ai'] = [
         'enabled' => !empty($values['enabled']),
-        'base_url' => 'https://codecraftapi.com/v1',
-        'api_key' => $key !== '' ? $key : (string)$old['api_key'],
-        'model' => trim((string)($values['model'] ?? '')) ?: 'gpt-5.6-luna',
+        'provider' => $provider,
+        'providers' => $providers,
         'max_input_chars' => max(1000, min(50000, (int)($values['max_input_chars'] ?? 20000))),
         'max_tokens' => max(500, min(8000, (int)($values['max_tokens'] ?? 3000))),
     ];
     $instance['updated_at'] = date('c');
     return cds_instance_save($instance);
+}
+
+function cds_ai_http(string $url, array $headers, array $payload): array {
+    $ch=curl_init($url); curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>15,CURLOPT_TIMEOUT=>120,CURLOPT_HTTPHEADER=>$headers,CURLOPT_POSTFIELDS=>json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)]);
+    $body=curl_exec($ch);$error=curl_error($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);
+    if($body===false||$error!=='')return['ok'=>false,'status'=>0,'message'=>'Không kết nối được nhà cung cấp AI: '.$error];
+    $json=json_decode((string)$body,true);if(!is_array($json))$json=[];
+    if($status<200||$status>=300){$message=$json['error']['message']??$json['message']??('Nhà cung cấp AI trả về lỗi HTTP '.$status);return['ok'=>false,'status'=>$status,'message'=>(string)$message];}
+    return['ok'=>true,'status'=>$status,'json'=>$json];
 }
 
 function cds_ai_assistants(): array {
@@ -82,7 +118,10 @@ function cds_ai_assistants(): array {
 function cds_ai_call(string $assistantKey, string $taskKey, string $input, string $reference = ''): array {
     $settings = cds_ai_settings();
     if (empty($settings['enabled'])) return ['ok'=>false, 'message'=>'Trợ lý AI chưa được quản trị viên bật.'];
-    if (trim((string)$settings['api_key']) === '') return ['ok'=>false, 'message'=>'Chưa cấu hình API key CodeCraft.'];
+    $catalog=cds_ai_provider_catalog();$provider=(string)($settings['provider']??'codecraft');if(!isset($catalog[$provider]))$provider='codecraft';
+    $providerSettings=(array)($settings['providers'][$provider]??[]);$apiKey=trim((string)($providerSettings['api_key']??''));$model=trim((string)($providerSettings['model']??''));
+    if ($apiKey === '') return ['ok'=>false, 'message'=>'Chưa cấu hình API key cho '.$catalog[$provider]['label'].'.'];
+    if ($model === '') return ['ok'=>false, 'message'=>'Chưa chọn mô hình AI.'];
     if (!function_exists('curl_init')) return ['ok'=>false, 'message'=>'Hosting chưa bật PHP cURL.'];
     $assistants = cds_ai_assistants();
     if (!isset($assistants[$assistantKey]['tasks'][$taskKey])) return ['ok'=>false, 'message'=>'Tác vụ không hợp lệ.'];
@@ -98,23 +137,19 @@ function cds_ai_call(string $assistantKey, string $taskKey, string $input, strin
     }
     $user = $assistants[$assistantKey]['tasks'][$taskKey]."\n\nNỘI DUNG/YÊU CẦU:\n".$input;
     if ($reference !== '') $user .= "\n\nTÀI LIỆU THAM CHIẾU:\n".$reference;
-    $payload = [
-        'model'=>(string)$settings['model'],
-        'messages'=>[['role'=>'system','content'=>$system],['role'=>'user','content'=>$user]],
-        'temperature'=>$assistantKey === 'dayhoc' ? 0.35 : 0.15,
-        'max_tokens'=>(int)$settings['max_tokens'],
-    ];
-    $ch = curl_init(rtrim((string)$settings['base_url'], '/').'/chat/completions');
-    curl_setopt_array($ch, [
-        CURLOPT_POST=>true, CURLOPT_RETURNTRANSFER=>true, CURLOPT_CONNECTTIMEOUT=>15, CURLOPT_TIMEOUT=>120,
-        CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$settings['api_key'], 'Content-Type: application/json'],
-        CURLOPT_POSTFIELDS=>json_encode($payload, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),
-    ]);
-    $body = curl_exec($ch); $error = curl_error($ch); $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE); curl_close($ch);
-    if ($body === false || $error !== '') return ['ok'=>false, 'message'=>'Không kết nối được CodeCraft API: '.$error];
-    $json = json_decode((string)$body, true);
-    if ($status < 200 || $status >= 300) return ['ok'=>false, 'message'=>(string)($json['error']['message'] ?? ('CodeCraft API trả về lỗi HTTP '.$status))];
-    $content = trim((string)($json['choices'][0]['message']['content'] ?? ''));
+    $temperature=$assistantKey==='dayhoc'?0.35:0.15;$maxTokens=(int)$settings['max_tokens'];$response=[];$content='';$usage=[];
+    if(in_array($provider,['codecraft','openai'],true)){
+        $base=$provider==='codecraft'?'https://codecraftapi.com/v1':'https://api.openai.com/v1';
+        $response=cds_ai_http($base.'/chat/completions',['Authorization: Bearer '.$apiKey,'Content-Type: application/json'],['model'=>$model,'messages'=>[['role'=>'system','content'=>$system],['role'=>'user','content'=>$user]],'temperature'=>$temperature,'max_tokens'=>$maxTokens]);
+        if(!empty($response['ok'])){$content=trim((string)($response['json']['choices'][0]['message']['content']??''));$usage=(array)($response['json']['usage']??[]);}
+    }elseif($provider==='gemini'){
+        $response=cds_ai_http('https://generativelanguage.googleapis.com/v1beta/models/'.rawurlencode($model).':generateContent',['x-goog-api-key: '.$apiKey,'Content-Type: application/json'],['system_instruction'=>['parts'=>[['text'=>$system]]],'contents'=>[['role'=>'user','parts'=>[['text'=>$user]]]],'generationConfig'=>['temperature'=>$temperature,'maxOutputTokens'=>$maxTokens]]);
+        if(!empty($response['ok'])){foreach((array)($response['json']['candidates'][0]['content']['parts']??[])as$part)$content.=(string)($part['text']??'');$content=trim($content);$usage=(array)($response['json']['usageMetadata']??[]);}
+    }else{
+        $response=cds_ai_http('https://api.anthropic.com/v1/messages',['x-api-key: '.$apiKey,'anthropic-version: 2023-06-01','Content-Type: application/json'],['model'=>$model,'system'=>$system,'messages'=>[['role'=>'user','content'=>$user]],'temperature'=>$temperature,'max_tokens'=>$maxTokens]);
+        if(!empty($response['ok'])){foreach((array)($response['json']['content']??[])as$part)if(($part['type']??'')==='text')$content.=(string)($part['text']??'');$content=trim($content);$usage=(array)($response['json']['usage']??[]);}
+    }
+    if(empty($response['ok']))return['ok'=>false,'message'=>$catalog[$provider]['label'].': '.($response['message']??'Không xử lý được yêu cầu.'),'provider'=>$provider,'status'=>$response['status']??0];
     if ($content === '') return ['ok'=>false, 'message'=>'AI không trả về nội dung.'];
-    return ['ok'=>true, 'content'=>$content, 'usage'=>is_array($json['usage'] ?? null) ? $json['usage'] : []];
+    return ['ok'=>true, 'content'=>$content, 'usage'=>$usage, 'provider'=>$provider, 'model'=>$model];
 }

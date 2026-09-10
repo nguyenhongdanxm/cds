@@ -24,5 +24,5 @@ $_SESSION['ai_last_request_at'] = microtime(true);
 $result = cds_ai_call($assistant, $task, $input, $reference);
 if (empty($result['ok'])) http_response_code(502);
 require_once __DIR__.'/includes/audit.php';
-cds_audit_log(empty($result['ok'])?'ai_request_failed':'ai_request_completed', 'trolyai', ['assistant'=>$assistant,'task'=>$task,'input_chars'=>mb_strlen($input,'UTF-8'),'usage'=>$result['usage']??[]]);
+cds_audit_log(empty($result['ok'])?'ai_request_failed':'ai_request_completed', 'trolyai', ['assistant'=>$assistant,'task'=>$task,'provider'=>$result['provider']??'','model'=>$result['model']??'','status'=>$result['status']??200,'input_chars'=>mb_strlen($input,'UTF-8'),'usage'=>$result['usage']??[]]);
 echo json_encode($result, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
