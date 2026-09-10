@@ -593,6 +593,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $defaultReportText = function($key) {
             $value = trim((string)($_POST[$key] ?? ''));
+            $value = str_replace(['[[NT3.3_THAM_HOI_DUA_DON]]', '[[NT3.4_SU_VIEC]]'], '', $value);
             $value = trim((string)preg_replace('/\[\[NT[^\]]*\]\]\s*/u', '', $value));
             return $value !== '' ? $value : 'Không có';
         };
