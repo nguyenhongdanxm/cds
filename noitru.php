@@ -822,8 +822,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'duty_manager_save') {
             $date = trim($_POST['date'] ?? '');
             if (str_starts_with($date, $month . '-')) {
-                noitru_duty_manager_save($date, (array)($_POST['teacher_ids'] ?? []), $teacherMap, $_POST['note'] ?? '');
-                flash('Đã cập nhật quản lý trực ngày ' . date('d/m/Y', strtotime($date)) . '.');
+                if (!empty($_POST['clear_manager'])) {
+                    if (($user['role'] ?? '') !== 'admin') { http_response_code(403); exit('Chỉ quản trị viên được xóa nhanh quản lý trực.'); }
+                    noitru_duty_manager_save($date, [], $teacherMap, '');
+                    flash('Đã xóa quản lý trực ngày ' . date('d/m/Y', strtotime($date)) . '.', 'warning');
+                } else {
+                    noitru_duty_manager_save($date, (array)($_POST['teacher_ids'] ?? []), $teacherMap, $_POST['note'] ?? '');
+                    flash('Đã cập nhật quản lý trực ngày ' . date('d/m/Y', strtotime($date)) . '.');
+                }
             }
         } elseif ($action === 'duty_manager_weekday') {
             $teacherId = trim($_POST['teacher_id'] ?? '');
