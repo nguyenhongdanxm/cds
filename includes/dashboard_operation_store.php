@@ -12,6 +12,6 @@ function cds_operation_add_assignment(array $data): array {
 function cds_operation_delete_assignment(string $id): bool {$rows=cds_operation_assignments();return cds_operation_save_assignments(array_values(array_filter($rows,fn($row)=>(string)($row['id']??'')!==$id)));}
 function cds_operation_for_date(string $date): array {
     $result=array_fill_keys(array_keys(cds_operation_groups()),[]);$weekday=(int)date('N',strtotime($date));
-    foreach(cds_operation_assignments()as$row){$group=(string)($row['group']??'');if(!isset($result[$group])||$date<(string)($row['start_date']??'')||$date>(string)($row['end_date']??''))continue;if(!in_array($weekday,array_map('intval',(array)($row['weekdays']??[])),true))continue;$name=trim((string)($row['teacher_name']??''));if($name!==''&&!in_array($name,$result[$group],true))$result[$group][]=$name;}
+    foreach(cds_operation_assignments()as$row){$group=(string)($row['group']??'');if(!isset($result[$group])||$date<(string)($row['start_date']??'')||$date>(string)($row['end_date']??''))continue;if(!in_array($weekday,array_map('intval',(array)($row['weekdays']??[])),true))continue;$name=trim((string)($row['teacher_name']??''));$note=trim((string)($row['note']??''));if($name==='')continue;$duplicate=false;foreach($result[$group]as$person)if((string)($person['name']??'')===$name&&(string)($person['note']??'')===$note){$duplicate=true;break;}if(!$duplicate)$result[$group][]=['name'=>$name,'note'=>$note];}
     return$result;
 }
