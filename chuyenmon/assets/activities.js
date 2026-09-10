@@ -20,6 +20,23 @@ function filterPicker(inputId,selectId){
  const apply=()=>{const q=input.value.toLocaleLowerCase('vi');const box=select.nextElementSibling;if(!box)return;[...select.options].forEach((o,i)=>{if(box.children[i])box.children[i].hidden=!o.text.toLocaleLowerCase('vi').includes(q)})};
  input.addEventListener('input',apply);
 }
+function cmactInitRichEditors(root=document){
+ root.querySelectorAll('[data-rich-editor]').forEach(box=>{
+  if(box.dataset.ready==='1')return;box.dataset.ready='1';
+  const editor=box.querySelector('[data-rich-content]'),input=box.querySelector('[data-rich-input]'),toolbar=box.querySelector('[data-rich-toolbar]');if(!editor||!input||!toolbar)return;
+  let savedRange=null;const saveRange=()=>{const selection=getSelection();if(selection&&selection.rangeCount&&editor.contains(selection.anchorNode))savedRange=selection.getRangeAt(0).cloneRange()};
+  const restoreRange=()=>{editor.focus();if(!savedRange)return;const selection=getSelection();selection.removeAllRanges();selection.addRange(savedRange)};
+  const command=(name,value=null)=>{restoreRange();document.execCommand(name,false,value);saveRange();input.value=editor.innerHTML};
+  ['keyup','mouseup','focus','input'].forEach(name=>editor.addEventListener(name,()=>{saveRange();input.value=editor.innerHTML}));
+  toolbar.querySelectorAll('button').forEach(button=>button.addEventListener('mousedown',event=>event.preventDefault()));
+  toolbar.addEventListener('click',event=>{const button=event.target.closest('button');if(!button)return;if(button.dataset.richCommand)command(button.dataset.richCommand);else if(button.hasAttribute('data-rich-link')){const url=prompt('Nhập địa chỉ liên kết (https://...):','https://');if(url&&/^https?:\/\//i.test(url))command('createLink',url)}});
+  toolbar.querySelector('[data-rich-block]')?.addEventListener('change',event=>command('formatBlock','<'+event.target.value+'>'));
+  toolbar.querySelector('[data-rich-font]')?.addEventListener('change',event=>command('fontName',event.target.value));
+  toolbar.querySelector('[data-rich-size]')?.addEventListener('change',event=>command('fontSize',event.target.value));
+  toolbar.querySelector('[data-rich-color]')?.addEventListener('input',event=>command('foreColor',event.target.value));
+  input.value=editor.innerHTML;box.closest('form')?.addEventListener('submit',()=>{input.value=editor.innerHTML});
+ });
+}
 let cmactSlotIndex=0;
 function cmactAddScheduleSlot(preset={}){
  const host=document.getElementById('scheduleSlots');if(!host)return;const i=cmactSlotIndex++;
@@ -28,6 +45,7 @@ function cmactAddScheduleSlot(preset={}){
 }
 function cmactInit(root=document){
  root.querySelectorAll('select[multiple]').forEach(cmactEnhanceSelect);
+ cmactInitRichEditors(root);
  filterPicker('studentFilter','clubStudents');filterPicker('onlineFilter','onlineStudents');if(document.getElementById('scheduleSlots')&&!document.querySelector('.schedule-slot'))cmactAddScheduleSlot();
  root.querySelectorAll('form').forEach(form=>{if(form.dataset.cmactChecked)return;form.dataset.cmactChecked='1';form.addEventListener('submit',e=>{const requiredMulti=form.querySelector('select[multiple][name="student_ids[]"]');if(requiredMulti&&![...requiredMulti.options].some(o=>o.selected)){e.preventDefault();alert('Hãy tích chọn ít nhất một học sinh.')}})});
 }
