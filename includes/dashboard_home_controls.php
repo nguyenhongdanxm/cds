@@ -27,7 +27,7 @@ function cds_home_pages_catalog(): array {
                 'professional_feed'=>['title'=>'Công việc Chuyên môn','selector'=>'section.feed-panel'],
                 'observations'=>['title'=>'Lịch dự giờ sắp tới','selector'=>'section.observation-panel'],
                 'teacher_leave'=>['title'=>'Lịch nghỉ giáo viên','selector'=>'section.leave-panel'],
-                'noitru_operation'=>['title'=>'Vận hành Nội trú hôm nay','selector'=>'section.operation-panel'],
+                'noitru_operation'=>['title'=>'Lịch trực hôm nay','selector'=>'section.operation-panel'],
             ],
         ],
         'index'=>[
