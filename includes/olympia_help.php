@@ -11,6 +11,12 @@ function olympia_template_uri(string $stage, int $points): string {
     return 'data:text/plain;charset=utf-8;base64,' . base64_encode("# Mỗi dòng: Vòng | Câu hỏi | Đáp án | Điểm\n# Không xóa dấu | ngăn cách các cột. Dòng bắt đầu bằng # chỉ là ghi chú, cần xóa trước khi nạp.\n" . $sample);
 }
 ?>
+<?php if (!empty($weekId)): ?>
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a class="btn btn-warning fw-bold" href="<?= BASE_URL ?>hoclieu_game_olympia_play.php?week=<?= e($weekId) ?><?= !empty($classId)?'&class='.urlencode($classId):'' ?>"><i class="bi bi-arrows-fullscreen"></i> Mở màn hình thi đấu</a>
+  <?php if (!empty($admin)): ?><a class="btn btn-outline-primary fw-bold" href="<?= BASE_URL ?>hoclieu_game_olympia_rankings.php?period=week&week=<?= e($weekId) ?>"><i class="bi bi-trophy"></i> Xếp hạng tuần/tháng</a><?php endif; ?>
+</div>
+<?php endif; ?>
 <details class="admin-box mb-3" open>
   <summary class="fw-bold fs-5"><i class="bi bi-journal-check text-primary"></i> Luật chơi Đường lên đỉnh Olympia</summary>
   <div class="row g-3 mt-1">
