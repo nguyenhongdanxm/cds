@@ -12,7 +12,7 @@ function cds_ai_defaults(): array {
             'anthropic'=>['api_key'=>'','model'=>'claude-sonnet-4-6'],
         ],
         'max_input_chars' => 20000,
-        'max_tokens' => 3000,
+        'max_tokens' => 1500,
     ];
 }
 
@@ -144,12 +144,19 @@ function cds_ai_call(string $assistantKey, string $taskKey, string $input, strin
     }elseif($provider==='openai'){
         // GPT-5 và các model suy luận dùng Responses API. Không gửi temperature/max_tokens
         // của Chat Completions vì nhiều model mới sẽ trả lỗi tham số không được hỗ trợ.
-        $response=cds_ai_http('https://api.openai.com/v1/responses',['Authorization: Bearer '.$apiKey,'Content-Type: application/json'],[
+        $openAiPayload=[
             'model'=>$model,
             'instructions'=>$system,
             'input'=>$user,
             'max_output_tokens'=>$maxTokens,
-        ]);
+        ];
+        // Các model GPT-5 hỗ trợ mức suy luận và độ dài câu trả lời. Chế độ thấp
+        // phù hợp tác vụ trường học thông thường, giảm đáng kể thời gian chờ và chi phí.
+        if(preg_match('/^gpt-5(?:[.\-]|$)/i',$model)){
+            $openAiPayload['reasoning']=['effort'=>'low'];
+            $openAiPayload['text']=['verbosity'=>'low'];
+        }
+        $response=cds_ai_http('https://api.openai.com/v1/responses',['Authorization: Bearer '.$apiKey,'Content-Type: application/json'],$openAiPayload);
         if(!empty($response['ok'])){
             $json=(array)($response['json']??[]);
             $content=trim((string)($json['output_text']??''));
