@@ -70,7 +70,7 @@ $directories = ['assets', 'includes', 'chuyenmon'];
 $rootFiles = [
     'activity.php','admin.php','admin_operation_settings.php','notices.php','drive_viewer.php','public_notice.php',
     'public_drive_viewer.php','public_ktx_exit_file.php','drive_file.php','drive_settings.php',
-    'hoclieu.php','hoclieu_file.php','hoclieu_game.php','hoclieu_game_keoco.php','hoclieu_game_chopnot.php','hoclieu_game_duavit.php','hoclieu_game_loto.php',
+    'hoclieu.php','hoclieu_file.php','hoclieu_game.php','hoclieu_game_keoco.php','hoclieu_game_chopnot.php','hoclieu_game_duavit.php','hoclieu_game_loto.php','hoclieu_game_olympia.php',
     'chuyenmon.php','csdl.php','csdl_preweeks.php','csdl_export.php','csdl_export_filtered_excel.php',
     'csdl_statistics_export_xlsx.php','csdl_student_cards.php','csdl_staff_cards.php','staff_card_teachers.php','staff_photo.php','staff_verify.php','danhgia.php','dashboard_settings.php',
     'database_admin.php','instance_settings.php','initial_setup.php','index.php','login.php','logout.php','manifest.php','manifest.webmanifest','sw.js',
@@ -81,7 +81,7 @@ $rootFiles = [
     'noitru_meal_quantity_data.php','noitru_medicine_excel.php','push_api.php','student_card_students.php',
     'student_photo.php','student_verify.php','thoikhoabieu.php','tkb_xep.php','tkb_editor.php','tkb_constraints.php','tkb_publish.php','thuvien.php','thuvien_book_supplement.php',
     'thuvien_bienban.php','thietbi_phieu.php','thidua.php','thidua_baiviet.php','thidua_phongnoitru.php',
-    'thidua_phongnoitru_delete.php','thidua_phongnoitru_history_api.php','trolyai.php','ai_api.php','users.php','vanban.php','vanban_open.php',
+    'thidua_phongnoitru_delete.php','thidua_phongnoitru_history_api.php','users.php','vanban.php','vanban_open.php',
     'vanban_preview.php','vanban_preview_file.php'
 ];
 foreach ($directories as $dir) { if (!is_dir($repoRoot . '/' . $dir)) { fwrite(STDERR, 'DEPLOY_SOURCE_MISSING: ' . $dir . "\n"); exit(4); } }
