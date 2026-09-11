@@ -85,12 +85,13 @@ function cds_ai_reference_uploads(array $files): array {
     return ['text'=>implode("\n\n",$texts),'names'=>$names];
 }
 function cds_ai_xml(string $s): string { return htmlspecialchars($s,ENT_XML1|ENT_QUOTES,'UTF-8'); }
-function cds_ai_docx_paragraphs(string $content): string {
+function cds_ai_docx_paragraphs(string $content,bool $inheritTemplate=false): string {
     $out='';$lines=preg_split('/\R/u',trim($content));$first=true;
     foreach($lines as$line){$line=trim($line);if($line===''){$out.='<w:p/>';continue;}
         $isTitle=$first||preg_match('/^[A-ZÀ-Ỹ0-9\s().,\-–—]{8,}$/u',$line);$first=false;
         $align=$isTitle?'center':'both';$bold=$isTitle?'<w:b/>':'';$size=$isTitle?'28':'26';
-        $out.='<w:p><w:pPr><w:jc w:val="'.$align.'"/><w:spacing w:after="120" w:line="360" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman"/>'.$bold.'<w:sz w:val="'.$size.'"/><w:szCs w:val="'.$size.'"/></w:rPr><w:t xml:space="preserve">'.cds_ai_xml($line).'</w:t></w:r></w:p>';
+        $font=$inheritTemplate?'':'<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman"/><w:sz w:val="'.$size.'"/><w:szCs w:val="'.$size.'"/>';
+        $out.='<w:p><w:pPr><w:jc w:val="'.$align.'"/><w:spacing w:after="120" w:line="360" w:lineRule="auto"/></w:pPr><w:r><w:rPr>'.$font.$bold.'</w:rPr><w:t xml:space="preserve">'.cds_ai_xml($line).'</w:t></w:r></w:p>';
     }return$out;
 }
 function cds_ai_docx_generate(string $content,string $templateId,string $target): array {
@@ -101,7 +102,7 @@ function cds_ai_docx_generate(string $content,string $templateId,string $target)
         if(!@copy($source,$target))return ['ok'=>false,'message'=>'Không tạo được bản Word từ mẫu.'];
         $zip=new ZipArchive();if($zip->open($target)!==true)return ['ok'=>false,'message'=>'Không mở được bản Word mẫu.'];
         $raw=$zip->getFromName('word/document.xml');if($raw===false){$zip->close();return ['ok'=>false,'message'=>'Mẫu Word không có nội dung hợp lệ.'];}
-        $body=cds_ai_docx_paragraphs($content);
+        $body=cds_ai_docx_paragraphs($content,true);
         if(strpos($raw,'{{NOI_DUNG}}')!==false){
             $raw=preg_replace('~<w:p\b[^>]*>.*?\{\{NOI_DUNG\}\}.*?</w:p>~s',$body,$raw,1);
         }else{
