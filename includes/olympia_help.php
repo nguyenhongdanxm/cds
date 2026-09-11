@@ -13,7 +13,8 @@ function olympia_template_uri(string $stage, int $points): string {
 ?>
 <?php if (!empty($weekId)): ?>
 <div class="d-flex flex-wrap gap-2 mb-3">
-  <a class="btn btn-warning fw-bold" href="<?= BASE_URL ?>hoclieu_game_olympia_play.php?week=<?= e($weekId) ?><?= !empty($classId)?'&class='.urlencode($classId):'' ?>"><i class="bi bi-arrows-fullscreen"></i> Mở màn hình thi đấu</a>
+  <a class="btn btn-warning fw-bold" target="_blank" href="<?= BASE_URL ?>hoclieu_game_olympia_screen.php?week=<?= e($weekId) ?><?= !empty($classId)?'&class='.urlencode($classId):'' ?>"><i class="bi bi-display"></i> Màn hình 1 · Trình chiếu</a>
+  <a class="btn btn-primary fw-bold" href="<?= BASE_URL ?>hoclieu_game_olympia_play.php?week=<?= e($weekId) ?><?= !empty($classId)?'&class='.urlencode($classId):'' ?>"><i class="bi bi-phone"></i> Màn hình 2 · Điều khiển</a>
   <?php if (!empty($admin)): ?><a class="btn btn-outline-primary fw-bold" href="<?= BASE_URL ?>hoclieu_game_olympia_rankings.php?period=week&week=<?= e($weekId) ?>"><i class="bi bi-trophy"></i> Xếp hạng tuần/tháng</a><?php endif; ?>
 </div>
 <?php endif; ?>
