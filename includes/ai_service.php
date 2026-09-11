@@ -19,7 +19,7 @@ function cds_ai_defaults(): array {
 function cds_ai_provider_catalog(): array {
     return [
         'codecraft'=>['label'=>'CodeCraft API','icon'=>'bi-code-square','endpoint'=>'https://codecraftapi.com/v1','models'=>['gpt-5.6-luna','gemma-2-2b','claude-opus-4.8']],
-        'openai'=>['label'=>'OpenAI · ChatGPT','icon'=>'bi-openai','endpoint'=>'https://api.openai.com/v1','models'=>['gpt-5','gpt-5-mini','gpt-4.1']],
+        'openai'=>['label'=>'OpenAI API','icon'=>'bi-openai','endpoint'=>'https://api.openai.com/v1','models'=>['gpt-5-mini','gpt-5','gpt-4.1']],
         'gemini'=>['label'=>'Google Gemini','icon'=>'bi-google','endpoint'=>'https://generativelanguage.googleapis.com/v1beta','models'=>['gemini-3.8-flash','gemini-3.8-pro']],
         'anthropic'=>['label'=>'Anthropic Claude','icon'=>'bi-chat-square-heart','endpoint'=>'https://api.anthropic.com/v1','models'=>['claude-sonnet-4-6','claude-opus-4-6','claude-haiku-4-5']],
     ];
@@ -138,10 +138,31 @@ function cds_ai_call(string $assistantKey, string $taskKey, string $input, strin
     $user = $assistants[$assistantKey]['tasks'][$taskKey]."\n\nNỘI DUNG/YÊU CẦU:\n".$input;
     if ($reference !== '') $user .= "\n\nTÀI LIỆU THAM CHIẾU:\n".$reference;
     $temperature=$assistantKey==='dayhoc'?0.35:0.15;$maxTokens=(int)$settings['max_tokens'];$response=[];$content='';$usage=[];
-    if(in_array($provider,['codecraft','openai'],true)){
-        $base=$provider==='codecraft'?'https://codecraftapi.com/v1':'https://api.openai.com/v1';
-        $response=cds_ai_http($base.'/chat/completions',['Authorization: Bearer '.$apiKey,'Content-Type: application/json'],['model'=>$model,'messages'=>[['role'=>'system','content'=>$system],['role'=>'user','content'=>$user]],'temperature'=>$temperature,'max_tokens'=>$maxTokens]);
+    if($provider==='codecraft'){
+        $response=cds_ai_http('https://codecraftapi.com/v1/chat/completions',['Authorization: Bearer '.$apiKey,'Content-Type: application/json'],['model'=>$model,'messages'=>[['role'=>'system','content'=>$system],['role'=>'user','content'=>$user]],'temperature'=>$temperature,'max_tokens'=>$maxTokens]);
         if(!empty($response['ok'])){$content=trim((string)($response['json']['choices'][0]['message']['content']??''));$usage=(array)($response['json']['usage']??[]);}
+    }elseif($provider==='openai'){
+        // GPT-5 và các model suy luận dùng Responses API. Không gửi temperature/max_tokens
+        // của Chat Completions vì nhiều model mới sẽ trả lỗi tham số không được hỗ trợ.
+        $response=cds_ai_http('https://api.openai.com/v1/responses',['Authorization: Bearer '.$apiKey,'Content-Type: application/json'],[
+            'model'=>$model,
+            'instructions'=>$system,
+            'input'=>$user,
+            'max_output_tokens'=>$maxTokens,
+        ]);
+        if(!empty($response['ok'])){
+            $json=(array)($response['json']??[]);
+            $content=trim((string)($json['output_text']??''));
+            if($content===''){
+                foreach((array)($json['output']??[]) as $item){
+                    foreach((array)($item['content']??[]) as $part){
+                        if(($part['type']??'')==='output_text')$content.=(string)($part['text']??'');
+                    }
+                }
+                $content=trim($content);
+            }
+            $usage=(array)($json['usage']??[]);
+        }
     }elseif($provider==='gemini'){
         $response=cds_ai_http('https://generativelanguage.googleapis.com/v1beta/models/'.rawurlencode($model).':generateContent',['x-goog-api-key: '.$apiKey,'Content-Type: application/json'],['system_instruction'=>['parts'=>[['text'=>$system]]],'contents'=>[['role'=>'user','parts'=>[['text'=>$user]]]],'generationConfig'=>['temperature'=>$temperature,'maxOutputTokens'=>$maxTokens]]);
         if(!empty($response['ok'])){foreach((array)($response['json']['candidates'][0]['content']['parts']??[])as$part)$content.=(string)($part['text']??'');$content=trim($content);$usage=(array)($response['json']['usageMetadata']??[]);}
