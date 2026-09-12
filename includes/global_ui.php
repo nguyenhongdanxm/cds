@@ -6,10 +6,15 @@ define('CDS_GLOBAL_UI_BUFFERED', true);
 function cds_global_ui_filter(string $html): string {
     if (stripos($html, '</head>') === false || stripos($html, '<html') === false) return $html;
 
-    $asset = (defined('BASE_URL') ? BASE_URL : '/') . 'assets/cds-global-ui.css?v=20260805-1';
+    $baseUrl = defined('BASE_URL') ? BASE_URL : '/';
+    $asset = $baseUrl . 'assets/cds-global-ui.css?v=20260912-1';
+    $actionAsset = $baseUrl . 'assets/cds-action-progress.js?v=20260912-1';
     $link = '<link rel="stylesheet" href="' . htmlspecialchars($asset, ENT_QUOTES, 'UTF-8') . '">';
+    $actionScript = '<script defer src="' . htmlspecialchars($actionAsset, ENT_QUOTES, 'UTF-8') . '"></script>';
     if (strpos($html, 'cds-global-ui.css') === false) {
-        $html = preg_replace('/<\/head>/i', $link . '</head>', $html, 1) ?? $html;
+        $html = preg_replace('/<\/head>/i', $link . $actionScript . '</head>', $html, 1) ?? $html;
+    } elseif (strpos($html, 'cds-action-progress.js') === false) {
+        $html = preg_replace('/<\/head>/i', $actionScript . '</head>', $html, 1) ?? $html;
     }
 
     $script = <<<'HTML'
