@@ -5,6 +5,7 @@ require_once 'includes/csdl_sync.php'; // API cho module khác kéo 1 chiều t�
 require_once 'includes/csdl_import_teachers.php';
 require_once 'includes/csdl_io.php';
 require_once 'includes/csdl_student_photo.php';
+require_once 'includes/staff_card_store.php';
 require_login();
 $user = current_user();
 $requestedTab = $_GET['tab'] ?? '';
@@ -93,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'teacher_save') {
         $group = trim($_POST['to_chuyen_mon'] ?? '');
-        csdl_teacher_save([
+        $teacherId = csdl_teacher_save([
             'id' => trim($_POST['id'] ?? ''),
             'name' => trim($_POST['name'] ?? ''),
             'code' => trim($_POST['code'] ?? ''),
@@ -125,7 +126,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'note' => trim($_POST['note'] ?? ''),
             'active' => !empty($_POST['active']),
         ]);
-        flash('Đã lưu giáo viên.');
+        $photoMessage='';$photoOk=true;
+        if(!empty($_POST['remove_teacher_photo'])){staff_card_delete_photo($teacherId);$photoMessage=' Đã xóa ảnh thẻ cũ.';}
+        if(isset($_FILES['teacher_photo'])&&(int)($_FILES['teacher_photo']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_NO_FILE){
+            $photoResult=staff_card_upload_photo($teacherId,$_FILES['teacher_photo'],(string)($user['id']??$user['username']??''));
+            $photoOk=!empty($photoResult['ok']);$photoMessage=' '.(string)($photoResult['message']??'');
+        }
+        flash('Đã lưu giáo viên.'.$photoMessage,$photoOk?'success':'warning');
         header('Location: ' . BASE_URL . 'csdl.php?tab=teachers');
         exit;
     }
@@ -437,7 +444,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
             <td><?php if ($canCsdlExport || $canCsdlDelete): ?><input type="checkbox" class="form-check-input row-chk row-chk-teachers" value="<?= e($t['id']) ?>"><?php endif; ?></td>
             <td><?= $i+1 ?></td>
             <td class="small"><?= e($t['code'] ?? '') ?></td>
-            <td><strong><?= e($t['name'] ?? '') ?></strong></td>
+            <td><strong><?php if($canCsdlEdit):?><a class="text-decoration-none" href="?tab=teachers&edit=<?=urlencode((string)$t['id'])?>" title="Xem, sửa hồ sơ và ảnh thẻ"><?=e($t['name']??'')?></a><?php else:?><?=e($t['name']??'')?><?php endif;?></strong></td>
             <td class="small"><?= e($t['cccd'] ?? '') ?></td>
             <td><?= e($t['gender'] ?? '') ?></td>
             <td class="small"><?= e(csdl_io_fmt_date(csdl_io_parse_date($t['dob'] ?? ''))) ?></td>
@@ -635,6 +642,8 @@ function resetTeacherForm(){
   var id=document.getElementById('t_id'); if(id) id.value='';
   var t=document.getElementById('modalTeacherTitle'); if(t) t.textContent='Thêm giáo viên';
   var a=document.getElementById('tact'); if(a) a.checked=true;
+  var photo=document.getElementById('teacherPhotoPreview');if(photo){photo.removeAttribute('src');photo.style.display='none';}
+  var photoInput=document.getElementById('teacherPhotoInput');if(photoInput)photoInput.value='';
 }
 document.querySelectorAll('.student-departure-btn').forEach(function(button){
   button.addEventListener('click',function(){
