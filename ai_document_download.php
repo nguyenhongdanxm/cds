@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/includes/auth.php';
+require_once __DIR__.'/includes/ai_service.php';
 require_once __DIR__.'/includes/ai_document_templates.php';
 require_login();
 if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit('Phương thức không hợp lệ.');}
