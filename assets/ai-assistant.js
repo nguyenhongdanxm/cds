@@ -1,6 +1,6 @@
 (function(){
   var submit=document.getElementById('aiSubmit');if(!submit)return;
-  var input=document.getElementById('aiInput'),reference=document.getElementById('aiReference'),task=document.getElementById('aiTask'),result=document.getElementById('aiResult'),status=document.getElementById('aiStatus'),copy=document.getElementById('aiCopy'),template=document.getElementById('aiTemplate'),files=document.getElementById('aiReferenceFiles'),download=document.getElementById('aiDownload');
+  var input=document.getElementById('aiInput'),reference=document.getElementById('aiReference'),task=document.getElementById('aiTask'),result=document.getElementById('aiResult'),status=document.getElementById('aiStatus'),copy=document.getElementById('aiCopy'),template=document.getElementById('aiTemplate'),sourceFile=document.getElementById('aiSourceFile'),files=document.getElementById('aiReferenceFiles'),download=document.getElementById('aiDownload');
   function addText(parent,tag,className,text){var el=document.createElement(tag);if(className)el.className=className;el.textContent=text;parent.appendChild(el);return el}
   function renderDocument(text,preview){
     result.textContent='';result.classList.remove('empty');result.classList.add('doc-preview');result.dataset.raw=text;
@@ -31,10 +31,11 @@
     });
   }
   submit.addEventListener('click',async function(){
-    var text=input.value.trim();if(!text){input.focus();status.textContent='Vui lòng nhập nội dung.';return}
+    var text=input.value.trim();if(!text&&!(sourceFile&&sourceFile.files.length)){input.focus();status.textContent='Vui lòng nhập nội dung hoặc chọn văn bản chính.';return}
     submit.disabled=true;status.textContent='Đang đọc mẫu, kiểm tra căn cứ và soạn văn bản…';result.className='result empty';result.textContent='AI đang chuẩn bị văn bản theo Nghị định 30/2020/NĐ-CP…';
     try{
       var form=new FormData();form.append('csrf',window.CDS_AI.csrf);form.append('assistant',window.CDS_AI.assistant);form.append('task',task.value);form.append('input',text);form.append('reference',reference.value.trim());form.append('template_id',template?template.value:'');
+      if(sourceFile&&sourceFile.files[0])form.append('source_document',sourceFile.files[0]);
       if(files)Array.from(files.files).forEach(function(file){form.append('references[]',file)});
       var response=await fetch('ai_api.php',{method:'POST',credentials:'same-origin',body:form});
       var data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||'Không xử lý được yêu cầu.');

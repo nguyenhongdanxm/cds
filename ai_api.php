@@ -19,9 +19,13 @@ $templateId=trim((string)($request['template_id']??''));
 $templateContext=$templateId!==''?cds_ai_template_context($templateId):'';
 if($templateId!==''&&$templateContext===''){http_response_code(400);echo json_encode(['ok'=>false,'message'=>'Mẫu văn bản không tồn tại hoặc không đọc được.']);exit;}
 $uploaded=['text'=>'','names'=>[]];
+$source=['text'=>'','name'=>''];
+if(isset($_FILES['source_document']))$source=cds_ai_single_reference_upload($_FILES['source_document']);
+if($source['text']!=='')$input=($input!==''?$input."\n\n":'')."VĂN BẢN CHÍNH CẦN XỬ LÝ (".$source['name']."):\n".$source['text'];
 if(isset($_FILES['references']))$uploaded=cds_ai_reference_uploads($_FILES['references']);
 if($uploaded['text']!=='')$reference.=($reference!==''?"\n\n":'').$uploaded['text'];
 if($templateContext!=='')$reference.="\n\n".$templateContext;
+if($assistant==='vanban')$reference.="\n\n".cds_ai_document_profile_context();
 $catalog = cds_ai_assistants();
 if (!isset($catalog[$assistant])) { http_response_code(400); echo json_encode(['ok'=>false,'message'=>'Trợ lý không hợp lệ.']); exit; }
 if (!can_perm($catalog[$assistant]['permission'])) { http_response_code(403); echo json_encode(['ok'=>false,'message'=>'Bạn chưa được cấp quyền dùng trợ lý này.']); exit; }
@@ -33,7 +37,7 @@ $_SESSION['ai_last_request_at'] = microtime(true);
 $result = cds_ai_call($assistant, $task, $input, $reference);
 if (empty($result['ok'])) http_response_code(502);
 require_once __DIR__.'/includes/audit.php';
-cds_audit_log(empty($result['ok'])?'ai_request_failed':'ai_request_completed', 'trolyai', ['assistant'=>$assistant,'task'=>$task,'template_id'=>$templateId,'reference_files'=>$uploaded['names'],'provider'=>$result['provider']??'','model'=>$result['model']??'','status'=>$result['status']??200,'input_chars'=>mb_strlen($input,'UTF-8'),'usage'=>$result['usage']??[]]);
+cds_audit_log(empty($result['ok'])?'ai_request_failed':'ai_request_completed', 'trolyai', ['assistant'=>$assistant,'task'=>$task,'template_id'=>$templateId,'source_file'=>$source['name'],'reference_files'=>$uploaded['names'],'provider'=>$result['provider']??'','model'=>$result['model']??'','status'=>$result['status']??200,'input_chars'=>mb_strlen($input,'UTF-8'),'usage'=>$result['usage']??[]]);
 $result['template_id']=$templateId;
 if($templateId!==''&&!empty($result['ok']))$result['template_preview']=cds_ai_template_preview($templateId);
 echo json_encode($result, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);

@@ -10,8 +10,26 @@ function cds_ai_template_dir(): string {
 }
 function cds_ai_template_index_path(): string { return cds_ai_template_dir().'/index.json'; }
 function cds_ai_template_types(): array {
-    return ['quyet_dinh'=>'Quyết định','ke_hoach'=>'Kế hoạch','huong_dan'=>'Hướng dẫn','quy_che'=>'Quy chế','khac'=>'Loại khác'];
+    return [
+        'nghi_quyet'=>'Nghị quyết (cá biệt)','quyet_dinh'=>'Quyết định (cá biệt)','chi_thi'=>'Chỉ thị',
+        'quy_che'=>'Quy chế','quy_dinh'=>'Quy định','thong_cao'=>'Thông cáo','thong_bao'=>'Thông báo',
+        'huong_dan'=>'Hướng dẫn','chuong_trinh'=>'Chương trình','ke_hoach'=>'Kế hoạch','phuong_an'=>'Phương án',
+        'de_an'=>'Đề án','du_an'=>'Dự án','bao_cao'=>'Báo cáo','bien_ban'=>'Biên bản','to_trinh'=>'Tờ trình',
+        'hop_dong'=>'Hợp đồng','cong_van'=>'Công văn','cong_dien'=>'Công điện','ban_ghi_nho'=>'Bản ghi nhớ',
+        'ban_thoa_thuan'=>'Bản thỏa thuận','giay_uy_quyen'=>'Giấy ủy quyền','giay_moi'=>'Giấy mời',
+        'giay_gioi_thieu'=>'Giấy giới thiệu','giay_nghi_phep'=>'Giấy nghỉ phép','phieu_gui'=>'Phiếu gửi',
+        'phieu_chuyen'=>'Phiếu chuyển','phieu_bao'=>'Phiếu báo','thu_cong'=>'Thư công','khac'=>'Loại khác'
+    ];
 }
+function cds_ai_builtin_templates(): array {
+    $rows=[];
+    foreach(cds_ai_template_types() as$id=>$label){
+        if($id==='khac')continue;
+        $rows[]=['id'=>'builtin:'.$id,'name'=>'Mẫu chuẩn '.$label,'type'=>$id,'type_label'=>$label,'builtin'=>true,'original_name'=>'Nghị định 30/2020/NĐ-CP'];
+    }
+    return $rows;
+}
+function cds_ai_selectable_templates(): array { return array_merge(cds_ai_builtin_templates(),cds_ai_template_all()); }
 function cds_ai_template_all(): array {
     $raw=@file_get_contents(cds_ai_template_index_path());$rows=json_decode((string)$raw,true);
     return is_array($rows)?array_values($rows):[];
@@ -80,12 +98,23 @@ function cds_ai_template_delete(string $id): bool {
     return true;
 }
 function cds_ai_template_context(string $id): string {
+    if(strpos($id,'builtin:')===0){
+        $type=substr($id,8);$types=cds_ai_template_types();if(!isset($types[$type]))return '';
+        return "LOẠI MẪU: ".$types[$type]."\nNGUỒN THỂ THỨC: Nghị định 30/2020/NĐ-CP\nYÊU CẦU: Dùng bố cục chuẩn của loại văn bản này; không tự tạo số, ký hiệu, ngày hoặc căn cứ nội dung.";
+    }
     $row=cds_ai_template_find($id);if(!$row)return '';
     $path=cds_ai_template_dir().'/'.basename((string)$row['file']);
     $text=cds_ai_plain_text($path,(string)$row['extension']);
     return "LOẠI MẪU: ".($row['type_label']??'')."\nTÊN MẪU: ".($row['name']??'')."\nNỘI DUNG/THỂ THỨC MẪU:\n".mb_substr($text,0,18000,'UTF-8');
 }
 function cds_ai_template_preview(string $id): array {
+    if(strpos($id,'builtin:')===0){
+        $type=substr($id,8);$types=cds_ai_template_types();$profile=(array)(cds_ai_settings()['document_profile']??[]);
+        return ['header'=>array_values(array_filter([
+            (string)($profile['supervising_agency']??''),(string)($profile['issuing_agency']??''),
+            'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM','Độc lập - Tự do - Hạnh phúc'
+        ])),'type_label'=>(string)($types[$type]??'')];
+    }
     $row=cds_ai_template_find($id);if(!$row)return ['header'=>[],'type_label'=>''];
     $path=cds_ai_template_dir().'/'.basename((string)$row['file']);
     $text=cds_ai_plain_text($path,(string)$row['extension']);$lines=preg_split('/\R/u',$text);
@@ -97,6 +126,22 @@ function cds_ai_template_preview(string $id): array {
         if(count($header)<12)$header[]=$line;
     }
     return ['header'=>$header,'type_label'=>(string)($row['type_label']??'')];
+}
+function cds_ai_document_profile_context(): string {
+    $p=(array)(cds_ai_settings()['document_profile']??[]);
+    $labels=['supervising_agency'=>'Cơ quan chủ quản','issuing_agency'=>'Đơn vị ban hành','abbreviation'=>'Tên viết tắt','location'=>'Địa danh','signer_name'=>'Người ký','signer_title'=>'Chức vụ người ký','document_symbol'=>'Ký hiệu văn bản','academic_year'=>'Năm học'];
+    $lines=['THÔNG TIN ĐƠN VỊ DÙNG ĐỂ ĐIỀN VĂN BẢN:'];
+    foreach($labels as$key=>$label){$value=trim((string)($p[$key]??''));if($value!=='')$lines[]=$label.': '.$value;}
+    $lines[]='Không tự điền thông tin còn trống; phải ghi [CẦN BỔ SUNG].';
+    return implode("\n",$lines);
+}
+
+function cds_ai_single_reference_upload(array $file): array {
+    if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)return ['text'=>'','name'=>''];
+    if((int)($file['size']??0)>8*1024*1024)return ['text'=>'','name'=>''];
+    $name=(string)($file['name']??'');$ext=strtolower(pathinfo($name,PATHINFO_EXTENSION));
+    if(!in_array($ext,['docx','txt','md'],true))return ['text'=>'','name'=>''];
+    return ['text'=>cds_ai_plain_text((string)$file['tmp_name'],$ext),'name'=>$name];
 }
 function cds_ai_reference_uploads(array $files): array {
     $texts=[];$names=[];$count=is_array($files['name']??null)?count($files['name']):0;
@@ -200,7 +245,22 @@ function cds_ai_docx_generate(string $content,string $templateId,string $target)
 }
 function cds_ai_docx_fresh(string $content,string $target): array {
     $zip=new ZipArchive();if($zip->open($target,ZipArchive::CREATE|ZipArchive::OVERWRITE)!==true)return ['ok'=>false,'message'=>'Không tạo được tệp Word.'];
-    $body=cds_ai_docx_paragraphs($content);$files=[
+    $profile=(array)(cds_ai_settings()['document_profile']??[]);
+    $supervising=trim((string)($profile['supervising_agency']??''))?:'[CƠ QUAN CHỦ QUẢN]';
+    $issuing=trim((string)($profile['issuing_agency']??''))?:'[ĐƠN VỊ BAN HÀNH]';
+    $symbol=trim((string)($profile['document_symbol']??''));
+    $location=trim((string)($profile['location']??''))?:'[ĐỊA DANH]';
+    $cell=function(string $first,string $second,bool $right=false): string {
+        $jc=$right?'center':'center';
+        return '<w:tc><w:tcPr><w:tcW w:w="4800" w:type="dxa"/></w:tcPr>'
+            .'<w:p><w:pPr><w:jc w:val="'.$jc.'"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:b/></w:rPr><w:t>'.cds_ai_xml($first).'</w:t></w:r></w:p>'
+            .'<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:b/></w:rPr><w:t>'.cds_ai_xml($second).'</w:t></w:r></w:p></w:tc>';
+    };
+    $header='<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="4800"/><w:gridCol w:w="4800"/></w:tblGrid><w:tr>'
+        .$cell(mb_strtoupper($supervising,'UTF-8'),mb_strtoupper($issuing,'UTF-8'))
+        .$cell('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM','Độc lập - Tự do - Hạnh phúc',true).'</w:tr><w:tr>'
+        .$cell('Số: '.($symbol!==''?$symbol:'…/…'),'').$cell($location.', ngày … tháng … năm …','',true).'</w:tr></w:tbl>';
+    $body=$header.cds_ai_docx_paragraphs($content);$files=[
       '[Content_Types].xml'=>'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
       '_rels/.rels'=>'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
       'word/document.xml'=>'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'.$body.'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1701" w:header="708" w:footer="708"/></w:sectPr></w:body></w:document>'
