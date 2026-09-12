@@ -47,11 +47,11 @@ $filteredMultiUrl = BASE_URL . 'csdl_export_filtered_excel.php?' . http_build_qu
     </div><?php endif; ?>
     <div class="row g-3">
       <?php if ($io_entity==='students' && $canIoImport): ?><div class="col-12">
-        <div class="border border-primary border-opacity-25 rounded-3 p-3 bg-primary bg-opacity-10">
+        <div class="border border-primary border-opacity-25 rounded-3 p-3" style="background:#f2f7ff;color:#172033">
           <div class="row g-3 align-items-end">
             <div class="col-lg-5">
-              <div class="fw-bold"><i class="bi bi-images text-primary"></i> Nhập ảnh thẻ hàng loạt theo lớp (ZIP)</div>
-              <div class="small text-muted mt-1">Tên tệp phải là <strong>họ tên đầy đủ</strong> hoặc <strong>mã học sinh</strong>. Hỗ trợ JPG, PNG, WebP; tối thiểu 300×400 px; tối đa 20 MB/ảnh. Ảnh gốc được giữ nguyên.</div>
+              <div class="fw-bold text-dark"><i class="bi bi-images text-primary"></i> Nhập ảnh thẻ hàng loạt theo lớp (ZIP)</div>
+              <div class="small mt-1" style="color:#526071">Tên tệp phải là <strong>họ tên đầy đủ</strong> hoặc <strong>mã học sinh</strong>. Hỗ trợ JPG, PNG, WebP; tối thiểu 300×400 px; tối đa 20 MB/ảnh. Ảnh gốc được giữ nguyên.</div>
             </div>
             <div class="col-lg-7">
               <form method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
