@@ -9,7 +9,7 @@ if (!empty($editing['dob'])) {
 <div class="modal fade" id="modalStudent" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-      <form method="post">
+      <form method="post" enctype="multipart/form-data">
         <input type="hidden" name="action" value="student_save">
         <input type="hidden" name="id" id="s_id" value="<?= e($editing['id'] ?? '') ?>">
         <div class="modal-header">
@@ -18,6 +18,17 @@ if (!empty($editing['dob'])) {
         </div>
         <div class="modal-body">
           <div class="row g-3">
+            <div class="col-12">
+              <div class="d-flex flex-wrap gap-3 align-items-center p-3 border rounded-3 bg-light">
+                <img id="studentPhotoPreview" src="<?=!empty($editing['id'])?e(BASE_URL.'student_photo.php?id='.rawurlencode((string)$editing['id']).'&v='.time()):''?>" alt="Ảnh thẻ học sinh" style="width:105px;height:140px;object-fit:cover;border-radius:10px;border:1px solid #cbd5e1;background:#e9eef4;<?=empty($editing['id'])?'visibility:hidden':''?>">
+                <div class="flex-grow-1">
+                  <label class="form-label small fw-bold">Ảnh thẻ học sinh</label>
+                  <input id="studentPhotoInput" type="file" name="student_photo" class="form-control" accept="image/jpeg,image/png,image/webp">
+                  <div class="form-text">Giữ nguyên ảnh gốc JPG, PNG hoặc WebP; tối thiểu 300 × 400 px; tối đa 20 MB. Ảnh được dùng chung trong CSDL, Quản lý nội trú và in thẻ.</div>
+                  <?php if(!empty($editing['id'])):?><label class="form-check mt-2"><input class="form-check-input" type="checkbox" name="remove_student_photo" value="1"><span class="form-check-label small">Xóa ảnh hiện tại</span></label><?php endif;?>
+                </div>
+              </div>
+            </div>
             <div class="col-md-4"><label class="form-label small">Họ và tên *</label>
               <input type="text" name="name" class="form-control" required value="<?= e($editing['name'] ?? '') ?>"></div>
             <div class="col-md-2"><label class="form-label small">Mã HS</label>
@@ -71,6 +82,10 @@ if (!empty($editing['dob'])) {
     </div>
   </div>
 </div>
+<script>
+document.getElementById('studentPhotoInput')?.addEventListener('change',function(){var file=this.files&&this.files[0],img=document.getElementById('studentPhotoPreview');if(!file||!img)return;img.src=URL.createObjectURL(file);img.style.visibility='visible'});
+document.getElementById('studentPhotoPreview')?.addEventListener('error',function(){this.style.visibility='hidden'});
+</script>
 <?php if (!empty($editing)): ?>
 <script>document.addEventListener('DOMContentLoaded',function(){new bootstrap.Modal('#modalStudent').show()});</script>
 <?php endif; ?>
