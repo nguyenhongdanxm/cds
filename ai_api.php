@@ -35,4 +35,5 @@ if (empty($result['ok'])) http_response_code(502);
 require_once __DIR__.'/includes/audit.php';
 cds_audit_log(empty($result['ok'])?'ai_request_failed':'ai_request_completed', 'trolyai', ['assistant'=>$assistant,'task'=>$task,'template_id'=>$templateId,'reference_files'=>$uploaded['names'],'provider'=>$result['provider']??'','model'=>$result['model']??'','status'=>$result['status']??200,'input_chars'=>mb_strlen($input,'UTF-8'),'usage'=>$result['usage']??[]]);
 $result['template_id']=$templateId;
+if($templateId!==''&&!empty($result['ok']))$result['template_preview']=cds_ai_template_preview($templateId);
 echo json_encode($result, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
