@@ -2,7 +2,7 @@
   function rounded(ctx,x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.stroke()}}
   function fit(ctx,text,max){text=String(text||'');if(ctx.measureText(text).width<=max)return text;while(text.length>2&&ctx.measureText(text+'…').width>max)text=text.slice(0,-1);return text+'…'}
   function exportImage(){
-    var d=window.TD_ROOM_EXPORT;if(!d||!Array.isArray(d.rows))return;
+    var d=window.TD_ROOM_EXPORT;if(!d||!Array.isArray(d.rows))return;document.querySelectorAll('.stats-note').forEach(function(input,i){if(d.rows[i])d.rows[i].note=input.value.trim()});
     var W=1240,H=1754,canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;var c=canvas.getContext('2d');
     var g=c.createLinearGradient(0,0,W,H);g.addColorStop(0,'#fffaf0');g.addColorStop(1,'#f3f8ff');c.fillStyle=g;c.fillRect(0,0,W,H);
     rounded(c,45,38,W-90,H-76,30,'#ffffff','#ead8a8');
