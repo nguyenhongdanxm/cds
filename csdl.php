@@ -164,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $studentId = trim($_POST['id'] ?? '');
         $currentStudent = $studentId !== '' ? csdl_student_find($studentId) : null;
         $studentActive = !empty($_POST['active']);
-        csdl_student_save([
+        $savedStudentId=csdl_student_save([
             'id' => $studentId,
             'name' => trim($_POST['name'] ?? ''),
             'code' => trim($_POST['code'] ?? ''),
@@ -187,7 +187,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'departure_type' => $studentActive ? '' : (string)($currentStudent['departure_type'] ?? ''),
             'departure_reason' => $studentActive ? '' : (string)($currentStudent['departure_reason'] ?? ''),
         ]);
-        flash('Đã lưu học sinh.');
+        $photoMessage='';$photoType='success';
+        if(!empty($_POST['remove_student_photo'])){csdl_student_photo_remove($savedStudentId);csdl_student_save(['id'=>$savedStudentId,'photo'=>'','photo_drive_id'=>'','photo_updated_at'=>date('c')]);$photoMessage=' Đã xóa ảnh thẻ.';}
+        if(isset($_FILES['student_photo'])&&($_FILES['student_photo']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_NO_FILE){$photoResult=csdl_student_photo_save_upload($savedStudentId,$_FILES['student_photo']);if(!empty($photoResult['ok'])&&!empty($photoResult['changed'])){csdl_student_save(['id'=>$savedStudentId,'photo'=>(string)$photoResult['path'],'photo_drive_id'=>(string)($photoResult['drive_file_id']??''),'photo_updated_at'=>date('c')]);$photoMessage=' Đã thay ảnh và đồng bộ sang MySQL, Google Drive.';}else{$photoMessage=' Thông tin đã lưu nhưng ảnh chưa thay đổi: '.($photoResult['message']??'lỗi không xác định');$photoType='warning';}}
+        flash('Đã lưu học sinh.'.$photoMessage,$photoType);
         header('Location: ' . BASE_URL . 'csdl.php?tab=students');
         exit;
     }
@@ -581,7 +584,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
             <td><?php if ($canCsdlExport || $canCsdlDelete): ?><input type="checkbox" class="form-check-input row-chk row-chk-students" value="<?= e($s['id']) ?>"><?php endif; ?></td>
             <td><?= $i+1 ?></td>
             <td class="small"><?= e($s['code'] ?? '') ?></td>
-            <td><strong><?= e($s['name'] ?? '') ?></strong></td>
+            <td><strong><?php if($canCsdlEdit):?><a class="text-decoration-none" href="?tab=students&edit=<?=urlencode((string)$s['id'])?>" title="Xem và sửa hồ sơ"><?=e($s['name']??'')?></a><?php else:?><?=e($s['name']??'')?><?php endif;?></strong></td>
             <td class="small"><?= e($s['cccd'] ?? '') ?></td>
             <td><?= e(class_name_by_id($s['class_id'] ?? '', $classes)) ?></td>
             <td><?= e($s['gender'] ?? '') ?></td>
@@ -647,6 +650,7 @@ function resetStudentForm(){
   var id=document.getElementById('s_id'); if(id) id.value='';
   var t=document.getElementById('modalStudentTitle'); if(t) t.textContent='Thêm học sinh';
   var a=document.getElementById('sact'); if(a) a.checked=true;
+  var photo=document.getElementById('studentPhotoPreview');if(photo){photo.removeAttribute('src');photo.style.visibility='hidden';}
 }
 </script>
 </body>

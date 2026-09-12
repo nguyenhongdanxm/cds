@@ -77,7 +77,7 @@ function cds_student_photo_ui_filter(string $html): string {
     if(!/\/noitru_list\.php$/.test(location.pathname))return;
     var modal=document.getElementById('ntStudentDetailModal');if(!modal)return;
     var avatar=modal.querySelector('.nt-profile-avatar');if(!avatar)return;
-    var img=document.createElement('img');img.alt='Ảnh thẻ học sinh';img.hidden=true;avatar.prepend(img);makeZoomable(img);
+    var img=avatar.querySelector('[data-student-photo]');if(!img){img=document.createElement('img');img.alt='Ảnh thẻ học sinh';img.hidden=true;avatar.prepend(img)}makeZoomable(img);
     img.addEventListener('error',function(){this.hidden=true;avatar.classList.remove('has-photo');avatar.style.cursor='default'});
     modal.addEventListener('show.bs.modal',function(event){
       var student={};try{student=JSON.parse(event.relatedTarget?.dataset.student||'{}')}catch(e){}

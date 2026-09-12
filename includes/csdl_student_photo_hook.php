@@ -3,6 +3,10 @@
 if (defined('CSDL_STUDENT_PHOTO_HOOKED')) return;
 define('CSDL_STUDENT_PHOTO_HOOKED', true);
 
+/* csdl.php xử lý ảnh đồng bộ trước khi chuyển trang để báo lỗi rõ cho người dùng. */
+$photoHookPath=basename((string)(parse_url($_SERVER['REQUEST_URI']??'',PHP_URL_PATH)?:''));
+if($photoHookPath==='csdl.php') return;
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') === 'student_save') {
     require_once __DIR__ . '/csdl_student_photo.php';
     $hasUpload = isset($_FILES['student_photo']) && (($_FILES['student_photo']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE);
