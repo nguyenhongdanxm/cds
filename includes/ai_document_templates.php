@@ -85,6 +85,19 @@ function cds_ai_template_context(string $id): string {
     $text=cds_ai_plain_text($path,(string)$row['extension']);
     return "LOẠI MẪU: ".($row['type_label']??'')."\nTÊN MẪU: ".($row['name']??'')."\nNỘI DUNG/THỂ THỨC MẪU:\n".mb_substr($text,0,18000,'UTF-8');
 }
+function cds_ai_template_preview(string $id): array {
+    $row=cds_ai_template_find($id);if(!$row)return ['header'=>[],'type_label'=>''];
+    $path=cds_ai_template_dir().'/'.basename((string)$row['file']);
+    $text=cds_ai_plain_text($path,(string)$row['extension']);$lines=preg_split('/\R/u',$text);
+    $titles=['quyet_dinh'=>'QUYẾT ĐỊNH','ke_hoach'=>'KẾ HOẠCH','huong_dan'=>'HƯỚNG DẪN','quy_che'=>'QUY CHẾ'];
+    $wanted=$titles[(string)($row['type']??'')]??mb_strtoupper((string)($row['type_label']??''),'UTF-8');$header=[];
+    foreach($lines as$line){
+        $line=trim($line);if($line==='')continue;
+        if($wanted!==''&&strpos(mb_strtoupper($line,'UTF-8'),$wanted)!==false)break;
+        if(count($header)<12)$header[]=$line;
+    }
+    return ['header'=>$header,'type_label'=>(string)($row['type_label']??'')];
+}
 function cds_ai_reference_uploads(array $files): array {
     $texts=[];$names=[];$count=is_array($files['name']??null)?count($files['name']):0;
     for($i=0;$i<$count;$i++){
@@ -99,12 +112,27 @@ function cds_ai_reference_uploads(array $files): array {
 }
 function cds_ai_xml(string $s): string { return htmlspecialchars($s,ENT_XML1|ENT_QUOTES,'UTF-8'); }
 function cds_ai_docx_paragraphs(string $content,bool $inheritTemplate=false): string {
-    $out='';$lines=preg_split('/\R/u',trim($content));$first=true;
-    foreach($lines as$line){$line=trim($line);if($line===''){$out.='<w:p/>';continue;}
-        $isTitle=$first||preg_match('/^[A-ZÀ-Ỹ0-9\s().,\-–—]{8,}$/u',$line);$first=false;
-        $align=$isTitle?'center':'both';$bold=$isTitle?'<w:b/>':'';$size=$isTitle?'28':'26';
-        $font=$inheritTemplate?'':'<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman"/><w:sz w:val="'.$size.'"/><w:szCs w:val="'.$size.'"/>';
-        $out.='<w:p><w:pPr><w:jc w:val="'.$align.'"/><w:spacing w:after="120" w:line="360" w:lineRule="auto"/></w:pPr><w:r><w:rPr>'.$font.$bold.'</w:rPr><w:t xml:space="preserve">'.cds_ai_xml($line).'</w:t></w:r></w:p>';
+    $out='';$lines=preg_split('/\R/u',trim($content));$firstText=true;
+    foreach($lines as$line){
+        $line=trim($line);if($line===''){$out.='<w:p><w:pPr><w:spacing w:after="0"/></w:pPr></w:p>';continue;}
+        $upper=mb_strtoupper($line,'UTF-8');
+        $isMain=(bool)preg_match('/^(QUYẾT ĐỊNH|KẾ HOẠCH|HƯỚNG DẪN|QUY CHẾ|THÔNG BÁO|TỜ TRÌNH|BÁO CÁO)(\s*:)?$/u',$upper);
+        $isDecision=$upper==='QUYẾT ĐỊNH:';$isSubtitle=preg_match('/^(Về việc|VỀ VIỆC)\b/u',$line);
+        $isBasis=preg_match('/^Căn cứ\b/u',$line);$isArticle=preg_match('/^(Điều\s+\d+[a-zA-Z]?\.?)(.*)$/u',$line,$article);
+        $isSection=!$isMain&&!$isDecision&&!$isArticle&&(bool)preg_match('/^[A-ZÀ-Ỹ0-9][A-ZÀ-Ỹ0-9\s().,\-–—:]{7,}$/u',$line);
+        $center=$isMain||$isDecision||$isSubtitle;$bold=$isMain||$isDecision||$isSubtitle||$isSection;
+        $size=($isMain||$isDecision)?'28':'26';$firstIndent=(!$center&&!$isBasis&&!$isArticle&&!$isSection)?'<w:ind w:firstLine="567"/>':'';
+        $before=$isMain?'240':'0';$after=($isMain||$isSubtitle||$isDecision)?'120':'100';
+        $out.='<w:p><w:pPr><w:jc w:val="'.($center?'center':'both').'"/>'.$firstIndent.'<w:spacing w:before="'.$before.'" w:after="'.$after.'" w:line="276" w:lineRule="auto"/></w:pPr>';
+        $font='<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman"/><w:sz w:val="'.$size.'"/><w:szCs w:val="'.$size.'"/>';
+        if($isArticle){
+            $out.='<w:r><w:rPr>'.$font.'<w:b/></w:rPr><w:t xml:space="preserve">'.cds_ai_xml($article[1]).'</w:t></w:r>';
+            $out.='<w:r><w:rPr>'.$font.'</w:rPr><w:t xml:space="preserve">'.cds_ai_xml($article[2]).'</w:t></w:r>';
+        }else{
+            $style=($bold?'<w:b/>':'').($isBasis?'<w:i/>':'');
+            $out.='<w:r><w:rPr>'.$font.$style.'</w:rPr><w:t xml:space="preserve">'.cds_ai_xml($line).'</w:t></w:r>';
+        }
+        $out.='</w:p>';$firstText=false;
     }return$out;
 }
 function cds_ai_docx_insert_xml(DOMDocument $dom,DOMNode $parent,?DOMNode $before,string $xml): bool {
