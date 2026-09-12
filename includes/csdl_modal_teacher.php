@@ -4,7 +4,7 @@
 <div class="modal fade" id="modalTeacher" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-      <form method="post">
+      <form method="post" enctype="multipart/form-data">
         <input type="hidden" name="action" value="teacher_save">
         <input type="hidden" name="id" id="t_id" value="<?= e($editing['id'] ?? '') ?>">
         <div class="modal-header">
@@ -12,6 +12,14 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
+          <?php $teacherPhotoId=(string)($editing['id']??'');$hasTeacherPhoto=$teacherPhotoId!==''&&function_exists('staff_card_has_photo')&&staff_card_has_photo($teacherPhotoId); ?>
+          <div class="card border-0 bg-light mb-3"><div class="card-body"><div class="row g-3 align-items-center">
+            <div class="col-auto"><img id="teacherPhotoPreview" src="<?= $hasTeacherPhoto?e(BASE_URL.'staff_photo.php?id='.rawurlencode($teacherPhotoId).'&v='.time()):'' ?>" alt="Ảnh thẻ giáo viên" style="width:100px;height:133px;object-fit:cover;border:1px solid #cbd5e1;border-radius:10px;background:#fff;<?= $hasTeacherPhoto?'':'display:none' ?>"></div>
+            <div class="col"><label class="form-label fw-semibold">Ảnh thẻ giáo viên</label><input id="teacherPhotoInput" type="file" name="teacher_photo" class="form-control" accept="image/jpeg,image/png,image/webp">
+              <div class="form-text">JPG, PNG hoặc WebP; tối đa 20 MB; kích thước tối thiểu 300 × 400 px. Ảnh này dùng chung khi tạo/in thẻ CBGV.</div>
+              <?php if($hasTeacherPhoto):?><label class="form-check mt-2"><input class="form-check-input" type="checkbox" name="remove_teacher_photo" value="1"> <span class="form-check-label text-danger">Xóa ảnh thẻ hiện tại</span></label><?php endif;?>
+            </div>
+          </div></div></div>
           <div class="row g-3">
             <div class="col-md-4"><label class="form-label small">Họ và tên *</label>
               <input type="text" name="name" class="form-control" required value="<?= e($editing['name'] ?? '') ?>"></div>
@@ -77,6 +85,8 @@
     </div>
   </div>
 </div>
-<?php if (!empty($editing)): ?>
-<script>document.addEventListener('DOMContentLoaded',function(){new bootstrap.Modal('#modalTeacher').show()});</script>
-<?php endif; ?>
+<script>document.addEventListener('DOMContentLoaded',function(){
+  var input=document.getElementById('teacherPhotoInput'),preview=document.getElementById('teacherPhotoPreview');
+  if(input&&preview)input.addEventListener('change',function(){var file=input.files&&input.files[0];if(!file)return;preview.src=URL.createObjectURL(file);preview.style.display='block';});
+  <?php if (!empty($editing)): ?>new bootstrap.Modal('#modalTeacher').show();<?php endif; ?>
+});</script>
