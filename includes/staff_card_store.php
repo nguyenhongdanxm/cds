@@ -81,3 +81,40 @@ function staff_card_save_photo(string $teacherId, string $bytes, string $mime, s
     $stmt = cds_db()->prepare('INSERT INTO cds_teacher_photos(teacher_id,image_data,mime_type,original_name,drive_file_id,checksum_sha256,file_size,updated_by) VALUES(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE image_data=VALUES(image_data),mime_type=VALUES(mime_type),original_name=VALUES(original_name),drive_file_id=VALUES(drive_file_id),checksum_sha256=VALUES(checksum_sha256),file_size=VALUES(file_size),updated_by=VALUES(updated_by),updated_at=NOW()');
     $stmt->bindValue(1,$teacherId);$stmt->bindValue(2,$bytes,PDO::PARAM_LOB);$stmt->bindValue(3,$mime);$stmt->bindValue(4,$originalName);$stmt->bindValue(5,$driveFileId);$stmt->bindValue(6,hash('sha256',$bytes));$stmt->bindValue(7,strlen($bytes),PDO::PARAM_INT);$stmt->bindValue(8,$updatedBy);$stmt->execute();
 }
+
+function staff_card_upload_photo(string $teacherId, array $upload, string $updatedBy = ''): array {
+    if ($teacherId === '' || !csdl_teacher_find($teacherId)) return ['ok'=>false,'message'=>'Không tìm thấy hồ sơ giáo viên để lưu ảnh.'];
+    $error = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($error === UPLOAD_ERR_NO_FILE) return ['ok'=>true,'changed'=>false,'message'=>''];
+    if ($error !== UPLOAD_ERR_OK) return ['ok'=>false,'message'=>'Không nhận được ảnh tải lên (mã lỗi '.$error.').'];
+    $size = (int)($upload['size'] ?? 0);
+    if ($size < 1 || $size > 20*1024*1024) return ['ok'=>false,'message'=>'Ảnh phải có dung lượng không quá 20 MB.'];
+    $tmp = (string)($upload['tmp_name'] ?? '');
+    if ($tmp === '' || !is_uploaded_file($tmp)) return ['ok'=>false,'message'=>'Tệp ảnh tải lên không hợp lệ.'];
+    $info = @getimagesize($tmp);$allowed = ['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
+    $mime = is_array($info) ? (string)($info['mime'] ?? '') : '';
+    if (!isset($allowed[$mime])) return ['ok'=>false,'message'=>'Chỉ chấp nhận ảnh JPG, PNG hoặc WebP hợp lệ.'];
+    if ((int)($info[0] ?? 0) < 300 || (int)($info[1] ?? 0) < 400) return ['ok'=>false,'message'=>'Ảnh quá nhỏ. Vui lòng dùng ảnh tối thiểu 300 × 400 px.'];
+    $bytes = @file_get_contents($tmp);if ($bytes === false) return ['ok'=>false,'message'=>'Không đọc được ảnh tải lên.'];
+    try {
+        $old=staff_card_photo_record($teacherId,false);$driveId=(string)($old['drive_file_id']??'');
+        staff_card_save_photo($teacherId,$bytes,$mime,basename((string)($upload['name']??'')),$driveId,$updatedBy);
+        return ['ok'=>true,'changed'=>true,'message'=>'Đã cập nhật ảnh thẻ giáo viên.'];
+    } catch (Throwable $e) {
+        return ['ok'=>false,'message'=>'Không lưu được ảnh thẻ: '.$e->getMessage()];
+    }
+}
+
+function staff_card_delete_photo(string $teacherId): bool {
+    if ($teacherId === '') return false;
+    $deleted=false;
+    try {
+        staff_card_photo_ensure_schema();
+        $stmt=cds_db()->prepare('DELETE FROM cds_teacher_photos WHERE teacher_id=?');$stmt->execute([$teacherId]);
+        $deleted=$stmt->rowCount()>0;
+    } catch (Throwable $e) {}
+    $file=staff_card_photo_file($teacherId);
+    if($file!==''&&is_file($file))$deleted=@unlink($file)||$deleted;
+    return $deleted;
+}
+
