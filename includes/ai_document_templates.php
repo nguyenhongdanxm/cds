@@ -107,6 +107,16 @@ function cds_ai_docx_paragraphs(string $content,bool $inheritTemplate=false): st
         $out.='<w:p><w:pPr><w:jc w:val="'.$align.'"/><w:spacing w:after="120" w:line="360" w:lineRule="auto"/></w:pPr><w:r><w:rPr>'.$font.$bold.'</w:rPr><w:t xml:space="preserve">'.cds_ai_xml($line).'</w:t></w:r></w:p>';
     }return$out;
 }
+function cds_ai_docx_insert_xml(DOMDocument $dom,DOMNode $parent,?DOMNode $before,string $xml): bool {
+    $source=new DOMDocument();$previous=libxml_use_internal_errors(true);
+    $ok=$source->loadXML('<?xml version="1.0" encoding="UTF-8"?><w:root xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'.$xml.'</w:root>',LIBXML_NONET);
+    libxml_clear_errors();libxml_use_internal_errors($previous);if(!$ok)return false;
+    foreach(iterator_to_array($source->documentElement->childNodes) as$child){
+        $imported=$dom->importNode($child,true);
+        $before?$parent->insertBefore($imported,$before):$parent->appendChild($imported);
+    }
+    return true;
+}
 function cds_ai_docx_generate(string $content,string $templateId,string $target): array {
     if(!class_exists('ZipArchive')||!class_exists('DOMDocument'))return ['ok'=>false,'message'=>'Hosting cần bật ZipArchive và DOM để xuất Word.'];
     $row=$templateId!==''?cds_ai_template_find($templateId):null;
@@ -128,8 +138,8 @@ function cds_ai_docx_generate(string $content,string $templateId,string $target)
             if(strpos($text,'{{NOI_DUNG}}')!==false){$replaceNode=$p;break;}
         }
         if($replaceNode){
-            $fragment=$dom->createDocumentFragment();$fragment->appendXML($contentXml);
-            $replaceNode->parentNode->insertBefore($fragment,$replaceNode);$replaceNode->parentNode->removeChild($replaceNode);
+            if(!cds_ai_docx_insert_xml($dom,$replaceNode->parentNode,$replaceNode,$contentXml)){$zip->close();return ['ok'=>false,'message'=>'Không chèn được nội dung vào mẫu Word.'];}
+            $replaceNode->parentNode->removeChild($replaceNode);
         }else{
             $titles=['quyet_dinh'=>'QUYẾT ĐỊNH','ke_hoach'=>'KẾ HOẠCH','huong_dan'=>'HƯỚNG DẪN','quy_che'=>'QUY CHẾ'];
             $wanted=$titles[(string)($row['type']??'')]??'';
@@ -149,13 +159,11 @@ function cds_ai_docx_generate(string $content,string $templateId,string $target)
                     $bodyNode->removeChild($child);
                 }
                 $sect=$xp->query('./w:sectPr',$bodyNode)->item(0);
-                $fragment=$dom->createDocumentFragment();$fragment->appendXML($contentXml);
-                $sect?$bodyNode->insertBefore($fragment,$sect):$bodyNode->appendChild($fragment);
+                if(!cds_ai_docx_insert_xml($dom,$bodyNode,$sect,$contentXml)){$zip->close();return ['ok'=>false,'message'=>'Không chèn được nội dung vào mẫu Word.'];}
             }else{
                 $sect=$xp->query('./w:sectPr',$bodyNode)->item(0);
                 foreach(iterator_to_array($bodyNode->childNodes) as$child)if($child!==$sect)$bodyNode->removeChild($child);
-                $fragment=$dom->createDocumentFragment();$fragment->appendXML($contentXml);
-                $sect?$bodyNode->insertBefore($fragment,$sect):$bodyNode->appendChild($fragment);
+                if(!cds_ai_docx_insert_xml($dom,$bodyNode,$sect,$contentXml)){$zip->close();return ['ok'=>false,'message'=>'Không chèn được nội dung vào mẫu Word.'];}
             }
         }
         $zip->addFromString('word/document.xml',$dom->saveXML());$zip->close();return ['ok'=>true];
