@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/student_card_store.php';
+require_once __DIR__ . '/includes/csdl_student_photo.php';
 require_login();
 require_perm('csdl.students');
 
@@ -26,7 +27,7 @@ foreach (csdl_students_all() as $student) {
     $haystack = mb_strtolower(trim((string)($student['name'] ?? '')) . ' ' . trim((string)($student['code'] ?? '')), 'UTF-8');
     if ($query !== '' && mb_strpos($haystack, $query) === false) continue;
     $safeId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($student['id'] ?? ''));
-    $hasPhoto = $safeId !== '' && is_file(DATA_PATH . '/student_photos/' . $safeId . '.jpg');
+    $hasPhoto = $safeId !== '' && csdl_student_photo_has($safeId);
     if ($photo === 'yes' && !$hasPhoto) continue;
     if ($photo === 'no' && $hasPhoto) continue;
     $rows[] = [

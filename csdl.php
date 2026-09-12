@@ -4,6 +4,7 @@ require_once 'includes/csdl_store.php';
 require_once 'includes/csdl_sync.php'; // API cho module khác kéo 1 chiều từ CSDL
 require_once 'includes/csdl_import_teachers.php';
 require_once 'includes/csdl_io.php';
+require_once 'includes/csdl_student_photo.php';
 require_login();
 $user = current_user();
 $requestedTab = $_GET['tab'] ?? '';
@@ -26,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $editActions = ['teacher_save'=>'csdl.teachers','class_save'=>'csdl.classes','student_save'=>'csdl.students'];
     $deleteActions = ['teacher_delete'=>'csdl.teachers','class_delete'=>'csdl.classes','student_delete'=>'csdl.students','student_deactivate'=>'csdl.students'];
     $yearActions = ['year_set_current','year_save','year_week_save'];
+    if ($action === 'student_photo_zip_import') require_perm_level('csdl.students', 'edit');
     if (isset($editActions[$action])) require_perm_level($editActions[$action], 'edit');
     if (isset($deleteActions[$action])) require_perm_level($deleteActions[$action], 'delete');
     if ($action === 'io_import') {
@@ -56,6 +58,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'bulk_delete') {
         require __DIR__ . '/includes/csdl_post_extra.php';
+    }
+
+    if ($action === 'student_photo_zip_import') {
+        $classId=trim((string)($_POST['class_id']??''));$upload=$_FILES['photo_zip']??null;
+        if(!$upload||($upload['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK||empty($upload['tmp_name'])||!is_uploaded_file($upload['tmp_name']))$result=['ok'=>false,'message'=>'Chưa chọn được tệp ZIP hợp lệ.'];
+        elseif(strtolower((string)pathinfo((string)($upload['name']??''),PATHINFO_EXTENSION))!=='zip')$result=['ok'=>false,'message'=>'Chỉ chấp nhận tệp .zip.'];
+        else $result=csdl_student_photo_import_zip((string)$upload['tmp_name'],$classId);
+        flash((string)($result['message']??'Không nhập được ảnh.'),!empty($result['ok'])?(empty($result['warnings'])?'success':'warning'):'danger');
+        header('Location: '.BASE_URL.'csdl.php?tab=students&class='.urlencode($classId));exit;
     }
 
     if ($action === 'io_import') {

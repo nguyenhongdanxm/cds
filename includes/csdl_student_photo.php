@@ -1,73 +1,17 @@
 <?php
-/** Xử lý ảnh thẻ học sinh: xoay EXIF, cắt giữa 3:4, thu về 600x800 JPEG. */
+/** Ảnh thẻ học sinh: giữ nguyên byte gốc trong MySQL và đồng bộ Google Drive. */
+require_once __DIR__ . '/database.php';
 if (!defined('CSDL_STUDENT_PHOTO_DIR')) define('CSDL_STUDENT_PHOTO_DIR', DATA_PATH . '/student_photos');
 if (!defined('CSDL_STUDENT_PHOTO_DRIVE_MAP')) define('CSDL_STUDENT_PHOTO_DRIVE_MAP', DATA_PATH . '/student_photo_drive.json');
-
-function csdl_student_photo_drive_map(): array {
-    $map=is_file(CSDL_STUDENT_PHOTO_DRIVE_MAP)?json_decode((string)file_get_contents(CSDL_STUDENT_PHOTO_DRIVE_MAP),true):[];
-    return is_array($map)?$map:[];
-}
-function csdl_student_photo_drive_id(string $studentId): string { return (string)(csdl_student_photo_drive_map()[$studentId]??''); }
-
-function csdl_student_photo_public_path(string $studentId): string {
-    return 'student_photo.php?id=' . rawurlencode($studentId);
-}
-
-function csdl_student_photo_remove(string $studentId): void {
-    $safe = preg_replace('/[^a-zA-Z0-9_-]/', '', $studentId);
-    if ($safe === '') return;
-    $file = CSDL_STUDENT_PHOTO_DIR . '/' . $safe . '.jpg';
-    if (is_file($file)) @unlink($file);
-    $map=csdl_student_photo_drive_map();unset($map[$studentId]);@file_put_contents(CSDL_STUDENT_PHOTO_DRIVE_MAP,json_encode($map,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX);
-}
-
-function csdl_student_photo_save_upload(string $studentId, array $upload): array {
-    if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) return ['ok'=>true, 'changed'=>false];
-    if (($upload['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) return ['ok'=>false, 'message'=>'Tải ảnh lên không thành công.'];
-    if (($upload['size'] ?? 0) > 10 * 1024 * 1024) return ['ok'=>false, 'message'=>'Ảnh vượt quá 10 MB.'];
-    $tmp = (string)($upload['tmp_name'] ?? '');
-    if ($tmp === '' || !is_uploaded_file($tmp)) return ['ok'=>false, 'message'=>'File ảnh tải lên không hợp lệ.'];
-    if (!function_exists('imagecreatefromstring') || !function_exists('imagejpeg')) return ['ok'=>false, 'message'=>'Máy chủ chưa bật thư viện GD để xử lý ảnh.'];
-    $bytes = @file_get_contents($tmp);
-    $src = $bytes !== false ? @imagecreatefromstring($bytes) : false;
-    if (!$src) return ['ok'=>false, 'message'=>'Chỉ chấp nhận ảnh JPG, PNG hoặc WebP hợp lệ.'];
-
-    // Xoay ảnh JPEG theo EXIF khi có.
-    if (function_exists('exif_read_data')) {
-        $exif = @exif_read_data($tmp);
-        $orientation = (int)($exif['Orientation'] ?? 1);
-        if ($orientation === 3) $src = imagerotate($src, 180, 0);
-        elseif ($orientation === 6) $src = imagerotate($src, -90, 0);
-        elseif ($orientation === 8) $src = imagerotate($src, 90, 0);
-    }
-
-    $w = imagesx($src); $h = imagesy($src);
-    if ($w < 120 || $h < 160) { imagedestroy($src); return ['ok'=>false, 'message'=>'Ảnh quá nhỏ để làm ảnh thẻ.']; }
-    $targetRatio = 3 / 4;
-    $ratio = $w / $h;
-    if ($ratio > $targetRatio) { $cropH = $h; $cropW = (int)round($h * $targetRatio); $srcX = (int)(($w - $cropW) / 2); $srcY = 0; }
-    else { $cropW = $w; $cropH = (int)round($w / $targetRatio); $srcX = 0; $srcY = (int)(($h - $cropH) / 2); }
-
-    $dst = imagecreatetruecolor(600, 800);
-    $white = imagecolorallocate($dst, 255, 255, 255);
-    imagefill($dst, 0, 0, $white);
-    imagecopyresampled($dst, $src, 0, 0, $srcX, $srcY, 600, 800, $cropW, $cropH);
-    if (!is_dir(CSDL_STUDENT_PHOTO_DIR) && !@mkdir(CSDL_STUDENT_PHOTO_DIR, 0755, true) && !is_dir(CSDL_STUDENT_PHOTO_DIR)) {
-        imagedestroy($src); imagedestroy($dst); return ['ok'=>false, 'message'=>'Không tạo được thư mục lưu ảnh học sinh.'];
-    }
-    $safe = preg_replace('/[^a-zA-Z0-9_-]/', '', $studentId);
-    $file = CSDL_STUDENT_PHOTO_DIR . '/' . $safe . '.jpg';
-    $ok = @imagejpeg($dst, $file, 88);
-    imagedestroy($src); imagedestroy($dst);
-    if (!$ok) return ['ok'=>false, 'message'=>'Không ghi được ảnh học sinh.'];
-    $drive=cds_drive_settings();
-    if(!empty($drive['enabled'])&&cds_drive_folder('photos',$drive)!==''){
-        $student=[];if(function_exists('csdl_students_all'))foreach(csdl_students_all() as $row)if((string)($row['id']??'')===$studentId){$student=$row;break;}
-        $result=cds_drive_upload_bytes((string)file_get_contents($file),$safe.'.jpg','image/jpeg','photos',['title'=>$student['name']??('Học sinh '.$safe),'class_name'=>$student['class_name']??'']);
-        if(empty($result['ok'])) return ['ok'=>true,'changed'=>true,'path'=>csdl_student_photo_public_path($studentId),'warning'=>$result['message']??'Chưa lưu được ảnh lên Google Drive; bản trên host vẫn được giữ an toàn.'];
-        $map=csdl_student_photo_drive_map();$map[$studentId]=$result['id'];
-        if(false===file_put_contents(CSDL_STUDENT_PHOTO_DRIVE_MAP,json_encode($map,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX)) return ['ok'=>true,'changed'=>true,'path'=>csdl_student_photo_public_path($studentId),'warning'=>'Chưa lưu được liên kết Drive; bản trên host vẫn được giữ an toàn.'];
-        @unlink($file);
-    }
-    return ['ok'=>true, 'changed'=>true, 'path'=>csdl_student_photo_public_path($studentId)];
-}
+function csdl_student_photo_drive_map(): array {$map=is_file(CSDL_STUDENT_PHOTO_DRIVE_MAP)?json_decode((string)file_get_contents(CSDL_STUDENT_PHOTO_DRIVE_MAP),true):[];return is_array($map)?$map:[];}
+function csdl_student_photo_drive_id(string $studentId): string {$record=csdl_student_photo_record($studentId,false);return (string)($record['drive_file_id']??(csdl_student_photo_drive_map()[$studentId]??''));}
+function csdl_student_photo_public_path(string $studentId): string {return 'student_photo.php?id='.rawurlencode($studentId);}
+function csdl_student_photo_ensure_schema(): void {static $done=false;if($done)return;cds_db()->exec("CREATE TABLE IF NOT EXISTS cds_student_photos (student_id VARCHAR(100) NOT NULL,image_data LONGBLOB NOT NULL,mime_type VARCHAR(80) NOT NULL,original_name VARCHAR(255) NOT NULL DEFAULT '',drive_file_id VARCHAR(255) NOT NULL DEFAULT '',checksum_sha256 CHAR(64) NOT NULL,file_size BIGINT UNSIGNED NOT NULL DEFAULT 0,updated_by VARCHAR(100) NOT NULL DEFAULT '',updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,PRIMARY KEY (student_id),CONSTRAINT fk_student_photo_student FOREIGN KEY (student_id) REFERENCES cds_students(id) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");$done=true;}
+function csdl_student_photo_record(string $studentId,bool $withBytes=false): ?array {if($studentId==='')return null;try{csdl_student_photo_ensure_schema();$cols=$withBytes?'*':'student_id,mime_type,original_name,drive_file_id,checksum_sha256,file_size,updated_at';$stmt=cds_db()->prepare('SELECT '.$cols.' FROM cds_student_photos WHERE student_id=?');$stmt->execute([$studentId]);$row=$stmt->fetch(PDO::FETCH_ASSOC);return $row?:null;}catch(Throwable $e){return null;}}
+function csdl_student_photo_has(string $studentId): bool {if(csdl_student_photo_record($studentId,false)!==null)return true;$safe=preg_replace('/[^a-zA-Z0-9_-]/','',$studentId);if($safe==='')return false;foreach(['jpg','jpeg','png','webp'] as $ext)if(is_file(CSDL_STUDENT_PHOTO_DIR.'/'.$safe.'.'.$ext))return true;return csdl_student_photo_drive_id($studentId)!=='';}
+function csdl_student_photo_validate_bytes(string $bytes,string $originalName=''): array {if($bytes==='')return ['ok'=>false,'message'=>'Tệp ảnh rỗng.'];if(strlen($bytes)>20*1024*1024)return ['ok'=>false,'message'=>'Ảnh vượt quá 20 MB.'];$info=@getimagesizefromstring($bytes);if(!$info)return ['ok'=>false,'message'=>'Không phải ảnh hợp lệ.'];$mime=(string)($info['mime']??'');if(!in_array($mime,['image/jpeg','image/png','image/webp'],true))return ['ok'=>false,'message'=>'Chỉ hỗ trợ JPG, PNG hoặc WebP.'];if((int)$info[0]<300||(int)$info[1]<400)return ['ok'=>false,'message'=>'Ảnh phải đạt tối thiểu 300×400 px.'];$ext=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'][$mime];return ['ok'=>true,'mime'=>$mime,'extension'=>$ext,'width'=>(int)$info[0],'height'=>(int)$info[1],'name'=>$originalName];}
+function csdl_student_photo_store(string $studentId,string $bytes,string $originalName,array $student=[]): array {$valid=csdl_student_photo_validate_bytes($bytes,$originalName);if(empty($valid['ok']))return $valid;if(!$student)$student=csdl_student_find($studentId)?:[];if(!$student)return ['ok'=>false,'message'=>'Không tìm thấy học sinh.'];$drive=cds_drive_settings();if(empty($drive['enabled'])||cds_drive_folder('photos',$drive)==='')return ['ok'=>false,'message'=>'Chưa bật hoặc chưa cấu hình thư mục Ảnh học sinh và CBGV trên Google Drive; ảnh chưa được thay đổi.'];$driveName='Anh-the-HS-'.preg_replace('/[^a-zA-Z0-9_-]+/','-',(string)($student['code']??$studentId)).'-'.date('Ymd-His').'.'.$valid['extension'];$driveResult=cds_drive_upload_bytes($bytes,$driveName,$valid['mime'],'photos',['title'=>$student['name']??('Học sinh '.$studentId),'class_name'=>$student['class_name']??'']);if(empty($driveResult['ok'])||empty($driveResult['id']))return ['ok'=>false,'message'=>$driveResult['message']??'Không lưu được ảnh lên Google Drive; ảnh chưa được thay đổi.'];$driveId=(string)$driveResult['id'];try{csdl_student_photo_ensure_schema();$stmt=cds_db()->prepare('INSERT INTO cds_student_photos(student_id,image_data,mime_type,original_name,drive_file_id,checksum_sha256,file_size,updated_by) VALUES(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE image_data=VALUES(image_data),mime_type=VALUES(mime_type),original_name=VALUES(original_name),drive_file_id=VALUES(drive_file_id),checksum_sha256=VALUES(checksum_sha256),file_size=VALUES(file_size),updated_by=VALUES(updated_by),updated_at=NOW()');$u=current_user();$actor=(string)($u['username']??$u['name']??'');$stmt->bindValue(1,$studentId);$stmt->bindValue(2,$bytes,PDO::PARAM_LOB);$stmt->bindValue(3,$valid['mime']);$stmt->bindValue(4,basename($originalName));$stmt->bindValue(5,$driveId);$stmt->bindValue(6,hash('sha256',$bytes));$stmt->bindValue(7,strlen($bytes),PDO::PARAM_INT);$stmt->bindValue(8,$actor);$stmt->execute();}catch(Throwable $e){return ['ok'=>false,'message'=>'Ảnh đã lên Drive nhưng chưa ghi được vào MySQL: '.$e->getMessage()];}return ['ok'=>true,'changed'=>true,'path'=>csdl_student_photo_public_path($studentId),'warning'=>'','drive_file_id'=>$driveId];}
+function csdl_student_photo_remove(string $studentId): void {try{csdl_student_photo_ensure_schema();$stmt=cds_db()->prepare('DELETE FROM cds_student_photos WHERE student_id=?');$stmt->execute([$studentId]);}catch(Throwable $e){}$safe=preg_replace('/[^a-zA-Z0-9_-]/','',$studentId);if($safe!=='')foreach(['jpg','jpeg','png','webp'] as $ext){$file=CSDL_STUDENT_PHOTO_DIR.'/'.$safe.'.'.$ext;if(is_file($file))@unlink($file);}$map=csdl_student_photo_drive_map();unset($map[$studentId]);@file_put_contents(CSDL_STUDENT_PHOTO_DRIVE_MAP,json_encode($map,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX);}
+function csdl_student_photo_save_upload(string $studentId,array $upload): array {if(($upload['error']??UPLOAD_ERR_NO_FILE)===UPLOAD_ERR_NO_FILE)return ['ok'=>true,'changed'=>false];if(($upload['error']??UPLOAD_ERR_OK)!==UPLOAD_ERR_OK)return ['ok'=>false,'message'=>'Tải ảnh lên không thành công.'];$tmp=(string)($upload['tmp_name']??'');if($tmp===''||!is_uploaded_file($tmp))return ['ok'=>false,'message'=>'File ảnh tải lên không hợp lệ.'];$bytes=@file_get_contents($tmp);if($bytes===false)return ['ok'=>false,'message'=>'Không đọc được ảnh tải lên.'];return csdl_student_photo_store($studentId,$bytes,(string)($upload['name']??'image'));}
+function csdl_student_photo_match_key(string $value): string {$value=(string)pathinfo(basename(str_replace('\\','/',$value)),PATHINFO_FILENAME);$value=preg_replace('/\s*[-_]\s*(?:lớp|lop)\s*[0-9]{1,2}[a-z0-9]*\s*$/iu','',$value);return preg_replace('/[^a-z0-9]+/','',csdl_text_sort_key($value));}
+function csdl_student_photo_import_zip(string $zipPath,string $classId): array {if(!class_exists('ZipArchive'))return ['ok'=>false,'message'=>'Máy chủ chưa bật ZipArchive.'];$class=csdl_class_find($classId);if(!$class)return ['ok'=>false,'message'=>'Lớp không hợp lệ.'];if(!can_class((string)($class['name']??'')))return ['ok'=>false,'message'=>'Bạn không có quyền nhập ảnh cho lớp này.'];$students=array_values(array_filter(csdl_students_all(),fn($s)=>(string)($s['class_id']??'')===$classId));$index=[];foreach($students as $student){foreach([$student['name']??'',$student['code']??''] as $candidate){$key=csdl_student_photo_match_key((string)$candidate);if($key!=='')$index[$key][]=$student;}}$zip=new ZipArchive();if($zip->open($zipPath)!==true)return ['ok'=>false,'message'=>'Không mở được tệp ZIP.'];$saved=0;$skipped=0;$warnings=[];$seen=[];$total=0;$entryCount=$zip->numFiles;$limit=min($entryCount,1000);for($i=0;$i<$limit;$i++){$entry=(string)$zip->getNameIndex($i);$base=basename(str_replace('\\','/',$entry));if($base===''||str_ends_with($entry,'/')||str_starts_with($base,'.')||str_starts_with($entry,'__MACOSX/'))continue;$ext=strtolower((string)pathinfo($base,PATHINFO_EXTENSION));if(!in_array($ext,['jpg','jpeg','png','webp'],true)){$skipped++;$warnings[]=$base.': không đúng định dạng ảnh';continue;}$stat=$zip->statIndex($i);$size=(int)($stat['size']??0);$total+=$size;if($size>20*1024*1024||$total>500*1024*1024){$skipped++;$warnings[]=$base.': vượt giới hạn dung lượng';continue;}$key=csdl_student_photo_match_key($base);$matches=$index[$key]??[];$unique=[];foreach($matches as $m)$unique[(string)$m['id']]=$m;$matches=array_values($unique);if(count($matches)!==1){$skipped++;$warnings[]=$base.': '.(count($matches)>1?'trùng tên trong lớp':'không tìm thấy học sinh');continue;}$student=$matches[0];$sid=(string)$student['id'];if(isset($seen[$sid])){$skipped++;$warnings[]=$base.': học sinh đã có một ảnh khác trong ZIP';continue;}$bytes=$zip->getFromIndex($i);if(!is_string($bytes)){$skipped++;$warnings[]=$base.': không đọc được tệp';continue;}$student['class_name']=(string)($class['name']??'');$result=csdl_student_photo_store($sid,$bytes,$base,$student);if(empty($result['ok'])){$skipped++;$warnings[]=$base.': '.($result['message']??'lỗi lưu ảnh');continue;}csdl_student_save(['id'=>$sid,'photo'=>csdl_student_photo_public_path($sid),'photo_drive_id'=>(string)($result['drive_file_id']??''),'photo_updated_at'=>date('c')]);$seen[$sid]=true;$saved++;if(!empty($result['warning']))$warnings[]=$base.': '.$result['warning'];}$zip->close();if($entryCount>$limit)$warnings[]='ZIP có quá 1.000 mục; chỉ xử lý 1.000 mục đầu.';return ['ok'=>true,'saved'=>$saved,'skipped'=>$skipped,'warnings'=>$warnings,'message'=>'Đã lưu '.$saved.' ảnh cho lớp '.($class['name']??'').'; bỏ qua '.$skipped.' tệp.'.($warnings?' '.implode(' | ',array_slice($warnings,0,8)): '')];}

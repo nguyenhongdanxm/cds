@@ -24,7 +24,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') ==
             if ($upload) {
                 $result = csdl_student_photo_save_upload($studentId, $upload);
                 if (!empty($result['ok']) && !empty($result['changed'])) {
-                    csdl_student_save(['id'=>$studentId, 'photo'=>(string)$result['path']]);
+                    csdl_student_save(['id'=>$studentId, 'photo'=>(string)$result['path'], 'photo_drive_id'=>(string)($result['drive_file_id']??''), 'photo_updated_at'=>date('c')]);
                 } elseif (empty($result['ok'])) {
                     error_log('Student photo upload failed: ' . ($result['message'] ?? 'unknown error'));
                 }

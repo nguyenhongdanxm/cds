@@ -46,6 +46,24 @@ $filteredMultiUrl = BASE_URL . 'csdl_export_filtered_excel.php?' . http_build_qu
       <strong>Excel kết quả lọc</strong> giữ nguyên đúng các bản ghi đang lọc. <strong>Excel nhiều sheet</strong> có thêm một sheet cho từng trường thông tin để tra cứu riêng, ngoài sheet Tổng hợp.
     </div><?php endif; ?>
     <div class="row g-3">
+      <?php if ($io_entity==='students' && $canIoImport): ?><div class="col-12">
+        <div class="border border-primary border-opacity-25 rounded-3 p-3 bg-primary bg-opacity-10">
+          <div class="row g-3 align-items-end">
+            <div class="col-lg-5">
+              <div class="fw-bold"><i class="bi bi-images text-primary"></i> Nhập ảnh thẻ hàng loạt theo lớp (ZIP)</div>
+              <div class="small text-muted mt-1">Tên tệp phải là <strong>họ tên đầy đủ</strong> hoặc <strong>mã học sinh</strong>. Hỗ trợ JPG, PNG, WebP; tối thiểu 300×400 px; tối đa 20 MB/ảnh. Ảnh gốc được giữ nguyên.</div>
+            </div>
+            <div class="col-lg-7">
+              <form method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
+                <input type="hidden" name="action" value="student_photo_zip_import">
+                <div class="col-md-4"><label class="form-label small fw-semibold">Chọn lớp</label><select name="class_id" class="form-select" required><option value="">— Chọn lớp —</option><?php foreach(($classes??[]) as $photoClass):?><option value="<?=e((string)($photoClass['id']??''))?>"><?=e((string)($photoClass['name']??''))?></option><?php endforeach;?></select></div>
+                <div class="col-md-5"><label class="form-label small fw-semibold">Tệp ảnh ZIP</label><input type="file" name="photo_zip" class="form-control" accept=".zip,application/zip" required></div>
+                <div class="col-md-3"><button class="btn btn-primary w-100" type="submit" onclick="return confirm('Nhập và đồng bộ các ảnh khớp tên trong ZIP?')"><i class="bi bi-cloud-arrow-up"></i> Nhập ảnh</button></div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div><?php endif; ?>
       <?php if ($canIoExport): ?><div class="col-md-4">
         <div class="border rounded-3 p-3 h-100 bg-light">
           <div class="fw-bold mb-2"><i class="bi bi-download"></i> Mẫu nhập</div>

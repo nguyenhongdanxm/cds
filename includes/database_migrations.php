@@ -394,6 +394,25 @@ function cds_db_migrations()
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
             ),
         ),
+        '20260912_015_student_photos_mysql' => array(
+            'description' => 'Ảnh thẻ học sinh nguyên chất lượng và tham chiếu Google Drive',
+            'statements' => array(
+                "CREATE TABLE IF NOT EXISTS cds_student_photos (
+                    student_id VARCHAR(100) NOT NULL,
+                    image_data LONGBLOB NOT NULL,
+                    mime_type VARCHAR(80) NOT NULL,
+                    original_name VARCHAR(255) NOT NULL DEFAULT '',
+                    drive_file_id VARCHAR(255) NOT NULL DEFAULT '',
+                    checksum_sha256 CHAR(64) NOT NULL,
+                    file_size BIGINT UNSIGNED NOT NULL DEFAULT 0,
+                    updated_by VARCHAR(100) NOT NULL DEFAULT '',
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (student_id),
+                    CONSTRAINT fk_student_photo_student FOREIGN KEY (student_id) REFERENCES cds_students (id)
+                        ON UPDATE CASCADE ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            ),
+        ),
 
     );
 }
