@@ -52,3 +52,32 @@ function staff_card_photo_file(string $teacherId): string {
     }
     return '';
 }
+
+function staff_card_photo_ensure_schema(): void {
+    static $done = false;
+    if ($done) return;
+    cds_db()->exec("CREATE TABLE IF NOT EXISTS cds_teacher_photos (teacher_id VARCHAR(100) NOT NULL,image_data LONGBLOB NOT NULL,mime_type VARCHAR(80) NOT NULL,original_name VARCHAR(255) NOT NULL DEFAULT '',drive_file_id VARCHAR(255) NOT NULL DEFAULT '',checksum_sha256 CHAR(64) NOT NULL,file_size BIGINT UNSIGNED NOT NULL DEFAULT 0,updated_by VARCHAR(100) NOT NULL DEFAULT '',updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,PRIMARY KEY (teacher_id),CONSTRAINT fk_teacher_photo_teacher FOREIGN KEY (teacher_id) REFERENCES cds_teachers(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $done = true;
+}
+
+function staff_card_photo_record(string $teacherId, bool $withBytes = false): ?array {
+    if ($teacherId === '') return null;
+    try {
+        staff_card_photo_ensure_schema();
+        $columns = $withBytes ? '*' : 'teacher_id,mime_type,original_name,drive_file_id,checksum_sha256,file_size,updated_at';
+        $stmt = cds_db()->prepare('SELECT '.$columns.' FROM cds_teacher_photos WHERE teacher_id=?');
+        $stmt->execute([$teacherId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    } catch (Throwable $e) { return null; }
+}
+
+function staff_card_has_photo(string $teacherId): bool {
+    return staff_card_photo_record($teacherId, false) !== null || staff_card_photo_file($teacherId) !== '';
+}
+
+function staff_card_save_photo(string $teacherId, string $bytes, string $mime, string $originalName, string $driveFileId, string $updatedBy): void {
+    staff_card_photo_ensure_schema();
+    $stmt = cds_db()->prepare('INSERT INTO cds_teacher_photos(teacher_id,image_data,mime_type,original_name,drive_file_id,checksum_sha256,file_size,updated_by) VALUES(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE image_data=VALUES(image_data),mime_type=VALUES(mime_type),original_name=VALUES(original_name),drive_file_id=VALUES(drive_file_id),checksum_sha256=VALUES(checksum_sha256),file_size=VALUES(file_size),updated_by=VALUES(updated_by),updated_at=NOW()');
+    $stmt->bindValue(1,$teacherId);$stmt->bindValue(2,$bytes,PDO::PARAM_LOB);$stmt->bindValue(3,$mime);$stmt->bindValue(4,$originalName);$stmt->bindValue(5,$driveFileId);$stmt->bindValue(6,hash('sha256',$bytes));$stmt->bindValue(7,strlen($bytes),PDO::PARAM_INT);$stmt->bindValue(8,$updatedBy);$stmt->execute();
+}

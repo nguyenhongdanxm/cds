@@ -28,8 +28,7 @@ foreach (csdl_teachers_all() as $teacher) {
         $position, $specialty, $groupName
     ]), 'UTF-8');
     if ($query !== '' && mb_strpos($haystack, $query) === false) continue;
-    $photoFile = staff_card_photo_file((string)($teacher['id'] ?? ''));
-    $hasPhoto = $photoFile !== '';
+    $hasPhoto = staff_card_has_photo((string)($teacher['id'] ?? ''));
     if ($photo === 'yes' && !$hasPhoto) continue;
     if ($photo === 'no' && $hasPhoto) continue;
     $rows[] = [

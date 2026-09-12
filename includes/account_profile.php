@@ -2,6 +2,8 @@
 /** Hồ sơ cá nhân và mật khẩu tài khoản CDS. */
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/csdl_store.php';
+require_once __DIR__ . '/staff_card_store.php';
+require_once __DIR__ . '/google_drive_storage.php';
 
 function cds_account_csrf_token(): string {
     if (empty($_SESSION['cds_account_csrf'])) $_SESSION['cds_account_csrf'] = bin2hex(random_bytes(24));
@@ -77,6 +79,41 @@ function cds_account_update_profile(string $userId, array $input): array {
     refresh_current_user_session();
     if (function_exists('cds_audit_log')) cds_audit_log('profile_update', 'account', ['user_id'=>$userId]);
     return ['ok'=>true, 'message'=>'Đã cập nhật thông tin cá nhân vào CSDL.'];
+}
+
+function cds_account_upload_teacher_photo(string $userId, array $upload): array {
+    $user = find_user_by_id($userId);
+    if (!$user) return ['ok'=>false,'message'=>'Không tìm thấy tài khoản.'];
+    $teacher = cds_account_teacher_for_user($user);
+    if (!$teacher || empty($teacher['id'])) return ['ok'=>false,'message'=>'Tài khoản chưa liên kết với hồ sơ giáo viên trong CSDL. Quản trị cần gán đúng giáo viên trước khi tải ảnh.'];
+    if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) return ['ok'=>false,'message'=>'Vui lòng chọn ảnh thẻ.'];
+    if (($upload['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) return ['ok'=>false,'message'=>'Không nhận được ảnh tải lên (mã lỗi '.(int)$upload['error'].').'];
+    $size = (int)($upload['size'] ?? 0);
+    if ($size < 1 || $size > 20*1024*1024) return ['ok'=>false,'message'=>'Ảnh phải có dung lượng không quá 20 MB.'];
+    $tmp = (string)($upload['tmp_name'] ?? '');
+    $info = $tmp !== '' ? @getimagesize($tmp) : false;
+    $allowed = ['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
+    $mime = is_array($info) ? (string)($info['mime'] ?? '') : '';
+    if (!isset($allowed[$mime])) return ['ok'=>false,'message'=>'Chỉ chấp nhận ảnh JPG, PNG hoặc WebP hợp lệ.'];
+    if ((int)($info[0] ?? 0) < 300 || (int)($info[1] ?? 0) < 400) return ['ok'=>false,'message'=>'Ảnh quá nhỏ. Vui lòng dùng ảnh tối thiểu 300 × 400 px.'];
+    $bytes = file_get_contents($tmp);
+    if ($bytes === false) return ['ok'=>false,'message'=>'Không đọc được ảnh tải lên.'];
+    $settings = cds_drive_settings();
+    $photoFolder = function_exists('cds_drive_folder') ? cds_drive_folder('photos',$settings) : trim((string)($settings['folders']['photos'] ?? ''));
+    if (empty($settings['enabled']) || $photoFolder === '') return ['ok'=>false,'message'=>'Quản trị chưa bật hoặc chưa cấu hình thư mục Ảnh trên Google Drive. Ảnh chưa được thay đổi.'];
+    $safeName = preg_replace('/[^a-zA-Z0-9_-]+/','-',(string)($teacher['code'] ?? $teacher['id']));
+    $driveName = 'Anh-the-GV-'.$safeName.'-'.date('Ymd-His').'.'.$allowed[$mime];
+    $drive = cds_drive_upload_bytes($bytes,$driveName,$mime,'photos');
+    if (empty($drive['ok']) || empty($drive['id'])) return ['ok'=>false,'message'=>$drive['message'] ?? 'Không lưu được ảnh lên Google Drive. Ảnh chưa được thay đổi.'];
+    try {
+        staff_card_save_photo((string)$teacher['id'],$bytes,$mime,basename((string)($upload['name'] ?? $driveName)),(string)$drive['id'],$userId);
+        $teacher['photo_path']='gdrive:'.(string)$drive['id'];$teacher['photo_drive_id']=(string)$drive['id'];$teacher['photo_updated_at']=date('c');
+        csdl_teacher_save($teacher);
+    } catch (Throwable $e) {
+        return ['ok'=>false,'message'=>'Ảnh đã lên Drive nhưng chưa ghi được vào MySQL: '.$e->getMessage()];
+    }
+    if (function_exists('cds_audit_log')) cds_audit_log('teacher_photo_update','account',['user_id'=>$userId,'teacher_id'=>$teacher['id'],'drive_file_id'=>$drive['id']]);
+    return ['ok'=>true,'message'=>'Đã lưu ảnh thẻ nguyên chất lượng vào MySQL, Google Drive và đồng bộ sang CSDL để in thẻ.'];
 }
 
 function cds_account_change_password(string $userId, string $current, string $password, string $confirm): array {
