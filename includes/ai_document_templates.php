@@ -26,12 +26,25 @@ function cds_ai_template_find(string $id): ?array {
     return null;
 }
 function cds_ai_docx_text(string $path): string {
-    if(!class_exists('ZipArchive'))return '';
+    if(!class_exists('ZipArchive')||!class_exists('DOMDocument'))return '';
     $zip=new ZipArchive();if($zip->open($path)!==true)return '';
-    $parts=[];foreach(['word/header1.xml','word/header2.xml','word/document.xml','word/footer1.xml'] as $name){
+    $parts=[];$files=[];
+    for($i=1;$i<=6;$i++)$files[]='word/header'.$i.'.xml';
+    $files[]='word/document.xml';
+    for($i=1;$i<=6;$i++)$files[]='word/footer'.$i.'.xml';
+    foreach($files as$name){
         $raw=$zip->getFromName($name);if($raw===false)continue;
-        $raw=preg_replace('~</w:p>~','\n',$raw);$raw=preg_replace('~<w:tab[^>]*/>~','\t',$raw);
-        $parts[]=html_entity_decode(strip_tags($raw),ENT_QUOTES|ENT_XML1,'UTF-8');
+        $dom=new DOMDocument();$previous=libxml_use_internal_errors(true);
+        $loaded=$dom->loadXML($raw,LIBXML_NONET|LIBXML_NOBLANKS);
+        libxml_clear_errors();libxml_use_internal_errors($previous);if(!$loaded)continue;
+        $xp=new DOMXPath($dom);$xp->registerNamespace('w','http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+        foreach($xp->query('//w:p') as$p){
+            $line='';
+            foreach($xp->query('.//w:t',$p) as$t)$line.=$t->textContent;
+            $line=trim(preg_replace('/[ \t\x{00A0}]+/u',' ',$line));
+            if($line===''||preg_match('/^[0-9\s._\/-]{8,}$/u',$line))continue;
+            $parts[]=$line;
+        }
     }$zip->close();
     return trim(preg_replace("/\n{3,}/","\n\n",implode("\n",$parts)));
 }
@@ -102,14 +115,50 @@ function cds_ai_docx_generate(string $content,string $templateId,string $target)
         if(!@copy($source,$target))return ['ok'=>false,'message'=>'Không tạo được bản Word từ mẫu.'];
         $zip=new ZipArchive();if($zip->open($target)!==true)return ['ok'=>false,'message'=>'Không mở được bản Word mẫu.'];
         $raw=$zip->getFromName('word/document.xml');if($raw===false){$zip->close();return ['ok'=>false,'message'=>'Mẫu Word không có nội dung hợp lệ.'];}
-        $body=cds_ai_docx_paragraphs($content,true);
-        if(strpos($raw,'{{NOI_DUNG}}')!==false){
-            $raw=preg_replace('~<w:p\b[^>]*>.*?\{\{NOI_DUNG\}\}.*?</w:p>~s',$body,$raw,1);
-        }else{
-            preg_match('~<w:sectPr\b.*?</w:sectPr>~s',$raw,$m);$sect=$m[0]??'';
-            $raw=preg_replace('~<w:body>.*?</w:body>~s','<w:body>'.$body.$sect.'</w:body>',$raw,1);
+        $dom=new DOMDocument();$previous=libxml_use_internal_errors(true);
+        $loaded=$dom->loadXML($raw,LIBXML_NONET|LIBXML_NOBLANKS);
+        libxml_clear_errors();libxml_use_internal_errors($previous);
+        if(!$loaded){$zip->close();return ['ok'=>false,'message'=>'Không đọc được cấu trúc tệp Word mẫu.'];}
+        $xp=new DOMXPath($dom);$xp->registerNamespace('w','http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+        $bodyNode=$xp->query('//w:body')->item(0);
+        if(!$bodyNode){$zip->close();return ['ok'=>false,'message'=>'Mẫu Word không có thân văn bản hợp lệ.'];}
+        $contentXml=cds_ai_docx_paragraphs($content,true);$replaceNode=null;
+        foreach($xp->query('//w:body//w:p') as$p){
+            $text='';foreach($xp->query('.//w:t',$p) as$t)$text.=$t->textContent;
+            if(strpos($text,'{{NOI_DUNG}}')!==false){$replaceNode=$p;break;}
         }
-        $zip->addFromString('word/document.xml',$raw);$zip->close();return ['ok'=>true];
+        if($replaceNode){
+            $fragment=$dom->createDocumentFragment();$fragment->appendXML($contentXml);
+            $replaceNode->parentNode->insertBefore($fragment,$replaceNode);$replaceNode->parentNode->removeChild($replaceNode);
+        }else{
+            $titles=['quyet_dinh'=>'QUYẾT ĐỊNH','ke_hoach'=>'KẾ HOẠCH','huong_dan'=>'HƯỚNG DẪN','quy_che'=>'QUY CHẾ'];
+            $wanted=$titles[(string)($row['type']??'')]??'';
+            $startNode=null;
+            foreach(iterator_to_array($bodyNode->childNodes) as$child){
+                if($child->nodeType!==XML_ELEMENT_NODE)continue;
+                $text='';foreach($xp->query('.//w:t',$child) as$t)$text.=$t->textContent;
+                $normalized=mb_strtoupper(trim(preg_replace('/\s+/u',' ',$text)),'UTF-8');
+                if($wanted!==''&&strpos($normalized,$wanted)!==false){$startNode=$child;break;}
+            }
+            if($startNode){
+                $remove=false;
+                foreach(iterator_to_array($bodyNode->childNodes) as$child){
+                    if($child===$startNode)$remove=true;
+                    if(!$remove)continue;
+                    if($child->nodeType===XML_ELEMENT_NODE&&$child->localName==='sectPr')continue;
+                    $bodyNode->removeChild($child);
+                }
+                $sect=$xp->query('./w:sectPr',$bodyNode)->item(0);
+                $fragment=$dom->createDocumentFragment();$fragment->appendXML($contentXml);
+                $sect?$bodyNode->insertBefore($fragment,$sect):$bodyNode->appendChild($fragment);
+            }else{
+                $sect=$xp->query('./w:sectPr',$bodyNode)->item(0);
+                foreach(iterator_to_array($bodyNode->childNodes) as$child)if($child!==$sect)$bodyNode->removeChild($child);
+                $fragment=$dom->createDocumentFragment();$fragment->appendXML($contentXml);
+                $sect?$bodyNode->insertBefore($fragment,$sect):$bodyNode->appendChild($fragment);
+            }
+        }
+        $zip->addFromString('word/document.xml',$dom->saveXML());$zip->close();return ['ok'=>true];
     }
     return cds_ai_docx_fresh($content,$target);
 }
