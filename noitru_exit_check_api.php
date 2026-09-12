@@ -22,7 +22,7 @@ function ntxc_fmt_delta(int $seconds): string {
  $seconds=abs($seconds);$days=intdiv($seconds,86400);$seconds%=86400;$hours=intdiv($seconds,3600);$minutes=intdiv($seconds%3600,60);$parts=[];
  if($days)$parts[]=$days.' ngày';if($hours)$parts[]=$hours.' giờ';if($minutes||!$parts)$parts[]=$minutes.' phút';return implode(' ',array_slice($parts,0,2));
 }
-function ntxc_found_url(array $r): string {return BASE_URL.'noitru_exit_manager.php?view=check&found='.rawurlencode((string)($r['id']??''));}
+function ntxc_found_url(array $r): string {return BASE_URL.'noitru_exit.php?view=check&found='.rawurlencode((string)($r['id']??''));}
 
 $raw=trim((string)($_REQUEST['qr']??$_REQUEST['qr_value']??''));
 $sid=ntxc_student_id($raw); if($sid==='')ntxc_json(false,'Không nhận dạng được mã QR thẻ học sinh.',[],422);
