@@ -287,6 +287,7 @@ $canCsdlDelete = can_delete_perm($tabPermissions[$tab]);
 $canYearDelete = can_delete_perm('csdl.year');
 $canDeleteCurrent = $tab === 'years' ? $canYearDelete : $canCsdlDelete;
 $canStudentView = $canCsdlEdit || (($user['role'] ?? '') === 'gvcn') || in_array('gvcn', (array)($user['groups'] ?? []), true);
+$canTeacherView = can_perm('csdl.teachers');
 
 function teacher_name_by_id($id, $teachers) {
     foreach ($teachers as $t) {
@@ -360,7 +361,7 @@ body{background:#f0f4f8}
   .stat-table{font-size:.82rem}.stat-table .stat-label{min-width:105px}
 }
 <?php if (!$canEditCurrent): ?>
-form[method="post"]:not(.student-readonly-form),button[data-bs-toggle="modal"],.row-chk{display:none!important}
+form[method="post"]:not(.student-readonly-form):not(.teacher-readonly-form),button[data-bs-toggle="modal"],.row-chk{display:none!important}
 <?php endif; ?>
 </style>
 </head>
@@ -409,6 +410,9 @@ form[method="post"]:not(.student-readonly-form),button[data-bs-toggle="modal"],.
     if ($edit_id) {
       foreach ($teachers as $t) if (($t['id'] ?? '') === $edit_id) { $editing = $t; break; }
     }
+    $teacherPrevId='';$teacherNextId='';$teacherPosition=0;
+    foreach($teachers as$teacherIndex=>$teacherRow)if((string)($teacherRow['id']??'')===(string)$edit_id){$teacherPosition=$teacherIndex+1;if($teacherIndex>0)$teacherPrevId=(string)($teachers[$teacherIndex-1]['id']??'');if($teacherIndex+1<count($teachers))$teacherNextId=(string)($teachers[$teacherIndex+1]['id']??'');break;}
+    $teacherViewUrl=fn(string$id):string=>'?'.http_build_query(['tab'=>'teachers','edit'=>$id]);
     $kn_text = kn_text_from($editing);
     $io_entity = 'teachers';
     include __DIR__ . '/includes/csdl_io_panel.php';
@@ -445,7 +449,7 @@ form[method="post"]:not(.student-readonly-form),button[data-bs-toggle="modal"],.
             <td><?php if ($canCsdlExport || $canCsdlDelete): ?><input type="checkbox" class="form-check-input row-chk row-chk-teachers" value="<?= e($t['id']) ?>"><?php endif; ?></td>
             <td><?= $i+1 ?></td>
             <td class="small"><?= e($t['code'] ?? '') ?></td>
-            <td><strong><?php if($canCsdlEdit):?><a class="text-decoration-none" href="?tab=teachers&edit=<?=urlencode((string)$t['id'])?>" title="Xem, sửa hồ sơ và ảnh thẻ"><?=e($t['name']??'')?></a><?php else:?><?=e($t['name']??'')?><?php endif;?></strong></td>
+            <td><strong><?php if($canTeacherView):?><a class="text-decoration-none" href="<?=$teacherViewUrl((string)$t['id'])?>" title="<?=$canCsdlEdit?'Xem, sửa hồ sơ và ảnh thẻ':'Xem hồ sơ giáo viên'?>"><?=e($t['name']??'')?></a><?php else:?><?=e($t['name']??'')?><?php endif;?></strong></td>
             <td class="small"><?= e($t['cccd'] ?? '') ?></td>
             <td><?= e($t['gender'] ?? '') ?></td>
             <td class="small"><?= e(csdl_io_fmt_date(csdl_io_parse_date($t['dob'] ?? ''))) ?></td>
@@ -468,7 +472,7 @@ form[method="post"]:not(.student-readonly-form),button[data-bs-toggle="modal"],.
       </table>
     </div>
   </div></div>
-  <?php if ($canCsdlEdit) include __DIR__ . '/includes/csdl_modal_teacher.php'; ?>
+  <?php if ($canCsdlEdit || ($canTeacherView && $editing)) {$teacherReadOnly=!$canCsdlEdit;include __DIR__ . '/includes/csdl_modal_teacher.php';} ?>
 
 <?php elseif ($tab === 'classes'): ?>
   <?php

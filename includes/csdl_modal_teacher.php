@@ -4,14 +4,16 @@
 <div class="modal fade" id="modalTeacher" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-      <form method="post" enctype="multipart/form-data">
+      <form method="post" enctype="multipart/form-data" class="<?=!empty($teacherReadOnly)?'teacher-readonly-form':''?>">
         <input type="hidden" name="action" value="teacher_save">
         <input type="hidden" name="id" id="t_id" value="<?= e($editing['id'] ?? '') ?>">
         <div class="modal-header">
-          <h5 class="modal-title" id="modalTeacherTitle"><?= $editing ? 'Sửa giáo viên' : 'Thêm giáo viên' ?></h5>
+          <h5 class="modal-title" id="modalTeacherTitle"><?= !empty($teacherReadOnly) ? 'Thông tin giáo viên' : ($editing ? 'Sửa giáo viên' : 'Thêm giáo viên') ?></h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
+          <?php if(!empty($teacherReadOnly)):?><div class="alert alert-info py-2"><i class="bi bi-eye"></i> Chế độ chỉ xem — không thể thay đổi hồ sơ giáo viên.</div><?php endif;?>
+          <fieldset <?=!empty($teacherReadOnly)?'disabled':''?>>
           <?php $teacherPhotoId=(string)($editing['id']??'');$hasTeacherPhoto=$teacherPhotoId!==''&&function_exists('staff_card_has_photo')&&staff_card_has_photo($teacherPhotoId); ?>
           <div class="card border-0 bg-light mb-3"><div class="card-body"><div class="row g-3 align-items-center">
             <div class="col-auto"><img id="teacherPhotoPreview" src="<?= $hasTeacherPhoto?e(BASE_URL.'staff_photo.php?id='.rawurlencode($teacherPhotoId).'&v='.time()):'' ?>" alt="Ảnh thẻ giáo viên" style="width:100px;height:133px;object-fit:cover;border:1px solid #cbd5e1;border-radius:10px;background:#fff;<?= $hasTeacherPhoto?'':'display:none' ?>"></div>
@@ -76,10 +78,13 @@
               <div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="active" id="tact" <?= ($editing === null || !empty($editing['active']))?'checked':'' ?>><label class="form-check-label small" for="tact">Đang công tác</label></div>
             </div>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
-          <button type="submit" class="btn btn-primary">Lưu</button>
+        </fieldset></div>
+        <div class="modal-footer justify-content-between">
+          <div class="d-flex gap-2">
+            <?php if(!empty($teacherPrevId)):?><a class="btn btn-outline-primary" href="<?=$teacherViewUrl($teacherPrevId)?>"><i class="bi bi-chevron-left"></i> Giáo viên trước</a><?php endif;?>
+            <?php if(!empty($teacherNextId)):?><a class="btn btn-outline-primary" href="<?=$teacherViewUrl($teacherNextId)?>">Giáo viên tiếp theo <i class="bi bi-chevron-right"></i></a><?php endif;?>
+          </div>
+          <div class="d-flex gap-2 align-items-center"><?php if(!empty($teacherPosition)):?><span class="text-muted small"><?=$teacherPosition?> / <?=count($teachers)?></span><?php endif;?><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button><?php if(empty($teacherReadOnly)):?><button type="submit" class="btn btn-primary">Lưu</button><?php endif;?></div>
         </div>
       </form>
     </div>
