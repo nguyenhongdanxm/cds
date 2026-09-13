@@ -13,11 +13,12 @@ if (!empty($editing['dob'])) {
         <input type="hidden" name="action" value="student_save">
         <input type="hidden" name="id" id="s_id" value="<?= e($editing['id'] ?? '') ?>">
         <div class="modal-header">
-          <h5 class="modal-title" id="modalStudentTitle"><?= $editing ? 'Sửa học sinh' : 'Thêm học sinh' ?></h5>
+          <h5 class="modal-title" id="modalStudentTitle"><?= !empty($studentReadOnly) ? 'Thông tin học sinh' : ($editing ? 'Sửa học sinh' : 'Thêm học sinh') ?></h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <div class="row g-3">
+          <?php if(!empty($studentReadOnly)):?><div class="alert alert-info py-2"><i class="bi bi-eye"></i> Chế độ chỉ xem — giáo viên chủ nhiệm không thể sửa hồ sơ học sinh.</div><?php endif;?>
+          <fieldset <?=!empty($studentReadOnly)?'disabled':''?>><div class="row g-3">
             <div class="col-12">
               <div class="d-flex flex-wrap gap-3 align-items-center p-3 border rounded-3 bg-light">
                 <img id="studentPhotoPreview" src="<?=!empty($editing['id'])?e(BASE_URL.'student_photo.php?id='.rawurlencode((string)$editing['id']).'&v='.time()):''?>" alt="Ảnh thẻ học sinh" style="width:105px;height:140px;object-fit:cover;border-radius:10px;border:1px solid #cbd5e1;background:#e9eef4;<?=empty($editing['id'])?'visibility:hidden':''?>">
@@ -72,11 +73,14 @@ if (!empty($editing['dob'])) {
               <div class="form-check"><input class="form-check-input" type="checkbox" name="boarder" id="brd" <?= !empty($editing['boarder'])?'checked':'' ?>><label class="form-check-label" for="brd">Nội trú</label></div>
               <div class="form-check"><input class="form-check-input" type="checkbox" name="active" id="sact" <?= ($editing === null || !empty($editing['active']))?'checked':'' ?>><label class="form-check-label" for="sact">Đang học</label></div>
             </div>
-          </div>
+          </div></fieldset>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
-          <button type="submit" class="btn btn-primary">Lưu</button>
+        <div class="modal-footer justify-content-between">
+          <div class="d-flex gap-2">
+            <?php if(!empty($studentPrevId)):?><a class="btn btn-outline-primary" href="<?=$studentViewUrl($studentPrevId)?>"><i class="bi bi-chevron-left"></i> Học sinh trước</a><?php endif;?>
+            <?php if(!empty($studentNextId)):?><a class="btn btn-outline-primary" href="<?=$studentViewUrl($studentNextId)?>">Học sinh tiếp theo <i class="bi bi-chevron-right"></i></a><?php endif;?>
+          </div>
+          <div class="d-flex gap-2 align-items-center"><?php if(!empty($studentPosition)):?><span class="text-muted small"><?=$studentPosition?> / <?=count($students)?></span><?php endif;?><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button><?php if(empty($studentReadOnly)):?><button type="submit" class="btn btn-primary">Lưu</button><?php endif;?></div>
         </div>
       </form>
     </div>

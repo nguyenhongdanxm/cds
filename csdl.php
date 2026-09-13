@@ -286,6 +286,7 @@ $canEditCurrent = $tab === 'years' ? $canYearEdit : $canCsdlEdit;
 $canCsdlDelete = can_delete_perm($tabPermissions[$tab]);
 $canYearDelete = can_delete_perm('csdl.year');
 $canDeleteCurrent = $tab === 'years' ? $canYearDelete : $canCsdlDelete;
+$canStudentView = $canCsdlEdit || (($user['role'] ?? '') === 'gvcn') || in_array('gvcn', (array)($user['groups'] ?? []), true);
 
 function teacher_name_by_id($id, $teachers) {
     foreach ($teachers as $t) {
@@ -359,7 +360,7 @@ body{background:#f0f4f8}
   .stat-table{font-size:.82rem}.stat-table .stat-label{min-width:105px}
 }
 <?php if (!$canEditCurrent): ?>
-form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{display:none!important}
+form[method="post"],button[data-bs-toggle="modal"],.row-chk{display:none!important}
 <?php endif; ?>
 </style>
 </head>
@@ -537,7 +538,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
 <?php elseif ($tab === 'students'): ?>
   <?php
     $editing = null;
-    if ($edit_id) { foreach ($students as $s) if (($s['id'] ?? '') === $edit_id) { $editing = $s; break; } }
+    if ($canStudentView && $edit_id) { foreach ($students as $s) if (($s['id'] ?? '') === $edit_id) { $editing = $s; break; } }
     $studentQuery = trim((string)($_GET['q'] ?? ''));
     $studentClass = trim((string)($_GET['class'] ?? ''));
     $studentStatus = trim((string)($_GET['status'] ?? ''));
@@ -556,6 +557,10 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
     elseif ($studentStatus === 'inactive') $students = array_values(array_filter($students, fn($row) => empty($row['active'])));
     elseif ($studentStatus === 'boarder') $students = array_values(array_filter($students, fn($row) => !empty($row['boarder'])));
     csdl_sort_students($students, $studentClassMap);
+    $studentPrevId='';$studentNextId='';$studentPosition=0;
+    foreach($students as$studentIndex=>$studentRow)if((string)($studentRow['id']??'')===(string)$edit_id){$studentPosition=$studentIndex+1;if($studentIndex>0)$studentPrevId=(string)($students[$studentIndex-1]['id']??'');if($studentIndex+1<count($students))$studentNextId=(string)($students[$studentIndex+1]['id']??'');break;}
+    $studentNavParams=['tab'=>'students'];if($studentQuery!=='')$studentNavParams['q']=$studentQuery;if($studentClass!=='')$studentNavParams['class']=$studentClass;if($studentStatus!=='')$studentNavParams['status']=$studentStatus;
+    $studentViewUrl=function(string$id)use($studentNavParams):string{return'?'.http_build_query(array_merge($studentNavParams,['edit'=>$id]));};
     $io_entity = 'students';
     include __DIR__ . '/includes/csdl_io_panel.php';
     $bulk_entity = 'students';
@@ -591,7 +596,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
             <td><?php if ($canCsdlExport || $canCsdlDelete): ?><input type="checkbox" class="form-check-input row-chk row-chk-students" value="<?= e($s['id']) ?>"><?php endif; ?></td>
             <td><?= $i+1 ?></td>
             <td class="small"><?= e($s['code'] ?? '') ?></td>
-            <td><strong><?php if($canCsdlEdit):?><a class="text-decoration-none" href="?tab=students&edit=<?=urlencode((string)$s['id'])?>" title="Xem và sửa hồ sơ"><?=e($s['name']??'')?></a><?php else:?><?=e($s['name']??'')?><?php endif;?></strong></td>
+            <td><strong><?php if($canStudentView):?><a class="text-decoration-none" href="<?=$studentViewUrl((string)$s['id'])?>" title="<?=$canCsdlEdit?'Xem và sửa hồ sơ':'Xem hồ sơ học sinh'?>"><?=e($s['name']??'')?></a><?php else:?><?=e($s['name']??'')?><?php endif;?></strong></td>
             <td class="small"><?= e($s['cccd'] ?? '') ?></td>
             <td><?= e(class_name_by_id($s['class_id'] ?? '', $classes)) ?></td>
             <td><?= e($s['gender'] ?? '') ?></td>
@@ -623,7 +628,7 @@ form[method="post"],button[data-bs-toggle="modal"],a[href*="edit="],.row-chk{dis
     </div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button><button class="btn btn-warning" type="submit"><i class="bi bi-person-dash"></i> Xác nhận</button></div>
   </form></div></div></div>
   <?php endif; ?>
-    <?php if ($canCsdlEdit) include __DIR__ . '/includes/csdl_modal_student.php'; ?>
+    <?php if ($canCsdlEdit || ($canStudentView && $editing)) {$studentReadOnly=!$canCsdlEdit;include __DIR__ . '/includes/csdl_modal_student.php';} ?>
 
 <?php elseif ($tab === 'years'): ?>
   <?php include __DIR__ . '/includes/csdl_tab_years.php'; ?>
