@@ -18,8 +18,12 @@ foreach($slots as $s){
  $p=(int)($s['period']??0);$d=(int)($s['day']??0);if($p<1||$d<2||$d>7)continue;
  $max[$session]=max($max[$session]??4,$p);$grid[$d][$session][$p][$class][]=$s;
 }
+foreach((array)($week['special_slots']??[])as$special)foreach($classes as$class)if(tkb_special_applies_to_class($special,$class)){
+ $s=tkb_special_slot_row($special,$class);$session=(string)$s['session'];$p=(int)$s['period'];$d=(int)$s['day'];if($p<1||$d<2||$d>7)continue;
+ $max[$session]=max($max[$session]??4,$p);$grid[$d][$session][$p][$class][]=$s;
+}
 function sx_short_teacher($name){$name=trim((string)$name);$parts=preg_split('/\s+/u',$name);if(count($parts)<2)return$name;$last=array_pop($parts);$ini='';foreach($parts as$p)$ini.=mb_strtoupper(mb_substr($p,0,1,'UTF-8'),'UTF-8').'.';return$ini.$last;}
-function sx_cell($items){if(!$items)return'';$out=[];foreach($items as$s){$sub=tkb_substitution_for_slot($GLOBALS['week'],$s);$teacher=(string)($s['teacher']?:$s['teacher_raw']);if(is_array($sub)&&($sub['status']??'')==='approved'&&trim((string)($sub['substitute_teacher']??''))!=='')$teacher=(string)$sub['substitute_teacher'];$out[]='<strong>'.e((string)($s['subject']??'')).'</strong><small>'.e(sx_short_teacher($teacher)).'</small>';}return implode('<hr>',$out);}
+function sx_cell($items){if(!$items)return'';$out=[];foreach($items as$s){if(!empty($s['_special'])){$out[]='<strong>'.e((string)($s['subject']??'')).'</strong><small>'.e((string)($s['_special_scope']??'Hoạt động chung')).'</small>';continue;}$sub=tkb_substitution_for_slot($GLOBALS['week'],$s);$teacher=(string)($s['teacher']?:$s['teacher_raw']);if(is_array($sub)&&($sub['status']??'')==='approved'&&trim((string)($sub['substitute_teacher']??''))!=='')$teacher=(string)$sub['substitute_teacher'];$out[]='<strong>'.e((string)($s['subject']??'')).'</strong><small>'.e(sx_short_teacher($teacher)).'</small>';}return implode('<hr>',$out);}
 $school=defined('SCHOOL_NAME')?SCHOOL_NAME:'Trường PTDTNT THCS&THPT Xín Mần';
 ?>
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($page_title)?></title><script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script><style>
