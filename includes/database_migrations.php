@@ -413,6 +413,20 @@ function cds_db_migrations()
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
             ),
         ),
+        '20260913_016_timetable_builder_mysql' => array(
+            'description' => 'Kho nháp xếp thời khóa biểu trên MySQL có checksum, phiên bản và JSON dự phòng',
+            'statements' => array(
+                "CREATE TABLE IF NOT EXISTS cds_timetable_builder_state (
+                    state_key VARCHAR(191) NOT NULL,
+                    payload LONGTEXT NOT NULL,
+                    checksum_sha256 CHAR(64) NOT NULL,
+                    revision BIGINT UNSIGNED NOT NULL DEFAULT 1,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (state_key),
+                    KEY idx_cds_ttb_state_updated (updated_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            ),
+        ),
 
     );
 }
