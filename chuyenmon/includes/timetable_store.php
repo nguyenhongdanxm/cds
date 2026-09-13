@@ -5,9 +5,15 @@ if (!function_exists('cds_school_week_calendar')) require_once dirname(__DIR__, 
 if (!defined('TKB_WEEKS_FILE')) define('TKB_WEEKS_FILE', DATA_PATH . '/timetable_weeks.json');
 if (!defined('TKB_MAPPING_FILE')) define('TKB_MAPPING_FILE', DATA_PATH . '/timetable_mapping.json');
 if (!defined('TKB_SUBSTITUTIONS_FILE')) define('TKB_SUBSTITUTIONS_FILE', DATA_PATH . '/timetable_substitutions.json');
+if (!defined('TKB_ROOMS_FILE')) define('TKB_ROOMS_FILE', DATA_PATH . '/timetable_rooms.json');
+if (!defined('TKB_ROOM_BOOKINGS_FILE')) define('TKB_ROOM_BOOKINGS_FILE', DATA_PATH . '/timetable_room_bookings.json');
 function tkb_load(string $file,$default=[]){return function_exists('load_json')?load_json($file,$default):(is_file($file)?(json_decode((string)file_get_contents($file),true)?:$default):$default);}
 function tkb_save(string $file,$data):bool{return function_exists('save_json')?(bool)save_json($file,$data):(bool)file_put_contents($file,json_encode($data,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT));}
 function tkb_key(string $value):string{$value=trim($value);if($value==='')return '';if(function_exists('iconv'))$value=(string)@iconv('UTF-8','ASCII//TRANSLIT//IGNORE',$value);$value=strtolower($value);return preg_replace('/[^a-z0-9]+/','',$value)??'';}
+function tkb_rooms(array $week=[]):array{$out=[];foreach(array_merge((array)tkb_load(TKB_ROOMS_FILE,[]),(array)($week['rooms']??[]))as$room){$id=(string)($room['id']??'');$name=trim((string)($room['name']??''));if($id!==''&&$name!=='')$out[$id]=['id'=>$id,'name'=>$name];}return array_values($out);}
+function tkb_room_bookings():array{$rows=tkb_load(TKB_ROOM_BOOKINGS_FILE,[]);return is_array($rows)?array_values(array_filter($rows,'is_array')):[];}
+function tkb_room_slot_id(array $slot):string{return hash('sha256',implode('|',[(int)($slot['day']??0),(string)($slot['session']??''),(int)($slot['period']??0),tkb_key((string)($slot['class']??$slot['class_raw']??'')),tkb_key((string)($slot['teacher']??$slot['teacher_raw']??'')),tkb_key((string)($slot['subject']??''))]));}
+function tkb_apply_room_bookings(array $week,array $slots):array{$map=[];foreach(tkb_room_bookings()as$row)if((string)($row['week_id']??'')===(string)($week['id']??''))$map[(string)($row['slot_id']??'')]=$row;$rooms=[];foreach(tkb_rooms($week)as$room)$rooms[(string)$room['id']]=(string)$room['name'];foreach($slots as&$slot){$booking=$map[tkb_room_slot_id($slot)]??null;if($booking){$slot['room_id']=(string)($booking['room_id']??'');$slot['room_booked_by']=(string)($booking['teacher']??'');}$slot['room_name']=$rooms[(string)($slot['room_id']??'')]??'';}unset($slot);return$slots;}
 
 function tkb_subject_canonical(string $subject):string{
     $subject=trim($subject);$key=tkb_key($subject);

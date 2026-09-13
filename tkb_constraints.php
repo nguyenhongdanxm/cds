@@ -13,7 +13,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&in_array((string)($_POST['action']??''),
       $data['rooms']=$rooms;$validIds=array_fill_keys(array_column($rooms,'id'),true);
       $data['room_assignments']=array_filter((array)($data['room_assignments']??[]),fn($roomId)=>isset($validIds[(string)$roomId]));
       if($_POST['action']==='room_save')foreach((array)($_POST['room_for']??[])as$aid=>$roomId)if(isset($validIds[(string)$roomId]))$data['room_assignments'][(string)$aid]=(string)$roomId;
-      if(!ttb_save($data))throw new RuntimeException('Không ghi được danh mục phòng học.');
+      if(!ttb_save($data)||!tkb_save(TKB_ROOMS_FILE,$rooms))throw new RuntimeException('Không ghi được danh mục phòng học.');
       flash('Đã lưu '.count($rooms).' phòng học. Bây giờ có thể chọn phòng cho từng tiết phân công.','success');header('Location: /tkb_constraints.php?workspace='.urlencode($workspaceId).'&panel=room&saved=1');exit;
     }
     if($_POST['action']==='room_assignments_save'){
