@@ -37,6 +37,14 @@ function cmactInitRichEditors(root=document){
   input.value=editor.innerHTML;box.closest('form')?.addEventListener('submit',()=>{input.value=editor.innerHTML});
  });
 }
+function cmactInitTeacherOrder(root=document){
+ const boxes=[...root.querySelectorAll('input[name="teacher_ids[]"]')];
+ boxes.forEach((box,index)=>{
+  const member=box.closest('.member');if(!member||member.querySelector('[data-teacher-order]'))return;
+  const wrap=document.createElement('label');wrap.className='d-flex align-items-center gap-2 mt-2 small text-muted';wrap.dataset.teacherOrder='1';wrap.append('Thứ tự hiển thị');
+  const input=document.createElement('input');input.type='number';input.min='1';input.max=String(boxes.length);input.step='1';input.required=true;input.name='teacher_order['+box.value+']';input.value=String(index+1);input.className='form-control form-control-sm';input.style.maxWidth='84px';wrap.appendChild(input);member.appendChild(wrap);
+ });
+}
 let cmactSlotIndex=0;
 function cmactAddScheduleSlot(preset={}){
  const host=document.getElementById('scheduleSlots');if(!host)return;const i=cmactSlotIndex++;
@@ -46,6 +54,7 @@ function cmactAddScheduleSlot(preset={}){
 function cmactInit(root=document){
  root.querySelectorAll('select[multiple]').forEach(cmactEnhanceSelect);
  cmactInitRichEditors(root);
+ cmactInitTeacherOrder(root);
  filterPicker('studentFilter','clubStudents');filterPicker('clubRequestStudentFilter','clubRequestStudents');filterPicker('onlineFilter','onlineStudents');if(document.getElementById('scheduleSlots')&&!document.querySelector('.schedule-slot'))cmactAddScheduleSlot();
  const clubMemberFilter=root.querySelector('#clubMemberFilter');if(clubMemberFilter)clubMemberFilter.addEventListener('input',()=>{const query=clubMemberFilter.value.trim().toLocaleLowerCase('vi');root.querySelectorAll('[data-member-search]').forEach(row=>row.hidden=query!==''&&!row.dataset.memberSearch.includes(query))});
  root.querySelectorAll('form').forEach(form=>{if(form.dataset.cmactChecked)return;form.dataset.cmactChecked='1';form.addEventListener('submit',e=>{const requiredMulti=form.querySelector('select[multiple][name="student_ids[]"]');if(requiredMulti&&![...requiredMulti.options].some(o=>o.selected)){e.preventDefault();alert('Hãy tích chọn ít nhất một học sinh.')}})});
