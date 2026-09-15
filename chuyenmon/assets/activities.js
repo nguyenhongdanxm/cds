@@ -46,10 +46,11 @@ function cmactAddScheduleSlot(preset={}){
 function cmactInit(root=document){
  root.querySelectorAll('select[multiple]').forEach(cmactEnhanceSelect);
  cmactInitRichEditors(root);
- filterPicker('studentFilter','clubStudents');filterPicker('onlineFilter','onlineStudents');if(document.getElementById('scheduleSlots')&&!document.querySelector('.schedule-slot'))cmactAddScheduleSlot();
+ filterPicker('studentFilter','clubStudents');filterPicker('clubRequestStudentFilter','clubRequestStudents');filterPicker('onlineFilter','onlineStudents');if(document.getElementById('scheduleSlots')&&!document.querySelector('.schedule-slot'))cmactAddScheduleSlot();
+ const clubMemberFilter=root.querySelector('#clubMemberFilter');if(clubMemberFilter)clubMemberFilter.addEventListener('input',()=>{const query=clubMemberFilter.value.trim().toLocaleLowerCase('vi');root.querySelectorAll('[data-member-search]').forEach(row=>row.hidden=query!==''&&!row.dataset.memberSearch.includes(query))});
  root.querySelectorAll('form').forEach(form=>{if(form.dataset.cmactChecked)return;form.dataset.cmactChecked='1';form.addEventListener('submit',e=>{const requiredMulti=form.querySelector('select[multiple][name="student_ids[]"]');if(requiredMulti&&![...requiredMulti.options].some(o=>o.selected)){e.preventDefault();alert('Hãy tích chọn ít nhất một học sinh.')}})});
 }
-async function cmactOpenTab(url){
+async function cmactOpenTab(url,pushState=true){
  const shell=document.querySelector('.activity-shell');if(!shell)return;
  shell.style.opacity='.55';
  try{
@@ -57,13 +58,23 @@ async function cmactOpenTab(url){
   if(!response.ok)throw new Error('HTTP '+response.status);
   const doc=new DOMParser().parseFromString(await response.text(),'text/html');
   const next=doc.querySelector('.activity-shell');if(!next)throw new Error('Thiếu nội dung');
-  shell.replaceWith(next);cmactInit(next);
+  shell.replaceWith(next);cmactInit(next);if(pushState)history.pushState({cmact:true},'',url);window.scrollTo({top:Math.max(0,next.getBoundingClientRect().top+window.scrollY-16),behavior:'smooth'});
  }catch(error){shell.style.opacity='1';alert('Không tải được nội dung tab. Hãy thử tải lại trang.');}
 }
-document.addEventListener('click',event=>{const button=event.target.closest('.subtabs [data-tab-url]');if(!button)return;event.preventDefault();cmactOpenTab(new URL(button.dataset.tabUrl||button.href,location.href).href)});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-tab-url],[data-club-url]');if(!button)return;event.preventDefault();const target=button.dataset.tabUrl||button.dataset.clubUrl||button.href;cmactOpenTab(new URL(target,location.href).href)});
+window.addEventListener('popstate',()=>cmactOpenTab(location.href,false));
 function resetClub(){document.getElementById('clubForm').reset();document.getElementById('clubId').value='';document.querySelectorAll('#clubForm select[multiple]').forEach(cmactSyncPicker)}
 function editClub(c){document.getElementById('clubId').value=c.id||'';document.getElementById('clubName').value=c.name||'';document.getElementById('clubCode').value=c.code||'';document.getElementById('clubDescription').value=c.description||'';const teachers=c.teacher_ids||[],students=c.student_ids||[];const ts=document.getElementById('clubTeachers'),ss=document.getElementById('clubStudents');[...ts.options].forEach(o=>o.selected=teachers.includes(o.value));[...ss.options].forEach(o=>o.selected=students.includes(o.value));cmactSyncPicker(ts);cmactSyncPicker(ss);document.getElementById('clubForm').scrollIntoView({behavior:'smooth',block:'start'})}
 cmactInit();
+
+function cmactResetClubSchedule(){
+ const form=document.getElementById('clubScheduleForm');if(!form)return;form.reset();document.getElementById('clubScheduleId').value='';document.getElementById('clubScheduleDate').value=new Date().toISOString().slice(0,10);
+}
+
+document.addEventListener('click',event=>{
+ const edit=event.target.closest('.edit-club-schedule');if(edit){const record=JSON.parse(decodeURIComponent(edit.dataset.record||'')),form=document.getElementById('clubScheduleForm');if(!form)return;document.getElementById('clubScheduleId').value=record.id||'';document.getElementById('clubScheduleClub').value=record.club_id||'';document.getElementById('clubScheduleDate').value=record.date||'';document.getElementById('clubScheduleStart').value=record.start_time||'';document.getElementById('clubScheduleEnd').value=record.end_time||'';document.getElementById('clubScheduleLocation').value=record.location||'';document.getElementById('clubScheduleContent').value=record.content||'';document.getElementById('clubScheduleNote').value=record.note||'';form.scrollIntoView({behavior:'smooth',block:'start'});return}
+ if(event.target.closest('#resetClubSchedule'))cmactResetClubSchedule();
+});
 
 document.addEventListener('click',event=>{if(event.target.closest('#addScheduleSlot'))cmactAddScheduleSlot();const remove=event.target.closest('.remove-schedule-slot');if(remove){const rows=document.querySelectorAll('.schedule-slot');if(rows.length<=1){alert('Cần giữ ít nhất một khung lịch.');return;}remove.closest('.schedule-slot').remove();}});
 
