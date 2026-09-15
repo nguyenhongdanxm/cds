@@ -66,13 +66,30 @@ function cds_drive_download(string $id): array {
 function cds_drive_save_generated(string $bytes,string $filename,string $mime,string $type): array {$type=cds_drive_type_for_action(cds_drive_page_action(),$type);return cds_drive_upload_bytes($bytes,$filename,$mime,$type,['action'=>'generated','source_action'=>cds_drive_page_action()]);}
 
 if (session_status() === PHP_SESSION_NONE) {
+    // Giữ đăng nhập lâu dài trên trình duyệt và PWA; chỉ kết thúc khi người dùng đăng xuất.
+    if (!defined('CDS_SESSION_LIFETIME')) define('CDS_SESSION_LIFETIME', 31536000);
+    ini_set('session.gc_maxlifetime', (string) CDS_SESSION_LIFETIME);
+    ini_set('session.cookie_lifetime', (string) CDS_SESSION_LIFETIME);
+    $cdsSessionSecure = !empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off';
     session_set_cookie_params([
-        'lifetime' => 0,
+        'lifetime' => CDS_SESSION_LIFETIME,
         'path' => '/',
+        'secure' => $cdsSessionSecure,
         'httponly' => true,
         'samesite' => 'Lax',
     ]);
     session_start();
+
+    // Gia hạn cookie mỗi lần tài khoản sử dụng hệ thống.
+    if (!empty($_SESSION['cds_user']) && !headers_sent()) {
+        setcookie(session_name(), session_id(), [
+            'expires' => time() + CDS_SESSION_LIFETIME,
+            'path' => '/',
+            'secure' => $cdsSessionSecure,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
 }
 
 function cds_drive_csrf_token(): string {
@@ -147,12 +164,22 @@ function refresh_current_user_session() {
 function attempt_login($username,$password){
     $u=find_user($username);
     if(!$u||empty($u['active'])||!password_verify($password,$u['password_hash']??'')){require_once __DIR__.'/audit.php';cds_audit_log('login_failed','auth',['username'=>$username],['username'=>$username]);return false;}
+    session_regenerate_id(true);
     $_SESSION['cds_user']=session_user_from_record($u);
     $role=$u['role']??'';$cmLevel=$u['modules']['chuyenmon']??'none';
     $_SESSION['pccm_admin']=($role==='admin')||in_array($role,['bgh','totruong'],true)||in_array($cmLevel,['edit','admin'],true)||in_array('cm.pccm',$u['perms']??[],true);
     require_once __DIR__.'/audit.php';cds_audit_log('login_success','auth');return true;
 }
-function logout_user(){require_once __DIR__.'/audit.php';if(is_logged_in())cds_audit_log('logout','auth');unset($_SESSION['cds_user'],$_SESSION['pccm_admin']);}
+function logout_user(){
+    require_once __DIR__.'/audit.php';
+    if(is_logged_in()) cds_audit_log('logout','auth');
+    $_SESSION=[];
+    if(ini_get('session.use_cookies')){
+        $params=session_get_cookie_params();
+        setcookie(session_name(),'',['expires'=>time()-42000,'path'=>$params['path']??'/','domain'=>$params['domain']??'','secure'=>(bool)($params['secure']??false),'httponly'=>(bool)($params['httponly']??true),'samesite'=>$params['samesite']??'Lax']);
+    }
+    session_destroy();
+}
 function require_login(){if(!is_logged_in()){header('Location: '.BASE_URL.'login.php?next='.urlencode($_SERVER['REQUEST_URI']??''));exit;}}
 function require_admin(){require_login();$u=current_user();if(($u['role']??'')!=='admin'){flash('Chỉ quản trị hệ thống được truy cập.','danger');header('Location: '.BASE_URL.'admin.php');exit;}}
 function e($str){return htmlspecialchars($str??'',ENT_QUOTES,'UTF-8');}
