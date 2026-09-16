@@ -705,11 +705,14 @@ function require_login() {
             && $action === 'file_check_save';
         $educationPlanSelfService = cds_current_page_feature() === 'cm.kehoach'
             && in_array($action, ['save_plan', 'delete_plan'], true);
+        $activityScript = basename($_SERVER['PHP_SELF'] ?? '');
+        $clubRequestSelfService = $activityScript === 'activities.php'
+            && $action === 'submit_club_request';
         $lessonBookScript = basename($_SERVER['PHP_SELF'] ?? '');
         $lessonBookSelfService = ($lessonBookScript === 'sodaubai.php' && in_array($action, ['save_record','save_and_sign','sign_record','upload_signature','save_weekly_review'], true))
             || ($lessonBookScript === 'sodaubai_export.php' && $action === 'export_book')
             || ($lessonBookScript === 'sodaubai_ppct_import_v2.php' && $action === 'import_curriculum');
-        $requiredLevel = ($observationSelfService || $fileCheckSelfService || $educationPlanSelfService || $lessonBookSelfService)
+        $requiredLevel = ($observationSelfService || $fileCheckSelfService || $educationPlanSelfService || $clubRequestSelfService || $lessonBookSelfService)
             ? 'view'
             : (str_contains($action, 'delete') || str_contains($action, 'xoa') ? 'delete' : 'edit');
         if (!cds_can_feature(cds_current_page_feature(), $requiredLevel)) {
