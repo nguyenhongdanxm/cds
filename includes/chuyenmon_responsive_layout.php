@@ -22,6 +22,7 @@ $cmLayoutActive = static function (array $pages, ?string $tab = null) use ($curr
 $cmPccmActive = in_array($current, ['tracuu','tongquan','them','danhsach','doicheo','rasoat','sua','ketqua','giaovien','monhoc','lop','kiemnhiem','xuat_bang','thongke'], true);
 $cmPlanActive = $current === 'kehoach' || ($current === 'baocao' && in_array($cmLayoutTab,['dinhky','tiendo'],true));
 $cmReportActive = in_array($current,['dugio','kiemtrahoso','danhgia'],true);
+$cmSidebarStartsCollapsed = $current === 'sodaubai';
 
 $cmNavGroups = [
     ['label'=>'Tổng quan','items'=>[
@@ -109,9 +110,21 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
 .cm-sidebar-link.active{background:#fff;color:var(--cm-nav-blue);box-shadow:0 5px 16px rgba(0,0,0,.16)}
 .cm-sidebar-link.disabled{opacity:.35;pointer-events:none}
 .cm-sidebar-footer{padding:.58rem;border-top:1px solid rgba(255,255,255,.12)}.cm-sidebar-footer .btn{border-radius:10px;font-size:.76rem}
+.cm-sidebar-collapse-toggle{position:absolute;top:50%;right:-15px;z-index:2;display:grid;place-items:center;width:30px;height:44px;padding:0;border:2px solid #fff;border-radius:0 12px 12px 0;background:#1f5d8d;color:#fff;box-shadow:4px 2px 12px rgba(15,23,42,.2);transition:.2s ease}
+.cm-sidebar-collapse-toggle:hover{background:#287bb6}.cm-sidebar-collapse-toggle i{transition:transform .2s ease}
 .cm-mobile-bottom,.cm-mobile-more{display:none}
 @media(min-width:992px){
  body{padding-left:var(--cm-sidebar-width)}
+ body.cm-sidebar-collapsed{padding-left:64px}
+ .cm-desktop-sidebar,.cm-desktop-sidebar *{transition-duration:.2s;transition-property:width,padding,margin,opacity,transform}
+ .cm-desktop-sidebar.is-collapsed{width:64px}
+ .cm-desktop-sidebar.is-collapsed .cm-sidebar-brand{justify-content:center;padding-left:.35rem;padding-right:.35rem}
+ .cm-desktop-sidebar.is-collapsed .cm-sidebar-brand>span:last-child,.cm-desktop-sidebar.is-collapsed .cm-sidebar-group-toggle span,.cm-desktop-sidebar.is-collapsed .cm-sidebar-chevron,.cm-desktop-sidebar.is-collapsed .cm-sidebar-items,.cm-desktop-sidebar.is-collapsed .cm-sidebar-footer{display:none!important}
+ .cm-desktop-sidebar.is-collapsed .cm-sidebar-scroll{padding:.55rem .35rem}
+ .cm-desktop-sidebar.is-collapsed .cm-sidebar-group{border-color:transparent;background:transparent}
+ .cm-desktop-sidebar.is-collapsed .cm-sidebar-group-toggle{justify-content:center;padding:.42rem .2rem}
+ .cm-desktop-sidebar.is-collapsed .cm-sidebar-group-toggle>i:first-child{margin:0;width:38px;height:38px;font-size:1.05rem}
+ .cm-desktop-sidebar.is-collapsed .cm-sidebar-collapse-toggle i{transform:rotate(180deg)}
  body>nav.navbar{display:none!important}
  body>.container{max-width:none!important;width:auto!important;margin:0!important;padding-left:1.4rem!important;padding-right:1.4rem!important;padding-top:1.2rem!important}
  .pccm-toast{left:auto}
@@ -131,7 +144,10 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
 }
 </style>
 
-<style>.cm-sidebar-link.disabled,.cm-mobile-bottom .disabled,.cm-mobile-link.disabled{display:none!important}</style><aside class="cm-desktop-sidebar" aria-label="Điều hướng Chuyên môn">
+<style>.cm-sidebar-link.disabled,.cm-mobile-bottom .disabled,.cm-mobile-link.disabled{display:none!important}</style>
+<?php if ($cmSidebarStartsCollapsed): ?><script>document.body.classList.add('cm-sidebar-collapsed')</script><?php endif; ?>
+<aside class="cm-desktop-sidebar <?= $cmSidebarStartsCollapsed?'is-collapsed':'' ?>" aria-label="Điều hướng Chuyên môn">
+  <button class="cm-sidebar-collapse-toggle" type="button" aria-label="<?= $cmSidebarStartsCollapsed?'Mở menu':'Thu gọn menu' ?>" title="<?= $cmSidebarStartsCollapsed?'Mở menu':'Thu gọn menu' ?>" aria-expanded="<?= $cmSidebarStartsCollapsed?'false':'true' ?>"><i class="bi bi-chevron-left"></i></button>
   <a class="cm-sidebar-brand" href="<?= BASE_URL ?>index.php">
     <span class="cm-logo"><i class="bi bi-journal-bookmark-fill"></i></span>
     <span><strong>Chuyên môn</strong><small>Cổng dữ liệu số CDS</small></span>
@@ -195,8 +211,16 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
 </div>
 <script id="cdsCmSidebarGroups">
 (function(){
+  var sidebar=document.querySelector('.cm-desktop-sidebar'),collapseButton=document.querySelector('.cm-sidebar-collapse-toggle');
+  function setSidebarCollapsed(collapsed){
+    if(!sidebar)return;
+    sidebar.classList.toggle('is-collapsed',collapsed);document.body.classList.toggle('cm-sidebar-collapsed',collapsed);
+    if(collapseButton){collapseButton.setAttribute('aria-expanded',collapsed?'false':'true');collapseButton.setAttribute('aria-label',collapsed?'Mở menu':'Thu gọn menu');collapseButton.title=collapsed?'Mở menu':'Thu gọn menu'}
+  }
+  if(collapseButton)collapseButton.addEventListener('click',function(){setSidebarCollapsed(!sidebar.classList.contains('is-collapsed'))});
   document.querySelectorAll('[data-cm-nav-group]>.cm-sidebar-group-toggle').forEach(function(button){
     button.addEventListener('click',function(){
+      if(sidebar&&sidebar.classList.contains('is-collapsed')){setSidebarCollapsed(false);return;}
       var group=button.closest('[data-cm-nav-group]'),open=!group.classList.contains('open');
       document.querySelectorAll('[data-cm-nav-group]').forEach(function(other){
         var keep=other===group&&open;other.classList.toggle('open',keep);
