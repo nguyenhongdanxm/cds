@@ -43,6 +43,12 @@ function nt_xlsx_safe_sheet_name($name, array &$used) {
     return $name;
 }
 
+/** Ngày chuyển trường/nghỉ học vẫn được tính; từ ngày kế tiếp ngừng tích ăn. */
+function nt_xlsx_student_can_count_on(array $student, string $date): bool {
+    $departureDate = trim((string)($student['departure_date'] ?? ''));
+    return $departureDate === '' || $date <= $departureDate;
+}
+
 function nt_xlsx_styles_xml() {
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
@@ -156,9 +162,10 @@ function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYe
             if ($day <= $daysInMonth) {
                 $info = $dayData[$day];
                 $meal = $info['map'][$student['id'] ?? ''] ?? [];
-                if ($type === 'breakfast' && $info['sang_report']) {
+                $canCount = nt_xlsx_student_can_count_on($student, $info['date']);
+                if ($canCount && $type === 'breakfast' && $info['sang_report']) {
                     if (($meal['sang'] ?? '') === 'yes') { $symbol = 'x'; $valueCount = 1; }
-                } elseif ($type === 'lunch_dinner') {
+                } elseif ($canCount && $type === 'lunch_dinner') {
                     $lunchYes = $info['trua_report'] && (($meal['trua'] ?? '') === 'yes');
                     $dinnerYes = $info['toi_report'] && (($meal['toi'] ?? '') === 'yes');
                     if ($lunchYes && $dinnerYes) { $symbol = 'x'; $valueCount = 2; }
@@ -261,7 +268,10 @@ function nt_xlsx_school_summary_xml(array $classes, $month, $type, $schoolYear) 
                 if (!$reported) { $cells .= nt_xlsx_text_cell($ref, '', 4); continue; }
                 $mealMap = $dayMaps[$date]??[];
                 $count = 0;
-                if (!$isOff) foreach ($classStudents as $student) if (($mealMap[$student['id']??''][$mealKey]??'')==='yes') $count++;
+                if (!$isOff) foreach ($classStudents as $student) {
+                    if (!nt_xlsx_student_can_count_on($student, $date)) continue;
+                    if (($mealMap[$student['id']??''][$mealKey]??'')==='yes') $count++;
+                }
                 $rowTotal += $count;$totals[$mealKey][$day] += $count;
                 $cells .= nt_xlsx_number_cell($ref,$count,4);
             }

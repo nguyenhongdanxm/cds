@@ -136,8 +136,21 @@ function noitru_boarders_on_date(string $date) {
 
 /* Sổ Excel tháng giữ học sinh đến hết tháng có ngày chuyển trường/nghỉ học. */
 function noitru_boarders_for_month(string $month) {
-    $monthStart = preg_match('/^\d{4}-\d{2}$/', $month) ? $month . '-01' : date('Y-m-01');
-    return noitru_boarders_on_date($monthStart);
+    if (!preg_match('/^\d{4}-\d{2}$/', $month)) $month = date('Y-m');
+    $out = [];
+    foreach (csdl_students_all() as $student) {
+        if (!noitru_student_is_boarder($student)) continue;
+        $departureDate = trim((string)($student['departure_date'] ?? ''));
+        /* Có tên trong toàn bộ sổ của tháng chuyển; từ tháng sau mới loại. */
+        if ($departureDate !== '') {
+            if (substr($departureDate, 0, 7) < $month) continue;
+        } elseif (!noitru_student_is_active($student)) {
+            continue;
+        }
+        $out[] = noitru_boarder_row($student);
+    }
+    csdl_sort_students($out);
+    return $out;
 }
 
 function noitru_boarders_live() {
