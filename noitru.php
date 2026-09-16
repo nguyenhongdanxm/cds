@@ -37,14 +37,14 @@ if ($requestedTab === '' && !can_perm($tabPerms[$tab])) {
 }
 require_perm($tabPerms[$tab] ?? 'nt.tongquan');
 
-function noitru_attendance_students_all() {
+function noitru_attendance_students_all($date = null) {
     $classMap = [];
     foreach (csdl_classes_all() as $class) {
         $classMap[(string)($class['id'] ?? '')] = (string)($class['name'] ?? '');
     }
     $students = [];
     foreach (csdl_students_all() as $student) {
-        if (isset($student['active']) && empty($student['active'])) continue;
+        if (!csdl_student_is_active_on($student, $date ?? date('Y-m-d'))) continue;
         $student['class_name'] = trim((string)($student['class_name'] ?? ''));
         if ($student['class_name'] === '') {
             $student['class_name'] = $classMap[(string)($student['class_id'] ?? '')] ?? '';
@@ -58,7 +58,8 @@ function noitru_attendance_students_all() {
 
 function noitru_student_in_scope($studentId) {
     global $tab;
-    $source = $tab === 'attendance' ? noitru_attendance_students_all() : noitru_boarders_live();
+    $scopeDate = trim((string)($_POST['date'] ?? $_GET['date'] ?? date('Y-m-d')));
+    $source = $tab === 'attendance' ? noitru_attendance_students_all($scopeDate) : noitru_boarders_on_date($scopeDate);
     foreach ($source as $student) {
         if (($student['id'] ?? '') !== $studentId) continue;
         // Điểm danh là dữ liệu dùng chung: quyền Xem/Sửa quyết định thao tác,
@@ -1016,9 +1017,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$scopeDate = trim((string)($_POST['date'] ?? $_GET['date'] ?? date('Y-m-d')));
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $scopeDate)) $scopeDate = date('Y-m-d');
 $boarders = $tab === 'attendance'
-    ? noitru_attendance_students_all()
-    : array_values(array_filter(noitru_assignment_apply(noitru_boarders_live()), fn($student) => can_class($student['class_name'] ?? '')));
+    ? noitru_attendance_students_all($scopeDate)
+    : array_values(array_filter(noitru_assignment_apply(
+        in_array($tab, ['meals','meal_summary'], true) ? noitru_boarders_on_date($scopeDate) : noitru_boarders_live()
+      ), fn($student) => can_class($student['class_name'] ?? '')));
 $stats = noitru_stats();
 if (allowed_classes() !== null) {
     $stats['total'] = count($boarders);
@@ -1058,7 +1063,10 @@ $canDeleteCurrent = can_delete_perm($tabPerms[$tab] ?? '');
 if (in_array($tab, ['meals','meal_summary'], true) && in_array($_GET['export'] ?? '', ['month_breakfast','month_lunch_dinner'], true)) {
     $exportMonth = trim($_GET['month'] ?? date('Y-m'));
     if (!preg_match('/^\d{4}-\d{2}$/', $exportMonth)) $exportMonth = date('Y-m');
-    $exportStudents = $boarders;
+    $exportStudents = array_values(array_filter(
+        noitru_assignment_apply(noitru_boarders_for_month($exportMonth)),
+        fn($student) => can_class($student['class_name'] ?? '')
+    ));
     if ($tab === 'meals') {
         $exportClass = trim($_GET['class'] ?? '');
         if ($exportClass === '' || !can_class($exportClass)) {
@@ -1110,7 +1118,9 @@ function nt_meal_day_overview($date, array $students) {
                 continue;
             }
             $info['reported'][$class] = $report;
-            foreach ($classStudents as $student) {
+            $reportStudents = !empty($report['student_snapshot']) && is_array($report['student_snapshot'])
+                ? $report['student_snapshot'] : $classStudents;
+            foreach ($reportStudents as $student) {
                 $value = $mealMap[$student['id']][$meal] ?? 'no';
                 $info['total']++;
                 if ($value === 'no') {
@@ -1121,6 +1131,14 @@ function nt_meal_day_overview($date, array $students) {
                     $group = trim($student['meal_group'] ?? '') ?: '(Chưa mâm)';
                     $info['groups'][$group] = ($info['groups'][$group] ?? 0) + 1;
                 }
+            }
+            /* Phiếu đã chốt là chứng từ lịch sử: không để thay đổi hồ sơ làm tụt số suất. */
+            if ($info['state'] === 'locked' && isset($report['student_count'], $report['eat_count'])) {
+                $actualTotal = count($reportStudents);
+                $actualEat = count(array_filter($reportStudents, fn($student) => ($mealMap[$student['id']][$meal] ?? 'no') !== 'no'));
+                $info['total'] += (int)$report['student_count'] - $actualTotal;
+                $info['eat'] += (int)$report['eat_count'] - $actualEat;
+                $info['absent'] += (int)($report['absent_count'] ?? ((int)$report['student_count'] - (int)$report['eat_count'])) - ($actualTotal - $actualEat);
             }
         }
         if ($info['state'] === 'off') {
@@ -1139,7 +1157,11 @@ function nt_att_label($v) {
 if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'kitchen') {
     $date = $_GET['date'] ?? date('Y-m-d');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = date('Y-m-d');
-    $overview = nt_meal_day_overview($date, $boarders);
+    $summaryStudents = array_values(array_filter(
+      noitru_assignment_apply(noitru_boarders_on_date($date)),
+      fn($student) => can_class($student['class_name'] ?? '')
+    ));
+    $overview = nt_meal_day_overview($date, $summaryStudents);
     header('Content-Type: text/csv; charset=UTF-8');
     header('Content-Disposition: attachment; filename="bao-an-nha-bep-' . $date . '.csv"');
     echo "\xEF\xBB\xBF";
@@ -1166,7 +1188,11 @@ if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'kitchen') {
 if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'excel') {
     $date = $_GET['date'] ?? date('Y-m-d');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = date('Y-m-d');
-    $overview = nt_meal_day_overview($date, $boarders);
+    $dayStudents = array_values(array_filter(
+      noitru_assignment_apply(noitru_boarders_on_date($date)),
+      fn($student) => can_class($student['class_name'] ?? '')
+    ));
+    $overview = nt_meal_day_overview($date, $dayStudents);
     $rice = noitru_rice_data();
     $riceKg = 0;
     foreach (['trua','toi'] as $mealKey) {
@@ -1744,7 +1770,11 @@ form[method="post"]:not(#dutyReportForm):not(#dutySwapRequestForm){display:none!
       if ($periodTo > date('Y-m-d', strtotime($periodFrom . ' +366 days'))) $periodTo = date('Y-m-d', strtotime($periodFrom . ' +366 days'));
     }
     $overview = nt_meal_day_overview($date, $boarders);
-    $periodSummary = noitru_meal_period_summary($periodFrom, $periodTo, $boarders);
+    $periodStudents = array_values(array_filter(
+      noitru_assignment_apply(noitru_boarders_on_date($periodFrom)),
+      fn($student) => can_class($student['class_name'] ?? '')
+    ));
+    $periodSummary = noitru_meal_period_summary($periodFrom, $periodTo, $periodStudents);
     $mealLabels = ['sang'=>'Bữa sáng','trua'=>'Bữa trưa','toi'=>'Bữa tối'];
     $mealSettings = noitru_meal_settings();
     $rice = noitru_rice_data();

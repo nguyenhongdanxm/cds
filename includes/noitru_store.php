@@ -95,29 +95,56 @@ function noitru_student_class_name(array $student): string {
     return trim($name);
 }
 
+function noitru_student_is_active_on_date(array $student, string $date): bool {
+    $departureDate = trim((string)($student['departure_date'] ?? ''));
+    if ($departureDate !== '') return $date < $departureDate;
+    return noitru_student_is_active($student);
+}
+
+function noitru_boarder_row(array $s): array {
+    return [
+        'id' => $s['id'] ?? '',
+        'code' => $s['code'] ?? '',
+        'name' => $s['name'] ?? '',
+        'cccd' => $s['cccd'] ?? '',
+        'class_id' => noitru_student_value($s, ['class_id', 'lop_id'], ''),
+        'class_name' => noitru_student_class_name($s),
+        'gender' => noitru_student_value($s, ['gender', 'gioi_tinh', 'sex', 'gt'], ''),
+        'dob' => $s['dob'] ?? '',
+        'ethnicity' => $s['ethnicity'] ?? '',
+        'hometown' => $s['hometown'] ?? '',
+        'address' => $s['address'] ?? '',
+        'phone' => $s['phone'] ?? '',
+        'parent_name' => $s['parent_name'] ?? '',
+        'parent_phone' => $s['parent_phone'] ?? '',
+        'room_ktx' => noitru_student_value($s, ['room_ktx', 'dorm_room', 'phong_o', 'phong'], ''),
+        'meal_group' => noitru_student_value($s, ['meal_group', 'mam_an', 'nhom_an'], ''),
+        'departure_date' => $s['departure_date'] ?? '',
+        'note' => $s['note'] ?? '',
+    ];
+}
+
+function noitru_boarders_on_date(string $date) {
+    $out = [];
+    foreach (csdl_students_all() as $s) {
+        if (!noitru_student_is_boarder($s) || !noitru_student_is_active_on_date($s, $date)) continue;
+        $out[] = noitru_boarder_row($s);
+    }
+    csdl_sort_students($out);
+    return $out;
+}
+
+/* Sổ Excel tháng giữ học sinh đến hết tháng có ngày chuyển trường/nghỉ học. */
+function noitru_boarders_for_month(string $month) {
+    $monthStart = preg_match('/^\d{4}-\d{2}$/', $month) ? $month . '-01' : date('Y-m-01');
+    return noitru_boarders_on_date($monthStart);
+}
+
 function noitru_boarders_live() {
     $out = [];
     foreach (csdl_students_all() as $s) {
         if (!noitru_student_is_active($s) || !noitru_student_is_boarder($s)) continue;
-        $out[] = [
-            'id' => $s['id'] ?? '',
-            'code' => $s['code'] ?? '',
-            'name' => $s['name'] ?? '',
-            'cccd' => $s['cccd'] ?? '',
-            'class_id' => noitru_student_value($s, ['class_id', 'lop_id'], ''),
-            'class_name' => noitru_student_class_name($s),
-            'gender' => noitru_student_value($s, ['gender', 'gioi_tinh', 'sex', 'gt'], ''),
-            'dob' => $s['dob'] ?? '',
-            'ethnicity' => $s['ethnicity'] ?? '',
-            'hometown' => $s['hometown'] ?? '',
-            'address' => $s['address'] ?? '',
-            'phone' => $s['phone'] ?? '',
-            'parent_name' => $s['parent_name'] ?? '',
-            'parent_phone' => $s['parent_phone'] ?? '',
-            'room_ktx' => noitru_student_value($s, ['room_ktx', 'dorm_room', 'phong_o', 'phong'], ''),
-            'meal_group' => noitru_student_value($s, ['meal_group', 'mam_an', 'nhom_an'], ''),
-            'note' => $s['note'] ?? '',
-        ];
+        $out[] = noitru_boarder_row($s);
     }
     csdl_sort_students($out);
     return $out;
@@ -328,6 +355,19 @@ function noitru_meal_report_for($date, $class, $meal) {
     return null;
 }
 function noitru_meal_report_upsert(array $row) {
+    if (empty($row['student_snapshot']) && !empty($row['date']) && !empty($row['class_name'])) {
+        $snapshot = [];
+        foreach (noitru_boarders_on_date((string)$row['date']) as $student) {
+            if (($student['class_name'] ?? '') !== ($row['class_name'] ?? '')) continue;
+            $snapshot[] = [
+                'id'=>(string)($student['id'] ?? ''), 'name'=>(string)($student['name'] ?? ''),
+                'class_name'=>(string)($student['class_name'] ?? ''),
+                'meal_group'=>(string)($student['meal_group'] ?? ''),
+            ];
+        }
+        $row['student_snapshot'] = $snapshot;
+        $row['student_ids'] = array_values(array_filter(array_map(fn($student) => $student['id'], $snapshot)));
+    }
     $data = noitru_meal_reports_data();
     /* Báo lại sau khi đã xóa là một phiếu mới hợp lệ, nên mở lại đúng khóa này. */
     $deletedTargets = noitru_meal_deleted_targets();
@@ -511,7 +551,11 @@ function noitru_meals_count_day($date) {
 
 function noitru_meals_summary($from, $to) {
     $students = [];
-    foreach (noitru_boarders_live() as $s) $students[$s['id']] = $s;
+    foreach (csdl_students_all() as $sourceStudent) {
+        if (!noitru_student_is_boarder($sourceStudent)) continue;
+        $student = noitru_boarder_row($sourceStudent);
+        $students[$student['id']] = $student;
+    }
     $reported = [];
     foreach (noitru_meal_reports_data()['reports'] ?? [] as $report) {
         $reported[(string)($report['date'] ?? '') . '|' . (string)($report['class_name'] ?? '') . '|' . (string)($report['meal'] ?? '')] = true;
@@ -546,7 +590,7 @@ function noitru_meal_period_summary($from, $to, array $students) {
     $classes = [];
     foreach ($students as $student) {
         $class = trim((string)($student['class_name'] ?? '')) ?: '(Chưa lớp)';
-        $classes[$class][] = (string)($student['id'] ?? '');
+        $classes[$class][] = $student;
     }
     ksort($classes, SORT_NATURAL);
 
@@ -556,7 +600,7 @@ function noitru_meal_period_summary($from, $to, array $students) {
         $class = trim((string)($report['class_name'] ?? '')) ?: '(Chưa lớp)';
         $meal = (string)($report['meal'] ?? '');
         if ($date >= $from && $date <= $to && isset($classes[$class]) && in_array($meal, ['sang', 'trua', 'toi'], true)) {
-            $reports[$date][$meal][$class] = true;
+            $reports[$date][$meal][$class] = $report;
         }
     }
 
@@ -582,7 +626,14 @@ function noitru_meal_period_summary($from, $to, array $students) {
             if ($state === 'off') continue;
 
             foreach ($reportedClasses as $class => $_) {
-                foreach ($classes[$class] as $studentId) {
+                $report = $reportedClasses[$class];
+                if ($state === 'locked' && isset($report['eat_count'])) {
+                    $day[$meal] += (int)$report['eat_count'];
+                    continue;
+                }
+                foreach ($classes[$class] as $student) {
+                    if (!noitru_student_is_active_on_date($student, $date)) continue;
+                    $studentId = (string)($student['id'] ?? '');
                     if (in_array($meals[$date][$studentId][$meal] ?? 'yes', ['yes', 'sick', 'guest'], true)) $day[$meal]++;
                 }
             }
