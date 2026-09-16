@@ -686,6 +686,17 @@ function noitru_rice_usage_summary($from, $to, array $riceData = null) {
     $settings = array_merge(['sang_grams'=>0,'trua_grams'=>180,'toi_grams'=>180], $riceData['settings'] ?? []);
     $reports = noitru_meal_reports_data()['reports'] ?? [];
     $stateCache = [];
+    $studentMap = [];
+    $classStudentIds = [];
+    foreach (csdl_students_all() as $sourceStudent) {
+        if (!noitru_student_is_boarder($sourceStudent)) continue;
+        $student = noitru_boarder_row($sourceStudent);
+        $studentId = (string)($student['id'] ?? '');
+        if ($studentId === '') continue;
+        $studentMap[$studentId] = $student;
+        $classStudentIds[(string)($student['class_name'] ?? '')][] = $studentId;
+    }
+    $mealDayCache = [];
     $out = [
         'days'=>[],
         'meals'=>[
@@ -704,6 +715,25 @@ function noitru_rice_usage_summary($from, $to, array $riceData = null) {
         if (!isset($stateCache[$stateKey])) $stateCache[$stateKey] = noitru_meal_state($date, $meal)['status'] ?? 'open';
         if ($stateCache[$stateKey] !== 'locked') continue;
         $students = max(0, (int)($report['eat_count'] ?? 0));
+        /*
+         * Phiếu đã chốt vẫn là số liệu gốc, nhưng học sinh đã chuyển trường
+         * không được tính suất/gạo từ ngày kế tiếp ngày chuyển.
+         */
+        $candidateIds = array_values(array_filter(array_map('strval', (array)($report['student_ids'] ?? []))));
+        if (!$candidateIds && !empty($report['student_snapshot']) && is_array($report['student_snapshot'])) {
+            $candidateIds = array_values(array_filter(array_map(
+                fn($student) => (string)($student['id'] ?? ''),
+                $report['student_snapshot']
+            )));
+        }
+        if (!$candidateIds) $candidateIds = $classStudentIds[(string)($report['class_name'] ?? '')] ?? [];
+        if (!isset($mealDayCache[$date])) $mealDayCache[$date] = noitru_meals_for_date($date);
+        foreach (array_unique($candidateIds) as $studentId) {
+            $departureDate = trim((string)($studentMap[$studentId]['departure_date'] ?? ''));
+            if ($departureDate === '' || $date <= $departureDate) continue;
+            if (($mealDayCache[$date][$studentId][$meal] ?? '') === 'yes') $students--;
+        }
+        $students = max(0, $students);
         $kg = round($students * (float)($settings[$meal . '_grams'] ?? 0) / 1000, 3);
         if (!isset($out['days'][$date])) {
             $out['days'][$date] = [
