@@ -96,8 +96,10 @@ function noitru_student_class_name(array $student): string {
 }
 
 function noitru_student_is_active_on_date(array $student, string $date): bool {
+    $admissionDate = trim((string)($student['admission_date'] ?? ''));
+    if ($admissionDate !== '' && $date < $admissionDate) return false;
     $departureDate = trim((string)($student['departure_date'] ?? ''));
-    if ($departureDate !== '') return $date < $departureDate;
+    if ($departureDate !== '') return $date <= $departureDate;
     return noitru_student_is_active($student);
 }
 
@@ -119,6 +121,7 @@ function noitru_boarder_row(array $s): array {
         'parent_phone' => $s['parent_phone'] ?? '',
         'room_ktx' => noitru_student_value($s, ['room_ktx', 'dorm_room', 'phong_o', 'phong'], ''),
         'meal_group' => noitru_student_value($s, ['meal_group', 'mam_an', 'nhom_an'], ''),
+        'admission_date' => $s['admission_date'] ?? '',
         'departure_date' => $s['departure_date'] ?? '',
         'note' => $s['note'] ?? '',
     ];
@@ -141,6 +144,8 @@ function noitru_boarders_for_month(string $month) {
     foreach (csdl_students_all() as $student) {
         if (!noitru_student_is_boarder($student)) continue;
         $departureDate = trim((string)($student['departure_date'] ?? ''));
+        $admissionDate = trim((string)($student['admission_date'] ?? ''));
+        if ($admissionDate !== '' && substr($admissionDate, 0, 7) > $month) continue;
         /* Có tên trong toàn bộ sổ của tháng chuyển; từ tháng sau mới loại. */
         if ($departureDate !== '') {
             if (substr($departureDate, 0, 7) < $month) continue;
@@ -506,7 +511,7 @@ function noitru_meals_generate_day($date) {
     foreach ($rows as $index => $saved) {
         if (($saved['date'] ?? '') === $date) $positions[(string)($saved['student_id'] ?? '')] = $index;
     }
-    foreach (noitru_boarders_live() as $s) {
+    foreach (noitru_boarders_on_date($date) as $s) {
         $sid = (string)($s['id'] ?? '');
         $index = $positions[$sid] ?? null;
         if ($index !== null && !empty($rows[$index]['locked'])) continue;
@@ -579,6 +584,7 @@ function noitru_meals_summary($from, $to) {
         $date = $m['date'] ?? '';
         if ($date < $from || $date > $to) continue;
         $student = $students[$m['student_id'] ?? ''] ?? [];
+        if (!$student || !noitru_student_is_active_on_date($student, $date)) continue;
         $class = trim($student['class_name'] ?? '') ?: '(Chưa lớp)';
         $group = trim($student['meal_group'] ?? '') ?: '(Chưa mâm)';
         foreach (['sang','trua','toi'] as $meal) {
@@ -720,17 +726,24 @@ function noitru_rice_usage_summary($from, $to, array $riceData = null) {
          * không được tính suất/gạo từ ngày kế tiếp ngày chuyển.
          */
         $candidateIds = array_values(array_filter(array_map('strval', (array)($report['student_ids'] ?? []))));
+        $hasReportRoster = !empty($candidateIds);
         if (!$candidateIds && !empty($report['student_snapshot']) && is_array($report['student_snapshot'])) {
             $candidateIds = array_values(array_filter(array_map(
                 fn($student) => (string)($student['id'] ?? ''),
                 $report['student_snapshot']
             )));
+            $hasReportRoster = !empty($candidateIds);
         }
         if (!$candidateIds) $candidateIds = $classStudentIds[(string)($report['class_name'] ?? '')] ?? [];
         if (!isset($mealDayCache[$date])) $mealDayCache[$date] = noitru_meals_for_date($date);
         foreach (array_unique($candidateIds) as $studentId) {
+            $admissionDate = trim((string)($studentMap[$studentId]['admission_date'] ?? ''));
             $departureDate = trim((string)($studentMap[$studentId]['departure_date'] ?? ''));
-            if ($departureDate === '' || $date <= $departureDate) continue;
+            /* Chỉ trừ trước ngày nhập khi phiếu có danh sách chụp; phiếu cũ
+             * không có danh sách vốn chưa từng tính học sinh mới thêm sau này. */
+            $outsideEffectiveDates = ($hasReportRoster && $admissionDate !== '' && $date < $admissionDate)
+                || ($departureDate !== '' && $date > $departureDate);
+            if (!$outsideEffectiveDates) continue;
             if (($mealDayCache[$date][$studentId][$meal] ?? '') === 'yes') $students--;
         }
         $students = max(0, $students);

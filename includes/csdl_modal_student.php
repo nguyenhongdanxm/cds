@@ -51,6 +51,8 @@ if (!empty($editing['dob'])) {
               </select></div>
             <div class="col-md-3"><label class="form-label small">Ngày sinh</label>
               <input type="date" name="dob" class="form-control" value="<?= e($editingDob) ?>"></div>
+            <div class="col-md-3"><label class="form-label small">Ngày nhập trường *</label>
+              <input type="date" name="admission_date" class="form-control" value="<?= e($editing ? ($editing['admission_date'] ?? '') : date('Y-m-d')) ?>" <?= $editing?'':'required' ?>><div class="form-text"><?= $editing && empty($editing['admission_date'])?'Học sinh cũ: để trống để giữ nguyên dữ liệu lịch sử.':'Báo ăn và gạo bắt đầu tính từ ngày này.' ?></div></div>
             <div class="col-md-3"><label class="form-label small">Dân tộc</label>
               <input type="text" name="ethnicity" class="form-control" value="<?= e($editing['ethnicity'] ?? '') ?>"></div>
             <div class="col-md-4"><label class="form-label small">SĐT HS</label>

@@ -67,6 +67,7 @@ function csdl_schema_students() {
         'room_ktx'      => ['label' => 'Phòng KTX', 'group' => 'Nội trú'],
         'meal_group'    => ['label' => 'Nhóm ăn', 'group' => 'Nội trú'],
         'active'        => ['label' => 'Đang học', 'type' => 'bool', 'group' => 'Trạng thái'],
+        'admission_date'=> ['label' => 'Ngày nhập trường', 'type' => 'date', 'group' => 'Trạng thái'],
         'departure_date'=> ['label' => 'Ngày nghỉ/chuyển', 'type' => 'date', 'group' => 'Trạng thái'],
         'departure_type'=> ['label' => 'Hình thức nghỉ', 'group' => 'Trạng thái'],
         'departure_reason'=> ['label' => 'Lý do nghỉ/chuyển', 'group' => 'Trạng thái'],

@@ -654,6 +654,9 @@ function csdl_student_save($data) {
     if (!$found) {
         $id = $id ?: csdl_uid('hs');
         $data['id'] = $id;
+        /* Chỉ học sinh tạo mới từ thời điểm triển khai mới có mốc hiệu lực. */
+        $admissionDate = trim((string)($data['admission_date'] ?? ''));
+        $data['admission_date'] = preg_match('/^\d{4}-\d{2}-\d{2}$/', $admissionDate) ? $admissionDate : date('Y-m-d');
         $data['created_at'] = csdl_now();
         $data['active'] = $data['active'] ?? true;
         $rows[] = $data;

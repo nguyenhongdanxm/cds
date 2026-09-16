@@ -190,6 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'parent_phone' => trim($_POST['parent_phone'] ?? ''),
             'note' => trim($_POST['note'] ?? ''),
             'active' => $studentActive,
+            'admission_date' => trim($_POST['admission_date'] ?? (string)($currentStudent['admission_date'] ?? '')),
             'departure_date' => $studentActive ? '' : (string)($currentStudent['departure_date'] ?? ''),
             'departure_type' => $studentActive ? '' : (string)($currentStudent['departure_type'] ?? ''),
             'departure_reason' => $studentActive ? '' : (string)($currentStudent['departure_reason'] ?? ''),

@@ -45,7 +45,9 @@ function nt_xlsx_safe_sheet_name($name, array &$used) {
 
 /** Ngày chuyển trường/nghỉ học vẫn được tính; từ ngày kế tiếp ngừng tích ăn. */
 function nt_xlsx_student_can_count_on(array $student, string $date): bool {
+    $admissionDate = trim((string)($student['admission_date'] ?? ''));
     $departureDate = trim((string)($student['departure_date'] ?? ''));
+    if ($admissionDate !== '' && $date < $admissionDate) return false;
     return $departureDate === '' || $date <= $departureDate;
 }
 

@@ -196,6 +196,7 @@ function csdl_io_student_flat(array $s, array $classes) {
         'room_ktx' => $s['room_ktx'] ?? '',
         'meal_group' => $s['meal_group'] ?? '',
         'active' => csdl_io_bool_out($s['active'] ?? true),
+        'admission_date' => csdl_io_fmt_date($s['admission_date'] ?? ''),
         'departure_date' => csdl_io_fmt_date($s['departure_date'] ?? ''),
         'departure_type' => $s['departure_type'] ?? '',
         'departure_reason' => $s['departure_reason'] ?? '',
@@ -211,7 +212,7 @@ function csdl_io_template($entity) {
     } elseif ($entity === 'classes') {
         $sample = [1, '6A', '6', 'THCS', 'Nguyễn Văn A', 'P101', '35', 'Có', ''];
     } else {
-        $sample = [1, 'HS001', 'Lý Thị B', '001098765432', '6A', '01/01/2012', 'Nữ', 'Tày', 'Xín Mần', '', '', 'Phạm Văn C', '0909999999', 'Có', 'A1', '1', 'Có', ''];
+        $sample = [1, 'HS001', 'Lý Thị B', '001098765432', '6A', '01/01/2012', 'Nữ', 'Tày', 'Xín Mần', '', '', 'Phạm Văn C', '0909999999', 'Có', 'A1', '1', 'Có', date('d/m/Y'), '', '', '', ''];
     }
     while (count($sample) < count($headers)) $sample[] = '';
     $sample = array_slice($sample, 0, count($headers));
@@ -531,6 +532,8 @@ function csdl_io_import_students($tmpPath) {
         if ($parentPhone !== '') $p['parent_phone'] = $parentPhone;
         $dob = csdl_io_parse_date(csdl_io_cell($row, $map, 'dob'));
         if ($dob !== '') $p['dob'] = $dob;
+        $admissionDate = csdl_io_parse_date(csdl_io_cell($row, $map, 'admission_date'));
+        if ($admissionDate !== '') $p['admission_date'] = $admissionDate;
         $departureDate = csdl_io_parse_date(csdl_io_cell($row, $map, 'departure_date'));
         if ($departureDate !== '') {
             $p['departure_date'] = $departureDate;
