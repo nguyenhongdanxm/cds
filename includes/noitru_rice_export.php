@@ -52,7 +52,7 @@ function nt_rice_build_detail($from, $to, array $riceData) {
     $settings = array_merge(['sang_grams'=>0, 'trua_grams'=>180, 'toi_grams'=>180], $riceData['settings'] ?? []);
     $studentsById = [];
     $classes = [];
-    foreach (noitru_boarders_live() as $student) {
+    foreach (noitru_boarders_for_period($from, $to) as $student) {
         $studentId = trim((string)($student['id'] ?? ''));
         $className = trim((string)($student['class_name'] ?? '')) ?: '(Chưa lớp)';
         if ($studentId === '') continue;
@@ -60,6 +60,8 @@ function nt_rice_build_detail($from, $to, array $riceData) {
             'id'=>$studentId,
             'name'=>trim((string)($student['name'] ?? '')),
             'class_name'=>$className,
+            'admission_date'=>(string)($student['admission_date'] ?? ''),
+            'departure_date'=>(string)($student['departure_date'] ?? ''),
         ];
         $classes[$className][$studentId] = [
             'id'=>$studentId, 'name'=>trim((string)($student['name'] ?? '')),
@@ -87,6 +89,7 @@ function nt_rice_build_detail($from, $to, array $riceData) {
         $studentId = trim((string)($mealRow['student_id'] ?? ''));
         if ($date < $from || $date > $to || !isset($studentsById[$studentId])) continue;
         $student = $studentsById[$studentId];
+        if (!noitru_student_is_active_on_date($student, $date)) continue;
         $className = $student['class_name'];
         foreach (['sang','trua','toi'] as $meal) {
             if (empty($validReports[$date . '|' . $className . '|' . $meal])) continue;

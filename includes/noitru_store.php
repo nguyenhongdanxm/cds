@@ -158,6 +158,22 @@ function noitru_boarders_for_month(string $month) {
     return $out;
 }
 
+/** Danh sách có ít nhất một ngày hiệu lực trong kỳ; dùng cho báo cáo chi tiết. */
+function noitru_boarders_for_period(string $from, string $to) {
+    $out = [];
+    foreach (csdl_students_all() as $student) {
+        if (!noitru_student_is_boarder($student)) continue;
+        $admissionDate = trim((string)($student['admission_date'] ?? ''));
+        $departureDate = trim((string)($student['departure_date'] ?? ''));
+        if ($admissionDate !== '' && $admissionDate > $to) continue;
+        if ($departureDate !== '' && $departureDate < $from) continue;
+        if ($admissionDate === '' && $departureDate === '' && !noitru_student_is_active($student)) continue;
+        $out[] = noitru_boarder_row($student);
+    }
+    csdl_sort_students($out);
+    return $out;
+}
+
 function noitru_boarders_live() {
     $out = [];
     foreach (csdl_students_all() as $s) {
