@@ -14,6 +14,8 @@ function tkbm_is_makeup(array $row): bool {
     $kind=tkb_key((string)($row['registration_type']??$row['type']??$row['kind']??''));
     return str_contains($kind,'makeup')||str_contains($kind,'daybu');
 }
+function tkbm_is_fill(array $row): bool {$kind=tkb_key((string)($row['registration_type']??$row['type']??$row['kind']??''));return str_contains($kind,'fill')||str_contains($kind,'laptiet');}
+function tkbm_fill_subjects(array $row): array {$week=tkb_week_by_id((string)($row['week_id']??''));if(!$week)return[];$teacher=(string)($row['substitute_teacher']??'');$class=(string)($row['class']??'');$out=[];foreach(tkb_resolved_slots($week)as$slot){$slotClass=(string)($slot['class']?:($slot['class_raw']??''));$subject=trim((string)($slot['subject']??''));if(tkb_key((string)($slot['teacher']??''))===tkb_key($teacher)&&tkbm_same_class($slotClass,$class)&&$subject!=='')$out[tkb_key($subject)]=tkb_subject_canonical($subject);}if(function_exists('get_assignments'))foreach(get_assignments()as$a){$subject=trim((string)($a['subject']??''));if(tkb_key((string)($a['teacher']??''))===tkb_key($teacher)&&tkbm_same_class((string)($a['class']??''),$class)&&$subject!=='')$out[tkb_key($subject)]=tkb_subject_canonical($subject);}natcasesort($out);return array_values($out);}
 function tkbm_same_class(string $a,string $b): bool { return tkb_key($a)!==''&&tkb_key($a)===tkb_key($b); }
 function tkbm_makeup_conflict(array $row): string {
     $week=tkb_week_by_id((string)($row['week_id']??''));
@@ -29,14 +31,14 @@ if (empty($_SESSION['tkb_sub_manage_csrf'])) $_SESSION['tkb_sub_manage_csrf'] = 
 $csrf = (string)$_SESSION['tkb_sub_manage_csrf'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $scope=(string)($_GET['scope']??'week');
+    $scope=(string)($_GET['scope']??'week');$mode=(string)($_GET['mode']??'replace');if(!in_array($mode,['replace','fill','makeup'],true))$mode='replace';
     $date=(string)($_GET['date']??date('Y-m-d'));
     if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$date))$date=date('Y-m-d');
     if($scope==='today'){$from=$to=$date;}else{$dow=(int)date('N',strtotime($date));$from=date('Y-m-d',strtotime($date.' -'.($dow-1).' days'));$to=date('Y-m-d',strtotime($from.' +6 days'));}
-    $rows = array_values(array_filter(tkb_substitutions(),static fn($r)=>(string)($r['date']??'')>=$from && (string)($r['date']??'')<=$to));
+    $rows = array_values(array_filter(tkb_substitutions(),static function($r)use($from,$to,$mode){if((string)($r['date']??'')<$from||(string)($r['date']??'')>$to)return false;if($mode==='makeup')return tkbm_is_makeup($r);if($mode==='fill')return !tkbm_is_makeup($r);return!tkbm_is_makeup($r)&&!tkbm_is_fill($r);}));
     usort($rows, static function($a,$b){$dateCmp=strcmp((string)($a['date']??''),(string)($b['date']??''));if($dateCmp!==0)return$dateCmp;$sessionCmp=strcmp((string)($a['session']??''),(string)($b['session']??''));if($sessionCmp!==0)return$sessionCmp;return((int)($a['period']??0))<=>((int)($b['period']??0));});
-    $out=[];foreach($rows as $row){$makeup=tkbm_is_makeup($row);$out[]=['id'=>(string)($row['id']??''),'date'=>(string)($row['date']??''),'session'=>(string)($row['session']??''),'period'=>(int)($row['period']??0),'class'=>(string)($row['class']??''),'subject'=>(string)($row['subject']??''),'absent_teacher'=>$makeup?'Dạy bù':(string)($row['absent_teacher']??''),'substitute_teacher'=>(string)($row['substitute_teacher']??''),'status'=>(string)($row['status']??'approved'),'kind'=>$makeup?'makeup':'substitution'];}
-    echo json_encode(['ok'=>true,'csrf'=>$csrf,'rows'=>$out,'scope'=>$scope,'from'=>$from,'to'=>$to,'can_approve'=>$canApprove,'can_delete'=>$canDelete], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); exit;
+    $out=[];foreach($rows as $row){$makeup=tkbm_is_makeup($row);$fill=tkbm_is_fill($row);$out[]=['id'=>(string)($row['id']??''),'date'=>(string)($row['date']??''),'session'=>(string)($row['session']??''),'period'=>(int)($row['period']??0),'class'=>(string)($row['class']??''),'subject'=>(string)($row['subject']??''),'original_subject'=>(string)($row['original_subject']??$row['subject']??''),'absent_teacher'=>$makeup?'Dạy bù':(string)($row['absent_teacher']??''),'substitute_teacher'=>(string)($row['substitute_teacher']??''),'status'=>(string)($row['status']??'approved'),'kind'=>$makeup?'makeup':($fill?'fill':'substitution'),'fill_subjects'=>$mode==='fill'?tkbm_fill_subjects($row):[]];}
+    echo json_encode(['ok'=>true,'csrf'=>$csrf,'rows'=>$out,'scope'=>$scope,'mode'=>$mode,'from'=>$from,'to'=>$to,'can_approve'=>$canApprove,'can_delete'=>$canDelete], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['ok'=>false]); exit; }
@@ -46,9 +48,9 @@ $action=(string)($_POST['action']??'');
 if($action==='approve_many'){
     if(!$canApprove){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Bạn chưa có quyền duyệt.'],JSON_UNESCAPED_UNICODE);exit;}
     $ids=array_values(array_unique(array_filter(array_map('strval',(array)($_POST['ids']??[])))));if(!$ids){echo json_encode(['ok'=>false,'message'=>'Chưa chọn đăng ký cần duyệt.'],JSON_UNESCAPED_UNICODE);exit;}
-    $map=array_fill_keys($ids,true);$rows=tkb_substitutions();$count=0;$blocked=[];
-    foreach($rows as &$row){if(!isset($map[(string)($row['id']??'')]))continue;if(tkbm_is_makeup($row)){$conflict=tkbm_makeup_conflict($row);if($conflict!==''){$blocked[]=$conflict;continue;}}$row['status']='approved';$row['approved_at']=date('c');$row['approved_by']=(string)($user['name']??'');$row['updated_at']=date('c');$count++;}unset($row);
-    if($count&&tkb_save(TKB_SUBSTITUTIONS_FILE,$rows)){$msg='Đã duyệt '.$count.' đăng ký dạy thay/bù.';if($blocked)$msg.=' Có '.count($blocked).' đăng ký dạy bù chưa duyệt do xung đột lịch.';echo json_encode(['ok'=>true,'approved'=>$count,'blocked'=>count($blocked),'message'=>$msg],JSON_UNESCAPED_UNICODE);exit;}
+    $mode=(string)($_POST['mode']??'replace');$fillSelections=(array)($_POST['fill_subjects']??[]);$map=array_fill_keys($ids,true);$rows=tkb_substitutions();$count=0;$blocked=[];
+    foreach($rows as &$row){$rowId=(string)($row['id']??'');if(!isset($map[$rowId]))continue;if($mode==='fill'){$chosen=tkb_subject_canonical(trim((string)($fillSelections[$rowId]??'')));$allowed=tkbm_fill_subjects($row);$valid=false;foreach($allowed as$subject)if(tkb_key($subject)===tkb_key($chosen)){$chosen=$subject;$valid=true;break;}if(!$valid){$blocked[]='Chưa chọn đúng môn lấp tiết cho lớp '.(string)($row['class']??'').'.';continue;}$row['original_subject']=(string)($row['original_subject']??$row['subject']??'');$row['subject']=$chosen;$row['replacement_subject']=$chosen;$row['registration_type']=$row['type']=$row['kind']='fill';$row['title']='Lấp tiết '.$chosen.' lớp '.(string)($row['class']??'').' · '.(string)($row['substitute_teacher']??'');}elseif(tkbm_is_makeup($row)){$conflict=tkbm_makeup_conflict($row);if($conflict!==''){$blocked[]=$conflict;continue;}}$row['status']='approved';$row['approved_at']=date('c');$row['approved_by']=(string)($user['name']??'');$row['updated_at']=date('c');$count++;}unset($row);
+    if($count&&tkb_save(TKB_SUBSTITUTIONS_FILE,$rows)){$msg='Đã duyệt '.$count.($mode==='fill'?' đăng ký lấp tiết.':' đăng ký dạy thay/bù.');if($blocked)$msg.=' Có '.count($blocked).' đăng ký chưa duyệt do dữ liệu chưa hợp lệ hoặc xung đột lịch.';echo json_encode(['ok'=>true,'approved'=>$count,'blocked'=>count($blocked),'message'=>$msg],JSON_UNESCAPED_UNICODE);exit;}
     echo json_encode(['ok'=>false,'message'=>$blocked?('Chưa thể duyệt: '.implode(' ',array_slice($blocked,0,3))):'Không duyệt được đăng ký đã chọn.'],JSON_UNESCAPED_UNICODE);exit;
 }
 

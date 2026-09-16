@@ -13,7 +13,7 @@ $selfTeacher = trim((string)($user['teacher_name'] ?? $user['name'] ?? ''));
 if ($selfTeacher !== '' && !in_array($selfTeacher,$teachers,true)) { foreach ($teachers as $t) if (tkb_key($t) === tkb_key($selfTeacher)) { $selfTeacher=$t; break; } }
 if(empty($_SESSION['tkb_range_csrf']))$_SESSION['tkb_range_csrf']=bin2hex(random_bytes(24));
 
-$from = trim((string)($_GET['from'] ?? date('Y-m-d')));$to = trim((string)($_GET['to'] ?? $from));$absent = trim((string)($_GET['absent_teacher'] ?? $selfTeacher));
+$mode=(string)($_GET['mode']??'replace');if(!in_array($mode,['replace','fill'],true))$mode='replace';$from = trim((string)($_GET['from'] ?? date('Y-m-d')));$to = trim((string)($_GET['to'] ?? $from));$absent = trim((string)($_GET['absent_teacher'] ?? $selfTeacher));
 if (!$canApprove && $selfTeacher !== '') $absent = $selfTeacher;
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/',$from) || !preg_match('/^\d{4}-\d{2}-\d{2}$/',$to)) { echo json_encode(['ok'=>false,'message'=>'Khoảng ngày không hợp lệ.'],JSON_UNESCAPED_UNICODE); exit; }
 if ($to < $from) [$from,$to]=[$to,$from];$maxTo = date('Y-m-d', strtotime($from.' +13 days'));if ($to > $maxTo) $to = $maxTo;
@@ -30,4 +30,4 @@ for ($ts=strtotime($from),$end=strtotime($to); $ts!==false && $ts<=$end; $ts+=86
         $out[]=['date'=>$date,'week_id'=>(string)($week['id']??''),'week_label'=>(string)($week['label']??''),'slot_key'=>tkb_slot_key($slot),'session'=>(string)($slot['session']??''),'period'=>(int)($slot['period']??0),'class'=>(string)($slot['class']?:($slot['class_raw']??'')),'subject'=>(string)($slot['subject']??''),'candidates'=>$candidates,'saved'=>$saved?['id'=>(string)($saved['id']??''),'substitute_teacher'=>(string)($saved['substitute_teacher']??''),'status'=>(string)($saved['status']??'approved')]:null];
     }
 }
-echo json_encode(['ok'=>true,'csrf'=>(string)$_SESSION['tkb_range_csrf'],'from'=>$from,'to'=>$to,'absent_teacher'=>$absent,'can_approve'=>$canApprove,'rows'=>$out],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+echo json_encode(['ok'=>true,'csrf'=>(string)$_SESSION['tkb_range_csrf'],'mode'=>$mode,'from'=>$from,'to'=>$to,'absent_teacher'=>$absent,'can_approve'=>$canApprove,'rows'=>$out],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
