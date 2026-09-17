@@ -1,5 +1,6 @@
 <?php
-$statsRange=in_array((string)($_GET['stats_range']??'week'),['total','week','custom'],true)?(string)$_GET['stats_range']:'week';
+$statsRangeInput=(string)($_GET['stats_range']??'week');
+$statsRange=in_array($statsRangeInput,['total','week','custom'],true)?$statsRangeInput:'week';
 $statsWeekKey=(string)($_GET['stats_week']??$weekKey);$statsWeek=lb_week($statsWeekKey)?:$week;
 $allWeeks=lb_weeks();$firstWeek=$allWeeks[0]??$week;$lastWeek=$allWeeks?end($allWeeks):$week;
 if($statsRange==='total'){$statsFrom=(string)($firstWeek['start']??$week['start']);$statsTo=(string)($lastWeek['end']??$week['end']);}
@@ -7,7 +8,8 @@ elseif($statsRange==='week'){$statsFrom=(string)$statsWeek['start'];$statsTo=(st
 else{$statsFrom=(string)($_GET['stats_from']??$week['start']);$statsTo=(string)($_GET['stats_to']??$week['end']);}
 if($statsTo<$statsFrom){[$statsFrom,$statsTo]=[$statsTo,$statsFrom];}
 $statsTeacher=trim((string)($_GET['stats_teacher']??''));$statsSubject=trim((string)($_GET['stats_subject']??''));$statsClass=trim((string)($_GET['stats_class']??''));
-$statsCompletion=in_array((string)($_GET['stats_completion']??'all'),['all','completed','incomplete','saved_unsigned','not_saved'],true)?(string)$_GET['stats_completion']:'all';
+$statsCompletionInput=(string)($_GET['stats_completion']??'all');
+$statsCompletion=in_array($statsCompletionInput,['all','completed','incomplete','saved_unsigned','not_saved'],true)?$statsCompletionInput:'all';
 $allAccessible=lb_stat_rows($statsFrom,$statsTo);$teachers=[];$subjects=[];$statClasses=[];
 foreach($allAccessible as$r){$teacherName=trim((string)($r['actual_teacher']??$r['scheduled_teacher']??''));if($teacherName!=='')$teachers[$teacherName]=true;if(trim((string)($r['subject']??''))!=='')$subjects[(string)$r['subject']]=true;if(trim((string)($r['class']??''))!=='')$statClasses[(string)$r['class']]=true;}
 $teachers=array_keys($teachers);$subjects=array_keys($subjects);$statClasses=array_keys($statClasses);sort($teachers,SORT_NATURAL);sort($subjects,SORT_NATURAL);sort($statClasses,SORT_NATURAL);

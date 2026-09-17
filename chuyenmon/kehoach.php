@@ -1,7 +1,6 @@
 <?php
 $page_title = 'Kế hoạch chuyên môn';
 require_once 'includes/functions.php';
-require_once dirname(__DIR__) . '/includes/push_notifications.php';
 require_login();
 
 $tabs = [
@@ -11,6 +10,9 @@ $tabs = [
 ];
 $tab = $_GET['tab'] ?? 'vanban';
 if (!isset($tabs[$tab])) $tab = 'vanban';
+if ($tab === 'thongbao') {
+    require_once dirname(__DIR__) . '/includes/push_notifications.php';
+}
 $page_title = $tabs[$tab][0];
 
 // Kế hoạch giáo dục là quy trình nộp/duyệt riêng theo Phụ lục I, II, III.
