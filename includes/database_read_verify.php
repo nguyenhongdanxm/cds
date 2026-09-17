@@ -67,6 +67,30 @@ function cds_read_verify_hash($value)
     );
 }
 
+function cds_read_verify_label($row, $id)
+{
+    if (!is_array($row)) return (string)$id;
+    foreach (array('name', 'label', 'code') as $key) {
+        $value = trim((string)($row[$key] ?? ''));
+        if ($value !== '') return $value;
+    }
+    return (string)$id;
+}
+
+function cds_read_verify_changed_fields($jsonRow, $mysqlRow)
+{
+    $jsonRow = is_array($jsonRow) ? $jsonRow : array();
+    $mysqlRow = is_array($mysqlRow) ? $mysqlRow : array();
+    $fields = array();
+    foreach (array_unique(array_merge(array_keys($jsonRow), array_keys($mysqlRow))) as $key) {
+        $jsonValue = cds_read_verify_canonicalize($jsonRow[$key] ?? null);
+        $mysqlValue = cds_read_verify_canonicalize($mysqlRow[$key] ?? null);
+        if ($jsonValue !== $mysqlValue) $fields[] = (string)$key;
+    }
+    sort($fields, SORT_STRING);
+    return $fields;
+}
+
 function cds_read_verify_rows($entityType, $jsonRows)
 {
     static $checked = array();
@@ -88,22 +112,25 @@ function cds_read_verify_rows($entityType, $jsonRows)
 
     try {
         $json = array();
+        $jsonData = array();
         foreach ((array)$jsonRows as $row) {
             $id = (string)($row['id'] ?? '');
             if ($id !== '') {
                 $json[$id] = cds_read_verify_hash($row);
+                $jsonData[$id] = $row;
             }
         }
 
         $mysql = array();
+        $mysqlData = array();
         $stmt = cds_db()->query(
             'SELECT id, raw_json FROM ' . $tables[$entityType]
         );
         while ($dbRow = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $decoded = json_decode((string)$dbRow['raw_json'], true);
-            $mysql[(string)$dbRow['id']] = cds_read_verify_hash(
-                is_array($decoded) ? $decoded : array()
-            );
+            $id = (string)$dbRow['id'];
+            $mysqlData[$id] = is_array($decoded) ? $decoded : array();
+            $mysql[$id] = cds_read_verify_hash($mysqlData[$id]);
         }
 
         $missing = array_values(array_diff(array_keys($json), array_keys($mysql)));
@@ -120,6 +147,19 @@ function cds_read_verify_rows($entityType, $jsonRows)
             'missing' => $missing,
             'extra' => $extra,
             'changed' => $changed,
+            'missing_items' => array_map(function ($id) use ($jsonData) {
+                return array('id' => $id, 'label' => cds_read_verify_label($jsonData[$id] ?? array(), $id));
+            }, array_slice($missing, 0, 100)),
+            'extra_items' => array_map(function ($id) use ($mysqlData) {
+                return array('id' => $id, 'label' => cds_read_verify_label($mysqlData[$id] ?? array(), $id));
+            }, array_slice($extra, 0, 100)),
+            'changed_items' => array_map(function ($id) use ($jsonData, $mysqlData) {
+                return array(
+                    'id' => $id,
+                    'label' => cds_read_verify_label($jsonData[$id] ?? ($mysqlData[$id] ?? array()), $id),
+                    'fields' => cds_read_verify_changed_fields($jsonData[$id] ?? array(), $mysqlData[$id] ?? array()),
+                );
+            }, array_slice($changed, 0, 100)),
         );
         $save = cds_db()->prepare(
             "INSERT INTO cds_read_verification_status
