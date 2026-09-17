@@ -591,11 +591,55 @@ include __DIR__ . '/includes/nav_top.php';
                   JSON <?= (int)$verify['json_count'] ?> · MySQL <?= (int)$verify['mysql_count'] ?>
                 </div>
                 <div class="small text-muted"><?= e((string)$verify['checked_at']) ?></div>
+                <?php
+                  $detail = is_array($verify['details'] ?? null) ? $verify['details'] : array();
+                  $missingCount = count((array)($detail['missing'] ?? array()));
+                  $extraCount = count((array)($detail['extra'] ?? array()));
+                  $changedCount = count((array)($detail['changed'] ?? array()));
+                ?>
+                <?php if (!$matched && ($missingCount || $extraCount || $changedCount)): ?>
+                  <button class="btn btn-sm btn-outline-warning mt-2" type="button"
+                          data-bs-toggle="collapse" data-bs-target="#verify-detail-<?= e($key) ?>"
+                          aria-expanded="false">
+                    Xem chi tiết (<?= $missingCount + $extraCount + $changedCount ?>)
+                  </button>
+                <?php endif; ?>
               <?php endif; ?>
             </div>
           </div>
         <?php endforeach; ?>
       </div>
+      <?php foreach ($coreLabels as $key => $label):
+          $verify = $readVerifyStatus[$key] ?? null;
+          $detail = is_array($verify['details'] ?? null) ? $verify['details'] : array();
+          $groups = array(
+              'Thiếu trong MySQL' => (array)($detail['missing_items'] ?? array()),
+              'Thừa trong MySQL' => (array)($detail['extra_items'] ?? array()),
+              'Khác nội dung' => (array)($detail['changed_items'] ?? array()),
+          );
+          $hasDetail = false;
+          foreach ($groups as $items) if ($items) { $hasDetail = true; break; }
+          if (!$hasDetail) continue;
+      ?>
+        <div class="collapse mt-2" id="verify-detail-<?= e($key) ?>">
+          <div class="border rounded-3 p-3 bg-light">
+            <div class="fw-semibold mb-2"><?= e($label) ?> — bản ghi sai lệch</div>
+            <?php foreach ($groups as $groupLabel => $items): if (!$items) continue; ?>
+              <div class="small fw-semibold mt-2"><?= e($groupLabel) ?> (<?= count($items) ?>)</div>
+              <ul class="small mb-1">
+                <?php foreach (array_slice($items, 0, 100) as $item):
+                    $id = is_array($item) ? (string)($item['id'] ?? '') : (string)$item;
+                    $itemLabel = is_array($item) ? (string)($item['label'] ?? $id) : $id;
+                    $fields = is_array($item) ? (array)($item['fields'] ?? array()) : array();
+                ?>
+                  <li><strong><?= e($itemLabel) ?></strong> <span class="text-muted">[ID <?= e($id) ?>]</span><?= $fields ? ' — trường khác: ' . e(implode(', ', $fields)) : '' ?></li>
+                <?php endforeach; ?>
+              </ul>
+              <?php if (count($items) > 100): ?><div class="small text-muted">Chỉ hiển thị 100/<?= count($items) ?> bản ghi đầu tiên.</div><?php endif; ?>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php endforeach; ?>
       <div class="alert alert-info mt-3 mb-0">
         Nếu MySQL lỗi hoặc có sai lệch, website tự sử dụng JSON và tiếp tục hoạt động.
       </div>
