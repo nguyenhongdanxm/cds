@@ -13,7 +13,7 @@ $statsCompletion=in_array($statsCompletionInput,['all','completed','incomplete',
 $allAccessible=lb_stat_rows($statsFrom,$statsTo);$teachers=[];$subjects=[];$statClasses=[];
 foreach($allAccessible as$r){$teacherName=trim((string)($r['actual_teacher']??$r['scheduled_teacher']??''));if($teacherName!=='')$teachers[$teacherName]=true;if(trim((string)($r['subject']??''))!=='')$subjects[(string)$r['subject']]=true;if(trim((string)($r['class']??''))!=='')$statClasses[(string)$r['class']]=true;}
 $teachers=array_keys($teachers);$subjects=array_keys($subjects);$statClasses=array_keys($statClasses);sort($teachers,SORT_NATURAL);sort($subjects,SORT_NATURAL);sort($statClasses,SORT_NATURAL);
-$statRows=lb_stat_rows($statsFrom,$statsTo,$statsTeacher,$statsSubject,$statsClass,$statsCompletion);
+$statRows=lb_stat_filter_rows($allAccessible,$statsTeacher,$statsSubject,$statsClass,$statsCompletion);
 $tot=lb_stat_totals($statRows);
 $teacherStats=lb_stat_group($statRows,'actual_teacher');$subjectStats=lb_stat_group($statRows,'subject');$classStats=lb_stat_group($statRows,'class');$groupStats=lb_stat_group($statRows,'teacher_group');$weekStats=lb_stat_group($statRows,'week_label');
 $exportQuery=array_filter(['stats_from'=>$statsFrom,'stats_to'=>$statsTo,'stats_teacher'=>$statsTeacher,'stats_subject'=>$statsSubject,'stats_class'=>$statsClass,'stats_completion'=>$statsCompletion,'stats_range'=>$statsRange,'stats_week'=>$statsWeekKey],'strlen');

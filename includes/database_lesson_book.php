@@ -67,6 +67,12 @@ function cds_lb_upsert(PDO $pdo,array $row){
 function cds_lb_source_rows(){return array_values(array_filter((array)cds_json_load(cds_lb_records_path(),[]),'is_array'));}
 function cds_lb_sql_rows($where='',$values=[]){$s=cds_db()->prepare('SELECT raw_json FROM cds_lesson_book_records '.$where);$s->execute($values);$out=[];while($db=$s->fetch(PDO::FETCH_ASSOC)){$r=json_decode((string)$db['raw_json'],true);if(!is_array($r))throw new RuntimeException('MySQL có bản ghi Sổ đầu bài không hợp lệ.');$out[]=$r;}return$out;}
 function cds_lb_sql_all(){return cds_lb_sql_rows('ORDER BY lesson_date,session_code,timetable_period,class_name');}
+function cds_lb_sql_range($from,$to){
+    $where=[];$values=[];
+    if((string)$from!==''){$where[]='lesson_date>=?';$values[]=(string)$from;}
+    if((string)$to!==''){$where[]='lesson_date<=?';$values[]=(string)$to;}
+    return cds_lb_sql_rows(($where?'WHERE '.implode(' AND ',$where).' ':'').'ORDER BY lesson_date,session_code,timetable_period,class_name',$values);
+}
 function cds_lb_sql_until($schoolYear,$date){return cds_lb_sql_rows('WHERE school_year_key=? AND lesson_date<=? ORDER BY lesson_date,session_code,timetable_period,class_name',[(string)$schoolYear,(string)$date]);}
 
 function cds_lb_hash_map(array $rows){$out=[];foreach($rows as$r){$r=cds_lb_enrich($r);$id=(string)($r['slot_id']??'');if($id==='')continue;ksort($r);$out[$id]=hash('sha256',cds_lb_json($r));}ksort($out);return$out;}
