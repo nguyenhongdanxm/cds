@@ -371,7 +371,7 @@ body{background:#f0f4f8}
   .stat-table{font-size:.82rem}.stat-table .stat-label{min-width:105px}
 }
 <?php if (!$canEditCurrent): ?>
-form[method="post"]:not(.student-readonly-form):not(.teacher-readonly-form),button[data-bs-toggle="modal"],.row-chk{display:none!important}
+form[method="post"]:not(.student-readonly-form):not(.student-record-form):not(.teacher-readonly-form),button[data-bs-toggle="modal"],.row-chk{display:none!important}
 <?php endif; ?>
 </style>
 </head>

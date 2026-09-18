@@ -9,7 +9,7 @@ if (!empty($editing['dob'])) {
 <div class="modal fade" id="modalStudent" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-      <form method="post" enctype="multipart/form-data" class="<?=!empty($studentReadOnly)?'student-readonly-form':''?>">
+      <form method="post" enctype="multipart/form-data" class="student-record-form <?=!empty($studentReadOnly)?'student-readonly-form':''?>">
         <input type="hidden" name="action" value="student_save">
         <input type="hidden" name="id" id="s_id" value="<?= e($editing['id'] ?? '') ?>">
         <div class="modal-header">
