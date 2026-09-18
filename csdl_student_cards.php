@@ -22,6 +22,7 @@ $year=(string)(csdl_year_current()['label']??SCHOOL_YEAR);
 <style>
 /* Thẻ thành phẩm không có đường viền; vùng chọn chỉ xuất hiện khi đang thiết kế. */
 .card-face,.theme-minimal{border:0!important;outline:0;box-shadow:none}
+.card-face:after{content:'';position:absolute;z-index:45;inset:0;box-sizing:border-box;border:.2mm solid rgba(234,88,12,.48);pointer-events:none}
 .obj.photo>div,.obj.image>div,.obj.logo>div{border:0!important}
 .theme-sky .decor-top{height:23mm;border-radius:0;clip-path:ellipse(85% 78% at 35% 18%);background:linear-gradient(135deg,var(--main),var(--second))}
 .theme-sky .decor-bottom{height:13mm;border-radius:70% 0 0 0;background:linear-gradient(100deg,var(--second),var(--main))}
