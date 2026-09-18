@@ -9,7 +9,7 @@ try{
   $csrf=(string)($_SESSION['olympia_play_csrf']??'');if($csrf===''||!hash_equals($csrf,(string)($_POST['csrf']??'')))throw new RuntimeException('Phiên điều khiển không hợp lệ.');
   $state=json_decode((string)($_POST['state']??''),true);if(!is_array($state))throw new RuntimeException('Trạng thái trình chiếu không hợp lệ.');
   $serverMs=(int)round(microtime(true)*1000);$clientSent=(int)($state['client_sent_at']??0);
-  $allowed=['status','question_index','stage','question','answer','points','seconds','timer_ends_at','stage_score','total_score','question_score','awarded_students','rankings','remaining_stages'];$clean=[];foreach($allowed as $key)if(array_key_exists($key,$state))$clean[$key]=$state[$key];
+  $allowed=['status','question_index','stage','question','answer','points','seconds','timer_ends_at','stage_score','total_score','question_score','awarded_students','rankings','remaining_stages','teacher_name','class_name'];$clean=[];foreach($allowed as $key)if(array_key_exists($key,$state))$clean[$key]=$state[$key];
   if(!empty($clean['timer_ends_at'])&&$clientSent>0){$remaining=max(0,(int)$clean['timer_ends_at']-$clientSent);$clean['timer_ends_at']=$serverMs+$remaining;}$clean['updated_ms']=$serverMs;
   $u=current_user()??[];$name=(string)($u['teacher_name']??$u['name']??$u['username']??'');$s=$db->prepare('INSERT INTO cds_olympia_live_sessions(week_id,class_id,state_json,controlled_by) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE state_json=VALUES(state_json),controlled_by=VALUES(controlled_by)');$s->execute([$weekId,$classId,json_encode($clean,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),$name]);echo json_encode(['ok'=>true,'server_ms'=>$serverMs,'state'=>$clean],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;
  }
