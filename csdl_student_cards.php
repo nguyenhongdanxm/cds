@@ -17,6 +17,7 @@ $year=(string)(csdl_year_current()['label']??SCHOOL_YEAR);
 </style>
 <style>
 .duplex-sheet{display:grid;grid-template-columns:repeat(4,54mm);grid-template-rows:repeat(2,86mm);gap:4mm 8mm;justify-content:center;margin:0 auto 10mm}
+.pdf-export .safe,.pdf-export .handle,.pdf-export .obj.locked:after{display:none!important}.pdf-export .obj.selected{outline:0!important}.pdf-export .card-face,.pdf-export .card-face *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 @media print{#studentArea{width:auto!important;max-width:none!important;margin:0!important;padding:0!important}#printGrid.duplex-mode{display:block!important;margin:0!important;padding:0!important}.duplex-sheet{grid-template-columns:repeat(4,54mm)!important;grid-template-rows:repeat(2,86mm)!important;gap:4mm 8mm!important;width:240mm;height:176mm;margin:0 auto!important;padding:0!important;break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid}.duplex-sheet:last-child{break-after:auto;page-break-after:auto}}
 </style>
 <style>
@@ -105,7 +106,7 @@ function duplexOrder(rows){return [rows[3],rows[2],rows[1],rows[0],rows[7],rows[
 function duplexFace(s,face){return s?`<div class="duplex-card" data-student="${esc(s.id)}">${printFaceHtml(face,s)}</div>`:'<div class="duplex-card duplex-blank"></div>'}
 function renderDuplex(){const rows=selectedStudents();$('count').textContent=rows.length;$('printGrid').classList.add('duplex-mode');let html='';for(let i=0;i<rows.length;i+=8){const group=rows.slice(i,i+8);while(group.length<8)group.push(null);const back=duplexOrder(group);html+=`<div class="duplex-sheet duplex-front">${group.map(s=>duplexFace(s,'front')).join('')}</div><div class="duplex-sheet duplex-back">${back.map(s=>duplexFace(s,'back')).join('')}</div>`}$('printGrid').innerHTML=html;$('printGrid').querySelectorAll('.duplex-card[data-student]').forEach(el=>{const s=rows.find(x=>String(x.id)===el.dataset.student);if(s)qr(el,s)})}
 async function waitForPdfAssets(root){if(document.fonts?.ready)await document.fonts.ready;await Promise.all([...root.querySelectorAll('img')].map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.onload=img.onerror=resolve})));await new Promise(resolve=>setTimeout(resolve,180))}
-async function elementCanvas(el){return html2canvas(el,{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',logging:false,imageTimeout:15000})}
+async function elementCanvas(el){return html2canvas(el,{scale:2.5,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',logging:false,imageTimeout:15000,onclone:doc=>doc.body.classList.add('pdf-export')})}
 async function downloadDirectPdf(mode,button){
   const rows=selectedStudents();if(!rows.length)return alert('Hãy chọn học sinh.');
   if(!window.html2canvas||!window.jspdf?.jsPDF)return alert('Chưa tải được bộ tạo PDF. Hãy kiểm tra mạng và tải lại trang.');
@@ -115,7 +116,7 @@ async function downloadDirectPdf(mode,button){
     const {jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4',compress:true});
     if(mode==='duplex'){
       renderDuplex();const sheets=[...$('printGrid').querySelectorAll('.duplex-sheet')];await waitForPdfAssets($('printGrid'));
-      for(let i=0;i<sheets.length;i++){if(i)pdf.addPage('a4','landscape');const el=sheets[i],oldStyle=el.getAttribute('style');el.style.cssText='display:grid;width:240mm;height:176mm;margin:0;padding:0;grid-template-columns:repeat(4,54mm);grid-template-rows:repeat(2,86mm);gap:4mm 8mm;';const canvas=await elementCanvas(el);if(oldStyle===null)el.removeAttribute('style');else el.setAttribute('style',oldStyle);pdf.addImage(canvas.toDataURL('image/jpeg',.96),'JPEG',28.5,7,240,176,undefined,'FAST')}
+      for(let i=0;i<sheets.length;i++){if(i)pdf.addPage('a4','landscape');const el=sheets[i],oldStyle=el.getAttribute('style');el.style.cssText='display:grid;width:240mm;height:176mm;margin:0;padding:0;grid-template-columns:repeat(4,54mm);grid-template-rows:repeat(2,86mm);gap:4mm 8mm;justify-content:center;';const canvas=await elementCanvas(el);if(oldStyle===null)el.removeAttribute('style');else el.setAttribute('style',oldStyle);pdf.addImage(canvas.toDataURL('image/png'),'PNG',28.5,7,240,176,undefined,'FAST')}
       pdf.save('the-hoc-sinh-2-mat.pdf');
     }else{
       renderPrint();const cards=[...$('printGrid').querySelectorAll('.fold')];await waitForPdfAssets($('printGrid'));const vertical=state.type==='vertical',cols=vertical?2:1,rowsPerPage=vertical?2:3,perPage=cols*rowsPerPage,itemW=vertical?108:180,itemH=vertical?86:60,gapX=vertical?8:0,gapY=vertical?8:5,totalW=cols*itemW+(cols-1)*gapX,totalH=rowsPerPage*itemH+(rowsPerPage-1)*gapY,startX=(297-totalW)/2,startY=(210-totalH)/2;
