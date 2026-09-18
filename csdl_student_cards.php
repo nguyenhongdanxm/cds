@@ -17,7 +17,7 @@ $year=(string)(csdl_year_current()['label']??SCHOOL_YEAR);
 </style>
 <style>
 .duplex-sheet{display:grid;grid-template-columns:repeat(4,54mm);grid-template-rows:repeat(2,86mm);gap:4mm 8mm;justify-content:center;margin:0 auto 10mm}
-@media print{.print-grid.duplex-mode{display:block!important;margin-top:0!important}.duplex-sheet{grid-template-columns:repeat(4,54mm)!important;grid-template-rows:repeat(2,86mm)!important;gap:4mm 8mm!important;width:240mm;height:176mm;margin:0 auto!important;padding:0!important;break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid}.duplex-sheet:last-child{break-after:auto;page-break-after:auto}}
+@media print{#studentArea{width:auto!important;max-width:none!important;margin:0!important;padding:0!important}#printGrid.duplex-mode{display:block!important;margin:0!important;padding:0!important}.duplex-sheet{grid-template-columns:repeat(4,54mm)!important;grid-template-rows:repeat(2,86mm)!important;gap:4mm 8mm!important;width:240mm;height:176mm;margin:0 auto!important;padding:0!important;break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid}.duplex-sheet:last-child{break-after:auto;page-break-after:auto}}
 </style>
 <style>
 /* Thẻ thành phẩm không có đường viền; vùng chọn chỉ xuất hiện khi đang thiết kế. */
