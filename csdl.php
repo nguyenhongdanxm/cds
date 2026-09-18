@@ -680,6 +680,23 @@ function resetStudentForm(){
   var a=document.getElementById('sact'); if(a) a.checked=true;
   var photo=document.getElementById('studentPhotoPreview');if(photo){photo.removeAttribute('src');photo.style.visibility='hidden';}
 }
+<?php if ($tab === 'students' && !empty($editing)): ?>
+function openStudentEditModal(){
+  var modalElement=document.getElementById('modalStudent');
+  if(!modalElement||!window.bootstrap||!bootstrap.Modal)return false;
+  bootstrap.Modal.getOrCreateInstance(modalElement).show();
+  return true;
+}
+function openStudentEditModalWhenReady(){
+  if(openStudentEditModal())return;
+  window.setTimeout(openStudentEditModal,0);
+}
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',openStudentEditModalWhenReady,{once:true});
+}else{
+  openStudentEditModalWhenReady();
+}
+<?php endif; ?>
 </script>
 </body>
 </html>

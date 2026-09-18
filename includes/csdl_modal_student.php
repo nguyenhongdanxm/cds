@@ -92,6 +92,3 @@ if (!empty($editing['dob'])) {
 document.getElementById('studentPhotoInput')?.addEventListener('change',function(){var file=this.files&&this.files[0],img=document.getElementById('studentPhotoPreview');if(!file||!img)return;img.src=URL.createObjectURL(file);img.style.visibility='visible'});
 document.getElementById('studentPhotoPreview')?.addEventListener('error',function(){this.style.visibility='hidden'});
 </script>
-<?php if (!empty($editing)): ?>
-<script>document.addEventListener('DOMContentLoaded',function(){new bootstrap.Modal('#modalStudent').show()});</script>
-<?php endif; ?>
