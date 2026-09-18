@@ -25,11 +25,12 @@ require_perm($tabPermissions[$tab]);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    $editActions = ['teacher_save'=>'csdl.teachers','class_save'=>'csdl.classes','student_save'=>'csdl.students'];
+    $editActions = ['teacher_save'=>'csdl.teachers','class_save'=>'csdl.classes'];
     $deleteActions = ['teacher_delete'=>'csdl.teachers','class_delete'=>'csdl.classes','student_delete'=>'csdl.students','student_deactivate'=>'csdl.students'];
     $yearActions = ['year_set_current','year_save','year_week_save'];
     if ($action === 'student_photo_zip_import') require_perm_level('csdl.students', 'edit');
     if (isset($editActions[$action])) require_perm_level($editActions[$action], 'edit');
+    if($action==='student_save'&&!can_perm_level('csdl.students','edit')&&!can_perm_level('csdl.students.homeroom_edit','edit')){http_response_code(403);exit('Tài khoản chưa được cấp quyền sửa hồ sơ học sinh.');}
     if (isset($deleteActions[$action])) require_perm_level($deleteActions[$action], 'delete');
     if ($action === 'io_import') {
         $entityPermission = ['teachers'=>'csdl.teachers','classes'=>'csdl.classes','students'=>'csdl.students'][$_POST['entity'] ?? ''] ?? '';
@@ -42,6 +43,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (in_array($action, $yearActions, true)) require_perm_level('csdl.year', 'edit');
     if ($action === 'year_delete') require_perm_level('csdl.year', 'delete');
     if ($action === 'student_save') {
+        $studentId=trim((string)($_POST['id']??''));$currentStudent=$studentId!==''?csdl_student_find($studentId):null;
+        if(!can_perm_level('csdl.students','edit')){
+            if(!$currentStudent){flash('Quyền GVCN chỉ cho phép sửa học sinh hiện có trong lớp chủ nhiệm.','danger');header('Location: '.BASE_URL.'csdl.php?tab=students');exit;}
+            $currentClass=csdl_class_find((string)($currentStudent['class_id']??''));
+            if(!$currentClass||!can_class((string)($currentClass['name']??''))){flash('Bạn không có quyền sửa học sinh ngoài lớp chủ nhiệm.','danger');header('Location: '.BASE_URL.'csdl.php?tab=students');exit;}
+        }
         $targetClass = csdl_class_find(trim($_POST['class_id'] ?? ''));
         if (!$targetClass || !can_class($targetClass['name'] ?? '')) {
             flash('Bạn không có quyền sửa học sinh ngoài lớp được giao.', 'danger');
@@ -281,13 +288,15 @@ if ($allowedClassNames !== null) {
 $years = csdl_years_all();
 $edit_id = $_GET['edit'] ?? '';
 $canCsdlEdit = can_edit_perm($tabPermissions[$tab]);
+$canStudentHomeroomEdit=$tab==='students'&&can_perm_level('csdl.students.homeroom_edit','edit');
+$canStudentRecordEdit=$tab==='students'&&($canCsdlEdit||$canStudentHomeroomEdit);
 $canCsdlExport = can_perm('csdl.export');
 $canYearEdit = can_edit_perm('csdl.year');
 $canEditCurrent = $tab === 'years' ? $canYearEdit : $canCsdlEdit;
 $canCsdlDelete = can_delete_perm($tabPermissions[$tab]);
 $canYearDelete = can_delete_perm('csdl.year');
 $canDeleteCurrent = $tab === 'years' ? $canYearDelete : $canCsdlDelete;
-$canStudentView = $canCsdlEdit || (($user['role'] ?? '') === 'gvcn') || in_array('gvcn', (array)($user['groups'] ?? []), true);
+$canStudentView = can_perm('csdl.students');
 $canTeacherView = can_perm('csdl.teachers');
 
 function teacher_name_by_id($id, $teachers) {
@@ -601,7 +610,7 @@ form[method="post"]:not(.student-readonly-form):not(.teacher-readonly-form),butt
             <td><?php if ($canCsdlExport || $canCsdlDelete): ?><input type="checkbox" class="form-check-input row-chk row-chk-students" value="<?= e($s['id']) ?>"><?php endif; ?></td>
             <td><?= $i+1 ?></td>
             <td class="small"><?= e($s['code'] ?? '') ?></td>
-            <td><strong><?php if($canStudentView):?><a class="text-decoration-none" href="<?=$studentViewUrl((string)$s['id'])?>" title="<?=$canCsdlEdit?'Xem và sửa hồ sơ':'Xem hồ sơ học sinh'?>"><?=e($s['name']??'')?></a><?php else:?><?=e($s['name']??'')?><?php endif;?></strong></td>
+            <td><strong><?php if($canStudentView):?><a class="text-decoration-none" href="<?=$studentViewUrl((string)$s['id'])?>" title="<?=$canStudentRecordEdit?'Xem, sửa hồ sơ và ảnh học sinh':'Xem hồ sơ học sinh'?>"><?=e($s['name']??'')?></a><?php else:?><?=e($s['name']??'')?><?php endif;?></strong></td>
             <td class="small"><?= e($s['cccd'] ?? '') ?></td>
             <td><?= e(class_name_by_id($s['class_id'] ?? '', $classes)) ?></td>
             <td><?= e($s['gender'] ?? '') ?></td>
@@ -612,7 +621,7 @@ form[method="post"]:not(.student-readonly-form):not(.teacher-readonly-form),butt
             <td class="small"><?= e($s['room_ktx'] ?? '') ?></td>
             <td><?php if(!empty($s['active'])):?><span class="badge bg-success">Học</span><?php if(!empty($s['departure_date'])):?><small class="d-block text-warning-emphasis">đến <?=e(csdl_io_fmt_date($s['departure_date']))?></small><?php endif;?><?php else:?><span class="badge bg-secondary"><?=e($s['departure_type']??'Nghỉ học')?></span><?php if(!empty($s['departure_date'])):?><small class="d-block text-muted">từ <?=e(csdl_io_fmt_date($s['departure_date']))?></small><?php endif;?><?php endif;?></td>
             <td class="text-nowrap">
-              <?php if ($canCsdlEdit): ?><a class="btn btn-sm btn-outline-primary" href="?tab=students&edit=<?= urlencode($s['id']) ?>"><i class="bi bi-pencil"></i></a><?php endif; ?>
+              <?php if ($canStudentRecordEdit): ?><a class="btn btn-sm btn-outline-primary" href="?tab=students&edit=<?= urlencode($s['id']) ?>" title="Sửa thông tin và ảnh học sinh"><i class="bi bi-pencil"></i></a><?php endif; ?>
               <?php if ($canCsdlDelete && !empty($s['active'])): ?><button type="button" class="btn btn-sm btn-outline-warning student-departure-btn" data-bs-toggle="modal" data-bs-target="#modalStudentDeparture" data-id="<?=e($s['id'])?>" data-name="<?=e($s['name']??'')?>"><i class="bi bi-person-dash"></i></button><?php endif; ?>
             </td>
           </tr>
@@ -633,7 +642,7 @@ form[method="post"]:not(.student-readonly-form):not(.teacher-readonly-form),butt
     </div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button><button class="btn btn-warning" type="submit"><i class="bi bi-person-dash"></i> Xác nhận</button></div>
   </form></div></div></div>
   <?php endif; ?>
-    <?php if ($canCsdlEdit || ($canStudentView && $editing)) {$studentReadOnly=!$canCsdlEdit;include __DIR__ . '/includes/csdl_modal_student.php';} ?>
+    <?php if ($canStudentRecordEdit || ($canStudentView && $editing)) {$studentReadOnly=!$canStudentRecordEdit;include __DIR__ . '/includes/csdl_modal_student.php';} ?>
 
 <?php elseif ($tab === 'years'): ?>
   <?php include __DIR__ . '/includes/csdl_tab_years.php'; ?>

@@ -45,6 +45,7 @@ function permission_features_catalog() {
         'csdl.teachers' => ['module' => 'csdl', 'label' => 'Giáo viên / CBGVNV', 'group' => 'CSDL'],
         'csdl.classes'  => ['module' => 'csdl', 'label' => 'Lớp / khối', 'group' => 'CSDL'],
         'csdl.students' => ['module' => 'csdl', 'label' => 'Học sinh', 'group' => 'CSDL'],
+        'csdl.students.homeroom_edit' => ['module' => 'csdl', 'label' => 'GVCN sửa hồ sơ và ảnh học sinh lớp chủ nhiệm', 'group' => 'CSDL'],
         'csdl.export' => ['module' => 'csdl', 'label' => 'Xuất dữ liệu', 'group' => 'CSDL'],
         'csdl.year'   => ['module' => 'csdl', 'label' => 'Quản lý năm học', 'group' => 'CSDL'],
 
@@ -149,7 +150,7 @@ function permission_default_groups() {
         ],
         'gvcn' => [
             'label' => 'Giáo viên chủ nhiệm',
-            'access' => array_merge($view(['cm.dashboard','cm.tracuu','cm.baocao.dugio','csdl.overview','csdl.students','nt.danhsach','td.student_score','vb.xem','hl.xem','hl.kiemtra','hl.lienket','ai.vanban','ai.dayhoc']), $edit(array_merge($ntEdit, ['cm.baocao.tiendo']))),
+            'access' => array_merge($view(['cm.dashboard','cm.tracuu','cm.baocao.dugio','csdl.overview','csdl.students','nt.danhsach','td.student_score','vb.xem','hl.xem','hl.kiemtra','hl.lienket','ai.vanban','ai.dayhoc']), $edit(array_merge($ntEdit, ['cm.baocao.tiendo','csdl.students.homeroom_edit']))),
         ],
         'gv' => [
             'label' => 'Giáo viên',
@@ -202,6 +203,7 @@ function permission_groups_all() {
         $saved[$key]['label'] = trim((string)($saved[$key]['label'] ?? $group['label'])) ?: $group['label'];
         $saved[$key]['access'] = is_array($saved[$key]['access'] ?? null) ? $saved[$key]['access'] : [];
     }
+    if(isset($saved['gvcn']['access'])&&!array_key_exists('csdl.students.homeroom_edit',$saved['gvcn']['access']))$saved['gvcn']['access']['csdl.students.homeroom_edit']='edit';
 
     // Chỉ chuyển dữ liệu cũ. Từ phiên bản 3, mức "none" cũng được lưu rõ
     // nên tuyệt đối không tự cấp lại quyền mà quản trị đã gỡ.
@@ -459,7 +461,7 @@ function permission_role_presets() {
         'gvcn' => [
             'label' => 'Giáo viên chủ nhiệm',
             'modules' => ['chuyenmon'=>'view','csdl'=>'view','noitru'=>'edit'],
-            'perms' => ['cm.tracuu','cm.dashboard','csdl.overview','csdl.students','nt.diemdanh','nt.baoan','nt.ravao','nt.danhsach'],
+            'perms' => ['cm.tracuu','cm.dashboard','csdl.overview','csdl.students','csdl.students.homeroom_edit','nt.diemdanh','nt.baoan','nt.ravao','nt.danhsach'],
             'classes' => [], // gán lớp chủ nhiệm khi tạo user
         ],
         'gv' => [
