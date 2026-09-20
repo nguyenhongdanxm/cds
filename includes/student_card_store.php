@@ -3,6 +3,7 @@
 require_once __DIR__ . '/csdl_store.php';
 
 if (!defined('STUDENT_CARD_SETTINGS')) define('STUDENT_CARD_SETTINGS', DATA_PATH . '/student_card_settings.json');
+if (!defined('STUDENT_CARD_PRINT_HISTORY')) define('STUDENT_CARD_PRINT_HISTORY', DATA_PATH . '/student_card_print_history.json');
 
 function student_card_settings(): array {
     $settings = load_json(STUDENT_CARD_SETTINGS, []);
@@ -49,4 +50,40 @@ function student_card_class_map(): array {
         $map[(string)($class['id'] ?? '')] = $class;
     }
     return $map;
+}
+
+function student_card_print_year_key(?string $year = null): string {
+    $value = trim((string)($year ?? (csdl_year_current()['label'] ?? SCHOOL_YEAR)));
+    return $value !== '' ? $value : 'unknown';
+}
+
+function student_card_printed_map(?string $year = null): array {
+    $data = load_json(STUDENT_CARD_PRINT_HISTORY, []);
+    $rows = $data['years'][student_card_print_year_key($year)] ?? [];
+    return is_array($rows) ? $rows : [];
+}
+
+function student_card_update_printed(array $studentIds, bool $printed, array $actor = [], ?string $year = null): bool {
+    $studentIds = array_values(array_unique(array_filter(array_map(static fn($id) => trim((string)$id), $studentIds))));
+    if (!$studentIds) return false;
+    $yearKey = student_card_print_year_key($year);
+    return cds_json_update(STUDENT_CARD_PRINT_HISTORY, static function ($data) use ($studentIds, $printed, $actor, $yearKey) {
+        $data = is_array($data) ? $data : [];
+        if (!isset($data['years']) || !is_array($data['years'])) $data['years'] = [];
+        $rows = is_array($data['years'][$yearKey] ?? null) ? $data['years'][$yearKey] : [];
+        foreach ($studentIds as $studentId) {
+            if ($printed) {
+                $rows[$studentId] = [
+                    'printed_at' => date('c'),
+                    'printed_by_id' => (string)($actor['id'] ?? ''),
+                    'printed_by' => (string)($actor['name'] ?? $actor['username'] ?? ''),
+                ];
+            } else {
+                unset($rows[$studentId]);
+            }
+        }
+        $data['years'][$yearKey] = $rows;
+        $data['updated_at'] = date('c');
+        return $data;
+    }, ['years' => []]);
 }

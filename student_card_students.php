@@ -15,6 +15,7 @@ $photo = trim((string)($_GET['photo'] ?? ''));
 $limit = max(1, min(1000, (int)($_GET['limit'] ?? 500)));
 
 $classes = student_card_class_map();
+$printedMap = student_card_printed_map();
 $rows = [];
 foreach (csdl_students_all() as $student) {
     if (empty($student['active'])) continue;
@@ -42,6 +43,9 @@ foreach (csdl_students_all() as $student) {
         'photo_url' => BASE_URL . 'student_photo.php?id=' . rawurlencode((string)($student['id'] ?? '')),
         'verify_url' => student_card_verify_url($student),
         'public_code' => student_card_public_code($student),
+        'printed' => isset($printedMap[(string)($student['id'] ?? '')]),
+        'printed_at' => (string)($printedMap[(string)($student['id'] ?? '')]['printed_at'] ?? ''),
+        'printed_by' => (string)($printedMap[(string)($student['id'] ?? '')]['printed_by'] ?? ''),
     ];
     if (count($rows) >= $limit) break;
 }
