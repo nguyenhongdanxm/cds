@@ -9,6 +9,49 @@ $grades=array_values(array_unique(array_filter(array_map(fn($c)=>(string)($c['gr
 $year=(string)(csdl_year_current()['label']??SCHOOL_YEAR);
 if(empty($_SESSION['student_card_print_csrf']))$_SESSION['student_card_print_csrf']=bin2hex(random_bytes(24));
 $printCsrf=(string)$_SESSION['student_card_print_csrf'];
+
+/*
+ * Lưu trạng thái đã in ngay trên trang hiện tại. Cách này tránh phụ thuộc
+ * vào route API riêng có thể chưa được triển khai/được web server chuyển hướng.
+ */
+if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST'
+    && isset($_SERVER['CONTENT_TYPE'])
+    && stripos((string)$_SERVER['CONTENT_TYPE'], 'application/json') !== false) {
+    $payload = json_decode((string)file_get_contents('php://input'), true);
+    $payload = is_array($payload) ? $payload : [];
+    if (!empty($payload['student_card_print_status'])) {
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        $reply = static function (int $status, array $data): void {
+            http_response_code($status);
+            echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit;
+        };
+        if ($printCsrf === '' || !hash_equals($printCsrf, (string)($payload['csrf'] ?? ''))) {
+            $reply(403, ['ok' => false, 'message' => 'Phiên làm việc không hợp lệ. Hãy tải lại trang.']);
+        }
+        $allowed = [];
+        $classMap = student_card_class_map();
+        foreach (csdl_students_all() as $student) {
+            if (empty($student['active'])) continue;
+            $class = $classMap[(string)($student['class_id'] ?? '')] ?? [];
+            if (function_exists('can_class') && !can_class((string)($class['name'] ?? ''))) continue;
+            $allowed[(string)($student['id'] ?? '')] = true;
+        }
+        $ids = is_array($payload['student_ids'] ?? null) ? $payload['student_ids'] : [];
+        $ids = array_values(array_filter(array_map('strval', $ids), static fn($id) => isset($allowed[$id])));
+        if (!$ids) $reply(422, ['ok' => false, 'message' => 'Chưa chọn học sinh hợp lệ.']);
+        $action = (string)($payload['action'] ?? 'mark');
+        if (!in_array($action, ['mark', 'unmark'], true)) {
+            $reply(422, ['ok' => false, 'message' => 'Thao tác không hợp lệ.']);
+        }
+        $actor = function_exists('current_user') ? (current_user() ?: []) : [];
+        if (!student_card_update_printed($ids, $action === 'mark', $actor)) {
+            $reply(500, ['ok' => false, 'message' => 'Không lưu được trạng thái in.']);
+        }
+        $reply(200, ['ok' => true, 'count' => count($ids), 'printed' => student_card_printed_map()]);
+    }
+}
 ?>
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Designer V2 – Thẻ học sinh</title>
@@ -136,7 +179,7 @@ function renderStudentList(){const rows=visibleStudents();const unprinted=studen
 async function loadStudents(){activeBatchIds=null;$('status').textContent='Đang tải...';const p=new URLSearchParams({grade:$('grade').value,class:$('className').value,q:$('search').value,photo:$('photo').value,limit:'1000'});try{const r=await fetch(BASE+'student_card_students.php?'+p,{credentials:'same-origin'}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'Lỗi tải dữ liệu');students=d.students||[];renderStudentList()}catch(e){$('status').textContent=e.message||'Lỗi tải dữ liệu'}}
 function normalizedBatchSize(){const raw=Math.max(8,Math.min(1000,parseInt($('batchSize').value,10)||64)),value=Math.floor(raw/8)*8;$('batchSize').value=value;return value}
 function selectNextBatch(){const size=normalizedBatchSize(),available=statusFilteredStudents().filter(s=>!s.printed);let take=Math.min(size,Math.floor(available.length/8)*8);if(available.length>0&&available.length<8)take=available.length;if(take<1){activeBatchIds=null;$('batchHint').textContent='Không còn học sinh chưa in trong danh sách đang lọc.';renderStudentList();return}activeBatchIds=new Set(available.slice(0,take).map(s=>String(s.id)));renderStudentList();document.querySelectorAll('.stu').forEach(x=>x.checked=true);const finalNote=take<8?' · Đợt cuối sẽ tự chèn ô trống cho đủ 1 tờ.':'';$('batchHint').textContent=`Đang hiện và đã chọn ${take} học sinh chưa in. ${Math.ceil(take/8)} tờ, mỗi tờ 8 học sinh${finalNote}`;renderPrint()}
-async function updatePrinted(action){const rows=selectedStudents();if(!rows.length)return alert('Hãy chọn học sinh trước.');const label=action==='mark'?'đánh dấu đã in':'bỏ dấu đã in';if(!confirm(`Xác nhận ${label} cho ${rows.length} học sinh?`))return;try{const r=await fetch(BASE+'student_card_print_status.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({csrf:PRINT_CSRF,action,student_ids:rows.map(s=>s.id)})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'Không lưu được trạng thái.');const map=d.printed||{};students.forEach(s=>{const row=map[String(s.id)];s.printed=!!row;s.printed_at=row?.printed_at||'';s.printed_by=row?.printed_by||''});renderStudentList();$('batchHint').textContent=`Đã cập nhật ${rows.length} học sinh.`}catch(e){alert(e.message||'Không lưu được trạng thái in.')}}
+async function updatePrinted(action){const rows=selectedStudents();if(!rows.length)return alert('Hãy chọn học sinh trước.');const label=action==='mark'?'đánh dấu đã in':'bỏ dấu đã in';if(!confirm(`Xác nhận ${label} cho ${rows.length} học sinh?`))return;try{const r=await fetch(location.pathname+location.search,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({student_card_print_status:1,csrf:PRINT_CSRF,action,student_ids:rows.map(s=>s.id)})});const raw=await r.text();let d;try{d=JSON.parse(raw)}catch(_){throw new Error('Máy chủ không trả về dữ liệu hợp lệ. Hãy tải lại trang rồi thử lại.')}if(!r.ok||!d.ok)throw new Error(d.message||'Không lưu được trạng thái.');const map=d.printed||{};students.forEach(s=>{const row=map[String(s.id)];s.printed=!!row;s.printed_at=row?.printed_at||'';s.printed_by=row?.printed_by||''});renderStudentList();$('batchHint').textContent=`Đã cập nhật ${rows.length} học sinh.`}catch(e){alert(e.message||'Không lưu được trạng thái in.')}}
 $('load').onclick=loadStudents;$('search').onkeydown=e=>{if(e.key==='Enter')loadStudents()};$('printFilter').onchange=()=>{activeBatchIds=null;renderStudentList()};$('batchSize').onchange=normalizedBatchSize;$('nextBatch').onclick=selectNextBatch;$('markPrinted').onclick=()=>updatePrinted('mark');$('unmarkPrinted').onclick=()=>updatePrinted('unmark');$('all').onclick=()=>{document.querySelectorAll('.stu').forEach(x=>x.checked=true);renderPrint()};$('clear').onclick=()=>{document.querySelectorAll('.stu').forEach(x=>x.checked=false);renderPrint()};$('results').onchange=renderPrint;
 render();
 </script></body></html>
