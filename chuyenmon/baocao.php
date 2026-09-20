@@ -2,6 +2,7 @@
 $page_title = 'Báo cáo chuyên môn';
 require_once 'includes/functions.php';
 require_once 'includes/cm_docs.php';
+require_once 'includes/lesson_book_store.php';
 
 $tabs = [
     'dinhky' => ['Báo cáo định kỳ', 'bi-calendar-month', 'cm.baocao.dinhky'],
@@ -83,6 +84,79 @@ function cm_progress_diff_class($diff) {
     if ($diff < 0) return 'warning';
     return 'success';
 }
+function cm_progress_scope_key($class, $subject) {
+    return substr(sha1(cm_progress_name_key($class) . '|' . lb_subject_key((string)$subject)), 0, 20);
+}
+function cm_progress_status($diff) {
+    if ($diff > 0) return 'fast';
+    if ($diff < 0) return 'slow';
+    return 'ontime';
+}
+function cm_progress_tkb_plan_index($startDate, $endDate) {
+    static $cache = [];
+    $cacheKey = $startDate . '|' . $endDate;
+    if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+    $index = [];
+    $makeupSeen = [];
+    foreach (tkb_weeks() as $week) {
+        if (($week['start_date'] ?? '') > $endDate || ($week['end_date'] ?? '') < $startDate) continue;
+        foreach (tkb_resolved_slots($week) as $slot) {
+            $date = tkb_week_slot_date($week, (int)($slot['day'] ?? 2));
+            if ($date < $startDate || $date > $endDate) continue;
+            $class = (string)($slot['class'] ?? $slot['class_raw'] ?? '');
+            $slotSubject = (string)($slot['subject'] ?? '');
+            $sub = tkb_substitution_for_slot($week, $slot);
+            $replacementSubject = trim((string)($sub['replacement_subject'] ?? $sub['subject'] ?? ''));
+            if ($sub && $replacementSubject !== '') {
+                $slotSubject = $replacementSubject;
+                $subKind = tkb_key((string)($sub['kind'] ?? $sub['type'] ?? $sub['registration_type'] ?? ''));
+                $subId = (string)($sub['id'] ?? '');
+                if ($subId === '') $subId = sha1(json_encode($sub));
+                if (str_contains($subKind, 'makeup') || str_contains($subKind, 'daybu')) $makeupSeen[$subId] = true;
+            }
+            $classKey = cm_progress_name_key($class);
+            if ($classKey !== '' && $slotSubject !== '') $index[$classKey][$slotSubject] = ($index[$classKey][$slotSubject] ?? 0) + 1;
+        }
+    }
+    foreach (tkb_substitutions() as $row) {
+        $kind = tkb_key((string)($row['kind'] ?? $row['type'] ?? $row['registration_type'] ?? ''));
+        if (tkb_substitution_status($row) !== 'approved' || (!str_contains($kind, 'makeup') && !str_contains($kind, 'daybu'))) continue;
+        if (($row['date'] ?? '') < $startDate || ($row['date'] ?? '') > $endDate) continue;
+        $id = (string)($row['id'] ?? sha1(json_encode($row)));
+        if (!isset($makeupSeen[$id])) {
+            $classKey = cm_progress_name_key((string)($row['class'] ?? ''));
+            $rowSubject = trim((string)($row['replacement_subject'] ?? $row['subject'] ?? ''));
+            if ($classKey !== '' && $rowSubject !== '') $index[$classKey][$rowSubject] = ($index[$classKey][$rowSubject] ?? 0) + 1;
+            $makeupSeen[$id] = true;
+        }
+    }
+    return $cache[$cacheKey] = $index;
+}
+function cm_progress_tkb_planned($class, $subject, $startDate, $endDate) {
+    $count = 0;
+    $subjects = cm_progress_tkb_plan_index($startDate, $endDate)[cm_progress_name_key((string)$class)] ?? [];
+    foreach ($subjects as $rowSubject => $value) if (lb_subject_match((string)$subject, (string)$rowSubject)) $count += (int)$value;
+    return $count;
+}
+function cm_progress_actual($class, $subject, $startDate, $endDate, $records) {
+    $highest = 0;
+    foreach ($records as $row) {
+        if (empty($row['signed_at']) || ($row['date'] ?? '') < $startDate || ($row['date'] ?? '') > $endDate) continue;
+        if (!lb_same((string)($row['class'] ?? ''), (string)$class) || !lb_subject_match((string)$subject, (string)($row['subject'] ?? ''))) continue;
+        $status = (string)($row['status'] ?? '');
+        if (in_array($status, ['holiday','teacher_absent','class_absent','postponed','cancelled','pending'], true)) continue;
+        $highest = max($highest, (int)($row['ppct_period'] ?? 0));
+    }
+    return $highest;
+}
+function cm_progress_lesson_title($class, $subject, $period) {
+    if ($period < 1) return '';
+    $row = lb_curriculum_for((string)$subject, lb_grade((string)$class), (int)$period, (string)$class);
+    return trim((string)($row['title'] ?? ''));
+}
+function cm_progress_milestone($value) {
+    return min(999, max(0, (int)round(cm_progress_num($value))));
+}
 
 $progressFile = DATA_PATH . '/program_progress.json';
 $progressRecords = load_json($progressFile, []);
@@ -133,18 +207,33 @@ usort($progressAssignments, static function ($left, $right): int {
     $classOrder = strnatcasecmp(trim((string)($left['class'] ?? '')), trim((string)($right['class'] ?? '')));
     return $classOrder !== 0 ? $classOrder : strnatcasecmp((string)($left['subject'] ?? ''), (string)($right['subject'] ?? ''));
 });
-$progressByAssignment = [];
-$progressPreviousByAssignment = [];
+$progressMilestones = [];
 foreach ($progressRecords as $record) {
     if (($record['year_id'] ?? '') !== ($progressYear['id'] ?? '')) continue;
-    $recordWeek = (int)($record['week_number'] ?? 0);
-    $assignmentKey = $record['assignment_key'] ?? '';
-    if ($recordWeek === $progressWeekNumber) {
-        $progressByAssignment[$assignmentKey] = $record;
-    } elseif ($recordWeek < $progressWeekNumber) {
-        $previousWeek = (int)($progressPreviousByAssignment[$assignmentKey]['week_number'] ?? 0);
-        if ($recordWeek > $previousWeek) $progressPreviousByAssignment[$assignmentKey] = $record;
-    }
+    $scopeKey = (string)($record['scope_key'] ?? cm_progress_scope_key($record['class'] ?? '', $record['subject'] ?? ''));
+    $oldTime = strtotime((string)($progressMilestones[$scopeKey]['updated_at'] ?? $progressMilestones[$scopeKey]['created_at'] ?? '')) ?: 0;
+    $newTime = strtotime((string)($record['updated_at'] ?? $record['created_at'] ?? '')) ?: (int)($record['week_number'] ?? 0);
+    if (!isset($progressMilestones[$scopeKey]) || $newTime >= $oldTime) $progressMilestones[$scopeKey] = $record;
+}
+$progressEndDate = (string)($progressWeek['end'] ?? date('Y-m-d'));
+$progressStartDate = (string)($progressYear['start'] ?? '0000-00-00');
+$progressLessonRecords = lb_rows(LB_RECORDS_FILE);
+$progressAuto = [];
+foreach ($progressAssignmentMap as $assignmentKey => $assignment) {
+    $class = (string)($assignment['class'] ?? '');
+    $subject = (string)($assignment['subject'] ?? '');
+    $scopeKey = cm_progress_scope_key($class, $subject);
+    $actual = cm_progress_actual($class, $subject, $progressStartDate, $progressEndDate, $progressLessonRecords);
+    $planned = cm_progress_tkb_planned($class, $subject, $progressStartDate, $progressEndDate);
+    $progressAuto[$assignmentKey] = [
+        'scope_key' => $scopeKey,
+        'standard_weekly' => cm_progress_num($assignment['periods'] ?? 0),
+        'planned_period' => $planned,
+        'actual_period' => $actual,
+        'diff' => $actual - $planned,
+        'lesson_title' => cm_progress_lesson_title($class, $subject, $actual),
+        'milestones' => $progressMilestones[$scopeKey] ?? [],
+    ];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -154,7 +243,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             http_response_code(403);
             exit('Tài khoản chỉ có quyền xem, chưa được cấp quyền sửa Tiến độ chương trình.');
         }
-        $weekNumber = max(1, (int)($_POST['week_number'] ?? $progressWeekNumber));
         $teacherName = $progressIsAdmin ? trim($_POST['teacher'] ?? '') : $sessionTeacherName;
         $allowed = [];
         foreach ($progressAssignmentMap as $key => $assignment) {
@@ -165,36 +253,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($rows as $assignmentKey => $values) {
             if (!isset($allowed[$assignmentKey]) || !is_array($values)) continue;
             $assignment = $allowed[$assignmentKey];
+            $scopeKey = cm_progress_scope_key($assignment['class'] ?? '', $assignment['subject'] ?? '');
             $payload = [
-                'id' => 'pg_' . substr(sha1(($progressYear['id'] ?? '') . '|' . $weekNumber . '|' . $assignmentKey), 0, 16),
+                'id' => 'pgm_' . substr(sha1(($progressYear['id'] ?? '') . '|' . $scopeKey), 0, 16),
                 'year_id' => $progressYear['id'] ?? '',
                 'year_label' => $progressYear['label'] ?? '',
-                'week_number' => $weekNumber,
+                'scope_key' => $scopeKey,
                 'assignment_key' => $assignmentKey,
                 'teacher' => $assignment['teacher'] ?? '',
                 'class' => $assignment['class'] ?? '',
                 'subject' => $assignment['subject'] ?? '',
-                'standard_weekly' => cm_progress_num($values['standard_weekly'] ?? $assignment['periods'] ?? 0),
-                'actual_period' => cm_progress_num($values['actual_period'] ?? 0),
-                'ppct_period' => cm_progress_num($values['ppct_period'] ?? 0),
-                'mid_hk1' => cm_progress_num($values['mid_hk1'] ?? 0),
-                'final_hk1' => cm_progress_num($values['final_hk1'] ?? 0),
-                'mid_hk2' => cm_progress_num($values['mid_hk2'] ?? 0),
-                'final_hk2' => cm_progress_num($values['final_hk2'] ?? 0),
+                'mid_hk1' => cm_progress_milestone($values['mid_hk1'] ?? 0),
+                'final_hk1' => cm_progress_milestone($values['final_hk1'] ?? 0),
+                'mid_hk2' => cm_progress_milestone($values['mid_hk2'] ?? 0),
+                'final_hk2' => cm_progress_milestone($values['final_hk2'] ?? 0),
                 'updated_by' => $_SESSION['cds_user']['name'] ?? $teacherName,
                 'updated_at' => date('c'),
             ];
-            $found = false;
-            foreach ($progressRecords as &$record) {
-                if (($record['id'] ?? '') === $payload['id']) { $record = array_merge($record, $payload); $found = true; break; }
+            $keptRecords = [];
+            $createdAt = '';
+            foreach ($progressRecords as $record) {
+                $recordScope = (string)($record['scope_key'] ?? cm_progress_scope_key($record['class'] ?? '', $record['subject'] ?? ''));
+                if (($record['year_id'] ?? '') === ($progressYear['id'] ?? '') && $recordScope === $scopeKey) {
+                    $candidateCreatedAt = (string)($record['created_at'] ?? '');
+                    if ($candidateCreatedAt !== '' && ($createdAt === '' || $candidateCreatedAt < $createdAt)) $createdAt = $candidateCreatedAt;
+                    continue;
+                }
+                $keptRecords[] = $record;
             }
-            unset($record);
-            if (!$found) { $payload['created_at'] = date('c'); $progressRecords[] = $payload; }
+            $payload['created_at'] = $createdAt !== '' ? $createdAt : date('c');
+            $keptRecords[] = $payload;
+            $progressRecords = $keptRecords;
             $savedCount++;
         }
         save_json($progressFile, array_values($progressRecords));
-        flash('Đã lưu tiến độ tuần ' . $weekNumber . ' cho ' . $savedCount . ' môn/lớp.');
-        header('Location: ' . BASE_URL . 'baocao.php?tab=tiendo&week=' . $weekNumber . '&teacher=' . urlencode($teacherName));
+        flash('Đã lưu 4 mốc kiểm tra năm học cho ' . $savedCount . ' môn/lớp. Các số liệu tiến độ được hệ thống tự tính.');
+        header('Location: ' . BASE_URL . 'baocao.php?tab=tiendo&week=' . $progressWeekNumber . '&teacher=' . urlencode($teacherName));
         exit;
     }
     if ($action === 'save') {
@@ -292,11 +386,11 @@ function cm_view_btns($it) {
 }
 .progress-toolbar>div{min-width:0!important;width:100%;margin:0!important}
 .progress-toolbar .form-select,.progress-toolbar .btn{width:100%}
-.progress-table{min-width:1680px}
-.progress-table th{font-size:.78rem;vertical-align:middle;text-align:center;white-space:normal;min-width:115px}
-.progress-table th:first-child{min-width:190px}.progress-table th:nth-child(2){min-width:80px}.progress-table th:nth-child(3){min-width:140px}
-.progress-table td{vertical-align:middle}.progress-table input{min-width:92px;text-align:center}
-.progress-derived{font-weight:700;text-align:center;white-space:nowrap}
+.progress-table{min-width:1180px;table-layout:fixed;font-size:.78rem}
+.progress-table th{font-size:.72rem;line-height:1.15;vertical-align:middle;text-align:center;white-space:normal;padding:.45rem .25rem}
+.progress-table th:nth-child(1){width:54px}.progress-table th:nth-child(2){width:92px}.progress-table th:nth-child(3){width:55px}.progress-table th:nth-child(4){width:64px}.progress-table th:nth-child(5){width:88px}.progress-table th:nth-child(6){width:64px}.progress-table th:nth-child(n+7){width:72px}
+.progress-table td{vertical-align:middle;padding:.35rem .25rem;text-align:center}.progress-table input{width:58px;max-width:58px;margin:auto;text-align:center;padding:.3rem .2rem;font-weight:700}
+.progress-auto{background:#eef5fb!important;color:#24445f}.progress-entry{background:#fff8dc!important}.progress-derived{font-weight:800;text-align:center;white-space:nowrap;background:#edf3f8!important}.progress-lesson{display:block;max-width:88px;margin:.2rem auto 0;color:#64748b;font-size:.68rem;line-height:1.1;white-space:normal}
 .progress-summary{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:.75rem;margin-bottom:1rem}
 .progress-summary .card-body{text-align:center}.progress-summary strong{font-size:1.8rem;display:block}
 @media(max-width:767px){
@@ -339,7 +433,7 @@ function cm_view_btns($it) {
       <option value="fast" <?= $progressStatusFilter==='fast'?'selected':'' ?>>Nhanh tiến độ</option>
       <option value="slow" <?= $progressStatusFilter==='slow'?'selected':'' ?>>Chậm tiến độ</option>
       <option value="ontime" <?= $progressStatusFilter==='ontime'?'selected':'' ?>>Đúng tiến độ</option>
-      <option value="missing" <?= $progressStatusFilter==='missing'?'selected':'' ?>>Chưa nhập</option>
+      <option value="missing" <?= $progressStatusFilter==='missing'?'selected':'' ?>>Chưa nhập mốc kiểm tra</option>
     </select>
   </div>
   <div><label class="form-label fw-semibold">Môn học</label>
@@ -368,52 +462,54 @@ function cm_view_btns($it) {
 <?php else: ?>
 <form method="post">
   <input type="hidden" name="action" value="progress_save">
-  <input type="hidden" name="week_number" value="<?= $progressWeekNumber ?>">
   <input type="hidden" name="teacher" value="<?= e($progressTeacher) ?>">
   <div class="card"><div class="card-header d-flex justify-content-between"><span><?= e($progressTeacher) ?> — Tuần <?= $progressWeekNumber ?></span><span><?= count($progressAssignments) ?> môn/lớp</span></div>
+  <div class="card-body py-2 small"><i class="bi bi-info-circle text-primary"></i> Chỉ bốn cột nền vàng được nhập và lưu một lần cho cả năm học. Các cột nền xanh được lấy tự động từ PCCM, TKB, PPCT và Sổ đầu bài đã ký.</div>
   <div class="table-responsive"><table class="table table-bordered table-sm mb-0 progress-table">
     <thead><tr>
-      <th>Họ tên</th><th>Lớp</th><th>Môn</th>
-      <th>Số tiết tiêu chuẩn trên tuần</th>
-      <th>Tiết thực tế đã dạy hết tuần <?= $progressWeekNumber ?></th>
-      <th>Tiết hết tuần <?= $progressWeekNumber ?> theo PPCT (Phụ lục 3)</th>
-      <th>Tiết kiểm tra giữa HK I</th><th>Tiết kiểm tra cuối HK I</th>
-      <th>Tiết kiểm tra giữa HK II</th><th>Tiết kiểm tra cuối HK II</th>
-      <th>Số tiết nhanh/chậm hiện tại</th>
-      <th>Tiết còn lại kiểm tra GK I</th><th>Tiết còn lại kiểm tra CK I</th>
-      <th>Tiết còn lại kiểm tra GK II</th><th>Tiết còn lại kiểm tra CK II</th>
+      <th>Lớp</th><th>Môn</th>
+      <th>Định mức<br>tiết/tuần</th>
+      <th>Tiết TKB<br>đến hết tuần</th>
+      <th>PPCT thực tế<br>đã ký</th>
+      <th>Nhanh/<br>chậm</th>
+      <th>Kiểm tra<br>giữa HK I</th><th>Kiểm tra<br>cuối HK I</th>
+      <th>Kiểm tra<br>giữa HK II</th><th>Kiểm tra<br>cuối HK II</th>
+      <th>Còn đến<br>GK I</th><th>Còn đến<br>CK I</th>
+      <th>Còn đến<br>GK II</th><th>Còn đến<br>CK II</th>
     </tr></thead>
     <tbody>
     <?php foreach ($progressAssignments as $assignment):
-      $key=cm_progress_assignment_key($assignment);$row=$progressByAssignment[$key]??($progressPreviousByAssignment[$key]??[]);
-      $std=$row['standard_weekly']??($assignment['periods']??0);$actual=$row['actual_period']??0;$ppct=$row['ppct_period']??0;
+      $key=cm_progress_assignment_key($assignment);$auto=$progressAuto[$key]??[];$row=$auto['milestones']??[];
+      $std=$auto['standard_weekly']??0;$actual=$auto['actual_period']??0;$planned=$auto['planned_period']??0;
       $m1=$row['mid_hk1']??0;$f1=$row['final_hk1']??0;$m2=$row['mid_hk2']??0;$f2=$row['final_hk2']??0;
-      $diff=(float)$actual-(float)$ppct;
+      $diff=(float)($auto['diff']??0);$lesson=$auto['lesson_title']??'';
     ?>
-    <tr data-progress-row>
-      <td><strong><?= e($assignment['teacher']??'') ?></strong></td><td><?= e($assignment['class']??'') ?></td><td><?= e($assignment['subject']??'') ?></td>
-      <?php foreach (['standard_weekly'=>$std,'actual_period'=>$actual,'ppct_period'=>$ppct,'mid_hk1'=>$m1,'final_hk1'=>$f1,'mid_hk2'=>$m2,'final_hk2'=>$f2] as $field=>$value): ?>
-      <td><input class="form-control form-control-sm" type="number" min="0" step=".5" name="rows[<?= e($key) ?>][<?= e($field) ?>]" value="<?= e((string)$value) ?>" data-field="<?= e($field) ?>"></td>
+    <tr data-progress-row data-actual="<?= e((string)$actual) ?>">
+      <td><strong><?= e($assignment['class']??'') ?></strong></td><td><?= e($assignment['subject']??'') ?></td>
+      <td class="progress-auto"><?= e((string)$std) ?></td>
+      <td class="progress-auto"><?= e((string)$planned) ?></td>
+      <td class="progress-auto"><strong><?= e((string)$actual) ?></strong><?php if($lesson!==''): ?><span class="progress-lesson" title="<?= e($lesson) ?>"><?= e($lesson) ?></span><?php endif; ?></td>
+      <td class="progress-derived <?= $diff==0?'text-success':(abs($diff)>=2?'text-danger':'text-warning') ?>"><?= $diff>0?'+':'' ?><?= e((string)$diff) ?></td>
+      <?php foreach (['mid_hk1'=>$m1,'final_hk1'=>$f1,'mid_hk2'=>$m2,'final_hk2'=>$f2] as $field=>$value): ?>
+      <td class="progress-entry"><input class="form-control form-control-sm" type="number" min="0" max="999" step="1" inputmode="numeric" name="rows[<?= e($key) ?>][<?= e($field) ?>]" value="<?= e((string)$value) ?>" data-field="<?= e($field) ?>"></td>
       <?php endforeach; ?>
-      <td class="progress-derived" data-result="diff"><?= e((string)$diff) ?></td>
-      <td class="progress-derived" data-result="mid_hk1"><?= e((string)((float)$m1-(float)$actual)) ?></td>
-      <td class="progress-derived" data-result="final_hk1"><?= e((string)((float)$f1-(float)$actual)) ?></td>
-      <td class="progress-derived" data-result="mid_hk2"><?= e((string)((float)$m2-(float)$actual)) ?></td>
-      <td class="progress-derived" data-result="final_hk2"><?= e((string)((float)$f2-(float)$actual)) ?></td>
+      <td class="progress-derived" data-result="mid_hk1"><?= e((string)max(0,(float)$m1-(float)$actual)) ?></td>
+      <td class="progress-derived" data-result="final_hk1"><?= e((string)max(0,(float)$f1-(float)$actual)) ?></td>
+      <td class="progress-derived" data-result="mid_hk2"><?= e((string)max(0,(float)$m2-(float)$actual)) ?></td>
+      <td class="progress-derived" data-result="final_hk2"><?= e((string)max(0,(float)$f2-(float)$actual)) ?></td>
     </tr>
     <?php endforeach; ?>
     </tbody>
   </table></div>
-  <div class="card-body text-end"><button class="btn btn-primary px-4"><i class="bi bi-floppy"></i> Lưu tiến độ tuần <?= $progressWeekNumber ?></button></div></div>
+  <div class="card-body text-end"><button class="btn btn-primary px-4"><i class="bi bi-floppy"></i> Lưu 4 mốc kiểm tra của năm học</button></div></div>
 </form>
 <script>
 document.querySelectorAll('[data-progress-row]').forEach(function(row){
   function n(field){return parseFloat(row.querySelector('[data-field="'+field+'"]').value||0)}
   function show(name,value){
     var cell=row.querySelector('[data-result="'+name+'"]');cell.textContent=(Math.round(value*10)/10);
-    if(name==='diff'){cell.className='progress-derived '+(value===0?'text-success':(Math.abs(value)>=2?'text-danger':'text-warning'))}
   }
-  function calc(){var actual=n('actual_period');show('diff',actual-n('ppct_period'));['mid_hk1','final_hk1','mid_hk2','final_hk2'].forEach(function(field){show(field,n(field)-actual)})}
+  function calc(){var actual=parseFloat(row.dataset.actual||0);['mid_hk1','final_hk1','mid_hk2','final_hk2'].forEach(function(field){show(field,Math.max(0,n(field)-actual))})}
   row.querySelectorAll('input').forEach(function(input){input.addEventListener('input',calc)});calc();
 });
 </script>
@@ -424,12 +520,13 @@ document.querySelectorAll('[data-progress-row]').forEach(function(row){
   foreach($progressAssignmentMap as $key=>$assignment){
     if($progressSubjectFilter!=='' && ($assignment['subject']??'')!==$progressSubjectFilter)continue;
     if($progressTeacherFilter!=='' && ($assignment['teacher']??'')!==$progressTeacherFilter)continue;
-    $record=$progressByAssignment[$key]??null;
-    $diff=$record ? (float)($record['actual_period']??0)-(float)($record['ppct_period']??0) : null;
-    $status=$diff===null?'missing':($diff>0?'fast':($diff<0?'slow':'ontime'));
+    $auto=$progressAuto[$key]??null;
+    $record=$auto['milestones']??null;
+    $diff=$auto ? (float)($auto['diff']??0) : null;
+    $status=$auto===null||!$record?'missing':cm_progress_status($diff);
     if($progressStatusFilter!=='all' && $status!==$progressStatusFilter)continue;
     if($status==='missing')$missing++;elseif($status==='fast')$fast++;elseif($status==='slow')$slow++;else$onTime++;
-    $statsRows[]=['assignment'=>$assignment,'record'=>$record,'diff'=>$diff,'status'=>$status];
+    $statsRows[]=['assignment'=>$assignment,'record'=>$record,'auto'=>$auto,'diff'=>$diff,'status'=>$status];
   }
   usort($statsRows,function($a,$b){if($a['diff']===null)return 1;if($b['diff']===null)return -1;return abs($b['diff'])<=>abs($a['diff']);});
 ?>
@@ -437,18 +534,18 @@ document.querySelectorAll('[data-progress-row]').forEach(function(row){
   <div class="card"><div class="card-body"><strong class="text-primary"><?= count($statsRows) ?></strong>Kết quả lọc</div></div>
   <div class="card"><div class="card-body"><strong class="text-success"><?= $onTime ?></strong>Đúng tiến độ</div></div>
   <div class="card"><div class="card-body"><strong class="text-warning"><?= $fast+$slow ?></strong>Cần điều chỉnh</div></div>
-  <div class="card"><div class="card-body"><strong class="text-secondary"><?= $missing ?></strong>Chưa nhập</div></div>
+  <div class="card"><div class="card-body"><strong class="text-secondary"><?= $missing ?></strong>Chưa nhập mốc</div></div>
 </div>
-<?php if($fast+$slow): ?><div class="alert alert-warning"><i class="bi bi-exclamation-triangle-fill"></i> Tuần <?= $progressWeekNumber ?> có <strong><?= $fast ?></strong> môn/lớp nhanh và <strong><?= $slow ?></strong> môn/lớp chậm so với PPCT.</div><?php endif; ?>
+<?php if($fast+$slow): ?><div class="alert alert-warning"><i class="bi bi-exclamation-triangle-fill"></i> Tuần <?= $progressWeekNumber ?> có <strong><?= $fast ?></strong> môn/lớp nhanh và <strong><?= $slow ?></strong> môn/lớp chậm so với kế hoạch TKB.</div><?php endif; ?>
 <div class="card"><div class="card-header">Thống kê tiến độ tuần <?= $progressWeekNumber ?></div><div class="table-responsive">
-<table class="table table-hover align-middle mb-0"><thead><tr><th>Giáo viên</th><th>Lớp</th><th>Môn</th><th>Thực tế</th><th>PPCT</th><th>Nhanh/chậm</th><th>Cảnh báo</th><th>Cập nhật</th></tr></thead><tbody>
-<?php if(!$statsRows): ?><tr><td colspan="8" class="text-center text-muted py-4">Không có môn/lớp phù hợp với bộ lọc.</td></tr><?php endif; ?>
-<?php foreach($statsRows as $item):$a=$item['assignment'];$r=$item['record'];$d=$item['diff']; ?>
+<table class="table table-hover align-middle mb-0"><thead><tr><th>Giáo viên</th><th>Lớp</th><th>Môn</th><th>Định mức</th><th>TKB đến tuần</th><th>PPCT đã ký</th><th>Nhanh/chậm</th><th>Trạng thái</th><th>Mốc kiểm tra</th></tr></thead><tbody>
+<?php if(!$statsRows): ?><tr><td colspan="9" class="text-center text-muted py-4">Không có môn/lớp phù hợp với bộ lọc.</td></tr><?php endif; ?>
+<?php foreach($statsRows as $item):$a=$item['assignment'];$r=$item['record'];$auto=$item['auto'];$d=$item['diff']; ?>
 <tr class="<?= $d!==null&&abs($d)>=2?'table-danger':($d!==null&&$d!=0?'table-warning':'') ?>">
 <td><strong><?= e($a['teacher']??'') ?></strong></td><td><?= e($a['class']??'') ?></td><td><?= e($a['subject']??'') ?></td>
-<?php if(!$r): ?><td colspan="5" class="text-muted">Chưa nhập tiến độ tuần này</td>
-<?php else: ?><td><?= e((string)($r['actual_period']??0)) ?></td><td><?= e((string)($r['ppct_period']??0)) ?></td><td class="fw-bold <?= $d==0?'text-success':(abs($d)>=2?'text-danger':'text-warning') ?>"><?= $d>0?'+':'' ?><?= e((string)$d) ?></td>
-<td><?php if($d>0): ?><span class="badge bg-warning text-dark">Nhanh <?= e((string)$d) ?> tiết</span><?php elseif($d<0): ?><span class="badge bg-danger">Chậm <?= e((string)abs($d)) ?> tiết</span><?php else: ?><span class="badge bg-success">Đúng tiến độ</span><?php endif; ?></td><td class="small"><?= e(isset($r['updated_at'])?date('d/m/Y H:i',strtotime($r['updated_at'])):'') ?></td><?php endif; ?>
+<?php if(!$auto): ?><td colspan="6" class="text-muted">Chưa có dữ liệu tự động</td>
+<?php else: ?><td><?= e((string)($auto['standard_weekly']??0)) ?></td><td><?= e((string)($auto['planned_period']??0)) ?></td><td><strong><?= e((string)($auto['actual_period']??0)) ?></strong><?php if(!empty($auto['lesson_title'])):?><div class="small text-muted"><?=e($auto['lesson_title'])?></div><?php endif;?></td><td class="fw-bold <?= $d==0?'text-success':(abs($d)>=2?'text-danger':'text-warning') ?>"><?= $d>0?'+':'' ?><?= e((string)$d) ?></td>
+<td><?php if($d>0): ?><span class="badge bg-warning text-dark">Nhanh <?= e((string)$d) ?> tiết</span><?php elseif($d<0): ?><span class="badge bg-danger">Chậm <?= e((string)abs($d)) ?> tiết</span><?php else: ?><span class="badge bg-success">Đúng tiến độ</span><?php endif; ?></td><td class="small"><?php if($r): ?>GK1 <?=e((string)($r['mid_hk1']??0))?> · CK1 <?=e((string)($r['final_hk1']??0))?><br>GK2 <?=e((string)($r['mid_hk2']??0))?> · CK2 <?=e((string)($r['final_hk2']??0))?><?php else: ?><span class="text-muted">Chưa nhập mốc</span><?php endif; ?></td><?php endif; ?>
 </tr><?php endforeach; ?>
 </tbody></table></div></div>
 <?php endif; ?>
