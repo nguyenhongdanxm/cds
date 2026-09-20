@@ -22,10 +22,11 @@ foreach (csdl_teachers_all() as $teacher) {
     }
     if ($position === '') $position = 'Giáo viên';
     $specialty = trim((string)($teacher['specialty'] ?? ''));
+    $professionalRank = trim((string)($teacher['hang'] ?? $teacher['professional_rank'] ?? ''));
     if ($group !== '' && $groupName !== $group) continue;
     $haystack = mb_strtolower(implode(' ', [
         (string)($teacher['name'] ?? ''), (string)($teacher['code'] ?? ''),
-        $position, $specialty, $groupName
+        $position, $specialty, $professionalRank, $groupName
     ]), 'UTF-8');
     if ($query !== '' && mb_strpos($haystack, $query) === false) continue;
     $hasPhoto = staff_card_has_photo((string)($teacher['id'] ?? ''));
@@ -39,6 +40,8 @@ foreach (csdl_teachers_all() as $teacher) {
         'gender' => (string)($teacher['gender'] ?? ''),
         'position' => $position,
         'specialty' => $specialty,
+        'professional_rank' => $professionalRank,
+        'hang' => $professionalRank,
         'group_name' => $groupName,
         'has_photo' => $hasPhoto,
         'photo_url' => $hasPhoto ? BASE_URL . 'staff_photo.php?id=' . rawurlencode((string)($teacher['id'] ?? '')) : '',
