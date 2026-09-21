@@ -12,7 +12,7 @@
     c.fillStyle='#526071';c.font='600 24px "Segoe UI",Arial';c.fillText(d.period||'',W/2,246);
     c.strokeStyle='#e5b83c';c.lineWidth=3;c.beginPath();c.moveTo(110,274);c.lineTo(W-110,274);c.stroke();
     var rows=d.rows, top=310,bottom=1645,headerH=56,rowH=Math.min(58,Math.max(28,Math.floor((bottom-top-headerH)/Math.max(rows.length,1))));
-    var x=[175,335,520,735,935,1138],heads=['Hạng','Phòng','Ngày tính','Điểm trừ','Điểm còn lại','Ghi chú'];
+    var x=[175,335,520,735,935,1138],heads=['Hạng','Phòng','Ngày đủ 2 lượt','Điểm trừ','Điểm còn lại','Ghi chú'];
     rounded(c,70,top,W-140,headerH,12,'#805800');c.fillStyle='#fff';c.font='700 19px "Segoe UI",Arial';c.textBaseline='middle';
     heads.forEach(function(h,i){c.textAlign=i===5?'left':'center';var left=i===0?70:x[i-1],right=x[i];c.fillText(h,i===5?left+10:(left+right)/2,top+headerH/2)});
     var y=top+headerH;
@@ -24,7 +24,7 @@
       vals.forEach(function(v,j){var left=j===0?70:x[j-1],right=x[j];c.textAlign='center';if(j===0&&Number(r.rank)===1){c.fillStyle='#a56f00';c.font='800 '+(rowH<38?'16':'20')+'px "Segoe UI",Arial'}else{c.fillStyle='#172033';c.font=(j===4?'700 ':'600 ')+(rowH<38?'15':'18')+'px "Segoe UI",Arial'}c.fillText(fit(c,v,right-left-12),(left+right)/2,y+rowH/2)});
       c.textAlign='left';c.fillStyle='#526071';c.font=(rowH<38?'500 13px':'500 16px')+' "Segoe UI",Arial';c.fillText(fit(c,r.note||'',W-80-x[4]),x[4]+10,y+rowH/2);y+=rowH;
     });
-    c.textAlign='left';c.fillStyle='#64748b';c.font='500 18px "Segoe UI",Arial';c.fillText('Chỉ tính ngày đã có lượt chấm; bằng tổng điểm được đồng hạng',75,1690);
+    c.textAlign='left';c.fillStyle='#64748b';c.font='500 18px "Segoe UI",Arial';c.fillText('Chỉ tính ngày đã chấm đủ Sáng và Chiều; bằng tổng điểm được đồng hạng',75,1690);
     c.textAlign='right';c.fillText('Xuất từ Hệ sinh thái CDS · '+new Date().toLocaleDateString('vi-VN'),W-75,1690);
     var a=document.createElement('a');a.download='Xep-hang-phong-noi-tru-'+String(d.key||'').replace(/[^0-9A-Za-z_-]/g,'-')+'.png';a.href=canvas.toDataURL('image/png',1);a.click();
   }
