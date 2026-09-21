@@ -11,7 +11,7 @@ if($requestedTab==='settings'&&!can_perm_level('td.student_room_settings','view'
     header('Location: '.BASE_URL.'thidua_phongnoitru.php?tab=input');exit;
 }
 if($requestedTab==='stats'&&!can_perm_level('td.student_room_stats','view')){
-    flash('Tài khoản này không có quyền xem Thống kê - Xếp loại.','warning');
+    flash('Tài khoản này không có quyền xem Thống kê - Xếp hạng.','warning');
     header('Location: '.BASE_URL.'thidua_phongnoitru.php?tab=input');exit;
 }
 if($requestedTab==='input'&&!can_perm_level('td.student_room_input','view')){
