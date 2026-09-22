@@ -87,17 +87,50 @@ function cds_dashboard_solar_to_lunar($day, $month, $year, $timezone = 7): array
 }
 
 function cds_dashboard_birthdays(array $teachers, array $students): array {
-    $todayMd = date('m-d');
-    $tomorrowMd = date('m-d', strtotime('+1 day'));
+    /* Dùng giờ Việt Nam để thông báo không lệch ngày theo cấu hình hosting. */
+    $timezone = new DateTimeZone('Asia/Ho_Chi_Minh');
+    $today = new DateTimeImmutable('now', $timezone);
+    $todayMd = $today->format('m-d');
+    $tomorrowMd = $today->modify('+1 day')->format('m-d');
     $groups = ['today'=>[], 'tomorrow'=>[]];
     $seen = [];
-    $collect = static function (array $rows, string $personType) use (&$groups, &$seen, $todayMd, $tomorrowMd): void {
+
+    /*
+     * Chấp nhận dữ liệu chuẩn, dữ liệu cũ kiểu Việt Nam và số ngày Excel.
+     * Kết quả chỉ lấy tháng-ngày vì năm sinh không tham gia đối chiếu sinh nhật.
+     */
+    $birthdayMonthDay = static function ($value) use ($timezone): string {
+        $value = trim((string)$value);
+        if ($value === '') return '';
+        if (preg_match('/^="(.*)"$/s', $value, $wrapped)) $value = str_replace('""', '"', $wrapped[1]);
+        if (isset($value[0]) && $value[0] === "'") $value = substr($value, 1);
+
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T].*)?$/', $value, $match)) {
+            $year=(int)$match[1]; $month=(int)$match[2]; $day=(int)$match[3];
+            return checkdate($month,$day,$year) ? sprintf('%02d-%02d',$month,$day) : '';
+        }
+        if (preg_match('/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2}|\d{4})$/', $value, $match)) {
+            $day=(int)$match[1]; $month=(int)$match[2]; $yearText=(string)$match[3]; $year=(int)$yearText;
+            if (strlen($yearText) === 2) $year += $year <= (int)date('y') ? 2000 : 1900;
+            return checkdate($month,$day,$year) ? sprintf('%02d-%02d',$month,$day) : '';
+        }
+        if (preg_match('/^\d+(?:\.\d+)?$/', $value)) {
+            $serial=(int)floor((float)$value);
+            if ($serial >= 1 && $serial <= 100000) {
+                $excelBase = new DateTimeImmutable('1899-12-30', $timezone);
+                return $excelBase->modify('+' . $serial . ' days')->format('m-d');
+            }
+        }
+        return '';
+    };
+
+    $collect = static function (array $rows, string $personType) use (&$groups, &$seen, $todayMd, $tomorrowMd, $birthdayMonthDay): void {
         foreach ($rows as $row) {
             if (isset($row['active']) && empty($row['active'])) continue;
             $name = trim((string)($row['name'] ?? ''));
             $dob = trim((string)($row['dob'] ?? ''));
-            if ($name === '' || !preg_match('/^\d{4}-(\d{2})-(\d{2})$/', $dob, $match)) continue;
-            $monthDay = $match[1] . '-' . $match[2];
+            $monthDay = $birthdayMonthDay($dob);
+            if ($name === '' || $monthDay === '') continue;
             $group = $monthDay === $todayMd ? 'today' : ($monthDay === $tomorrowMd ? 'tomorrow' : '');
             if ($group === '') continue;
             $id = trim((string)($row['id'] ?? ''));
