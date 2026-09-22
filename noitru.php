@@ -1098,6 +1098,7 @@ function nt_meal_label($v) {
 }
 function nt_meal_day_overview($date, array $students) {
     $mealMap = noitru_meals_for_date($date);
+    $effectiveContext = noitru_meal_effective_student_context();
     $reports = noitru_meal_reports_for_date($date);
     $reportMap = [];
     foreach ($reports as $report) $reportMap[($report['class_name'] ?? '') . '|' . ($report['meal'] ?? '')] = $report;
@@ -1121,9 +1122,12 @@ function nt_meal_day_overview($date, array $students) {
             $reportStudents = !empty($report['student_snapshot']) && is_array($report['student_snapshot'])
                 ? $report['student_snapshot'] : $classStudents;
             foreach ($reportStudents as $student) {
-                $value = $mealMap[$student['id']][$meal] ?? 'no';
+                $studentId = (string)($student['id'] ?? '');
+                $effectiveStudent = $effectiveContext['students'][$studentId] ?? $student;
+                if (!$effectiveStudent || !noitru_student_is_active_on_date($effectiveStudent, $date)) continue;
+                $value = $mealMap[$studentId][$meal] ?? 'no';
                 $info['total']++;
-                if ($value === 'no') {
+                if ($value !== 'yes') {
                     $info['absent']++;
                     $info['absent_students'][] = ['name'=>$student['name'] ?? '', 'class'=>$class, 'group'=>$student['meal_group'] ?? ''];
                 } else {
@@ -1132,14 +1136,20 @@ function nt_meal_day_overview($date, array $students) {
                     $info['groups'][$group] = ($info['groups'][$group] ?? 0) + 1;
                 }
             }
-            /* Phiếu đã chốt là chứng từ lịch sử: không để thay đổi hồ sơ làm tụt số suất. */
-            if ($info['state'] === 'locked' && isset($report['student_count'], $report['eat_count'])) {
-                $actualTotal = count($reportStudents);
-                $actualEat = count(array_filter($reportStudents, fn($student) => ($mealMap[$student['id']][$meal] ?? 'no') !== 'no'));
-                $info['total'] += (int)$report['student_count'] - $actualTotal;
-                $info['eat'] += (int)$report['eat_count'] - $actualEat;
-                $info['absent'] += (int)($report['absent_count'] ?? ((int)$report['student_count'] - (int)$report['eat_count'])) - ($actualTotal - $actualEat);
+            /* Dùng đúng cùng nguồn đếm với Gạo và Excel, kể cả sau khi mở/sửa/chốt lại. */
+            $effective = noitru_meal_report_effective_counts($report, $date, $meal, $mealMap);
+            $actualTotal = 0;
+            $actualEat = 0;
+            foreach ($reportStudents as $student) {
+                $studentId = (string)($student['id'] ?? '');
+                $effectiveStudent = $effectiveContext['students'][$studentId] ?? $student;
+                if (!$effectiveStudent || !noitru_student_is_active_on_date($effectiveStudent, $date)) continue;
+                $actualTotal++;
+                if (($mealMap[$studentId][$meal] ?? '') === 'yes') $actualEat++;
             }
+            $info['total'] += $effective['total'] - $actualTotal;
+            $info['eat'] += $effective['eat'] - $actualEat;
+            $info['absent'] += $effective['absent'] - ($actualTotal - $actualEat);
         }
         if ($info['state'] === 'off') {
             $info['eat'] = 0;

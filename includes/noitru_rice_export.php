@@ -93,7 +93,7 @@ function nt_rice_build_detail($from, $to, array $riceData) {
         $className = $student['class_name'];
         foreach (['sang','trua','toi'] as $meal) {
             if (empty($validReports[$date . '|' . $className . '|' . $meal])) continue;
-            if (!in_array($mealRow[$meal] ?? '', ['yes','sick','guest'], true)) continue;
+            if (($mealRow[$meal] ?? '') !== 'yes') continue;
             $kg = (float)($settings[$meal . '_grams'] ?? 0) / 1000;
             $classes[$className][$studentId][$meal]++;
             $classes[$className][$studentId][$meal . '_kg'] = round($classes[$className][$studentId][$meal . '_kg'] + $kg, 3);

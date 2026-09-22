@@ -397,6 +397,8 @@ function noitru_meal_report_upsert(array $row) {
                 'id'=>(string)($student['id'] ?? ''), 'name'=>(string)($student['name'] ?? ''),
                 'class_name'=>(string)($student['class_name'] ?? ''),
                 'meal_group'=>(string)($student['meal_group'] ?? ''),
+                'admission_date'=>(string)($student['admission_date'] ?? ''),
+                'departure_date'=>(string)($student['departure_date'] ?? ''),
             ];
         }
         $row['student_snapshot'] = $snapshot;
@@ -574,13 +576,73 @@ function noitru_meals_count_day($date) {
     foreach (noitru_meals_for_date($date) as $m) {
         $c['students']++;
         foreach (['sang', 'trua', 'toi'] as $b) {
-            if (in_array($m[$b] ?? '', ['yes', 'sick', 'guest'], true)) $c[$b]++;
+            if (($m[$b] ?? '') === 'yes') $c[$b]++;
         }
     }
     foreach (['sang','trua','toi'] as $meal) {
         if ((noitru_meal_state($date, $meal)['status'] ?? 'open') === 'off') $c[$meal] = 0;
     }
     return $c;
+}
+
+/**
+ * Ngữ cảnh dùng chung để đối chiếu một phiếu báo ăn với hồ sơ học sinh.
+ * Giữ trong bộ nhớ của request để các báo cáo tháng không phải đọc CSDL lặp lại.
+ */
+function noitru_meal_effective_student_context(): array {
+    if (isset($GLOBALS['noitru_meal_effective_student_context'])) {
+        return $GLOBALS['noitru_meal_effective_student_context'];
+    }
+    $context = ['students'=>[], 'classes'=>[]];
+    foreach (csdl_students_all() as $sourceStudent) {
+        $student = noitru_boarder_row($sourceStudent);
+        $studentId = (string)($student['id'] ?? '');
+        if ($studentId === '') continue;
+        $context['students'][$studentId] = $student;
+        if (!noitru_student_is_boarder($sourceStudent)) continue;
+        $class = trim((string)($student['class_name'] ?? '')) ?: '(Chưa lớp)';
+        $context['classes'][$class][] = $studentId;
+    }
+    return $GLOBALS['noitru_meal_effective_student_context'] = $context;
+}
+
+/**
+ * Số suất hiệu lực của một phiếu báo ăn, là nguồn chung cho Tổng hợp, Gạo và Excel.
+ * Ngày nhập học được tính; ngày chuyển trường vẫn được tính, từ ngày kế tiếp thì loại.
+ */
+function noitru_meal_report_effective_counts(array $report, string $date, string $meal, array $mealMap = null): array {
+    $mealMap = $mealMap ?? noitru_meals_for_date($date);
+    $context = noitru_meal_effective_student_context();
+    $snapshotMap = [];
+    foreach ((array)($report['student_snapshot'] ?? []) as $snapshot) {
+        $studentId = (string)($snapshot['id'] ?? '');
+        if ($studentId !== '') $snapshotMap[$studentId] = $snapshot;
+    }
+
+    $candidateIds = array_values(array_filter(array_map('strval', (array)($report['student_ids'] ?? []))));
+    if (!$candidateIds) $candidateIds = array_keys($snapshotMap);
+    if (!$candidateIds) {
+        $class = trim((string)($report['class_name'] ?? '')) ?: '(Chưa lớp)';
+        $candidateIds = $context['classes'][$class] ?? [];
+    }
+
+    /* Phiếu rất cũ không còn danh sách chi tiết: giữ số chốt làm phương án an toàn. */
+    if (!$candidateIds) {
+        $total = max(0, (int)($report['student_count'] ?? 0));
+        $eat = max(0, min($total, (int)($report['eat_count'] ?? 0)));
+        return ['total'=>$total, 'eat'=>$eat, 'absent'=>max(0, $total - $eat)];
+    }
+
+    $total = 0;
+    $eat = 0;
+    foreach (array_unique($candidateIds) as $studentId) {
+        $student = $context['students'][$studentId] ?? ($snapshotMap[$studentId] ?? []);
+        if (!$student || !noitru_student_is_active_on_date($student, $date)) continue;
+        $total++;
+        /* Excel tháng chỉ tích suất khi trạng thái chính xác là "yes". */
+        if (($mealMap[$studentId][$meal] ?? '') === 'yes') $eat++;
+    }
+    return ['total'=>$total, 'eat'=>$eat, 'absent'=>max(0, $total - $eat)];
 }
 
 function noitru_meals_summary($from, $to) {
@@ -610,7 +672,7 @@ function noitru_meals_summary($from, $to) {
             if ($mealStates[$stateKey] === 'off') continue;
             /* Không có phiếu báo của lớp/bữa thì không được mặc định là có ăn. */
             if (empty($reported[$date . '|' . $class . '|' . $meal])) continue;
-            if (!in_array($m[$meal] ?? '', ['yes','sick','guest'], true)) continue;
+            if (($m[$meal] ?? '') !== 'yes') continue;
             $out['total'][$meal]++;
             $out['days'][$date][$meal] = ($out['days'][$date][$meal] ?? 0) + 1;
             $out['classes'][$class][$meal] = ($out['classes'][$class][$meal] ?? 0) + 1;
@@ -662,15 +724,8 @@ function noitru_meal_period_summary($from, $to, array $students) {
 
             foreach ($reportedClasses as $class => $_) {
                 $report = $reportedClasses[$class];
-                if ($state === 'locked' && isset($report['eat_count'])) {
-                    $day[$meal] += (int)$report['eat_count'];
-                    continue;
-                }
-                foreach ($classes[$class] as $student) {
-                    if (!noitru_student_is_active_on_date($student, $date)) continue;
-                    $studentId = (string)($student['id'] ?? '');
-                    if (in_array($meals[$date][$studentId][$meal] ?? 'yes', ['yes', 'sick', 'guest'], true)) $day[$meal]++;
-                }
+                $counts = noitru_meal_report_effective_counts($report, $date, $meal, $meals[$date] ?? []);
+                $day[$meal] += $counts['eat'];
             }
             $out['total'][$meal] += $day[$meal];
         }
@@ -708,16 +763,6 @@ function noitru_rice_usage_summary($from, $to, array $riceData = null) {
     $settings = array_merge(['sang_grams'=>0,'trua_grams'=>180,'toi_grams'=>180], $riceData['settings'] ?? []);
     $reports = noitru_meal_reports_data()['reports'] ?? [];
     $stateCache = [];
-    $studentMap = [];
-    $classStudentIds = [];
-    foreach (csdl_students_all() as $sourceStudent) {
-        if (!noitru_student_is_boarder($sourceStudent)) continue;
-        $student = noitru_boarder_row($sourceStudent);
-        $studentId = (string)($student['id'] ?? '');
-        if ($studentId === '') continue;
-        $studentMap[$studentId] = $student;
-        $classStudentIds[(string)($student['class_name'] ?? '')][] = $studentId;
-    }
     $mealDayCache = [];
     $out = [
         'days'=>[],
@@ -736,33 +781,9 @@ function noitru_rice_usage_summary($from, $to, array $riceData = null) {
         $stateKey = $date . '|' . $meal;
         if (!isset($stateCache[$stateKey])) $stateCache[$stateKey] = noitru_meal_state($date, $meal)['status'] ?? 'open';
         if ($stateCache[$stateKey] !== 'locked') continue;
-        $students = max(0, (int)($report['eat_count'] ?? 0));
-        /*
-         * Phiếu đã chốt vẫn là số liệu gốc, nhưng học sinh đã chuyển trường
-         * không được tính suất/gạo từ ngày kế tiếp ngày chuyển.
-         */
-        $candidateIds = array_values(array_filter(array_map('strval', (array)($report['student_ids'] ?? []))));
-        $hasReportRoster = !empty($candidateIds);
-        if (!$candidateIds && !empty($report['student_snapshot']) && is_array($report['student_snapshot'])) {
-            $candidateIds = array_values(array_filter(array_map(
-                fn($student) => (string)($student['id'] ?? ''),
-                $report['student_snapshot']
-            )));
-            $hasReportRoster = !empty($candidateIds);
-        }
-        if (!$candidateIds) $candidateIds = $classStudentIds[(string)($report['class_name'] ?? '')] ?? [];
         if (!isset($mealDayCache[$date])) $mealDayCache[$date] = noitru_meals_for_date($date);
-        foreach (array_unique($candidateIds) as $studentId) {
-            $admissionDate = trim((string)($studentMap[$studentId]['admission_date'] ?? ''));
-            $departureDate = trim((string)($studentMap[$studentId]['departure_date'] ?? ''));
-            /* Chỉ trừ trước ngày nhập khi phiếu có danh sách chụp; phiếu cũ
-             * không có danh sách vốn chưa từng tính học sinh mới thêm sau này. */
-            $outsideEffectiveDates = ($hasReportRoster && $admissionDate !== '' && $date < $admissionDate)
-                || ($departureDate !== '' && $date > $departureDate);
-            if (!$outsideEffectiveDates) continue;
-            if (($mealDayCache[$date][$studentId][$meal] ?? '') === 'yes') $students--;
-        }
-        $students = max(0, $students);
+        $counts = noitru_meal_report_effective_counts($report, $date, $meal, $mealDayCache[$date]);
+        $students = $counts['eat'];
         $kg = round($students * (float)($settings[$meal . '_grams'] ?? 0) / 1000, 3);
         if (!isset($out['days'][$date])) {
             $out['days'][$date] = [
