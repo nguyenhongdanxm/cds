@@ -664,7 +664,7 @@ function cds_current_page_feature() {
         'giaovien'=>'cm.nhaplieu', 'monhoc'=>'cm.nhaplieu', 'lop'=>'cm.nhaplieu',
         'kiemnhiem'=>'cm.nhaplieu', 'thongke'=>'cm.thongke', 'xuat_bang'=>'cm.thongke',
         'kehoach'=>'cm.kehoach', 'activities'=>'cm.kehoach', 'sodaubai'=>'cm.dashboard', 'sodaubai_export'=>'cm.dashboard', 'sodaubai_ppct_template'=>'cm.dashboard', 'sodaubai_ppct_import_v2'=>'cm.dashboard',
-        'dugio'=>'cm.baocao.dugio', 'danhgia'=>'cm.baocao.dugio', 'kiemtrahoso'=>'cm.baocao.kythi',
+        'dugio'=>'cm.baocao.dugio', 'danhgia'=>'cm.baocao.dugio', 'phieudugio'=>'cm.baocao.dugio', 'kiemtrahoso'=>'cm.baocao.kythi',
     ];
     if ($page === 'baocao') {
         $tab = $_GET['tab'] ?? 'dinhky';
