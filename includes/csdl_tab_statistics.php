@@ -1,61 +1,141 @@
 <?php
-/** Thống kê GV & HS: lọc gọn, xem sâu, xuất XLSX đúng phạm vi đang xem. */
-if (!function_exists('csdl_stat_lower')) {
-    function csdl_stat_lower($v){$v=trim((string)$v);return function_exists('mb_strtolower')?mb_strtolower($v,'UTF-8'):strtolower($v);}
-    function csdl_stat_clean($v,$empty='Chưa cập nhật'){$v=preg_replace('/\s+/u',' ',trim((string)$v));return $v!==''?$v:$empty;}
-    function csdl_stat_gender($v){$k=csdl_stat_lower($v);if(in_array($k,['nam','m','male'],true))return'Nam';if(in_array($k,['nữ','nu','f','female'],true))return'Nữ';return trim((string)$v)!==''?'Khác':'Chưa cập nhật';}
-    function csdl_stat_percent($n,$t){return $t>0?number_format($n*100/$t,1,',','.').'%':'0%';}
-    function csdl_stat_aggregate(array $rows,callable $resolver){$o=[];foreach($rows as$r){$label=csdl_stat_clean($resolver($r));$k=csdl_stat_lower($label);if(!isset($o[$k]))$o[$k]=['label'=>$label,'total'=>0];$o[$k]['total']++;}$o=array_values($o);usort($o,fn($a,$b)=>$b['total']<=>$a['total']?:strnatcasecmp($a['label'],$b['label']));return$o;}
-    function csdl_stat_completeness(array $rows,array $fields){$o=[];foreach($fields as$f=>$label){$filled=0;foreach($rows as$r){$v=$r[$f]??null;if(is_array($v)?!empty($v):(is_bool($v)||trim((string)$v)!==''))$filled++;}$o[]=['field'=>$f,'label'=>$label,'filled'=>$filled,'missing'=>max(0,count($rows)-$filled),'total'=>count($rows)];}usort($o,fn($a,$b)=>$b['missing']<=>$a['missing']);return$o;}
+/** Read-only statistics for the selected field and population. */
+if (!function_exists('csdl_stat_label')) {
+    function csdl_stat_label($value): string {
+        $value = preg_replace('/\s+/u', ' ', trim((string)$value));
+        return $value === '' ? 'Chưa cập nhật' : $value;
+    }
+    function csdl_stat_gender($value): string {
+        $value = function_exists('mb_strtolower') ? mb_strtolower(trim((string)$value), 'UTF-8') : strtolower(trim((string)$value));
+        if (in_array($value, ['nam', 'm', 'male'], true)) return 'Nam';
+        if (in_array($value, ['nữ', 'nu', 'f', 'female'], true)) return 'Nữ';
+        return $value === '' ? 'Chưa cập nhật' : 'Khác';
+    }
 }
-$statStatus=(string)($_GET['stat_status']??'active');$statScope=(string)($_GET['stat_scope']??'all');$statGrade=trim((string)($_GET['stat_grade']??''));$statClass=trim((string)($_GET['stat_class']??''));$statTeam=trim((string)($_GET['stat_team']??''));
-if(!in_array($statStatus,['active','inactive','all'],true))$statStatus='active';if(!in_array($statScope,['all','teachers','students'],true))$statScope='all';
-$classById=[];foreach($classes as$c)$classById[(string)($c['id']??'')]=$c;
-$teamOptions=[];foreach($teachers as$r){$v=trim((string)($r['to_chuyen_mon']??($r['pccm_group']??'')));if($v!=='')$teamOptions[$v]=$v;}natcasesort($teamOptions);
-$gradeOptions=[];foreach($classes as$c){$g=(int)($c['grade']??0);if($g)$gradeOptions[$g]=$g;}ksort($gradeOptions);
-$filterStatus=function($rows)use($statStatus){if($statStatus==='all')return array_values($rows);$want=$statStatus==='active';return array_values(array_filter($rows,fn($r)=>(!empty($r['active']))===$want));};
-$statTeachers=$filterStatus($teachers);$statStudents=$filterStatus($students);
-if($statTeam!=='')$statTeachers=array_values(array_filter($statTeachers,fn($r)=>trim((string)($r['to_chuyen_mon']??($r['pccm_group']??'')))===$statTeam));
-if($statGrade!=='')$statStudents=array_values(array_filter($statStudents,function($r)use($classById,$statGrade){$c=$classById[(string)($r['class_id']??'')]??[];return(string)($c['grade']??'')===$statGrade;}));
-if($statClass!=='')$statStudents=array_values(array_filter($statStudents,fn($r)=>(string)($r['class_id']??'')===$statClass));
-$gender=function($rows){$o=['Nam'=>0,'Nữ'=>0,'Khác'=>0,'Chưa cập nhật'=>0];foreach($rows as$r){$g=csdl_stat_gender($r['gender']??'');$o[$g]=($o[$g]??0)+1;}return$o;};$tg=$gender($statTeachers);$sg=$gender($statStudents);
-$boarderTotal=0;foreach($statStudents as$s)if(!empty($s['boarder']))$boarderTotal++;
-$teacherFields=['code'=>'Mã cán bộ','cccd'=>'CCCD','gender'=>'Giới tính','dob'=>'Ngày sinh','phone'=>'Số điện thoại','email'=>'Email','ethnicity'=>'Dân tộc','hometown'=>'Quê quán','address'=>'Địa chỉ','specialty'=>'Chuyên môn','to_chuyen_mon'=>'Tổ chuyên môn','chuc_vu'=>'Chức vụ','teaching_level'=>'Cấp giảng dạy','join_date'=>'Ngày vào ngành','hang'=>'Hạng','bac'=>'Bậc','he_so'=>'Hệ số lương','kiem_nhiem'=>'Kiêm nhiệm'];
-$studentFields=['code'=>'Mã học sinh','cccd'=>'CCCD','class_id'=>'Lớp','gender'=>'Giới tính','dob'=>'Ngày sinh','ethnicity'=>'Dân tộc','hometown'=>'Quê quán','address'=>'Địa chỉ','phone'=>'SĐT học sinh','parent_name'=>'Tên phụ huynh','parent_phone'=>'SĐT phụ huynh','room_ktx'=>'Phòng KTX','meal_group'=>'Nhóm ăn'];
-$tc=csdl_stat_completeness($statTeachers,$teacherFields);$sc=csdl_stat_completeness($statStudents,$studentFields);
-$teacherGroups=['Tổ chuyên môn'=>csdl_stat_aggregate($statTeachers,fn($r)=>$r['to_chuyen_mon']??($r['pccm_group']??'Chưa xếp tổ')),'Chuyên môn'=>csdl_stat_aggregate($statTeachers,fn($r)=>$r['specialty']??''),'Chức vụ'=>csdl_stat_aggregate($statTeachers,fn($r)=>$r['chuc_vu']??''),'Cấp giảng dạy'=>csdl_stat_aggregate($statTeachers,fn($r)=>$r['teaching_level']??''),'Dân tộc'=>csdl_stat_aggregate($statTeachers,fn($r)=>$r['ethnicity']??'')];
-$studentGroups=['Khối'=>csdl_stat_aggregate($statStudents,function($r)use($classById){$c=$classById[(string)($r['class_id']??'')]??[];return!empty($c['grade'])?'Khối '.$c['grade']:'Chưa xếp khối';}),'Lớp'=>csdl_stat_aggregate($statStudents,function($r)use($classById){return$classById[(string)($r['class_id']??'')]['name']??'Chưa xếp lớp';}),'Dân tộc'=>csdl_stat_aggregate($statStudents,fn($r)=>$r['ethnicity']??''),'Nội trú'=>csdl_stat_aggregate($statStudents,fn($r)=>!empty($r['boarder'])?'Nội trú':'Không nội trú'),'Phòng KTX'=>csdl_stat_aggregate($statStudents,fn($r)=>$r['room_ktx']??'Chưa xếp phòng'),'Nhóm ăn'=>csdl_stat_aggregate($statStudents,fn($r)=>$r['meal_group']??'Chưa xếp nhóm ăn')];
-$classRows=[];foreach($classes as$c){$id=(string)($c['id']??'');if($statGrade!==''&&(string)($c['grade']??'')!==$statGrade)continue;if($statClass!==''&&$id!==$statClass)continue;$rows=array_values(array_filter($statStudents,fn($s)=>(string)($s['class_id']??'')===$id));$g=$gender($rows);$b=$pp=$sp=0;$eth=[];foreach($rows as$s){if(!empty($s['boarder']))$b++;if(trim((string)($s['parent_phone']??''))!=='')$pp++;if(trim((string)($s['phone']??''))!=='')$sp++;$e=csdl_stat_clean($s['ethnicity']??'');$eth[csdl_stat_lower($e)]=$e;}$classRows[]=['grade'=>(int)($c['grade']??0),'name'=>$c['name']??'','homeroom'=>teacher_name_by_id($c['homeroom_teacher_id']??'',$teachers),'total'=>count($rows),'male'=>$g['Nam'],'female'=>$g['Nữ'],'boarder'=>$b,'eth'=>count($eth),'pp'=>$pp,'sp'=>$sp];}usort($classRows,fn($a,$b)=>$a['grade']<=>$b['grade']?:strnatcasecmp($a['name'],$b['name']));
-$showT=$statScope!=='students';$showS=$statScope!=='teachers';$statusLabel=['active'=>'Đang hoạt động','inactive'=>'Đã nghỉ / ngừng','all'=>'Tất cả hồ sơ'][$statStatus];
-$scopeParts=[];$scopeParts[]=$statScope==='all'?'GV & HS':($statScope==='teachers'?'Giáo viên':'Học sinh');if($statTeam!=='')$scopeParts[]='Tổ '.$statTeam;if($statGrade!=='')$scopeParts[]='Khối '.$statGrade;if($statClass!=='')$scopeParts[]=$classById[$statClass]['name']??'Lớp đã chọn';$scopeText=implode(' · ',$scopeParts);
-$exportQuery=http_build_query(['stat_scope'=>$statScope,'stat_status'=>$statStatus,'stat_team'=>$statTeam,'stat_grade'=>$statGrade,'stat_class'=>$statClass]);
+$population = (string)($_GET['stat_scope'] ?? 'students');
+if (!in_array($population, ['students', 'teachers'], true)) $population = 'students';
+$status = (string)($_GET['stat_status'] ?? 'active');
+if (!in_array($status, ['active', 'inactive', 'all'], true)) $status = 'active';
+$grade = trim((string)($_GET['stat_grade'] ?? ''));
+$classId = trim((string)($_GET['stat_class'] ?? ''));
+$team = trim((string)($_GET['stat_team'] ?? ''));
+$classById = [];
+$grades = [];
+foreach ($classes as $class) {
+    $classById[(string)($class['id'] ?? '')] = $class;
+    if (!empty($class['grade'])) $grades[(string)$class['grade']] = (string)$class['grade'];
+}
+ksort($grades, SORT_NATURAL);
+$teams = [];
+foreach ($teachers as $teacher) {
+    $value = trim((string)($teacher['to_chuyen_mon'] ?? ($teacher['pccm_group'] ?? '')));
+    if ($value !== '') $teams[$value] = $value;
+}
+natcasesort($teams);
+$fields = $population === 'teachers' ? [
+    'gender'=>'Giới tính', 'team'=>'Tổ chuyên môn', 'specialty'=>'Chuyên môn',
+    'position'=>'Chức vụ', 'level'=>'Cấp giảng dạy', 'ethnicity'=>'Dân tộc',
+    'birth_year'=>'Năm sinh', 'join_year'=>'Năm vào ngành', 'rank'=>'Hạng',
+    'grade_salary'=>'Bậc lương', 'concurrent'=>'Kiêm nhiệm', 'completeness'=>'Mức độ đầy đủ hồ sơ'
+] : [
+    'class'=>'Lớp', 'grade'=>'Khối', 'gender'=>'Giới tính', 'ethnicity'=>'Dân tộc',
+    'boarder'=>'Nội trú', 'room'=>'Phòng KTX', 'meal'=>'Nhóm ăn',
+    'birth_year'=>'Năm sinh', 'completeness'=>'Mức độ đầy đủ hồ sơ'
+];
+$field = (string)($_GET['stat_field'] ?? ($population === 'teachers' ? 'team' : 'class'));
+if (!isset($fields[$field])) $field = array_key_first($fields);
+if (!isset($grades[$grade])) $grade = '';
+if (!isset($classById[$classId])) $classId = '';
+if ($classId !== '' && $grade !== '' && (string)($classById[$classId]['grade'] ?? '') !== $grade) $classId = '';
+if (!isset($teams[$team])) $team = '';
+$source = $population === 'teachers' ? $teachers : $students;
+$rows = array_values(array_filter($source, function ($row) use ($population, $status, $grade, $classId, $team, $classById) {
+    if ($status !== 'all' && (!empty($row['active'])) !== ($status === 'active')) return false;
+    if ($population === 'teachers') return $team === '' || trim((string)($row['to_chuyen_mon'] ?? ($row['pccm_group'] ?? ''))) === $team;
+    $id = (string)($row['class_id'] ?? '');
+    if ($classId !== '' && $id !== $classId) return false;
+    return $grade === '' || (string)($classById[$id]['grade'] ?? '') === $grade;
+}));
+$teacherFields = ['code'=>'Mã cán bộ','gender'=>'Giới tính','dob'=>'Ngày sinh','phone'=>'Số điện thoại','email'=>'Email','ethnicity'=>'Dân tộc','hometown'=>'Quê quán','address'=>'Địa chỉ','specialty'=>'Chuyên môn','to_chuyen_mon'=>'Tổ chuyên môn','chuc_vu'=>'Chức vụ','teaching_level'=>'Cấp giảng dạy','join_date'=>'Ngày vào ngành'];
+$studentFields = ['code'=>'Mã học sinh','class_id'=>'Lớp','gender'=>'Giới tính','dob'=>'Ngày sinh','ethnicity'=>'Dân tộc','hometown'=>'Quê quán','address'=>'Địa chỉ','phone'=>'SĐT học sinh','parent_name'=>'Tên phụ huynh','parent_phone'=>'SĐT phụ huynh','room_ktx'=>'Phòng KTX','meal_group'=>'Nhóm ăn'];
+$checks = $population === 'teachers' ? $teacherFields : $studentFields;
+$valueOf = function ($row) use ($field, $population, $classById) {
+    $class = $classById[(string)($row['class_id'] ?? '')] ?? [];
+    switch ($field) {
+        case 'gender': return csdl_stat_gender($row['gender'] ?? '');
+        case 'team': return $row['to_chuyen_mon'] ?? ($row['pccm_group'] ?? '');
+        case 'specialty': return $row['specialty'] ?? '';
+        case 'position': return $row['chuc_vu'] ?? '';
+        case 'level': return $row['teaching_level'] ?? '';
+        case 'ethnicity': return $row['ethnicity'] ?? '';
+        case 'class': return $class['name'] ?? 'Chưa xếp lớp';
+        case 'grade': return !empty($class['grade']) ? 'Khối '.$class['grade'] : 'Chưa xếp khối';
+        case 'boarder': return !empty($row['boarder']) ? 'Nội trú' : 'Không nội trú';
+        case 'room': return $row['room_ktx'] ?? '';
+        case 'meal': return $row['meal_group'] ?? '';
+        case 'birth_year': $date = (string)($row['dob'] ?? ''); break;
+        case 'join_year': $date = (string)($row['join_date'] ?? ''); break;
+        case 'rank': return $row['hang'] ?? '';
+        case 'grade_salary': return $row['bac'] ?? '';
+        case 'concurrent': return $row['kiem_nhiem'] ?? '';
+        default: return '';
+    }
+    if (preg_match('/^(\d{4})[-\/]/', $date, $matches)) return $matches[1];
+    if (preg_match('/[-\/](\d{4})$/', $date, $matches)) return $matches[1];
+    return '';
+};
+$groups = [];
+if ($field === 'completeness') {
+    foreach ($checks as $key => $label) {
+        $filled = 0;
+        foreach ($rows as $row) if (trim((string)($row[$key] ?? '')) !== '') $filled++;
+        $groups[] = ['label'=>$label, 'total'=>$filled, 'missing'=>count($rows)-$filled];
+    }
+    usort($groups, fn($a,$b)=>$b['missing']<=>$a['missing']);
+} else {
+    foreach ($rows as $row) {
+        $label = csdl_stat_label($valueOf($row));
+        if (!isset($groups[$label])) $groups[$label] = ['label'=>$label,'total'=>0];
+        $groups[$label]['total']++;
+    }
+    $groups = array_values($groups);
+    usort($groups, fn($a,$b)=>$b['total']<=>$a['total'] ?: strnatcasecmp($a['label'],$b['label']));
+}
 ?>
 <style>
-.stat-guide{background:linear-gradient(135deg,#eef6ff,#f8fbff);border:1px solid #d9e9fa;border-radius:14px;padding:.8rem 1rem}.stat-guide-title{font-size:.82rem;font-weight:750;color:#244b70}.stat-guide-text{font-size:.76rem;color:#66788a;line-height:1.45}.stat-scope{font-size:.75rem;background:#f6f8fb;border:1px solid #e2e8f0;border-radius:999px;padding:.35rem .7rem;color:#516274}.stat-kpi{height:100%;padding:1rem;border:1px solid #e3eaf2;border-radius:16px;background:linear-gradient(145deg,#fff,#f7fafc)}.stat-kpi strong{display:block;font-size:1.65rem;line-height:1.15;margin-top:.45rem;color:#172033}.stat-kpi small{color:#66758a}.stat-mini{font-size:.72rem;color:#778697}.stat-section-help{font-size:.73rem;color:#778697;font-weight:400}.stat-table td,.stat-table th{padding:.45rem .55rem;vertical-align:middle}.stat-quality-badge{min-width:58px;text-align:center}.stat-export-help{font-size:.7rem;color:#64748b;margin-top:.28rem}@media(max-width:767.98px){.stat-guide{padding:.7rem}.stat-scope{width:100%;border-radius:10px}.stat-table{font-size:.8rem}.stat-table td,.stat-table th{white-space:nowrap}}
+.stat-panel{border:1px solid #dce5ef;border-radius:16px;background:#fff;overflow:hidden}
+.stat-panel-header{padding:1rem 1.15rem;border-bottom:1px solid #e5ebf2}
+.stat-filter{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;padding:1rem 1.15rem}
+.stat-result{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin:1rem 0}
+.stat-number{border:1px solid #dce5ef;border-radius:13px;background:#f8fbff;padding:.8rem 1rem}
+.stat-number strong{display:block;font-size:1.55rem;color:#193c67}
+.stat-table th{background:#f1f5fa;color:#36485e}
+.stat-table td,.stat-table th{padding:.6rem .75rem;vertical-align:middle}
+@media(max-width:767.98px){.stat-filter{grid-template-columns:repeat(2,minmax(0,1fr));padding:.8rem}.stat-result{gap:.5rem}.stat-number{padding:.65rem}.stat-table{font-size:.86rem}}
 </style>
-<div class="card card-soft mb-3"><div class="card-body py-3">
-<div class="d-flex flex-wrap justify-content-between gap-2 align-items-start mb-2"><div><h5 class="mb-1"><i class="bi bi-bar-chart-line text-primary"></i> Trung tâm thống kê GV & HS</h5><div class="stat-note">Tra cứu dữ liệu thực tế trong CSDL, lọc đến tổ/khối/lớp và xuất đúng phạm vi đang xem.</div></div><span class="badge rounded-pill text-bg-light border px-3 py-2"><?=e($statusLabel)?></span></div>
-<div class="stat-guide mb-3"><div class="d-flex gap-2"><i class="bi bi-lightbulb text-primary"></i><div><div class="stat-guide-title">Hướng dẫn tra cứu</div><div class="stat-guide-text">Chọn đối tượng và phạm vi cần xem rồi bấm <strong>Lọc thống kê</strong>. Nút <strong>Xuất XLSX</strong> sẽ xuất đúng kết quả của bộ lọc hiện tại; file Excel gồm sheet tổng quan bộ lọc, sheet chi tiết và các sheet thống kê theo đối tượng.</div></div></div></div>
-<form method="get" class="row g-2 align-items-end"><input type="hidden" name="tab" value="statistics">
-<div class="col-6 col-lg-2"><label class="form-label small mb-1">Đối tượng</label><select class="form-select form-select-sm" name="stat_scope"><option value="all" <?=$statScope==='all'?'selected':''?>>GV & HS</option><option value="teachers" <?=$statScope==='teachers'?'selected':''?>>Giáo viên</option><option value="students" <?=$statScope==='students'?'selected':''?>>Học sinh</option></select><div class="stat-mini mt-1">Chọn nhóm cần thống kê</div></div>
-<div class="col-6 col-lg-2"><label class="form-label small mb-1">Trạng thái</label><select class="form-select form-select-sm" name="stat_status"><option value="active" <?=$statStatus==='active'?'selected':''?>>Đang hoạt động</option><option value="inactive" <?=$statStatus==='inactive'?'selected':''?>>Đã nghỉ</option><option value="all" <?=$statStatus==='all'?'selected':''?>>Tất cả</option></select><div class="stat-mini mt-1">Phạm vi hồ sơ</div></div>
-<div class="col-6 col-lg-2"><label class="form-label small mb-1">Tổ giáo viên</label><select class="form-select form-select-sm" name="stat_team"><option value="">Tất cả tổ</option><?php foreach($teamOptions as$t):?><option value="<?=e($t)?>" <?=$statTeam===$t?'selected':''?>><?=e($t)?></option><?php endforeach;?></select><div class="stat-mini mt-1">Chỉ tác động GV</div></div>
-<div class="col-6 col-lg-2"><label class="form-label small mb-1">Khối học sinh</label><select class="form-select form-select-sm" name="stat_grade"><option value="">Tất cả khối</option><?php foreach($gradeOptions as$g):?><option value="<?=$g?>" <?=$statGrade===(string)$g?'selected':''?>>Khối <?=$g?></option><?php endforeach;?></select><div class="stat-mini mt-1">Thu hẹp theo khối</div></div>
-<div class="col-8 col-lg-2"><label class="form-label small mb-1">Lớp học sinh</label><select class="form-select form-select-sm" name="stat_class"><option value="">Tất cả lớp</option><?php foreach($classes as$c):?><option value="<?=e($c['id']??'')?>" <?=$statClass===(string)($c['id']??'')?'selected':''?>><?=e($c['name']??'')?></option><?php endforeach;?></select><div class="stat-mini mt-1">Chi tiết đến lớp</div></div>
-<div class="col-4 col-lg-2"><div class="d-grid gap-1"><button class="btn btn-primary btn-sm"><i class="bi bi-filter"></i> Lọc thống kê</button><a class="btn btn-outline-secondary btn-sm" href="?tab=statistics"><i class="bi bi-arrow-counterclockwise"></i> Đặt lại</a></div></div>
-</form>
-<?php if($canCsdlExport):?><div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 pt-3 border-top"><div><span class="stat-scope"><i class="bi bi-funnel"></i> Đang xem: <strong><?=e($scopeText)?></strong></span><div class="stat-export-help">XLSX giữ nguyên bộ lọc trên và tự tạo nhiều sheet phù hợp với đối tượng.</div></div><a class="btn btn-success btn-sm px-3" href="<?=e(BASE_URL.'csdl_statistics_export_xlsx.php?'.$exportQuery)?>"><i class="bi bi-file-earmark-excel"></i> Xuất kết quả lọc (.xlsx)</a></div><?php endif;?>
-</div></div>
-<div class="row g-2 mb-3">
-<?php if($showT):?><div class="col-6 col-lg-3"><div class="stat-kpi"><small>GV / CBGVNV</small><strong><?=count($statTeachers)?></strong><small>Nam <?=$tg['Nam']?> · Nữ <?=$tg['Nữ']?></small></div></div><?php endif;?>
-<?php if($showS):?><div class="col-6 col-lg-3"><div class="stat-kpi"><small>Học sinh</small><strong><?=count($statStudents)?></strong><small>Nam <?=$sg['Nam']?> · Nữ <?=$sg['Nữ']?></small></div></div><div class="col-6 col-lg-3"><div class="stat-kpi"><small>HS nội trú</small><strong><?=$boarderTotal?></strong><small><?=csdl_stat_percent($boarderTotal,count($statStudents))?> học sinh đang xem</small></div></div><div class="col-6 col-lg-3"><div class="stat-kpi"><small>Lớp trong phạm vi</small><strong><?=count(array_filter($classRows,fn($r)=>$r['total']>0))?></strong><small>Chi tiết đến từng lớp</small></div></div><?php endif;?>
-</div>
-<?php if($showT):?>
-<details class="card card-soft mb-3" open><summary class="card-body fw-bold"><i class="bi bi-person-workspace text-primary"></i> Cơ cấu giáo viên / CBGVNV <div class="stat-section-help">Tổ, chuyên môn, chức vụ, cấp giảng dạy và dân tộc</div></summary><div class="card-body border-top"><div class="row g-3"><?php foreach($teacherGroups as$groupName=>$rows):?><div class="col-12 col-md-6"><h6 class="small fw-bold mb-2"><?=e($groupName)?></h6><div class="table-responsive"><table class="table table-sm stat-table mb-0"><thead><tr><th>Nhóm</th><th class="text-end">Số lượng</th></tr></thead><tbody><?php foreach($rows as$r):?><tr><td><?=e($r['label'])?></td><td class="text-end fw-bold"><?=$r['total']?></td></tr><?php endforeach;?></tbody></table></div></div><?php endforeach;?></div></div></details>
-<details class="card card-soft mb-3"><summary class="card-body fw-bold"><i class="bi bi-clipboard2-check text-success"></i> Chất lượng dữ liệu giáo viên <div class="stat-section-help">Các trường hồ sơ còn thiếu để rà soát, bổ sung</div></summary><div class="card-body border-top table-responsive"><table class="table table-sm stat-table mb-0"><thead><tr><th>Thông tin</th><th>Đã có</th><th>Thiếu</th><th>Tỷ lệ đủ</th></tr></thead><tbody><?php foreach($tc as$r):?><tr><td><?=e($r['label'])?></td><td><?=$r['filled']?></td><td class="<?=$r['missing']?'text-danger fw-bold':'text-success'?>"><?=$r['missing']?></td><td><span class="badge text-bg-light border stat-quality-badge"><?=csdl_stat_percent($r['filled'],$r['total'])?></span></td></tr><?php endforeach;?></tbody></table></div></details>
-<?php endif;?>
-<?php if($showS):?>
-<details class="card card-soft mb-3" open><summary class="card-body fw-bold"><i class="bi bi-mortarboard text-primary"></i> Cơ cấu học sinh <div class="stat-section-help">Theo khối, lớp, dân tộc, nội trú, phòng KTX và nhóm ăn</div></summary><div class="card-body border-top"><div class="row g-3"><?php foreach($studentGroups as$groupName=>$rows):?><div class="col-12 col-md-6"><h6 class="small fw-bold mb-2"><?=e($groupName)?></h6><div class="table-responsive"><table class="table table-sm stat-table mb-0"><thead><tr><th>Nhóm</th><th class="text-end">Số lượng</th></tr></thead><tbody><?php foreach($rows as$r):?><tr><td><?=e($r['label'])?></td><td class="text-end fw-bold"><?=$r['total']?></td></tr><?php endforeach;?></tbody></table></div></div><?php endforeach;?></div></div></details>
-<details class="card card-soft mb-3" open><summary class="card-body fw-bold"><i class="bi bi-buildings text-info"></i> Chi tiết đến từng lớp <div class="stat-section-help">Sĩ số, Nam/Nữ, nội trú, dân tộc và mức độ có thông tin liên hệ</div></summary><div class="card-body border-top p-0"><div class="table-responsive"><table class="table table-sm table-hover stat-table mb-0"><thead><tr><th>Khối</th><th>Lớp</th><th>GVCN</th><th>Sĩ số</th><th>Nam</th><th>Nữ</th><th>Nội trú</th><th>Dân tộc</th><th>SĐT PH</th><th>SĐT HS</th></tr></thead><tbody><?php foreach($classRows as$r):?><tr><td><?=$r['grade']?></td><td><strong><?=e($r['name'])?></strong></td><td><?=e($r['homeroom'])?></td><td><strong><?=$r['total']?></strong></td><td><?=$r['male']?></td><td><?=$r['female']?></td><td><?=$r['boarder']?> <span class="text-muted small">(<?=csdl_stat_percent($r['boarder'],$r['total'])?>)</span></td><td><?=$r['eth']?></td><td><?=$r['pp']?>/<?=$r['total']?></td><td><?=$r['sp']?>/<?=$r['total']?></td></tr><?php endforeach;?></tbody></table></div></div></details>
-<details class="card card-soft mb-3"><summary class="card-body fw-bold"><i class="bi bi-clipboard2-check text-success"></i> Chất lượng dữ liệu học sinh <div class="stat-section-help">Các trường hồ sơ cần bổ sung trong phạm vi đang lọc</div></summary><div class="card-body border-top table-responsive"><table class="table table-sm stat-table mb-0"><thead><tr><th>Thông tin</th><th>Đã có</th><th>Thiếu</th><th>Tỷ lệ đủ</th></tr></thead><tbody><?php foreach($sc as$r):?><tr><td><?=e($r['label'])?></td><td><?=$r['filled']?></td><td class="<?=$r['missing']?'text-danger fw-bold':'text-success'?>"><?=$r['missing']?></td><td><span class="badge text-bg-light border stat-quality-badge"><?=csdl_stat_percent($r['filled'],$r['total'])?></span></td></tr><?php endforeach;?></tbody></table></div></details>
-<?php endif;?>
+<section class="stat-panel">
+ <div class="stat-panel-header"><h5 class="mb-1"><i class="bi bi-bar-chart-line text-primary"></i> Thống kê CSDL</h5><div class="text-muted small">Chọn một nội dung để xem tổng số và chi tiết theo đúng phạm vi lọc.</div></div>
+ <form method="get" class="stat-filter" id="stat-filter"><input type="hidden" name="tab" value="statistics">
+  <div><label class="form-label small fw-semibold" for="stat-scope">Đối tượng</label><select id="stat-scope" name="stat_scope" class="form-select"><option value="students" <?=$population==='students'?'selected':''?>>Học sinh</option><option value="teachers" <?=$population==='teachers'?'selected':''?>>Giáo viên / CBGVNV</option></select></div>
+  <div><label class="form-label small fw-semibold" for="stat-field">Nội dung thống kê</label><select id="stat-field" name="stat_field" class="form-select"><?php foreach ($fields as $key=>$label): ?><option value="<?=e($key)?>" <?=$field===$key?'selected':''?>><?=e($label)?></option><?php endforeach; ?></select></div>
+  <div><label class="form-label small fw-semibold" for="stat-status">Trạng thái</label><select id="stat-status" name="stat_status" class="form-select"><option value="active" <?=$status==='active'?'selected':''?>>Đang hoạt động</option><option value="inactive" <?=$status==='inactive'?'selected':''?>>Đã nghỉ / ngừng</option><option value="all" <?=$status==='all'?'selected':''?>>Tất cả hồ sơ</option></select></div>
+  <?php if ($population === 'teachers'): ?><div><label class="form-label small fw-semibold" for="stat-team">Tổ chuyên môn</label><select id="stat-team" name="stat_team" class="form-select"><option value="">Tất cả tổ</option><?php foreach ($teams as $option): ?><option value="<?=e($option)?>" <?=$team===$option?'selected':''?>><?=e($option)?></option><?php endforeach; ?></select></div>
+  <?php else: ?><div><label class="form-label small fw-semibold" for="stat-grade">Khối</label><select id="stat-grade" name="stat_grade" class="form-select"><option value="">Tất cả khối</option><?php foreach ($grades as $option): ?><option value="<?=e($option)?>" <?=$grade===$option?'selected':''?>>Khối <?=e($option)?></option><?php endforeach; ?></select></div>
+  <div><label class="form-label small fw-semibold" for="stat-class">Lớp</label><select id="stat-class" name="stat_class" class="form-select"><option value="">Tất cả lớp</option><?php foreach ($classes as $class): ?><option value="<?=e($class['id']??'')?>" data-grade="<?=e($class['grade']??'')?>" <?=$classId===(string)($class['id']??'')?'selected':''?>><?=e($class['name']??'')?></option><?php endforeach; ?></select></div><?php endif; ?>
+  <div class="d-flex gap-2 align-items-end"><button class="btn btn-primary flex-grow-1" type="submit">Xem thống kê</button><a class="btn btn-outline-secondary" href="?tab=statistics" title="Đặt lại bộ lọc" aria-label="Đặt lại bộ lọc"><i class="bi bi-arrow-counterclockwise"></i></a></div>
+ </form>
+</section>
+<div class="stat-result"><div class="stat-number"><span class="text-muted small">Tổng <?= $population==='teachers'?'giáo viên / CBGVNV':'học sinh' ?> trong phạm vi</span><strong><?=count($rows)?></strong></div><div class="stat-number"><span class="text-muted small"><?= $field==='completeness'?'Trường thông tin được kiểm tra':'Nhóm '.$fields[$field] ?></span><strong><?=count($groups)?></strong></div></div>
+<section class="stat-panel mb-3"><div class="stat-panel-header"><h6 class="mb-0">Chi tiết theo <?=e($fields[$field])?></h6></div><div class="table-responsive"><table class="table table-hover stat-table mb-0"><thead><tr><th scope="col">#</th><th scope="col"><?=e($field==='completeness'?'Thông tin':$fields[$field])?></th><th scope="col" class="text-end"><?= $field==='completeness'?'Đã có':'Số lượng' ?></th><?php if ($field==='completeness'): ?><th scope="col" class="text-end">Còn thiếu</th><?php endif; ?><th scope="col" class="text-end">Tỷ lệ</th></tr></thead><tbody><?php if (!$groups): ?><tr><td colspan="<?= $field==='completeness'?5:4 ?>" class="text-center text-muted py-4">Không có dữ liệu phù hợp bộ lọc.</td></tr><?php endif; ?><?php foreach ($groups as $index=>$group): ?><tr><td><?= $index+1 ?></td><td><?=e($group['label'])?></td><td class="text-end fw-semibold"><?=$group['total']?></td><?php if ($field==='completeness'): ?><td class="text-end"><?=$group['missing']?></td><?php endif; ?><td class="text-end"><?=count($rows)?number_format($group['total']*100/count($rows),1,',','.'):0?>%</td></tr><?php endforeach; ?></tbody></table></div></section>
+<script>
+(() => {
+ const scope = document.getElementById('stat-scope'), field = document.getElementById('stat-field');
+ const options = {
+  students: <?=json_encode(['class'=>'Lớp','grade'=>'Khối','gender'=>'Giới tính','ethnicity'=>'Dân tộc','boarder'=>'Nội trú','room'=>'Phòng KTX','meal'=>'Nhóm ăn','birth_year'=>'Năm sinh','completeness'=>'Mức độ đầy đủ hồ sơ'], JSON_UNESCAPED_UNICODE)?>,
+  teachers: <?=json_encode(['gender'=>'Giới tính','team'=>'Tổ chuyên môn','specialty'=>'Chuyên môn','position'=>'Chức vụ','level'=>'Cấp giảng dạy','ethnicity'=>'Dân tộc','birth_year'=>'Năm sinh','join_year'=>'Năm vào ngành','rank'=>'Hạng','grade_salary'=>'Bậc lương','concurrent'=>'Kiêm nhiệm','completeness'=>'Mức độ đầy đủ hồ sơ'], JSON_UNESCAPED_UNICODE)?>
+ };
+ scope.addEventListener('change', () => { field.replaceChildren(); for (const [key,label] of Object.entries(options[scope.value])) field.add(new Option(label,key)); });
+ const grade = document.getElementById('stat-grade'), classes = document.getElementById('stat-class');
+ if (grade && classes) grade.addEventListener('change', () => { for (const option of classes.options) option.hidden = !!grade.value && !!option.value && option.dataset.grade !== grade.value; if (classes.selectedOptions[0]?.hidden) classes.value = ''; });
+})();
+</script>
