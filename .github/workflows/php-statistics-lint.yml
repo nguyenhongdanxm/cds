@@ -1,0 +1,13 @@
+name: PHP statistics syntax
+on:
+  pull_request:
+    paths:
+      - 'includes/csdl_tab_statistics.php'
+      - '.github/workflows/php-statistics-lint.yml'
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check PHP syntax
+        run: php -l includes/csdl_tab_statistics.php
