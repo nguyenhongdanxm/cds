@@ -6,9 +6,9 @@ $olympiaStages = [
     'Về đích' => ['points'=>40, 'note'=>'Câu hỏi vận dụng, phân hóa; ghi rõ đáp án và cách chấp nhận đáp án tương đương.'],
 ];
 function olympia_template_uri(string $stage, int $points): string {
-    $sample = $stage . " | Nhập nội dung câu hỏi tại đây | Nhập đáp án tại đây | " . $points . "\n"
-        . $stage . " | Câu hỏi minh họa thứ hai | Đáp án minh họa | " . $points . "\n";
-    return 'data:text/plain;charset=utf-8;base64,' . base64_encode("# Mỗi dòng: Vòng | Câu hỏi | Đáp án | Điểm\n# Không xóa dấu | ngăn cách các cột. Dòng bắt đầu bằng # chỉ là ghi chú, cần xóa trước khi nạp.\n" . $sample);
+    $sample = "6,7 | " . $stage . " | Nhập nội dung câu hỏi tại đây | Nhập đáp án tại đây | " . $points . "\n"
+        . "Tất cả | " . $stage . " | Câu hỏi dùng chung minh họa | Đáp án minh họa | " . $points . "\n";
+    return 'data:text/plain;charset=utf-8;base64,' . base64_encode("# Mỗi dòng: Khối | Vòng | Câu hỏi | Đáp án | Điểm\n# Khối có thể là 6, 7, 6,7 hoặc Tất cả. Không dùng ký tự | trong câu hỏi và đáp án.\n" . $sample);
 }
 ?>
 <?php if (!empty($weekId)): ?>
@@ -46,7 +46,7 @@ function olympia_template_uri(string $stage, int $points): string {
 <?php if (!empty($admin) && $view === 'manage'): ?>
 <div class="admin-box mb-3">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div><h5 class="fw-bold mb-1"><i class="bi bi-file-earmark-arrow-down text-success"></i> Mẫu nạp nhanh câu hỏi</h5><div class="small text-muted">Tải từng mẫu riêng, điền nội dung rồi sao chép các dòng dữ liệu vào ô “Nạp nhanh câu hỏi”.</div></div>
+    <div><h5 class="fw-bold mb-1"><i class="bi bi-file-earmark-arrow-down text-success"></i> Mẫu nạp nhanh câu hỏi</h5><div class="small text-muted">Tải mẫu Excel hoặc mẫu dán của từng vòng. Mọi mẫu đều có đủ cột Khối, Vòng, Câu hỏi, Đáp án và Điểm.</div></div>
   </div>
   <div class="row g-2">
     <?php foreach ($olympiaStages as $stage => $meta): $slug = ['Khởi động'=>'khoi-dong','Vượt chướng ngại vật'=>'vuot-chuong-ngai-vat','Tăng tốc'=>'tang-toc','Về đích'=>'ve-dich'][$stage]; ?>
@@ -54,11 +54,14 @@ function olympia_template_uri(string $stage, int $points): string {
         <div class="bg-white border rounded-3 p-3 h-100">
           <div class="stage mb-1"><?= e($stage) ?></div>
           <div class="small mb-3"><?= e($meta['note']) ?></div>
-          <a class="btn btn-sm btn-outline-success w-100" download="mau-<?= e($slug) ?>.txt" href="<?= e(olympia_template_uri($stage, (int)$meta['points'])) ?>"><i class="bi bi-download"></i> Tải mẫu <?= e($stage) ?></a>
+          <div class="d-grid gap-2">
+            <a class="btn btn-sm btn-success" href="<?= BASE_URL ?>hoclieu_game_olympia_template.php?stage=<?= urlencode($stage) ?>"><i class="bi bi-file-earmark-excel"></i> Tải mẫu Excel</a>
+            <a class="btn btn-sm btn-outline-success" download="mau-dan-<?= e($slug) ?>.txt" href="<?= e(olympia_template_uri($stage, (int)$meta['points'])) ?>"><i class="bi bi-clipboard"></i> Tải mẫu dán</a>
+          </div>
         </div>
       </div>
     <?php endforeach; ?>
   </div>
-  <div class="alert alert-warning small mt-3 mb-0"><strong>Ghi chú:</strong> Mỗi câu nằm trên một dòng theo cấu trúc <code>Vòng | Câu hỏi | Đáp án | Điểm</code>. Không dùng ký tự <code>|</code> bên trong nội dung câu hỏi hoặc đáp án. Hệ thống tự bỏ qua các dòng hướng dẫn bắt đầu bằng dấu <code>#</code>.</div>
+  <div class="alert alert-warning small mt-3 mb-0"><strong>Ghi chú:</strong> Cấu trúc thống nhất là <code>Khối | Vòng | Câu hỏi | Đáp án | Điểm</code>. Khối nhận <code>6</code>, <code>7</code>, <code>6,7</code> hoặc <code>Tất cả</code>. Có thể sao chép trực tiếp các dòng từ Excel rồi dán vào ô nạp nhanh; hệ thống nhận cả cột ngăn bằng tab và dấu <code>|</code>. Không dùng ký tự <code>|</code> trong câu hỏi hoặc đáp án.</div>
 </div>
 <?php endif; ?>
