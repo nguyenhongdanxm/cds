@@ -7,8 +7,17 @@ if (!defined('TKB_MAPPING_FILE')) define('TKB_MAPPING_FILE', DATA_PATH . '/timet
 if (!defined('TKB_SUBSTITUTIONS_FILE')) define('TKB_SUBSTITUTIONS_FILE', DATA_PATH . '/timetable_substitutions.json');
 if (!defined('TKB_ROOMS_FILE')) define('TKB_ROOMS_FILE', DATA_PATH . '/timetable_rooms.json');
 if (!defined('TKB_ROOM_BOOKINGS_FILE')) define('TKB_ROOM_BOOKINGS_FILE', DATA_PATH . '/timetable_room_bookings.json');
-function tkb_load(string $file,$default=[]){return function_exists('load_json')?load_json($file,$default):(is_file($file)?(json_decode((string)file_get_contents($file),true)?:$default):$default);}
-function tkb_save(string $file,$data):bool{return function_exists('save_json')?(bool)save_json($file,$data):(bool)file_put_contents($file,json_encode($data,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT));}
+function tkb_load(string $file,$default=[]){
+    if(!isset($GLOBALS['tkb_request_file_cache'])||!is_array($GLOBALS['tkb_request_file_cache']))$GLOBALS['tkb_request_file_cache']=[];
+    if(array_key_exists($file,$GLOBALS['tkb_request_file_cache']))return$GLOBALS['tkb_request_file_cache'][$file];
+    $value=function_exists('load_json')?load_json($file,$default):(is_file($file)?(json_decode((string)file_get_contents($file),true)?:$default):$default);
+    return$GLOBALS['tkb_request_file_cache'][$file]=$value;
+}
+function tkb_save(string $file,$data):bool{
+    $ok=function_exists('save_json')?(bool)save_json($file,$data):(bool)file_put_contents($file,json_encode($data,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT));
+    if($ok){if(!isset($GLOBALS['tkb_request_file_cache'])||!is_array($GLOBALS['tkb_request_file_cache']))$GLOBALS['tkb_request_file_cache']=[];$GLOBALS['tkb_request_file_cache'][$file]=$data;}
+    return$ok;
+}
 function tkb_key(string $value):string{$value=trim($value);if($value==='')return '';if(function_exists('iconv'))$value=(string)@iconv('UTF-8','ASCII//TRANSLIT//IGNORE',$value);$value=strtolower($value);return preg_replace('/[^a-z0-9]+/','',$value)??'';}
 function tkb_rooms(array $week=[]):array{$out=[];foreach(array_merge((array)tkb_load(TKB_ROOMS_FILE,[]),(array)($week['rooms']??[]))as$room){$id=(string)($room['id']??'');$name=trim((string)($room['name']??''));if($id!==''&&$name!=='')$out[$id]=['id'=>$id,'name'=>$name];}return array_values($out);}
 function tkb_room_bookings():array{$rows=tkb_load(TKB_ROOM_BOOKINGS_FILE,[]);return is_array($rows)?array_values(array_filter($rows,'is_array')):[];}

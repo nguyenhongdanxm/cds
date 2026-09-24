@@ -84,29 +84,80 @@ function cm_progress_diff_class($diff) {
     if ($diff < 0) return 'warning';
     return 'success';
 }
+function cm_progress_scope_key(string $class, string $subject): string {
+    $classKey = function_exists('lb_norm') ? lb_norm($class) : cm_progress_name_key($class);
+    $subjectKey = function_exists('lb_subject_key') ? lb_subject_key($subject) : cm_progress_name_key($subject);
+    return $classKey . '|' . $subjectKey;
+}
 function cm_progress_auto_metrics(array $assignments, array $year, ?array $week): array {
     $result = [];
     if (!$week) return $result;
     $from = (string)($year['start'] ?? $week['start'] ?? '');
     $to = (string)($week['end'] ?? '');
     if ($from === '' || $to === '') return $result;
-    $rows = lb_stat_rows($from, $to);
+
+    /*
+     * Tiến độ chỉ cần ba số tổng hợp theo lớp-môn. Không gọi lb_stat_rows():
+     * hàm đó dựng và đối chiếu chi tiết từng tiết để phục vụ trang thống kê
+     * Sổ đầu bài, sau đó mã cũ lại quét toàn bộ kết quả cho từng phân công.
+     */
+    $wantedScopes = [];
+    foreach ($assignments as $assignment) {
+        $class = trim((string)($assignment['class'] ?? ''));
+        $subject = trim((string)($assignment['subject'] ?? ''));
+        if ($class === '' || $subject === '') continue;
+        $wantedScopes[cm_progress_scope_key($class, $subject)] = true;
+    }
+    if (!$wantedScopes) return $result;
+
+    $scheduledByScope = [];
+    foreach (lb_weeks() as $statWeek) {
+        $start = (string)($statWeek['start'] ?? '');
+        $end = (string)($statWeek['end'] ?? '');
+        if (($to !== '' && $start > $to) || ($from !== '' && $end < $from)) continue;
+        /* Mảng rỗng buộc lb_slots chỉ dựng TKB, không dò ghép từng tiết với
+           toàn bộ bản ghi Sổ đầu bài. Dạy thay, dạy bù và lấp tiết đã duyệt
+           vẫn được lb_slots bổ sung từ dữ liệu TKB. */
+        foreach (lb_slots($statWeek, []) as $row) {
+            $date = (string)($row['date'] ?? '');
+            if ($date === '' || $date < $from || $date > $to) continue;
+            $scopeKey = cm_progress_scope_key(
+                (string)($row['class'] ?? ''),
+                (string)($row['subject'] ?? '')
+            );
+            if (!isset($wantedScopes[$scopeKey])) continue;
+            $scheduledByScope[$scopeKey] = ($scheduledByScope[$scopeKey] ?? 0) + 1;
+        }
+    }
+
+    $actualByScope = [];
+    foreach (lb_record_map_range($from, $to) as $row) {
+        if (empty($row['signed_at'])) continue;
+        if (!in_array((string)($row['status'] ?? ''), ['taught','substitute','makeup','online'], true)) continue;
+        $scopeKey = cm_progress_scope_key(
+            (string)($row['class'] ?? ''),
+            (string)($row['subject'] ?? '')
+        );
+        if (!isset($wantedScopes[$scopeKey])) continue;
+        $actualByScope[$scopeKey] = max(
+            (int)($actualByScope[$scopeKey] ?? 0),
+            (int)($row['ppct_period'] ?? 0)
+        );
+    }
+
+    $curriculumByScope = [];
     foreach ($assignments as $key => $assignment) {
         $class = trim((string)($assignment['class'] ?? ''));
         $subject = trim((string)($assignment['subject'] ?? ''));
-        $scheduled = 0;
-        $actualPpct = 0;
-        foreach ($rows as $row) {
-            if (!lb_same($class, (string)($row['class'] ?? ''))) continue;
-            if (!lb_subject_match($subject, (string)($row['subject'] ?? ''))) continue;
-            $scheduled++;
-            if (empty($row['signed_at'])) continue;
-            if (!in_array((string)($row['status'] ?? ''), ['taught','substitute','makeup','online'], true)) continue;
-            $actualPpct = max($actualPpct, (int)($row['ppct_period'] ?? 0));
-        }
+        $scopeKey = cm_progress_scope_key($class, $subject);
+        $scheduled = (int)($scheduledByScope[$scopeKey] ?? 0);
+        $actualPpct = (int)($actualByScope[$scopeKey] ?? 0);
         $grade = function_exists('lb_grade') ? lb_grade($class) : preg_replace('/\D+/', '', $class);
-        $titles = lb_curriculum_titles_for($subject, (string)$grade, $class);
-        $ppctMax = $titles ? max(array_map('intval', array_keys($titles))) : 0;
+        if (!array_key_exists($scopeKey, $curriculumByScope)) {
+            $titles = lb_curriculum_titles_for($subject, (string)$grade, $class);
+            $curriculumByScope[$scopeKey] = $titles ? max(array_map('intval', array_keys($titles))) : 0;
+        }
+        $ppctMax = (int)$curriculumByScope[$scopeKey];
         $planned = $ppctMax > 0 ? min($scheduled, $ppctMax) : $scheduled;
         $result[$key] = [
             'standard_weekly' => cm_progress_num($assignment['periods'] ?? 0),
@@ -175,7 +226,18 @@ usort($progressAssignments, static function ($left, $right): int {
     $classOrder = strnatcasecmp(trim((string)($left['class'] ?? '')), trim((string)($right['class'] ?? '')));
     return $classOrder !== 0 ? $classOrder : strnatcasecmp((string)($left['subject'] ?? ''), (string)($right['subject'] ?? ''));
 });
-$progressAutoByAssignment = cm_progress_auto_metrics($progressAssignmentMap, $progressYear, $progressWeek);
+$progressMetricAssignments = [];
+foreach ($progressAssignmentMap as $key => $assignment) {
+    if ($progressView === 'nhaplieu') {
+        if ($progressTeacher === '' || cm_progress_name_key($assignment['teacher'] ?? '') !== cm_progress_name_key($progressTeacher)) continue;
+    } else {
+        if ($progressSubjectFilter !== '' && ($assignment['subject'] ?? '') !== $progressSubjectFilter) continue;
+        if ($progressClassFilter !== '' && ($assignment['class'] ?? '') !== $progressClassFilter) continue;
+        if ($progressTeacherFilter !== '' && ($assignment['teacher'] ?? '') !== $progressTeacherFilter) continue;
+    }
+    $progressMetricAssignments[$key] = $assignment;
+}
+$progressAutoByAssignment = cm_progress_auto_metrics($progressMetricAssignments, $progressYear, $progressWeek);
 $progressByAssignment = [];
 $progressPreviousByAssignment = [];
 $progressMilestonesByAssignment = [];
@@ -183,6 +245,7 @@ foreach ($progressRecords as $record) {
     if (($record['year_id'] ?? '') !== ($progressYear['id'] ?? '')) continue;
     $recordWeek = (int)($record['week_number'] ?? 0);
     $assignmentKey = $record['assignment_key'] ?? '';
+    if (!isset($progressMetricAssignments[$assignmentKey])) continue;
     $knownUpdated = (string)($progressMilestonesByAssignment[$assignmentKey]['updated_at'] ?? '');
     if (!isset($progressMilestonesByAssignment[$assignmentKey]) || (string)($record['updated_at'] ?? '') >= $knownUpdated) {
         $progressMilestonesByAssignment[$assignmentKey] = $record;
