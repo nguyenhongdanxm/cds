@@ -134,8 +134,8 @@ if ($field === 'completeness') {
   students: <?=json_encode(['class'=>'Lớp','grade'=>'Khối','gender'=>'Giới tính','ethnicity'=>'Dân tộc','boarder'=>'Nội trú','room'=>'Phòng KTX','meal'=>'Nhóm ăn','birth_year'=>'Năm sinh','completeness'=>'Mức độ đầy đủ hồ sơ'], JSON_UNESCAPED_UNICODE)?>,
   teachers: <?=json_encode(['gender'=>'Giới tính','team'=>'Tổ chuyên môn','specialty'=>'Chuyên môn','position'=>'Chức vụ','level'=>'Cấp giảng dạy','ethnicity'=>'Dân tộc','birth_year'=>'Năm sinh','join_year'=>'Năm vào ngành','rank'=>'Hạng','grade_salary'=>'Bậc lương','concurrent'=>'Kiêm nhiệm','completeness'=>'Mức độ đầy đủ hồ sơ'], JSON_UNESCAPED_UNICODE)?>
  };
- scope.addEventListener('change', () => { field.replaceChildren(); for (const [key,label] of Object.entries(options[scope.value])) field.add(new Option(label,key)); });
+ scope.addEventListener('change', () => { field.replaceChildren(); for (const [key,label] of Object.entries(options[scope.value])) field.add(new Option(label,key)); document.getElementById('stat-filter').requestSubmit(); });
  const grade = document.getElementById('stat-grade'), classes = document.getElementById('stat-class');
- if (grade && classes) grade.addEventListener('change', () => { for (const option of classes.options) option.hidden = !!grade.value && !!option.value && option.dataset.grade !== grade.value; if (classes.selectedOptions[0]?.hidden) classes.value = ''; });
+ if (grade && classes) { const syncClasses = () => { for (const option of classes.options) option.hidden = !!grade.value && !!option.value && option.dataset.grade !== grade.value; if (classes.selectedOptions[0]?.hidden) classes.value = ''; }; grade.addEventListener('change', syncClasses); syncClasses(); }
 })();
 </script>
