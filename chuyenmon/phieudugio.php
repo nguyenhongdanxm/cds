@@ -6,39 +6,29 @@ require_login();
 
 function obs_form_norm($value): string { $value=preg_replace('/\s+/u',' ',trim((string)$value));return function_exists('mb_strtolower')?mb_strtolower($value,'UTF-8'):strtolower($value); }
 function obs_form_names(array $record): array { $rows=$record['observers']??$record['assignees']??[];if(!is_array($rows))$rows=[$rows];return array_values(array_unique(array_filter(array_map(fn($v)=>trim((string)$v),$rows)))); }
+function obs_form_match_name(string $name,array $observers): string { $needle=obs_form_norm($name);if($needle==='')return '';foreach($observers as $observer)if(obs_form_norm($observer)===$needle)return $observer;return ''; }
 
 $user=cds_user()??[];$isAdmin=($user['role']??'')==='admin';$isLeader=($user['role']??'')==='totruong'||in_array('totruong',(array)($user['groups']??[]),true);
-$teacherName=trim((string)($user['teacher_name']??$user['name']??''));
+$teacherName=trim((string)($user['teacher_name']??$user['name']??''));$teacherId=trim((string)($user['teacher_id']??''));
 $dataFile=DATA_PATH.'/observations.json';$records=load_json($dataFile,[]);if(!is_array($records))$records=[];$records=array_values(array_filter($records,'is_array'));
 $id=trim((string)($_GET['id']??$_POST['id']??''));$recordIndex=null;
 foreach($records as $index=>$row)if((string)($row['id']??'')===$id){$recordIndex=$index;break;}
 if($recordIndex===null){http_response_code(404);exit('Không tìm thấy tiết dự giờ.');}
 $record=$records[$recordIndex];$observers=obs_form_names($record);
-$isObserved=obs_form_norm($record['teacher']??'')===obs_form_norm($teacherName);
-$canManage=$isAdmin||$isLeader;
-$observerIsAssigned=$teacherName!==''&&in_array($teacherName,$observers,true);
+$isObserved=obs_form_norm($record['teacher']??'')===obs_form_norm($teacherName);$canManage=$isAdmin||$isLeader;
 $requestedObserver=trim((string)($_GET['observer']??$_POST['observer']??''));
-
-/*
- * Quy tắc quyền:
- * - Admin/Tổ trưởng: được xem và chuyển qua các phiếu của người dự.
- * - GV được phân công dự: chỉ được nhập/lưu phiếu mang đúng tên tài khoản của mình.
- * - GV dạy: chỉ được xem phiếu của tiết mình dạy, không được nhập điểm của người dự.
- */
-if($canManage){
-    $observer=($requestedObserver!==''&&in_array($requestedObserver,$observers,true))?$requestedObserver:($observers[0]??'');
-}else{
-    $observer=$observerIsAssigned?$teacherName:'';
-}
-$canEdit=$observer!==''&&obs_form_norm($observer)===obs_form_norm($teacherName)&&in_array($observer,$observers,true);
-$canView=$canManage||$canEdit||$isObserved;
+$accountObserver='';$observerIds=array_values((array)($record['observer_ids']??[]));if($teacherId!=='')foreach($observerIds as $index=>$assignedId)if((string)$assignedId===$teacherId&&isset($observers[$index])){$accountObserver=$observers[$index];break;}if($accountObserver==='')$accountObserver=obs_form_match_name($teacherName,$observers);$matchedRequested=obs_form_match_name($requestedObserver,$observers);
+$canSelectAll=$canManage||$isObserved;
+$observer=($matchedRequested!==''&&($canSelectAll||$matchedRequested===$accountObserver))?$matchedRequested:($accountObserver!==''?$accountObserver:($canSelectAll?($observers[0]??''):''));
+$canEdit=$observer!==''&&$accountObserver!==''&&obs_form_norm($observer)===obs_form_norm($accountObserver);
+$canView=$canEdit||$canManage||$isObserved;
 if(!$canView){http_response_code(403);exit('Bạn không có quyền xem phiếu dự giờ này.');}
 $criteria=cm_observation_form_criteria();$evaluationKey=cm_observation_evaluation_key($observer);$evaluation=$record['evaluations'][$evaluationKey]??[];
 
 if(empty($_SESSION['cm_observation_form_csrf']))$_SESSION['cm_observation_form_csrf']=bin2hex(random_bytes(20));$csrf=$_SESSION['cm_observation_form_csrf'];
 if($_SERVER['REQUEST_METHOD']==='POST'){
     if(!hash_equals($csrf,(string)($_POST['csrf']??''))){http_response_code(403);exit('Phiên làm việc không hợp lệ.');}
-    if(!$canEdit){http_response_code(403);exit('Chỉ giáo viên được phân công dự giờ mới được nhập và lưu phiếu mang tên mình.');}
+    if(!$canEdit){http_response_code(403);exit('Chỉ người được phân công dự giờ mới được nhập phiếu của mình.');}
     $scores=(array)($_POST['scores']??[]);$clean=[];$total=0.0;
     foreach($criteria as $i=>$criterion){
         $raw=str_replace(',','.',trim((string)($scores[$i]??'')));
@@ -47,10 +37,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if($value<0||$value>$max){flash('Điểm tiêu chí '.($i+1).' phải từ 0 đến '.$max.'.','danger');header('Location: '.BASE_URL.'phieudugio.php?id='.urlencode($id));exit;}
         $clean[]=$value;$total+=$value;
     }
-    $evaluation=['observer'=>$teacherName,'scores'=>$clean,'total'=>round($total,2),'rating'=>cm_observation_form_rating($total),'completed'=>true,'updated_at'=>date('c')];
+    $evaluation=['observer'=>$observer,'scores'=>$clean,'total'=>round($total,2),'rating'=>cm_observation_form_rating($total),'completed'=>true,'updated_at'=>date('c')];
     if(!isset($record['evaluations'])||!is_array($record['evaluations']))$record['evaluations']=[];
     $record['evaluations'][$evaluationKey]=$evaluation;cm_observation_form_recalculate($record);$record['reviewed_at']=date('c');$record['updated_at']=date('c');
-    $records[$recordIndex]=$record;save_json($dataFile,array_values($records));flash('Đã lưu phiếu của '.$teacherName.'. Điểm trung bình của tiết dạy đã được cập nhật.');header('Location: '.BASE_URL.'phieudugio.php?id='.urlencode($id));exit;
+    $records[$recordIndex]=$record;save_json($dataFile,array_values($records));flash('Đã lưu phiếu. Điểm trung bình của tiết dạy đã được cập nhật.');header('Location: '.BASE_URL.'phieudugio.php?id='.urlencode($id));exit;
 }
 
 $print=($_GET['print']??'')==='1';$scores=(array)($evaluation['scores']??[]);$total=$evaluation['total']??'';
@@ -63,14 +53,14 @@ require_once 'includes/header.php';
 </style>
 <div class="sheet-actions no-print"><a class="btn btn-outline-secondary" href="<?=BASE_URL?>dugio.php"><i class="bi bi-arrow-left"></i> Quay lại dự giờ</a><?php if(!empty($evaluation['completed'])):?><button class="btn btn-primary" type="button" onclick="window.print()"><i class="bi bi-printer"></i> In phiếu</button><button class="btn btn-success" type="button" id="downloadPdf"><i class="bi bi-file-earmark-arrow-down"></i> Tải PDF</button><button class="btn btn-outline-success" type="button" id="savePdfDrive"><i class="bi bi-google"></i> Lưu Drive</button><?php endif;?></div>
 <div class="lesson-sheet" id="lessonSheet">
-<?php if(count($observers)>1 && $canManage):?><div class="sheet-observer-tabs no-print"><?php foreach($observers as $name):?><a class="btn btn-sm <?=obs_form_norm($name)===obs_form_norm($observer)?'btn-primary':'btn-outline-primary'?>" href="?id=<?=urlencode($id)?>&observer=<?=urlencode($name)?>"><?=e($name)?></a><?php endforeach;?></div><?php endif;?>
+<?php if(count($observers)>1):?><div class="sheet-observer-tabs no-print"><?php foreach($observers as $name):?><?php if($canSelectAll||obs_form_norm($name)===obs_form_norm($accountObserver)):?><a class="btn btn-sm <?=obs_form_norm($name)===obs_form_norm($observer)?'btn-primary':'btn-outline-primary'?>" href="<?=BASE_URL?>phieudugio.php?id=<?=urlencode($id)?>&amp;observer=<?=urlencode($name)?>"><?=e($name)?></a><?php else:?><span class="btn btn-sm btn-outline-secondary disabled" title="Phiếu riêng của <?=e($name)?>"><?=e($name)?></span><?php endif;?><?php endforeach;?></div><?php endif;?>
 <div class="sheet-school">SỞ GIÁO DỤC VÀ ĐÀO TẠO TUYÊN QUANG<br><strong>TRƯỜNG PTDTNT THCS&amp;THPT XÍN MẦN</strong></div>
 <div class="sheet-title">PHIẾU ĐÁNH GIÁ BÀI DẠY</div>
 <div class="sheet-meta"><div><strong>Tên bài dạy:</strong> <?=e($record['lesson_title']??'')?></div><div><strong>Môn học/Hoạt động giáo dục:</strong> <?=e($record['subject']??'')?></div><div class="meta-triplet"><span><strong>Lớp:</strong> <?=e($record['class']??'')?></span><span><strong>Tiết:</strong> <?=(int)($record['timetable_period']??0)?></span><span><strong>Ngày:</strong> <?=!empty($record['date'])?date('d/m/Y',strtotime($record['date'])):''?></span></div><div><strong>Họ và tên giáo viên thực hiện:</strong> <?=e($record['teacher']??'')?></div></div>
-<form method="post"><input type="hidden" name="action" value="observation_save"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="id" value="<?=e($id)?>"><input type="hidden" name="observer" value="<?=e($observer)?>">
+<form method="post"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="id" value="<?=e($id)?>"><input type="hidden" name="observer" value="<?=e($observer)?>">
 <div class="sheet-table-wrap"><table class="score-table"><thead><tr><th>Nội dung</th><th>Tiêu chí</th><th>Điểm tối đa</th><th>Điểm đánh giá</th></tr></thead><tbody>
 <?php $lastGroup='';foreach($criteria as $i=>$criterion):$group=$criterion['group'];$rowspan=count(array_filter($criteria,fn($row)=>$row['group']===$group));?><tr><?php if($group!==$lastGroup):?><td class="group" rowspan="<?=$rowspan?>"><?=e($group)?></td><?php $lastGroup=$group;endif;?><td class="criterion"><?=e($criterion['text'])?></td><td class="max"><?=number_format($criterion['max'],2,',','.')?></td><td class="score"><?php if($canEdit):?><input type="number" name="scores[<?=$i?>]" min="0" max="<?=$criterion['max']?>" step="0.25" value="<?=isset($scores[$i])?e((string)$scores[$i]):''?>" required><?php else:?><?=isset($scores[$i])?number_format((float)$scores[$i],2,',','.'):'—'?><?php endif;?></td></tr><?php endforeach;?><tr><td colspan="2" class="text-end"><strong>Tổng điểm</strong></td><td class="max">20,00</td><td class="score"><strong><?=($total!=='')?number_format((float)$total,2,',','.'):'—'?></strong></td></tr></tbody></table></div>
-<div class="sheet-result">Xếp loại: <?=e($evaluation['rating']??'Chưa hoàn thành')?></div><?php if($canEdit):?><div class="sheet-save no-print"><button class="btn btn-success"><i class="bi bi-floppy"></i> Lưu phiếu của tôi</button></div><?php endif;?>
+<div class="sheet-result">Xếp loại: <?=e($evaluation['rating']??'Chưa hoàn thành')?></div><?php if($canEdit):?><div class="sheet-save no-print"><button class="btn btn-success"><i class="bi bi-floppy"></i> Lưu phiếu đánh giá</button></div><?php endif;?>
 </form>
 <div class="sheet-signatures"><div><div class="signature-date">&nbsp;</div><strong>NGƯỜI DẠY</strong><br><em>(Ký và ghi rõ họ tên)</em><div class="signature-space"></div><div class="signature-name"><?=e($record['teacher']??'')?></div></div><div><div class="signature-date">Pà Vầy Sủ, ngày <?=!empty($record['date'])?date('d',strtotime($record['date'])):'...'?> tháng <?=!empty($record['date'])?date('m',strtotime($record['date'])):'...'?> năm <?=!empty($record['date'])?date('Y',strtotime($record['date'])):'...'?></div><strong>NGƯỜI DỰ</strong><br><em>(Ký và ghi rõ họ tên)</em><div class="signature-space"></div><div class="signature-name"><?=e($observer)?></div></div></div>
 </div>
