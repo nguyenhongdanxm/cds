@@ -35,8 +35,7 @@ if ($section === 'teacher_rating') { header('Location: '.BASE_URL.'danhgia.php?v
 $canEdit = can_perm_level($sectionPermissions[$section], 'edit');
 $canDelete = can_perm_level($sectionPermissions[$section], 'delete');
 $isSystemAdmin = (($user['role']??'') === 'admin');
-$isTeamLeader = (($user['role']??'') === 'totruong')
-  || in_array('totruong', is_array($user['groups']??null)?$user['groups']:[], true);
+$isTeamLeader = cds_user_has_group($user, 'totruong');
 $canViewAll = $isSystemAdmin || can_perm_level('td.all_data', 'view');
 function td_teacher_team(array $teacher) {
   $raw=mb_strtolower(trim((string)($teacher['to_chuyen_mon']??$teacher['pccm_group']??'')),'UTF-8');

@@ -18,7 +18,7 @@ $user = cds_user() ?? [];
 $teacher = trim((string)($user['teacher_name'] ?? $user['name'] ?? ''));
 $group = $teacher !== '' ? trim((string)get_teacher_group($teacher)) : '';
 $role = (string)($user['role'] ?? '');
-$leader = $role === 'totruong' || in_array('totruong', (array)($user['groups'] ?? []), true);
+$leader = cds_user_has_group($user, 'totruong');
 $norm = fn($value) => function_exists('mb_strtolower')
     ? mb_strtolower(trim((string)$value), 'UTF-8')
     : strtolower(trim((string)$value));

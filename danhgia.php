@@ -7,7 +7,7 @@ $embedded=!empty($_GET['embed']);
 
 $user=current_user()??[];
 $isAdmin=($user['role']??'')==='admin';
-$isLeader=($user['role']??'')==='totruong'||in_array('totruong',(array)($user['groups']??[]),true);
+$isLeader=cds_user_has_group($user,'totruong');
 $canAll=$isAdmin||($user['role']??'')==='bgh'||can_perm_level('td.all_data','view');
 $canOpen=$isAdmin||can_perm_level('td.teacher_rating','view')||can_perm_level('td.stats','view')||can_perm_level('cm.baocao.dugio','view');
 if(!$canOpen){http_response_code(403);exit('Tài khoản chưa được cấp quyền xem hồ sơ đánh giá giáo viên.');}

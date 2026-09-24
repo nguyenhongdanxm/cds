@@ -8,7 +8,7 @@ function obs_form_norm($value): string { $value=preg_replace('/\s+/u',' ',trim((
 function obs_form_names(array $record): array { $rows=$record['observers']??$record['assignees']??[];if(!is_array($rows))$rows=[$rows];return array_values(array_unique(array_filter(array_map(fn($v)=>trim((string)$v),$rows)))); }
 function obs_form_match_name(string $name,array $observers): string { $needle=obs_form_norm($name);if($needle==='')return '';foreach($observers as $observer)if(obs_form_norm($observer)===$needle)return $observer;return ''; }
 
-$user=cds_user()??[];$isAdmin=($user['role']??'')==='admin';$isLeader=($user['role']??'')==='totruong'||in_array('totruong',(array)($user['groups']??[]),true);
+$user=cds_user()??[];$isAdmin=($user['role']??'')==='admin';$isLeader=cds_user_has_group($user,'totruong');
 $teacherName=trim((string)($user['teacher_name']??$user['name']??''));$teacherId=trim((string)($user['teacher_id']??''));
 $dataFile=DATA_PATH.'/observations.json';$records=load_json($dataFile,[]);if(!is_array($records))$records=[];$records=array_values(array_filter($records,'is_array'));
 $id=trim((string)($_GET['id']??$_POST['id']??''));$recordIndex=null;

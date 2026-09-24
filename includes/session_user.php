@@ -30,3 +30,20 @@ if (!function_exists('cds_session_user_from_record')) {
         ];
     }
 }
+
+/**
+ * Kiểm tra nhóm quyền đang có hiệu lực của tài khoản.
+ *
+ * Từ mô hình phân quyền v2, `groups` là nguồn chính xác. Trường `role` chỉ
+ * được dùng làm phương án tương thích cho tài khoản cũ chưa có danh sách
+ * nhóm, tránh việc một vai trò cũ còn lưu lại tiếp tục cấp quyền đã bị gỡ.
+ */
+if (!function_exists('cds_user_has_group')) {
+    function cds_user_has_group(array $user, string $group): bool {
+        $groups = is_array($user['groups'] ?? null) ? $user['groups'] : [];
+        if ((int)($user['permission_model_version'] ?? 1) >= 2 || array_key_exists('groups', $user)) {
+            return in_array($group, $groups, true);
+        }
+        return in_array($group, $groups, true) || (string)($user['role'] ?? '') === $group;
+    }
+}

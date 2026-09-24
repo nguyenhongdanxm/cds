@@ -51,7 +51,7 @@ function lb_id(string $prefix='lb'): string { return $prefix.'_'.date('YmdHis').
 function lb_user(): array { return (array)(cds_user()?:[]); }
 function lb_is_admin(): bool { return (lb_user()['role']??'')==='admin'; }
 function lb_is_management(): bool {$u=lb_user();return lb_is_admin()||($u['role']??'')==='bgh'||in_array('bgh',(array)($u['groups']??[]),true);}
-function lb_is_leader(): bool { $u=lb_user(); return ($u['role']??'')==='totruong'||in_array('totruong',(array)($u['groups']??[]),true); }
+function lb_is_leader(): bool { $u=lb_user(); return cds_user_has_group($u,'totruong'); }
 function lb_teacher_name(): string { $u=lb_user(); return trim((string)($u['teacher_name']??$u['name']??$u['full_name']??'')); }
 function lb_norm(string $v): string { return tkb_key($v); }
 function lb_same(string $a,string $b): bool { return lb_norm($a)!==''&&lb_norm($a)===lb_norm($b); }

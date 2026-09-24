@@ -7,7 +7,7 @@ $educationUser = cds_user() ?? [];
 $educationRole = (string)($educationUser['role'] ?? '');
 $educationGroups = (array)($educationUser['groups'] ?? []);
 $educationIsAdmin = $educationRole === 'admin';
-$educationIsLeader = $educationRole === 'totruong' || in_array('totruong', $educationGroups, true);
+$educationIsLeader = cds_user_has_group($educationUser, 'totruong');
 $educationTeacher = trim((string)($educationUser['teacher_name'] ?? $educationUser['name'] ?? ''));
 $educationGroup = $educationTeacher !== '' ? trim((string)get_teacher_group($educationTeacher)) : '';
 $educationDataFile = DATA_PATH . '/education_plans.json';

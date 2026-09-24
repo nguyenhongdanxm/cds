@@ -55,8 +55,7 @@ function cm_observation_weeks(array $year): array {
     return $weeks;
 }
 function cm_observation_is_leader(array $user): bool {
-    if (($user['role'] ?? '') === 'totruong') return true;
-    return in_array('totruong', (array)($user['groups'] ?? []), true);
+    return cds_user_has_group($user, 'totruong');
 }
 
 $user = cds_user() ?? [];

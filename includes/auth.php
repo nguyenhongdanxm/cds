@@ -167,7 +167,11 @@ function attempt_login($username,$password){
     session_regenerate_id(true);
     $_SESSION['cds_user']=session_user_from_record($u);
     $role=$u['role']??'';$cmLevel=$u['modules']['chuyenmon']??'none';
-    $_SESSION['pccm_admin']=($role==='admin')||in_array($role,['bgh','totruong'],true)||in_array($cmLevel,['edit','admin'],true)||in_array('cm.pccm',$u['perms']??[],true);
+    $_SESSION['pccm_admin']=($role==='admin')
+        || cds_user_has_group($u,'bgh')
+        || cds_user_has_group($u,'totruong')
+        || in_array($cmLevel,['edit','admin'],true)
+        || in_array('cm.pccm',$u['perms']??[],true);
     require_once __DIR__.'/audit.php';cds_audit_log('login_success','auth');return true;
 }
 function logout_user(){
