@@ -10,6 +10,15 @@ function olympia_template_uri(string $stage, int $points): string {
         . "Tất cả | " . $stage . " | Câu hỏi dùng chung minh họa | Đáp án minh họa | " . $points . "\n";
     return 'data:text/plain;charset=utf-8;base64,' . base64_encode("# Mỗi dòng: Khối | Vòng | Câu hỏi | Đáp án | Điểm\n# Khối có thể là 6, 7, 6,7 hoặc Tất cả. Không dùng ký tự | trong câu hỏi và đáp án.\n" . $sample);
 }
+function olympia_all_template_uri(array $stages): string {
+    $content="# MẪU DÁN CHUNG 4 VÒNG OLYMPIA - 40 CÂU\n";
+    $content.="# Cấu trúc: Khối | Vòng | Câu hỏi | Đáp án | Điểm\n";
+    $content.="# Thay 6,7 bằng 6, 7, 6,7 hoặc Tất cả theo phạm vi áp dụng. Không dùng ký tự | trong câu hỏi và đáp án.\n";
+    foreach($stages as $stage=>$meta){
+        for($i=1;$i<=10;$i++)$content.="6,7 | ".$stage." | Nhập câu hỏi ".$i." | Nhập đáp án ".$i." | ".(int)$meta['points']."\n";
+    }
+    return 'data:text/plain;charset=utf-8;base64,'.base64_encode($content);
+}
 ?>
 <?php if (!empty($weekId)): ?>
 <div class="d-flex flex-wrap gap-2 mb-3">
@@ -46,7 +55,8 @@ function olympia_template_uri(string $stage, int $points): string {
 <?php if (!empty($admin) && $view === 'manage'): ?>
 <div class="admin-box mb-3">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div><h5 class="fw-bold mb-1"><i class="bi bi-file-earmark-arrow-down text-success"></i> Mẫu nạp nhanh câu hỏi</h5><div class="small text-muted">Tải mẫu Excel hoặc mẫu dán của từng vòng. Mọi mẫu đều có đủ cột Khối, Vòng, Câu hỏi, Đáp án và Điểm.</div></div>
+    <div><h5 class="fw-bold mb-1"><i class="bi bi-file-earmark-arrow-down text-success"></i> Mẫu nạp nhanh câu hỏi</h5><div class="small text-muted">Tải mẫu chung đủ bốn vòng hoặc mẫu riêng từng vòng. Mọi mẫu đều có đủ cột Khối, Vòng, Câu hỏi, Đáp án và Điểm.</div></div>
+    <a class="btn btn-primary" download="mau-dan-chung-olympia-40-cau.txt" href="<?= e(olympia_all_template_uri($olympiaStages)) ?>"><i class="bi bi-clipboard-check"></i> Tải mẫu dán chung 4 vòng</a>
   </div>
   <div class="row g-2">
     <?php foreach ($olympiaStages as $stage => $meta): $slug = ['Khởi động'=>'khoi-dong','Vượt chướng ngại vật'=>'vuot-chuong-ngai-vat','Tăng tốc'=>'tang-toc','Về đích'=>'ve-dich'][$stage]; ?>
