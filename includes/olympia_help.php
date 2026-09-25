@@ -34,9 +34,9 @@ function olympia_all_template_uri(array $stages): string {
       <ol class="mb-0 ps-3">
         <li>Quản trị tạo tuần, chọn các lớp tham gia và mở tuần theo lịch hoặc mở thủ công.</li>
         <li>GVCN mở trò chơi cho lớp mình, lần lượt đọc hoặc trình chiếu câu hỏi theo bốn chặng.</li>
-        <li>Học sinh trả lời đúng được GVCN tích tên ngay tại câu hỏi; mỗi học sinh có thể được ghi nhận ở nhiều câu.</li>
+        <li>Học sinh trả lời đúng được GVCN tích tên trên màn hình điều khiển ngay trong lúc chơi; mỗi học sinh có thể được ghi nhận ở nhiều câu.</li>
         <li>Điểm của câu hỏi được cộng tự động cho từng học sinh và tổng hợp thành điểm lớp, điểm toàn trường.</li>
-        <li>GVCN có thể sửa lựa chọn trước khi tuần bị khóa. Khi tuần đã khóa, dữ liệu được giữ nguyên.</li>
+        <li>Trang quản lý của GVCN không hiển thị trước câu hỏi, đáp án hoặc phần sửa kết quả; việc chấm đúng chỉ thực hiện theo diễn biến lúc chơi.</li>
         <li>Trường hợp có nhiều học sinh trả lời đúng, giáo viên được tích nhiều em trong cùng một câu.</li>
       </ol>
     </div>
