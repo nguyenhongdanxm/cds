@@ -19,6 +19,8 @@ try {
     $db->exec("CREATE TABLE IF NOT EXISTS cds_student_support_members (school_year VARCHAR(12) NOT NULL, category VARCHAR(20) NOT NULL, subject VARCHAR(100) NOT NULL, student_id VARCHAR(100) NOT NULL, teacher VARCHAR(255) NOT NULL DEFAULT '', created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(school_year,category,subject,student_id), KEY idx_support_student(student_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     $column=$db->query("SHOW COLUMNS FROM cds_student_support_members LIKE 'group_name'")->fetch();
     if (!$column) $db->exec("ALTER TABLE cds_student_support_members ADD COLUMN group_name VARCHAR(3) NOT NULL DEFAULT ''");
+    $column=$db->query("SHOW COLUMNS FROM cds_student_support_members LIKE 'recommendation'")->fetch();
+    if (!$column) $db->exec("ALTER TABLE cds_student_support_members ADD COLUMN recommendation VARCHAR(40) NOT NULL DEFAULT ''");
 } catch (Throwable $ex) { http_response_code(503); exit('Không thể mở dữ liệu bồi dưỡng. Vui lòng kiểm tra kết nối MySQL.'); }
 // Đọc CSDL chung mà không nạp lại includes/auth.php (trùng hàm với Chuyên môn).
 try { $classes = $db->query('SELECT id,name,homeroom_teacher_id FROM cds_classes')->fetchAll(); $studentRows = $db->query('SELECT id,name,class_id,school_year_id,active FROM cds_students')->fetchAll(); }
@@ -77,9 +79,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $selected = array_values(array_unique(array_intersect($available, array_map('strval', (array)($_POST['subjects'] ?? [])))));
             $db->beginTransaction(); $del = $db->prepare('DELETE FROM cds_student_support_settings WHERE school_year=? AND category=?'); $del->execute([$year,$cat]);
             $add = $db->prepare('INSERT INTO cds_student_support_settings(school_year,category,subject) VALUES(?,?,?)'); foreach ($selected as $v) $add->execute([$year,$cat,$v]); $db->commit();
-        } elseif (in_array($action, ['member','bulk_add','bulk_remove','set_group','bulk_group'], true) && in_array($cat, ['tn','ts','muinhon','chuadat'], true) && in_array($subject,$available,true)) {
+        } elseif (in_array($action, ['member','bulk_add','bulk_remove','set_group','bulk_group','set_recommendation'], true) && in_array($cat, ['tn','ts','muinhon','chuadat'], true) && in_array($subject,$available,true)) {
             if (in_array($cat,['tn','ts'],true) && !in_array($subject,$settings[$cat],true)) throw new RuntimeException('Môn thi chưa được cài đặt hoặc tài khoản không có quyền cập nhật đăng ký.');
-            $ids = in_array($action,['member','set_group'],true) ? [(string)($_POST['student_id'] ?? '')] : array_values(array_unique(array_map('strval', (array)($_POST['student_ids'] ?? []))));
+            $ids = in_array($action,['member','set_group','set_recommendation'],true) ? [(string)($_POST['student_id'] ?? '')] : array_values(array_unique(array_map('strval', (array)($_POST['student_ids'] ?? []))));
             if (!$ids || count($ids) > 1500) throw new RuntimeException('Hãy chọn học sinh trong danh sách.');
             // Xác thực lại từng học sinh trên máy chủ, không tin vào danh sách gửi từ trình duyệt.
             foreach ($ids as $id) {
@@ -87,7 +89,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (in_array($cat,['tn','ts'],true) && !isset($examClasses[$cat][$students[$id]['class_id']])) throw new RuntimeException('Lớp của học sinh chưa được cài đặt cho kỳ ôn thi.');
                 if (!$admin && !$canSelect($students[$id],$subject,$cat)) throw new RuntimeException('Giáo viên chỉ được chọn học sinh đúng lớp và môn đang phụ trách.');
             }
-            if ($action==='bulk_group') {
+            if ($action==='set_recommendation') {
+                if (!in_array($cat,['muinhon','chuadat'],true)) throw new RuntimeException('Đề xuất chỉ dùng cho học sinh mũi nhọn hoặc chưa đạt.');
+                $recommendation=(string)($_POST['recommendation']??'');
+                $expected=$cat==='muinhon'?'Ôn thi HSG':'Cần bồi dưỡng';
+                if ($recommendation!=='' && $recommendation!==$expected) throw new RuntimeException('Đề xuất không hợp lệ.');
+                if ($recommendation!=='') {
+                    $q=$db->prepare('INSERT INTO cds_student_support_members(school_year,category,subject,student_id,teacher,recommendation) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE recommendation=VALUES(recommendation)');
+                    $q->execute([$year,$cat,$subject,$ids[0],$teacher,$recommendation]);
+                } else {
+                    $q=$db->prepare('UPDATE cds_student_support_members SET recommendation=? WHERE school_year=? AND category=? AND subject=? AND student_id=?');
+                    $q->execute(['',$year,$cat,$subject,$ids[0]]);
+                }
+            } elseif ($action==='bulk_group') {
                 if (!in_array($cat,['tn','ts'],true)) throw new RuntimeException('Chỉ danh sách ôn thi mới có nhóm TBK/TBY.');
                 $group=(string)($_POST['group_name']??'');
                 if(!in_array($group,['TBK','TBY'],true)) throw new RuntimeException('Hãy chọn nhóm TBK hoặc TBY.');
@@ -116,20 +130,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Throwable $ex) { if ($db->inTransaction()) $db->rollBack(); $error=$ex->getMessage(); }
     $st->execute([$year]); $settings=['tn'=>[],'ts'=>[]]; foreach ($st->fetchAll() as $r) $settings[$r['category']][]=$r['subject'];
 }
-$st=$db->prepare('SELECT category,subject,student_id,teacher,group_name FROM cds_student_support_members WHERE school_year=?'); $st->execute([$year]); $members=[]; foreach ($st->fetchAll() as $r) $members[$r['category']][$r['subject']][$r['student_id']]=['teacher'=>$r['teacher'],'group'=>$r['group_name']];
+$st=$db->prepare('SELECT category,subject,student_id,teacher,group_name,recommendation FROM cds_student_support_members WHERE school_year=?'); $st->execute([$year]); $members=[]; foreach ($st->fetchAll() as $r) $members[$r['category']][$r['subject']][$r['student_id']]=['teacher'=>$r['teacher'],'group'=>$r['group_name'],'recommendation'=>$r['recommendation']];
 $allClasses=array_values(array_unique(array_filter(array_column($students,'class')))); usort($allClasses,'strnatcasecmp');
 if(in_array($tab,['tn','ts'],true)) $allClasses=array_values(array_filter($allClasses,static function($name) use($classOptions,$examClasses,$tab) { foreach($examClasses[$tab] as $id=>$_) if(($classOptions[$id]??'')===$name) return true; return false; }));
 $class=(string)($_GET['class'] ?? ''); if (!in_array($class,$allClasses,true)) $class='';
 $subjects = in_array($tab,['tn','ts'],true) ? $settings[$tab] : ($admin ? $available : array_values(array_filter($available, static function($s) use($allowed,$norm) { foreach($allowed as $row) if(isset($row[$norm($s)])) return true; return false; })));
 $subject=(string)($_GET['subject'] ?? ''); if (!in_array($subject,$subjects,true)) $subject=$subjects[0] ?? '';
 $viewStudents=array_filter($students,static function($s) use($class,$subject,$tab,$examClasses) { return (!$class || $s['class']===$class) && $subject!=='' && (!in_array($tab,['tn','ts'],true) || isset($examClasses[$tab][$s['class_id']])); });
-$sort=(string)($_GET['sort']??'class'); if(!in_array($sort,['name','class','group','status'],true)) $sort='class';
+$sort=(string)($_GET['sort']??'priority'); if(!in_array($sort,['priority','name','class','status','group','recommendation','teacher'],true)) $sort='priority';
 $direction=(string)($_GET['dir']??'asc')==='desc'?-1:1;
-uksort($viewStudents,static function($a,$b) use(&$viewStudents,$members,$tab,$subject,$sort,$direction) {
+$nameKey=static function($name): string {
+    $name=trim((string)$name); $parts=preg_split('/\s+/u',$name,-1,PREG_SPLIT_NO_EMPTY);
+    $given=(string)array_pop($parts);
+    $key=$given.'|'.$name;
+    $key=strtr($key,['Đ'=>'D','đ'=>'d']);
+    if(function_exists('iconv')) { $plain=@iconv('UTF-8','ASCII//TRANSLIT//IGNORE',$key); if($plain!==false) $key=$plain; }
+    return strtolower($key);
+};
+uksort($viewStudents,static function($a,$b) use(&$viewStudents,$members,$tab,$subject,$sort,$direction,$nameKey) {
     $x=$viewStudents[$a]; $y=$viewStudents[$b];
-    $left=$sort==='name'?$x['name']:($sort==='group'?($members[$tab][$subject][$a]['group']??''):($sort==='status'?(isset($members[$tab][$subject][$a])?'1':'0'):$x['class']));
-    $right=$sort==='name'?$y['name']:($sort==='group'?($members[$tab][$subject][$b]['group']??''):($sort==='status'?(isset($members[$tab][$subject][$b])?'1':'0'):$y['class']));
-    return $direction*(strnatcasecmp((string)$left,(string)$right) ?: strnatcasecmp($x['name'],$y['name']));
+    $mx=$members[$tab][$subject][$a]??null; $my=$members[$tab][$subject][$b]??null;
+    $nameOrder=strnatcasecmp($nameKey($x['name']),$nameKey($y['name']));
+    $classOrder=strnatcasecmp($x['class'],$y['class']);
+    if($sort==='priority') return ($my!==null)<=>($mx!==null) ?: $classOrder ?: $nameOrder;
+    if($sort==='name') return $direction*($nameOrder ?: $classOrder);
+    if($sort==='class') return $direction*($classOrder ?: $nameOrder);
+    $left=$sort==='status'?($mx!==null?'1':'0'):(string)($mx[$sort]??'');
+    $right=$sort==='status'?($my!==null?'1':'0'):(string)($my[$sort]??'');
+    return $direction*(strnatcasecmp($left,$right) ?: $classOrder ?: $nameOrder);
 });
 $canEditAny=false; foreach($viewStudents as $row) if($canSelect($row,$subject,$tab)) { $canEditAny=true; break; }
 $sortUrl=static function($column) use($tab,$year,$class,$subject,$sort,$direction) { return BASE_URL.'boiduong.php?'.http_build_query(['tab'=>$tab,'year'=>$year,'class'=>$class,'subject'=>$subject,'sort'=>$column,'dir'=>$sort===$column&&$direction===1?'desc':'asc']); };
@@ -161,7 +189,7 @@ require __DIR__.'/includes/header.php';
 <button class="btn btn-sm btn-outline-secondary" type="button" onclick="document.querySelectorAll('.support-check').forEach(c=>c.checked=true)">Tích toàn bộ danh sách đang xem</button>
 <button class="btn btn-sm btn-outline-secondary" type="button" onclick="document.querySelectorAll('.support-check').forEach(c=>c.checked=false)">Bỏ tích</button>
 </form><?php endif;?>
-<div class="table-responsive"><table class="table table-sm table-hover align-middle"><thead><tr><th>Chọn</th><th>STT</th><th><a href="<?=e($sortUrl('name'))?>">Học sinh ↕</a></th><th><a href="<?=e($sortUrl('class'))?>">Lớp ↕</a></th><th><a href="<?=e($sortUrl('status'))?>">Tham gia ↕</a></th><?php if(in_array($tab,['tn','ts'],true)):?><th><a href="<?=e($sortUrl('group'))?>">Lớp/nhóm TBK, TBY ↕</a></th><?php endif;?><th>Người chọn</th></tr></thead><tbody><?php $i=0;foreach($viewStudents as $id=>$s):$selected=isset($members[$tab][$subject][$id]);$canEdit=$subject!==''&&$canSelect($s,$subject,$tab);?><tr><td><?php if($canEdit):?><input class="form-check-input support-check" type="checkbox" name="student_ids[]" form="supportBulk" value="<?=e($id)?>" aria-label="Chọn <?=e($s['name'])?>"><?php endif;?></td><td><?=++$i?></td><td><?=e($s['name'])?></td><td><?=e($s['class'])?></td><td><?php if($canEdit):?><form method="post" action="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>$tab,'year'=>$year]))?>"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="member"><input type="hidden" name="category" value="<?=e($tab)?>"><input type="hidden" name="subject" value="<?=e($subject)?>"><input type="hidden" name="student_id" value="<?=e($id)?>"><input type="hidden" name="class" value="<?=e($class)?>"><input type="hidden" name="selected" value="<?=$selected?'0':'1'?>"><button class="btn btn-sm <?=$selected?'btn-success':'btn-outline-secondary'?>"><?=$selected?'Đã chọn':'Chọn'?></button></form><?php else:?><?=$selected?'Có':'—'?><?php endif;?></td>
-<?php if(in_array($tab,['tn','ts'],true)):?><td><?php if($selected && $canEdit):?><form method="post" action="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>$tab,'year'=>$year]))?>" class="d-flex gap-1"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="set_group"><input type="hidden" name="category" value="<?=e($tab)?>"><input type="hidden" name="subject" value="<?=e($subject)?>"><input type="hidden" name="student_id" value="<?=e($id)?>"><input type="hidden" name="class" value="<?=e($class)?>"><select name="group_name" class="form-select form-select-sm" aria-label="Nhóm ôn thi của <?=e($s['name'])?>" onchange="this.form.requestSubmit()"><option value="" disabled>Chọn nhóm</option><?php foreach(['TBK','TBY'] as $gr):?><option value="<?=$gr?>" <?=($members[$tab][$subject][$id]['group']??'')===$gr?'selected':''?>><?=$gr?></option><?php endforeach;?></select><noscript><button class="btn btn-sm btn-primary">Lưu</button></noscript></form><?php else:?><?=e($selected?($members[$tab][$subject][$id]['group']?:'Chưa xếp'):'—')?><?php endif;?></td><?php endif;?><td><?=e($selected?$members[$tab][$subject][$id]['teacher']:'')?></td></tr><?php endforeach;if(!$i):?><tr><td colspan="<?=in_array($tab,['tn','ts'],true)?7:6?>" class="text-muted">Không có học sinh phù hợp.</td></tr><?php endif;?></tbody></table></div></div></div>
+<div class="table-responsive"><table class="table table-sm table-hover align-middle"><thead><tr><th>Chọn</th><th>STT</th><th><a href="<?=e($sortUrl('name'))?>">Học sinh ↕</a></th><th><a href="<?=e($sortUrl('class'))?>">Lớp ↕</a></th><th><a href="<?=e($sortUrl('status'))?>">Tham gia ↕</a></th><?php if(in_array($tab,['tn','ts'],true)):?><th><a href="<?=e($sortUrl('group'))?>">Lớp/nhóm TBK, TBY ↕</a></th><?php endif;?><?php if(in_array($tab,['muinhon','chuadat'],true)):?><th><a href="<?=e($sortUrl('recommendation'))?>">Đề xuất ↕</a></th><?php endif;?><th><a href="<?=e($sortUrl('teacher'))?>">Người chọn ↕</a></th></tr></thead><tbody><?php $i=0;foreach($viewStudents as $id=>$s):$selected=isset($members[$tab][$subject][$id]);$canEdit=$subject!==''&&$canSelect($s,$subject,$tab);?><tr><td><?php if($canEdit):?><input class="form-check-input support-check" type="checkbox" name="student_ids[]" form="supportBulk" value="<?=e($id)?>" aria-label="Chọn <?=e($s['name'])?>"><?php endif;?></td><td><?=++$i?></td><td><?=e($s['name'])?></td><td><?=e($s['class'])?></td><td><?php if($canEdit):?><form method="post" action="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>$tab,'year'=>$year]))?>"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="member"><input type="hidden" name="category" value="<?=e($tab)?>"><input type="hidden" name="subject" value="<?=e($subject)?>"><input type="hidden" name="student_id" value="<?=e($id)?>"><input type="hidden" name="class" value="<?=e($class)?>"><input type="hidden" name="selected" value="<?=$selected?'0':'1'?>"><button class="btn btn-sm <?=$selected?'btn-success':'btn-outline-secondary'?>"><?=$selected?'Đã chọn':'Chọn'?></button></form><?php else:?><?=$selected?'Có':'—'?><?php endif;?></td>
+<?php if(in_array($tab,['tn','ts'],true)):?><td><?php if($selected && $canEdit):?><form method="post" action="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>$tab,'year'=>$year]))?>" class="d-flex gap-1"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="set_group"><input type="hidden" name="category" value="<?=e($tab)?>"><input type="hidden" name="subject" value="<?=e($subject)?>"><input type="hidden" name="student_id" value="<?=e($id)?>"><input type="hidden" name="class" value="<?=e($class)?>"><select name="group_name" class="form-select form-select-sm" aria-label="Nhóm ôn thi của <?=e($s['name'])?>" onchange="this.form.requestSubmit()"><option value="" disabled>Chọn nhóm</option><?php foreach(['TBK','TBY'] as $gr):?><option value="<?=$gr?>" <?=($members[$tab][$subject][$id]['group']??'')===$gr?'selected':''?>><?=$gr?></option><?php endforeach;?></select><noscript><button class="btn btn-sm btn-primary">Lưu</button></noscript></form><?php else:?><?=e($selected?($members[$tab][$subject][$id]['group']?:'Chưa xếp'):'—')?><?php endif;?></td><?php endif;?><?php if(in_array($tab,['muinhon','chuadat'],true)):?><td><?php $proposal=$tab==='muinhon'?'Ôn thi HSG':'Cần bồi dưỡng';if($canEdit):?><form method="post" action="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>$tab,'year'=>$year]))?>"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="set_recommendation"><input type="hidden" name="category" value="<?=e($tab)?>"><input type="hidden" name="subject" value="<?=e($subject)?>"><input type="hidden" name="student_id" value="<?=e($id)?>"><input type="hidden" name="class" value="<?=e($class)?>"><select class="form-select form-select-sm" name="recommendation" aria-label="Đề xuất cho <?=e($s['name'])?>" onchange="this.form.requestSubmit()"><option value="" <?=empty($members[$tab][$subject][$id]['recommendation'])?'selected':''?>>Chưa đề xuất</option><option value="<?=e($proposal)?>" <?=($members[$tab][$subject][$id]['recommendation']??'')===$proposal?'selected':''?>><?=e($proposal)?></option></select><noscript><button class="btn btn-sm btn-primary">Lưu</button></noscript></form><?php else:?><?=e($members[$tab][$subject][$id]['recommendation']??'—')?><?php endif;?></td><?php endif;?><td><?=e($selected?$members[$tab][$subject][$id]['teacher']:'')?></td></tr><?php endforeach;if(!$i):?><tr><td colspan="7" class="text-muted">Không có học sinh phù hợp.</td></tr><?php endif;?></tbody></table></div></div></div>
 <?php endif;?></div>
 <?php require __DIR__.'/includes/footer.php'; ?>

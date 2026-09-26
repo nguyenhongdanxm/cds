@@ -704,7 +704,7 @@ function require_login() {
         $fileCheckSelfService = cds_current_page_feature() === 'cm.baocao.kythi'
             && $action === 'file_check_save';
         $supportSelfService = basename($_SERVER['PHP_SELF'] ?? '') === 'boiduong.php'
-            && in_array($action, ['member','bulk_add','bulk_remove','set_group','bulk_group'], true);
+            && in_array($action, ['member','bulk_add','bulk_remove','set_group','bulk_group','set_recommendation'], true);
         $educationPlanSelfService = cds_current_page_feature() === 'cm.kehoach'
             && in_array($action, ['save_plan', 'delete_plan'], true);
         $activityScript = basename($_SERVER['PHP_SELF'] ?? '');
