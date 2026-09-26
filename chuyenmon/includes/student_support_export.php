@@ -2,6 +2,12 @@
 /** Xuất danh sách bồi dưỡng đã chọn thành một tệp XLSX nhiều sheet. */
 require_once __DIR__.'/lesson_book_excel.php';
 
+function support_export_text(string $ref, $value, int $style): string {
+    // XML 1.0 không chấp nhận các ký tự điều khiển có thể lẫn trong dữ liệu tên.
+    $clean=preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', (string)$value);
+    return lb_xlsx_text($ref,$clean===null?'':$clean,$style);
+}
+
 function support_export_styles(): string {
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
         .'<fonts count="4"><font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="16"/><color rgb="FF173B60"/><name val="Arial"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><i/><sz val="10"/><color rgb="FF64748B"/><name val="Arial"/></font></fonts>'
@@ -21,14 +27,14 @@ function support_export_styles(): string {
 function support_export_sheet(string $title, string $year, array $rows, bool $exam, string $filter): string {
     $heads=$exam?['STT','Họ và tên','Lớp','Môn ôn thi','Tham gia','Nhóm TBK/TBY','Người chọn']:['STT','Họ và tên','Lớp','Môn','Tham gia','Đề xuất','Người chọn'];
     $data=[];
-    $data[]='<row r="1" ht="34">'.lb_xlsx_text('A1',mb_strtoupper($title,'UTF-8'),1).'</row>';
-    $data[]='<row r="2" ht="23">'.lb_xlsx_text('A2','Năm học '.$year.'  ·  '.$filter.'  ·  Tổng: '.count($rows).' học sinh theo môn',2).'</row>';
-    $cells='';foreach($heads as $i=>$h)$cells.=lb_xlsx_text(lb_xlsx_col($i+1).'3',$h,3);
+    $data[]='<row r="1" ht="34">'.support_export_text('A1',mb_strtoupper($title,'UTF-8'),1).'</row>';
+    $data[]='<row r="2" ht="23">'.support_export_text('A2','Năm học '.$year.'  ·  '.$filter.'  ·  Tổng: '.count($rows).' học sinh theo môn',2).'</row>';
+    $cells='';foreach($heads as $i=>$h)$cells.=support_export_text(lb_xlsx_col($i+1).'3',$h,3);
     $data[]='<row r="3" ht="32">'.$cells.'</row>';
-    foreach($rows as $i=>$entry){$n=$i+4;$values=[$i+1,$entry['name'],$entry['class'],$entry['subject'],'Có',$exam?($entry['group']?:'Chưa xếp'):($entry['recommendation']?:'—'),$entry['teacher']];$cells='';foreach($values as $j=>$value){$style=$j===0||$j===4||($exam&&$j===5)?6:($i%2===0?4:5);$cells.= $j===0?lb_xlsx_number(lb_xlsx_col($j+1).$n,$value,$style):lb_xlsx_text(lb_xlsx_col($j+1).$n,$value,$style);}$data[]='<row r="'.$n.'" ht="24">'.$cells.'</row>';}
-    if(!$rows)$data[]='<row r="4" ht="24">'.lb_xlsx_text('B4','Chưa có học sinh phù hợp.',4).'</row>';
+    foreach($rows as $i=>$entry){$n=$i+4;$values=[$i+1,$entry['name'],$entry['class'],$entry['subject'],'Có',$exam?($entry['group']?:'Chưa xếp'):($entry['recommendation']?:'—'),$entry['teacher']];$cells='';foreach($values as $j=>$value){$style=$j===0||$j===4||($exam&&$j===5)?6:($i%2===0?4:5);$cells.= $j===0?lb_xlsx_number(lb_xlsx_col($j+1).$n,$value,$style):support_export_text(lb_xlsx_col($j+1).$n,$value,$style);}$data[]='<row r="'.$n.'" ht="24">'.$cells.'</row>';}
+    if(!$rows)$data[]='<row r="4" ht="24">'.support_export_text('B4','Chưa có học sinh phù hợp.',4).'</row>';
     $last=max(3,count($rows)+3);
-    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:G'.max(4,$last).'"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="7"/><col min="2" max="2" width="32"/><col min="3" max="3" width="13"/><col min="4" max="4" width="24"/><col min="5" max="5" width="13"/><col min="6" max="6" width="24"/><col min="7" max="7" width="30"/></cols><sheetData>'.implode('',$data).'</sheetData><mergeCells count="2"><mergeCell ref="A1:G1"/><mergeCell ref="A2:G2"/></mergeCells><autoFilter ref="A3:G'.$last.'"/><printOptions horizontalCentered="1"/><pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/></worksheet>';
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:G'.max(4,$last).'"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="7"/><col min="2" max="2" width="32"/><col min="3" max="3" width="13"/><col min="4" max="4" width="24"/><col min="5" max="5" width="13"/><col min="6" max="6" width="24"/><col min="7" max="7" width="30"/></cols><sheetData>'.implode('',$data).'</sheetData><autoFilter ref="A3:G'.$last.'"/><mergeCells count="2"><mergeCell ref="A1:G1"/><mergeCell ref="A2:G2"/></mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/></worksheet>';
 }
 
 function support_export_xlsx(array $categories, array $students, array $members, string $year, string $class, string $subject, string $group, bool $all): void {
