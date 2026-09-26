@@ -12,6 +12,7 @@ $cmLayoutLogged = isset($logged) ? (bool)$logged : false;
 $cmLayoutTab = $current === 'danhgia' ? (string)($_GET['view'] ?? 'overview') : (string)($tab_q ?? ($_GET['tab'] ?? ''));
 $cmLayoutCan = static function (string $permission) use ($cmLayoutLogged): bool {
     if (!$cmLayoutLogged) return in_array($permission, ['cm.tracuu'], true);
+    if ($permission === 'cm.support') return true;
     return function_exists('cds_can_feature') ? cds_can_feature($permission, 'view') : true;
 };
 $cmLayoutActive = static function (array $pages, ?string $tab = null) use ($current, $cmLayoutTab): bool {
@@ -45,7 +46,7 @@ $cmNavGroups = [
     ['label'=>'Kế hoạch – Thực hiện','items'=>[
         ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'vanban','href'=>'kehoach.php?tab=vanban','icon'=>'bi-file-earmark-check','label'=>'Kế hoạch giáo dục'],
         ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'chitieu','href'=>'kehoach.php?tab=chitieu','icon'=>'bi-bullseye','label'=>'Chỉ tiêu'],
-        ['permission'=>'cm.kehoach','pages'=>['boiduong'],'href'=>'boiduong.php','icon'=>'bi-mortarboard','label'=>'Bồi dưỡng học sinh'],
+        ['permission'=>'cm.support','pages'=>['boiduong'],'href'=>'boiduong.php','icon'=>'bi-mortarboard','label'=>'Bồi dưỡng học sinh'],
         ['permission'=>'cm.kehoach','pages'=>['activities'],'tab'=>'clubs','href'=>'activities.php?tab=clubs&view=list','icon'=>'bi-people-fill','label'=>'Các CLB'],
         ['permission'=>'cm.kehoach','pages'=>['activities'],'tab'=>'online','href'=>'activities.php?tab=online&view=students','icon'=>'bi-laptop','label'=>'Học Online'],
         ['permission'=>'cm.baocao.tiendo','pages'=>['baocao'],'tab'=>'tiendo','href'=>'baocao.php?tab=tiendo','icon'=>'bi-graph-up-arrow','label'=>'Tiến độ chương trình'],
