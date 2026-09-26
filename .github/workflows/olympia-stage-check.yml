@@ -1,0 +1,20 @@
+name: Olympia stage check
+on:
+  push:
+    branches: [main, feat/olympia-stage-visual-prototype]
+  pull_request:
+    branches: [main]
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check PHP syntax
+        run: |
+          php -v
+          php -l includes/olympia_stage.php
+          php -l olympia_stage_api.php
+          php -l olympia_stage.php
+          php -l hoclieu_game_olympia.php
+      - name: Render stage scenes
+        run: node tests/olympia-stage-ui.test.js
