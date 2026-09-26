@@ -50,10 +50,10 @@ function cmhome_meal_summary(string $className,array $studentIds,string $month):
         $data=is_file($file)?json_decode((string)file_get_contents($file),true):null;
         return is_array($data)?$data:$fallback;
     };
-    $noitruDir=DATA_PATH.'/noitru';
+    $noitruDir=dirname(__DIR__,2).'/data/noitru';
     $from=$month.'-01';$to=date('Y-m-t',strtotime($from));$members=array_fill_keys($studentIds,true);
     $result=[];foreach($members as $id=>$_)$result[$id]=['sang'=>0,'trua'=>0,'toi'=>0];
-    $reports=[];$stateRows=[];$mealSettings=[];$sqlRead=cds_meal_sql_read_effective();
+    $reports=[];$stateRows=[];$mealSettings=[];$sqlRead=!is_file($noitruDir.'/meal_mysql_shadow_pending.json')&&cds_meal_sql_read_effective();
     if($sqlRead){
         try{
             $daily=cds_meal_sql_daily_for_range($from,$to);

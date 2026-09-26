@@ -34,6 +34,33 @@ $class=$visibleClasses[$classId]??null;
 $tabs=['overview'=>'Tổng quan','organization'=>'Tổ chức lớp','notes'=>'Cần lưu ý','health'=>'Sức khỏe','meals'=>'Chế độ & thu chi','points'=>'Thi đua','plans'=>'Kế hoạch'];
 $tab=(string)($_GET['tab']??'overview');if(!isset($tabs[$tab]))$tab='overview';
 $students=$class?cmhome_rows($db,'SELECT id,name,gender,dob,ethnicity,hometown,address,parent_name,parent_phone,is_boarder,raw_json FROM cds_students WHERE class_id=? AND active=1 ORDER BY name',[$classId]):[];
+// CSDL có thể đang đọc JSON khi bản sao MySQL chưa khớp. Dùng cùng nguồn
+// hiển thị của CSDL, giữ MySQL làm dự phòng khi nguồn đó chưa sẵn sàng.
+if($class){
+    require_once dirname(__DIR__).'/includes/database_sql_read.php';
+    $sourceRows=is_file(dirname(__DIR__).'/data/mysql_shadow_pending.json')?null:cds_core_sql_rows('students');
+    if(!is_array($sourceRows)){
+        $sourceFile=dirname(__DIR__).'/data/students.json';
+        $decoded=is_file($sourceFile)?json_decode((string)file_get_contents($sourceFile),true):null;
+        $sourceRows=is_array($decoded)?$decoded:[];
+    }
+    if($sourceRows){
+        $canonical=[];
+        foreach($sourceRows as $row){
+            if(!is_array($row)||(string)($row['class_id']??'')!==$classId||array_key_exists('active',$row)&&!$row['active'])continue;
+            $sid=(string)($row['id']??'');if($sid==='')continue;
+            $canonical[$sid]=[
+                'id'=>$sid,'name'=>(string)($row['name']??''),'gender'=>(string)($row['gender']??''),
+                'dob'=>(string)($row['dob']??''),'ethnicity'=>(string)($row['ethnicity']??''),
+                'hometown'=>(string)($row['hometown']??''),'address'=>(string)($row['address']??''),
+                'parent_name'=>(string)($row['parent_name']??''),'parent_phone'=>(string)($row['parent_phone']??''),
+                'is_boarder'=>!empty($row['boarder'])||!empty($row['is_boarder'])?1:0,
+                'raw_json'=>json_encode($row,JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE),
+            ];
+        }
+        if($canonical){$students=array_values($canonical);usort($students,static fn($a,$b)=>strnatcasecmp($a['name'],$b['name']));}
+    }
+}
 $studentMap=[];foreach($students as $s)$studentMap[(string)$s['id']]=$s;
 $familyProfiles=[];
 if($class)foreach(cmhome_rows($db,'SELECT * FROM cmhome_family_profiles WHERE class_id=? AND school_year=?',[$classId,$year]) as $row)$familyProfiles[(string)$row['student_id']]=$row;
@@ -172,9 +199,21 @@ if($class){
         $layout=array_merge($layout,cmhome_one($db,'SELECT * FROM cmhome_layout WHERE class_id=? AND school_year=?',[$classId,$year]));
         foreach(cmhome_rows($db,'SELECT seat_no,student_id FROM cmhome_seats WHERE class_id=? AND school_year=?',[$classId,$year]) as $r)$seats[(int)$r['seat_no']]=$r['student_id'];
     }elseif($tab==='health'){
-        $healthFile=DATA_PATH.'/noitru/health.json';
+        $healthFile=dirname(__DIR__).'/data/noitru/health.json';
         $allHealth=is_file($healthFile)?json_decode((string)file_get_contents($healthFile),true):[];
-        foreach(is_array($allHealth)?$allHealth:[] as $record)if(isset($studentMap[(string)($record['student_id']??'')]))$healthRows[]=$record;
+        $names=[];
+        foreach($students as $student)$names[$normal($student['name'])][]=(string)$student['id'];
+        foreach(is_array($allHealth)?$allHealth:[] as $record){
+            if(!is_array($record))continue;
+            $sid=(string)($record['student_id']??'');
+            if(!isset($studentMap[$sid])){
+                if($normal($record['class_name']??'')!==$normal($class['name']))continue;
+                $matches=$names[$normal($record['student_name']??'')]??[];
+                if(count($matches)!==1)continue;
+                $sid=$matches[0];$record['student_id']=$sid;
+            }
+            $healthRows[]=$record;
+        }
         usort($healthRows,static fn($a,$b)=>strcmp((string)($b['date']??'').(string)($b['created_at']??''),(string)($a['date']??'').(string)($a['created_at']??'')));
     }elseif($tab==='notes'){
         foreach(cmhome_rows($db,'SELECT * FROM cmhome_notes WHERE class_id=? AND school_year=?',[$classId,$year]) as $r)$notes[$r['student_id']]=$r;
