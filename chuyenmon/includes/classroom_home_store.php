@@ -2,7 +2,10 @@
 /** Dữ liệu riêng của tiện ích lớp chủ nhiệm; không ghi vào CSDL nội trú/CSDL học sinh. */
 function cmhome_install(PDO $db): void {
     // Bảng cuối là dấu hiệu cài đặt hoàn tất; trang thường chỉ cần một truy vấn kiểm tra.
-    if($db->query("SHOW TABLES LIKE 'cmhome_refunds'")->fetchColumn()) return;
+    if($db->query("SHOW TABLES LIKE 'cmhome_refunds'")->fetchColumn()) {
+        cmhome_install_extensions($db);
+        return;
+    }
     $schema=[
       'cmhome_roles'=>'(class_id VARCHAR(100) NOT NULL,school_year VARCHAR(20) NOT NULL,student_id VARCHAR(100) NOT NULL,role_name VARCHAR(80) NOT NULL,updated_by VARCHAR(255) NOT NULL,PRIMARY KEY(class_id,school_year,student_id,role_name))',
       'cmhome_seats'=>'(class_id VARCHAR(100) NOT NULL,school_year VARCHAR(20) NOT NULL,seat_no SMALLINT UNSIGNED NOT NULL,student_id VARCHAR(100) NOT NULL,PRIMARY KEY(class_id,school_year,seat_no),UNIQUE KEY uq_seat_student(class_id,school_year,student_id))',
@@ -15,6 +18,12 @@ function cmhome_install(PDO $db): void {
       'cmhome_refunds'=>'(id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,class_id VARCHAR(100) NOT NULL,school_year VARCHAR(20) NOT NULL,month_key CHAR(7) NOT NULL,student_id VARCHAR(100) NOT NULL,meals_sang SMALLINT UNSIGNED NOT NULL DEFAULT 0,meals_trua SMALLINT UNSIGNED NOT NULL DEFAULT 0,meals_toi SMALLINT UNSIGNED NOT NULL DEFAULT 0,amount DECIMAL(14,0) NOT NULL DEFAULT 0,status VARCHAR(20) NOT NULL DEFAULT \'pending\',note VARCHAR(500) NOT NULL DEFAULT \'\',created_by VARCHAR(255) NOT NULL,decided_by VARCHAR(255) NOT NULL DEFAULT \'\',created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(id),UNIQUE KEY uq_student_month(class_id,school_year,month_key,student_id))'
     ];
     foreach($schema as $table=>$columns) $db->exec('CREATE TABLE IF NOT EXISTS '.$table.' '.$columns.' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+    cmhome_install_extensions($db);
+}
+function cmhome_install_extensions(PDO $db): void {
+    if($db->query("SHOW TABLES LIKE 'cmhome_class_reviews'")->fetchColumn() && $db->query("SHOW TABLES LIKE 'cmhome_layout'")->fetchColumn()) return;
+    $db->exec('CREATE TABLE IF NOT EXISTS cmhome_layout (class_id VARCHAR(100) NOT NULL,school_year VARCHAR(20) NOT NULL,seat_rows TINYINT UNSIGNED NOT NULL DEFAULT 6,seat_aisles TINYINT UNSIGNED NOT NULL DEFAULT 2,seats_per_desk TINYINT UNSIGNED NOT NULL DEFAULT 2,PRIMARY KEY(class_id,school_year)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+    $db->exec('CREATE TABLE IF NOT EXISTS cmhome_class_reviews (class_id VARCHAR(100) NOT NULL,school_year VARCHAR(20) NOT NULL,week_start DATE NOT NULL,rank_label VARCHAR(30) NOT NULL,comment VARCHAR(1000) NOT NULL DEFAULT \'\',updated_by VARCHAR(255) NOT NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(class_id,school_year,week_start)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
 }
 function cmhome_rows(PDO $db,string $sql,array $params=[]): array { $q=$db->prepare($sql);$q->execute($params);return $q->fetchAll(PDO::FETCH_ASSOC); }
 function cmhome_one(PDO $db,string $sql,array $params=[]): array { $rows=cmhome_rows($db,$sql,$params);return $rows[0]??[]; }
@@ -23,7 +32,14 @@ function cmhome_date($value): bool { $date=DateTimeImmutable::createFromFormat('
 function cmhome_month($value): bool { return preg_match('/^\d{4}-(0[1-9]|1[0-2])$/',(string)$value)===1; }
 function cmhome_money($value): int { if(!preg_match('/^\d{1,12}$/',(string)$value))throw new RuntimeException('Số tiền phải là số nguyên không âm.');return (int)$value; }
 function cmhome_meal_summary(string $className,array $studentIds,string $month): array {
-    require_once dirname(__DIR__,2).'/includes/noitru_store.php';
+    // Chỉ nạp lớp đọc báo ăn: noitru_store kéo theo auth.php và xung đột với
+    // functions.php của Chuyên môn khi trang chủ nhiệm mở tab thu chi.
+    require_once dirname(__DIR__,2).'/includes/database_meal_read.php';
+    $readJson=static function(string $file,array $fallback=[]): array {
+        $data=is_file($file)?json_decode((string)file_get_contents($file),true):null;
+        return is_array($data)?$data:$fallback;
+    };
+    $noitruDir=DATA_PATH.'/noitru';
     $from=$month.'-01';$to=date('Y-m-t',strtotime($from));$members=array_fill_keys($studentIds,true);
     $result=[];foreach($members as $id=>$_)$result[$id]=['sang'=>0,'trua'=>0,'toi'=>0];
     $reports=[];$stateRows=[];$mealSettings=[];$sqlRead=cds_meal_sql_read_effective();
@@ -36,7 +52,9 @@ function cmhome_meal_summary(string $className,array $studentIds,string $month):
             $mealSettings=json_decode((string)($rawSettings['raw_json']??''),true)?:[];
         }catch(Throwable $ex){$sqlRead=false;}
     }
-    if(!$sqlRead){$daily=noitru_meals_all();$stored=noitru_meal_reports_data();$reportRows=$stored['reports']??[];$stateRows=$stored['states']??[];$mealSettings=$stored['settings']??[];}
+    if(!$sqlRead){$daily=$readJson($noitruDir.'/meals_daily.json');$stored=$readJson($noitruDir.'/meal_reports.json');$reportRows=$stored['reports']??[];$stateRows=$stored['states']??[];$mealSettings=$stored['settings']??[];}
+    $deleted=$readJson($noitruDir.'/meal_history_deleted.json');
+    if($deleted){$deleted=array_fill_keys(array_map('strval',$deleted),true);$reportRows=array_values(array_filter($reportRows,static fn($r)=>!isset($deleted[(string)($r['id']??'')])));}
     foreach($reportRows as $r){$date=(string)($r['date']??'');$meal=(string)($r['meal']??'');if($date>=$from&&$date<=$to&&($r['class_name']??'')===$className&&in_array($meal,['sang','trua','toi'],true))$reports[$date][$meal]=true;}
     $states=[];foreach($stateRows as $r){$date=(string)($r['date']??'');$meal=(string)($r['meal']??'');if($date>=$from&&$date<=$to)$states[$date][$meal]=(string)($r['status']??'');}
     $timezone=new DateTimeZone('Asia/Ho_Chi_Minh');$now=new DateTimeImmutable('now',$timezone);
@@ -52,7 +70,7 @@ function cmhome_meal_summary(string $className,array $studentIds,string $month):
     foreach($daily as $r){$date=(string)($r['date']??'');$id=(string)($r['student_id']??'');if($date<$from||$date>$to||!isset($members[$id]))continue;
         foreach(['sang','trua','toi'] as $meal){if(($r[$meal]??'')!=='yes'||!isset($reports[$date][$meal]))continue;$key=$date.'|'.$meal;if(!isset($locked[$key]))$locked[$key]=$isLocked($date,$meal);if($locked[$key])$result[$id][$meal]++;}
     }
-    $rice=noitru_rice_data();$grams=array_merge(['sang_grams'=>0,'trua_grams'=>180,'toi_grams'=>180],(array)($rice['settings']??[]));
+    $rice=$readJson($noitruDir.'/rice.json');$grams=array_merge(['sang_grams'=>0,'trua_grams'=>180,'toi_grams'=>180],(array)($rice['settings']??[]));
     foreach($result as &$r)$r['rice_kg']=round(($r['sang']*$grams['sang_grams']+$r['trua']*$grams['trua_grams']+$r['toi']*$grams['toi_grams'])/1000,3);unset($r);
     return [$result,$grams];
 }
