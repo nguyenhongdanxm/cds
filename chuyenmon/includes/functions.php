@@ -682,7 +682,7 @@ function cds_current_page_feature() {
 
 function is_logged_in() {
     $user = cds_user();
-    return $user && (basename($_SERVER['PHP_SELF'] ?? '') === 'boiduong.php' || cds_can_feature(cds_current_page_feature(), 'view'));
+    return $user && (in_array(basename($_SERVER['PHP_SELF'] ?? ''), ['boiduong.php','chunhiem.php'], true) || cds_can_feature(cds_current_page_feature(), 'view'));
 }
 
 function require_login() {
@@ -705,6 +705,7 @@ function require_login() {
             && $action === 'file_check_save';
         $supportSelfService = basename($_SERVER['PHP_SELF'] ?? '') === 'boiduong.php'
             && in_array($action, ['member','bulk_add','bulk_remove','set_group','bulk_group','set_recommendation'], true);
+        $homeSelfService = basename($_SERVER['PHP_SELF'] ?? '') === 'chunhiem.php';
         $educationPlanSelfService = cds_current_page_feature() === 'cm.kehoach'
             && in_array($action, ['save_plan', 'delete_plan'], true);
         $activityScript = basename($_SERVER['PHP_SELF'] ?? '');
@@ -717,7 +718,7 @@ function require_login() {
         $requiredLevel = ($observationSelfService || $fileCheckSelfService || $educationPlanSelfService || $supportSelfService || $clubRequestSelfService || $lessonBookSelfService)
             ? 'view'
             : (str_contains($action, 'delete') || str_contains($action, 'xoa') ? 'delete' : 'edit');
-        if (!$supportSelfService && !cds_can_feature(cds_current_page_feature(), $requiredLevel)) {
+        if (!$supportSelfService && !$homeSelfService && !cds_can_feature(cds_current_page_feature(), $requiredLevel)) {
             http_response_code(403);
             exit('Tài khoản chưa được cấp quyền ' . ($requiredLevel === 'delete' ? 'xóa' : 'cập nhật') . ' cho chức năng Chuyên môn này.');
         }
