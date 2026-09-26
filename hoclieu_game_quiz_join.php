@@ -7,6 +7,7 @@ if (empty($_SESSION['qp_student_csrf'])) $_SESSION['qp_student_csrf'] = bin2hex(
 $csrf = (string)$_SESSION['qp_student_csrf'];
 $code = trim((string)($_REQUEST['code'] ?? ''));
 $session = preg_match('/^[0-9]{8}$/', $code) ? qp_session($code) : null;
+if ($session && ($session['mode'] ?? '') !== 'computer') $session = null;
 $set = $session ? qp_set((string)$session['set_id']) : null;
 $questions = $session ? (json_decode((string)$session['questions_json'],true) ?: []) : [];
 $students = [];
