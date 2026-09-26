@@ -29,4 +29,8 @@ for (const round of ['khoi_dong', 'vuot_chuong_ngai_vat', 'tang_toc', 've_dich',
     assert(context.result.includes('ĐƯỜNG LÊN ĐỈNH OLYMPIA'), `${round}/${scene} lost branding`);
   }
 }
-console.log('40 Olympia stage scenes rendered.');
+assert(!fs.readFileSync('includes/olympia_stage.php','utf8').includes("unset($state['undo_judge']);"), 'Question bank must not be public');
+const api = fs.readFileSync('olympia_stage_api.php','utf8');
+for(const action of ['rooms','delete_room','edition','bank_save','bank_delete']) assert(api.includes(`'${action}'`), `${action} missing`);
+for(const tab of ['session','content','control','settings']) assert(fs.readFileSync('olympia_stage.php','utf8').includes(`data-panel="${tab}"`), `${tab} tab missing`);
+console.log('40 Olympia stage scenes and administration routes checked.');

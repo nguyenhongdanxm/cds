@@ -9,10 +9,18 @@ try {
         $token=(string)($_SESSION['olympia_stage_csrf']??'');
         if($token===''||!hash_equals($token,(string)($_POST['csrf']??'')))throw new RuntimeException('Phiên trình duyệt không hợp lệ.');
     }
+    if($action==='rooms'){
+        if(!stage_admin())throw new RuntimeException('Chỉ quản trị viên được xem các kỳ thi.');stage_schema();
+        $rows=stage_db()->query('SELECT room_code,state_json,created_at,updated_at FROM cds_olympia_stage_rooms ORDER BY updated_at DESC LIMIT 100')->fetchAll(PDO::FETCH_ASSOC);
+        $rooms=[];foreach($rows as $row){$meta=json_decode((string)$row['state_json'],true)['edition']??[];$rooms[]=['code'=>$row['room_code'],'edition'=>$meta,'created_at'=>$row['created_at'],'updated_at'=>$row['updated_at']];}
+        stage_reply(['ok'=>true,'rooms'=>$rooms]);
+    }
     if($action==='create'){
         if(!stage_admin())throw new RuntimeException('Chỉ quản trị viên được tạo phiên.');stage_schema();
         $names=json_decode((string)($_POST['names']??''),true);$names=is_array($names)?array_slice(array_values($names),0,4):[];
-        $state=stage_initial();foreach($names as $i=>$name)$state['names'][$i]=stage_text($name,80)?:$state['names'][$i];
+        $state=stage_initial();$year=(int)($_POST['year']??date('Y'));$quarter=(int)($_POST['quarter']??1);$month=(int)($_POST['month']??1);
+        if($year<2020||$year>2100||$quarter<1||$quarter>4||$month<1||$month>12||$quarter!==intdiv($month-1,3)+1)throw new RuntimeException('Quý, tháng hoặc năm không hợp lệ.');
+        $state['edition']=['title'=>stage_text($_POST['title']??'',120),'year'=>$year,'quarter'=>$quarter,'month'=>$month];foreach($names as $i=>$name)$state['names'][$i]=stage_text($name,80)?:$state['names'][$i];
         $pins=[];for($i=0;$i<4;$i++)$pins[]=str_pad((string)random_int(0,999999),6,'0',STR_PAD_LEFT);
         $mcPin=str_pad((string)random_int(0,999999),6,'0',STR_PAD_LEFT);
         $hashes=array_map('password_hash',$pins,array_fill(0,4,PASSWORD_DEFAULT));$hashes['mc']=password_hash($mcPin,PASSWORD_DEFAULT);
@@ -32,13 +40,18 @@ try {
         if(!is_array($hashes)||empty($hashes['mc'])||!password_verify((string)($_POST['pin']??''),(string)$hashes['mc']))throw new RuntimeException('Mã máy MC không đúng.');
         $_SESSION['olympia_stage_mc'][$code]=(string)$hashes['mc'];stage_reply(['ok'=>true,'mc'=>true]);
     }
+    if($action==='delete_room'){
+        if(!stage_admin())throw new RuntimeException('Chỉ quản trị viên được xóa kỳ thi.');
+        $room=stage_room($code);$stmt=stage_db()->prepare('DELETE FROM cds_olympia_stage_rooms WHERE id=?');$stmt->execute([$room['id']]);
+        unset($_SESSION['olympia_stage_seats'][$code],$_SESSION['olympia_stage_mc'][$code]);stage_reply(['ok'=>true]);
+    }
     $room=stage_room($code);$host=stage_admin();$seat=stage_seat($room);
     $roomHashes=json_decode((string)$room['seat_hashes'],true);
     $mc=$host||(is_array($roomHashes)&&isset($roomHashes['mc'],$_SESSION['olympia_stage_mc'][$code])&&hash_equals((string)$roomHashes['mc'],(string)$_SESSION['olympia_stage_mc'][$code]));
     if($action==='state'){
         $state=stage_state($room);$out=stage_public($state);
         if($seat!==null)$out['my_answer']=$state['answers'][$seat]??null;
-        if($mc)$out['answer_key']=$state['answer'];
+        if($mc)$out['answer_key']=$state['answer'];if($host)$out['question_bank']=$state['question_bank'];
         stage_reply(['ok'=>true,'state'=>$out,'revision'=>(int)$room['revision'],'server_ms'=>(int)round(microtime(true)*1000),'host'=>$host,'mc'=>$mc,'seat'=>$seat]);
     }
     if(!$host&&$seat===null)throw new RuntimeException('Hãy nhập mã ghế trước khi chơi.');
@@ -73,6 +86,21 @@ try {
             $state['answers'][$seat]=['text'=>stage_text($_POST['answer']??'',500),'at'=>$now,'elapsed_ms'=>$state['timer_end']?max(0,$now-($state['timer_end']-$state['timer_seconds']*1000)):0];
         } elseif($host) {
             switch($action){
+                case 'edition':
+                    $year=(int)($_POST['year']??0);$quarter=(int)($_POST['quarter']??0);$month=(int)($_POST['month']??0);
+                    if($year<2020||$year>2100||$quarter<1||$quarter>4||$month<1||$month>12||$quarter!==intdiv($month-1,3)+1)throw new RuntimeException('Quý, tháng hoặc năm không hợp lệ.');
+                    $state['edition']=['title'=>stage_text($_POST['title']??'',120),'year'=>$year,'quarter'=>$quarter,'month'=>$month];break;
+                case 'bank_save':
+                    $round=(string)($_POST['round']??'');$mode=$round==='khoi_dong'?(string)($_POST['mode']??'private'):'private';$seatNo=(int)($_POST['seat']??0);$number=(int)($_POST['number']??0);
+                    $max=['khoi_dong'=>$mode==='common'?12:6,'vuot_chuong_ngai_vat'=>5,'tang_toc'=>4,'ve_dich'=>3,'cau_hoi_phu'=>3];
+                    if(!isset($max[$round])||$number<1||$number>$max[$round]||$seatNo<0||$seatNo>3||!in_array($mode,['private','common'],true))throw new RuntimeException('Vị trí câu hỏi không hợp lệ.');
+                    $question=stage_text($_POST['question']??'');$answer=stage_text($_POST['answer']??'');if($question===''||$answer==='')throw new RuntimeException('Cần nhập câu hỏi và đáp án.');
+                    $key=$round.':'.($round==='khoi_dong'?$mode.':':'').(($round==='ve_dich'||($round==='khoi_dong'&&$mode==='private'))?$seatNo.':':'').$number;
+                    $state['question_bank'][$key]=['round'=>$round,'mode'=>$mode,'seat'=>$seatNo,'number'=>$number,'question'=>$question,'answer'=>$answer,'media'=>stage_text($_POST['media']??'',300),'media_type'=>in_array($_POST['media_type']??'image',['image','audio','video'],true)?$_POST['media_type']:'image','options'=>stage_text($_POST['options']??'',1000),'kind'=>in_array($_POST['kind']??'normal',['normal','choice','true_false','practice'],true)?$_POST['kind']:'normal'];
+                    $state['event_name']='bank';break;
+                case 'bank_delete':
+                    $key=(string)($_POST['key']??'');if(!isset($state['question_bank'][$key]))throw new RuntimeException('Không tìm thấy câu hỏi.');
+                    unset($state['question_bank'][$key]);$state['event_name']='bank';break;
                 case 'rotate_mc':
                     $mcPin=str_pad((string)random_int(0,999999),6,'0',STR_PAD_LEFT);
                     $hashes=json_decode((string)$room['seat_hashes'],true);if(!is_array($hashes))throw new RuntimeException('Mã ghế không hợp lệ.');
@@ -84,7 +112,7 @@ try {
                     break;
                 case 'round':
                     $round=(string)($_POST['round']??'');if(!in_array($round,['khoi_dong','vuot_chuong_ngai_vat','tang_toc','ve_dich','cau_hoi_phu'],true))throw new RuntimeException('Vòng thi không hợp lệ.');
-                    $state['round']=$round;$state['undo_judge']=null;$state['scene']='intro';$state['question_no']=1;$state['seat']=0;$state['star_active']=false;
+                    $state['round']=$round;$state['question']='';$state['answer']='';$state['media']='';$state['options']='';$state['answers']=[];$state['buzz']=null;$state['revealed']=false;$state['timer_end']=0;$state['undo_judge']=null;$state['scene']='intro';$state['question_no']=1;$state['seat']=0;$state['star_active']=false;
                     if($round==='ve_dich'){$state['finish_done']=[];$order=[0,1,2,3];usort($order,fn($a,$b)=>(($state['scores'][$b]<=>$state['scores'][$a])?:($a<=>$b)));$state['seat']=$order[0];}
                     if($round==='cau_hoi_phu'){$counts=array_count_values($state['scores']);$state['tie_candidates']=array_values(array_filter([0,1,2,3],fn($i)=>($counts[$state['scores'][$i]]??0)>1));$state['tie_winner']=null;}
                     $state['event_name']='round';break;
@@ -106,8 +134,12 @@ try {
                 case 'question':
             $number=(int)($_POST['number']??1);$max=$state['round']==='tang_toc'?4:($state['round']==='ve_dich'||$state['round']==='cau_hoi_phu'?3:($state['round']==='vuot_chuong_ngai_vat'?5:((($_POST['mode']??'private')==='common')?12:6)));
             if($number<1||$number>$max)throw new RuntimeException('Số câu vượt phạm vi của phần thi.');
-            $state['question']=stage_text($_POST['question']??'');$state['answer']=stage_text($_POST['answer']??'');$state['media']=stage_text($_POST['media']??'',300);$state['question_no']=$number;$state['question_kind']=($_POST['kind']??'normal')==='practice'?'practice':'normal';$state['practice_phase']='thinking';
-                    if($state['round']!=='ve_dich')$state['seat']=max(0,min(3,(int)($_POST['seat']??0)));$state['mode']=($_POST['mode']??'private')==='common'?'common':'private';
+            $bankKey=(string)($_POST['bank_key']??'');$entry=$bankKey!==''?($state['question_bank'][$bankKey]??null):null;
+            if($bankKey!==''&&(!$entry||$entry['round']!==$state['round']||($state['round']==='ve_dich'&&(int)$entry['seat']!==(int)$state['seat'])))throw new RuntimeException('Câu hỏi không thuộc chặng này.');
+            $state['question']=stage_text($entry['question']??($_POST['question']??''));$state['answer']=stage_text($entry['answer']??($_POST['answer']??''));
+            if($state['question']===''||$state['answer']==='')throw new RuntimeException('Cần có câu hỏi và đáp án trước khi lên sóng.');
+            $state['media']=stage_text($entry['media']??($_POST['media']??''),300);$state['media_type']=$entry['media_type']??($_POST['media_type']??'image');$state['options']=stage_text($entry['options']??($_POST['options']??''),1000);$state['question_no']=$entry['number']??$number;$state['question_kind']=$entry['kind']??($_POST['kind']??'normal');$state['practice_phase']='thinking';
+                    if($state['round']!=='ve_dich')$state['seat']=$entry['seat']??max(0,min(3,(int)($_POST['seat']??0)));$state['mode']=$state['round']==='khoi_dong'?($entry['mode']??(($_POST['mode']??'private')==='common'?'common':'private')):'private';
             $state['answers']=[];$state['judged']=[];$state['undo_judge']=null;$state['buzz']=null;$state['steal_open']=false;$state['owner_debited']=false;$state['revealed']=false;$state['timer_end']=0;$state['timer_seconds']=stage_duration($state);$state['scene']='question';$state['event_name']='question';break;
                 case 'timer':
                     if($state['round']==='khoi_dong'&&$state['mode']==='common'&&$state['buzz']!==null)throw new RuntimeException('Đã có chuông; thời gian 3 giây đang tính từ lúc bấm.');

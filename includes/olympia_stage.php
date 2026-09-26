@@ -9,7 +9,7 @@ function stage_schema(): void {
 }
 function stage_admin(): bool { return (current_user()['role']??'')==='admin'; }
 function stage_initial(): array {
-    return ['round'=>'khoi_dong','scene'=>'intro','mode'=>'private','question_no'=>1,'seat'=>0,'question'=>'','answer'=>'','media'=>'','question_kind'=>'normal','practice_phase'=>'thinking','revealed'=>false,'timer_end'=>0,'timer_seconds'=>3,'buzz'=>null,'answers'=>[],'scores'=>[0,0,0,0],'names'=>['Thí sinh 1','Thí sinh 2','Thí sinh 3','Thí sinh 4'],'portraits'=>['','','',''],'logo'=>'','intro_video'=>'','sounds'=>[],'pack'=>[20,20,20],'pack_index'=>0,'finish_done'=>[],'star_used'=>[false,false,false,false],'star_active'=>false,'eliminated'=>[false,false,false,false],'puzzle_open'=>[false,false,false,false,false],'puzzle_words'=>['','','',''],'puzzle_image'=>'','tie_candidates'=>[],'tie_winner'=>null,'event'=>0,'event_name'=>'','history'=>[]];
+    return ['edition'=>['title'=>'','year'=>2026,'quarter'=>1,'month'=>1],'question_bank'=>[],'round'=>'khoi_dong','scene'=>'intro','mode'=>'private','question_no'=>1,'seat'=>0,'question'=>'','answer'=>'','media'=>'','media_type'=>'image','options'=>'','question_kind'=>'normal','practice_phase'=>'thinking','revealed'=>false,'timer_end'=>0,'timer_seconds'=>3,'buzz'=>null,'answers'=>[],'scores'=>[0,0,0,0],'names'=>['Thí sinh 1','Thí sinh 2','Thí sinh 3','Thí sinh 4'],'portraits'=>['','','',''],'logo'=>'','intro_video'=>'','sounds'=>[],'pack'=>[20,20,20],'pack_index'=>0,'finish_done'=>[],'star_used'=>[false,false,false,false],'star_active'=>false,'eliminated'=>[false,false,false,false],'puzzle_open'=>[false,false,false,false,false],'puzzle_words'=>['','','',''],'puzzle_image'=>'','tie_candidates'=>[],'tie_winner'=>null,'event'=>0,'event_name'=>'','history'=>[]];
 }
 function stage_room(string $code,bool $lock=false): array {
     if(!preg_match('/^[0-9]{6}$/',$code))throw new RuntimeException('Mã phiên không hợp lệ.');
@@ -23,7 +23,7 @@ function stage_save(array $room,array $state): void {
     $stmt->execute([json_encode($state,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR),$room['id']]);
 }
 function stage_public(array $state): array {
-    unset($state['undo_judge']);
+    unset($state['undo_judge'],$state['question_bank']);
     if($state['revealed'])$state['answer_key']=$state['answer'];
     unset($state['answer']);
     if(!$state['revealed'])$state['answers']=[];
