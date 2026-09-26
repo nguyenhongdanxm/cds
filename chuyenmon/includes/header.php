@@ -120,9 +120,6 @@ require_once __DIR__ . '/cds_module_switcher.php';
   </a>
 </li>
 
-<?php $cmhNavUser=cds_user()??[];if(($cmhNavUser['role']??'')==='admin'||cds_user_has_group($cmhNavUser,'gvcn')||!empty($cmhNavUser['homeroom_classes'])):?>
-<li class="nav-item"><a class="nav-link <?= $current==='chunhiem'?'active':'' ?>" href="<?= BASE_URL ?>chunhiem.php"><i class="bi bi-person-workspace"></i> Lớp chủ nhiệm</a></li>
-<?php endif;?>
 <li class="nav-item dropdown">
   <a class="nav-link dropdown-toggle <?= $pccm_active?'active':'' ?><?= !$pccmCanOpen?' permission-disabled':'' ?>" href="#" data-bs-toggle="dropdown" <?= !$pccmCanOpen?'aria-disabled="true" tabindex="-1"':'' ?>>
     <i class="bi bi-clipboard-check"></i> PCCM

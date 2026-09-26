@@ -22,7 +22,7 @@ $cmLayoutActive = static function (array $pages, ?string $tab = null) use ($curr
 };
 
 $cmPccmActive = in_array($current, ['tracuu','tongquan','them','danhsach','doicheo','rasoat','sua','ketqua','giaovien','monhoc','lop','kiemnhiem','xuat_bang','thongke'], true);
-$cmPlanActive = in_array($current, ['kehoach','boiduong','chunhiem'], true) || ($current === 'baocao' && in_array($cmLayoutTab,['dinhky','tiendo'],true));
+$cmPlanActive = in_array($current, ['kehoach','boiduong'], true) || ($current === 'baocao' && in_array($cmLayoutTab,['dinhky','tiendo'],true));
 $cmReportActive = in_array($current,['dugio','kiemtrahoso','danhgia'],true);
 $cmSidebarStartsCollapsed = $current === 'sodaubai';
 
@@ -48,7 +48,6 @@ $cmNavGroups = [
         ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'vanban','href'=>'kehoach.php?tab=vanban','icon'=>'bi-file-earmark-check','label'=>'Kế hoạch giáo dục'],
         ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'chitieu','href'=>'kehoach.php?tab=chitieu','icon'=>'bi-bullseye','label'=>'Chỉ tiêu'],
         ['permission'=>'cm.support','pages'=>['boiduong'],'href'=>'boiduong.php','icon'=>'bi-mortarboard','label'=>'Bồi dưỡng học sinh'],
-        ['permission'=>'cm.home','pages'=>['chunhiem'],'href'=>'chunhiem.php','icon'=>'bi-person-workspace','label'=>'Lớp chủ nhiệm'],
         ['permission'=>'cm.kehoach','pages'=>['activities'],'tab'=>'clubs','href'=>'activities.php?tab=clubs&view=list','icon'=>'bi-people-fill','label'=>'Các CLB'],
         ['permission'=>'cm.kehoach','pages'=>['activities'],'tab'=>'online','href'=>'activities.php?tab=online&view=students','icon'=>'bi-laptop','label'=>'Học Online'],
         ['permission'=>'cm.baocao.tiendo','pages'=>['baocao'],'tab'=>'tiendo','href'=>'baocao.php?tab=tiendo','icon'=>'bi-graph-up-arrow','label'=>'Tiến độ chương trình'],

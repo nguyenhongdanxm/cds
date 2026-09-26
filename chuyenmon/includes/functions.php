@@ -682,7 +682,7 @@ function cds_current_page_feature() {
 
 function is_logged_in() {
     $user = cds_user();
-    return $user && (in_array(basename($_SERVER['PHP_SELF'] ?? ''), ['boiduong.php','chunhiem.php'], true) || cds_can_feature(cds_current_page_feature(), 'view'));
+    return $user && (in_array(basename($_SERVER['PHP_SELF'] ?? ''), ['boiduong.php','chunhiem.php','tienich_chunhiem.php'], true) || cds_can_feature(cds_current_page_feature(), 'view'));
 }
 
 function require_login() {
@@ -705,7 +705,7 @@ function require_login() {
             && $action === 'file_check_save';
         $supportSelfService = basename($_SERVER['PHP_SELF'] ?? '') === 'boiduong.php'
             && in_array($action, ['member','bulk_add','bulk_remove','set_group','bulk_group','set_recommendation'], true);
-        $homeSelfService = basename($_SERVER['PHP_SELF'] ?? '') === 'chunhiem.php';
+        $homeSelfService = in_array(basename($_SERVER['PHP_SELF'] ?? ''), ['chunhiem.php','tienich_chunhiem.php'], true);
         $educationPlanSelfService = cds_current_page_feature() === 'cm.kehoach'
             && in_array($action, ['save_plan', 'delete_plan'], true);
         $activityScript = basename($_SERVER['PHP_SELF'] ?? '');

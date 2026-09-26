@@ -17,6 +17,13 @@ function get_ecosystem_modules() {
             'status' => 'live', 'url' => URL_CHUYEN_MON, 'external' => false,
         ],
         [
+            'id' => 'chunhiem', 'num' => 10,
+            'title' => 'Tiện ích chủ nhiệm',
+            'subtitle' => 'Tổ chức lớp · chế độ · thi đua · kế hoạch',
+            'icon' => 'bi-person-workspace', 'color' => '#f59e0b',
+            'status' => 'live', 'url' => BASE_URL . 'tienich_chunhiem.php', 'external' => false,
+        ],
+        [
             'id' => 'vanban', 'num' => 3,
             'title' => 'Văn bản',
             'subtitle' => 'Văn thư nội bộ · lấy số · văn bản mẫu',
