@@ -14,6 +14,7 @@ if (!preg_match('/^\d{4}-\d{4}$/', $year)) $year = date('Y').'-'.(date('Y')+1);
 try {
     $db = cds_db();
     $db->exec("CREATE TABLE IF NOT EXISTS cds_student_support_settings (school_year VARCHAR(12) NOT NULL, category VARCHAR(20) NOT NULL, subject VARCHAR(100) NOT NULL, PRIMARY KEY(school_year,category,subject)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $db->exec("CREATE TABLE IF NOT EXISTS cds_student_support_classes (school_year VARCHAR(12) NOT NULL, category VARCHAR(20) NOT NULL, class_id VARCHAR(100) NOT NULL, PRIMARY KEY(school_year,category,class_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     $db->exec("CREATE TABLE IF NOT EXISTS cds_student_support_teachers (school_year VARCHAR(12) NOT NULL, category VARCHAR(20) NOT NULL, subject VARCHAR(100) NOT NULL, teacher VARCHAR(255) NOT NULL, PRIMARY KEY(school_year,category,subject,teacher)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     $db->exec("CREATE TABLE IF NOT EXISTS cds_student_support_members (school_year VARCHAR(12) NOT NULL, category VARCHAR(20) NOT NULL, subject VARCHAR(100) NOT NULL, student_id VARCHAR(100) NOT NULL, teacher VARCHAR(255) NOT NULL DEFAULT '', created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(school_year,category,subject,student_id), KEY idx_support_student(student_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     $column=$db->query("SHOW COLUMNS FROM cds_student_support_members LIKE 'group_name'")->fetch();
@@ -34,6 +35,13 @@ $students = []; foreach ($studentRows as $s) {
     $id = (string)($s['id'] ?? ''); if ($id === '') continue;
     $class = (string)($s['class_name'] ?? $s['class'] ?? ''); if ($class === '') $class = $classNames[(string)($s['class_id'] ?? '')] ?? '';
     $students[$id] = ['name'=>(string)($s['name'] ?? ''), 'class'=>$class, 'class_id'=>(string)($s['class_id'] ?? ''), 'year'=>(string)($s['school_year_id'] ?? '')];
+}
+$classOptions=[]; foreach($classes as $c) { $id=(string)($c['id']??''); $name=(string)($c['name']??''); if($id!==''&&$name!=='') $classOptions[$id]=$name; }
+$st=$db->prepare('SELECT category,class_id FROM cds_student_support_classes WHERE school_year=?'); $st->execute([$year]); $examClasses=['tn'=>[],'ts'=>[]]; foreach($st->fetchAll() as $r) if(isset($examClasses[$r['category']])) $examClasses[$r['category']][$r['class_id']]=true;
+// Lần đầu sử dụng: TN lấy lớp 12, TS lấy lớp 9. Cài đặt sau đó là nguồn duy nhất.
+foreach(['tn'=>12,'ts'=>9] as $category=>$grade) if(!$examClasses[$category]) {
+    $add=$db->prepare('INSERT IGNORE INTO cds_student_support_classes(school_year,category,class_id) VALUES(?,?,?)');
+    foreach($classOptions as $id=>$name) if(preg_match('/^(?:Lớp\s*)?'.$grade.'(?=\D|$)/iu',trim($name))) { $add->execute([$year,$category,$id]); $examClasses[$category][$id]=true; }
 }
 $assignments = get_assignments(); $allowed = [];
 foreach ($assignments as $a) if ($norm($a['teacher'] ?? '') === $norm($teacher)) $allowed[$norm($a['class'] ?? '')][$norm($a['subject'] ?? '')] = true;
@@ -56,7 +64,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!hash_equals($csrf, (string)($_POST['csrf'] ?? ''))) { http_response_code(403); exit('Phiên làm việc không hợp lệ.'); }
     $action = (string)($_POST['action'] ?? ''); $cat = (string)($_POST['category'] ?? ''); $subject = trim((string)($_POST['subject'] ?? ''));
     try {
-        if ($action === 'assign_teachers' && $admin && in_array($cat,['tn','ts'],true) && in_array($subject,$settings[$cat],true)) {
+        if ($action === 'exam_classes' && $admin && in_array($cat,['tn','ts'],true)) {
+            $selected=array_values(array_unique(array_intersect(array_keys($classOptions),array_map('strval',(array)($_POST['class_ids']??[])))));
+            if(!$selected) throw new RuntimeException('Hãy chọn ít nhất một lớp ôn thi.');
+            $db->beginTransaction(); $q=$db->prepare('DELETE FROM cds_student_support_classes WHERE school_year=? AND category=?'); $q->execute([$year,$cat]);
+            $q=$db->prepare('INSERT INTO cds_student_support_classes(school_year,category,class_id) VALUES(?,?,?)'); foreach($selected as $id) $q->execute([$year,$cat,$id]); $db->commit();
+        } elseif ($action === 'assign_teachers' && $admin && in_array($cat,['tn','ts'],true) && in_array($subject,$settings[$cat],true)) {
             $names=array_values(array_unique(array_intersect(get_teachers_sorted(),array_map('strval',(array)($_POST['teachers']??[])))));
             $db->beginTransaction(); $q=$db->prepare('DELETE FROM cds_student_support_teachers WHERE school_year=? AND category=? AND subject=?'); $q->execute([$year,$cat,$subject]);
             $q=$db->prepare('INSERT INTO cds_student_support_teachers(school_year,category,subject,teacher) VALUES(?,?,?,?)'); foreach($names as $name) $q->execute([$year,$cat,$subject,$name]); $db->commit();
@@ -71,6 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Xác thực lại từng học sinh trên máy chủ, không tin vào danh sách gửi từ trình duyệt.
             foreach ($ids as $id) {
                 if (!isset($students[$id])) throw new RuntimeException('Học sinh không có trong CSDL.');
+                if (in_array($cat,['tn','ts'],true) && !isset($examClasses[$cat][$students[$id]['class_id']])) throw new RuntimeException('Lớp của học sinh chưa được cài đặt cho kỳ ôn thi.');
                 if (!$admin && !$canSelect($students[$id],$subject,$cat)) throw new RuntimeException('Giáo viên chỉ được chọn học sinh đúng lớp và môn đang phụ trách.');
             }
             if ($action==='set_group') {
@@ -96,10 +110,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 $st=$db->prepare('SELECT category,subject,student_id,teacher,group_name FROM cds_student_support_members WHERE school_year=?'); $st->execute([$year]); $members=[]; foreach ($st->fetchAll() as $r) $members[$r['category']][$r['subject']][$r['student_id']]=['teacher'=>$r['teacher'],'group'=>$r['group_name']];
 $allClasses=array_values(array_unique(array_filter(array_column($students,'class')))); usort($allClasses,'strnatcasecmp');
+if(in_array($tab,['tn','ts'],true)) $allClasses=array_values(array_filter($allClasses,static function($name) use($classOptions,$examClasses,$tab) { foreach($examClasses[$tab] as $id=>$_) if(($classOptions[$id]??'')===$name) return true; return false; }));
 $class=(string)($_GET['class'] ?? ''); if (!in_array($class,$allClasses,true)) $class='';
 $subjects = in_array($tab,['tn','ts'],true) ? $settings[$tab] : ($admin ? $available : array_values(array_filter($available, static function($s) use($allowed,$norm) { foreach($allowed as $row) if(isset($row[$norm($s)])) return true; return false; })));
 $subject=(string)($_GET['subject'] ?? ''); if (!in_array($subject,$subjects,true)) $subject=$subjects[0] ?? '';
-$viewStudents=array_filter($students,static function($s) use($class,$subject) { return (!$class || $s['class']===$class) && $subject!==''; });
+$viewStudents=array_filter($students,static function($s) use($class,$subject,$tab,$examClasses) { return (!$class || $s['class']===$class) && $subject!=='' && (!in_array($tab,['tn','ts'],true) || isset($examClasses[$tab][$s['class_id']])); });
 $sort=(string)($_GET['sort']??'class'); if(!in_array($sort,['name','class','group','status'],true)) $sort='class';
 $direction=(string)($_GET['dir']??'asc')==='desc'?-1:1;
 uksort($viewStudents,static function($a,$b) use(&$viewStudents,$members,$tab,$subject,$sort,$direction) {
@@ -120,7 +135,8 @@ require __DIR__.'/includes/header.php';
 <?php if($error):?><div class="alert alert-danger"><?=e($error)?></div><?php endif;?>
 <?php if($tab==='caidat'):?>
 <?php if(!$admin):?><div class="alert alert-info">Chỉ quản trị được cài đặt môn thi.</div><?php else:?>
-<?php foreach(['tn'=>'Ôn thi tốt nghiệp','ts'=>'Ôn thi tuyển sinh'] as $key=>$title):?><div class="card mb-3"><div class="card-body"><h5><?=e($title)?></h5><form method="post" action="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>$tab,'year'=>$year]))?>"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="settings"><input type="hidden" name="category" value="<?=e($key)?>"><div class="row g-2 mb-3"><?php foreach($available as $s):?><label class="col-6 col-md-3"><input type="checkbox" name="subjects[]" value="<?=e($s)?>" <?=in_array($s,$settings[$key],true)?'checked':''?>> <?=e($s)?></label><?php endforeach;?></div><button class="btn btn-primary">Lưu môn thi</button></form>
+<?php foreach(['tn'=>'Ôn thi tốt nghiệp','ts'=>'Ôn thi tuyển sinh vào 10'] as $key=>$title):?><div class="card mb-3"><div class="card-body"><h5><?=e($title)?></h5>
+<form method="post" action="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>'caidat','year'=>$year]))?>" class="border rounded p-3 mb-3"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="exam_classes"><input type="hidden" name="category" value="<?=e($key)?>"><div class="fw-bold mb-2">Lớp ôn thi · <?=e($title)?></div><div class="row g-2 mb-3"><?php foreach($classOptions as $id=>$name):?><label class="col-6 col-md-2"><input type="checkbox" name="class_ids[]" value="<?=e($id)?>" <?=isset($examClasses[$key][$id])?'checked':''?>> <?=e($name)?></label><?php endforeach;?></div><button class="btn btn-sm btn-primary">Lưu lớp ôn thi</button><div class="form-text">Mặc định: lớp 12 cho TN, lớp 9 cho tuyển sinh. Thay đổi chỉ điều chỉnh danh sách để chọn, không xóa học sinh đã đăng ký.</div></form><form method="post" action="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>$tab,'year'=>$year]))?>"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="settings"><input type="hidden" name="category" value="<?=e($key)?>"><div class="row g-2 mb-3"><?php foreach($available as $s):?><label class="col-6 col-md-3"><input type="checkbox" name="subjects[]" value="<?=e($s)?>" <?=in_array($s,$settings[$key],true)?'checked':''?>> <?=e($s)?></label><?php endforeach;?></div><button class="btn btn-primary">Lưu môn thi</button></form>
 <?php foreach($settings[$key] as $examSubject):?><form method="post" action="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>'caidat','year'=>$year]))?>" class="border rounded p-3 mt-3"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="assign_teachers"><input type="hidden" name="category" value="<?=e($key)?>"><input type="hidden" name="subject" value="<?=e($examSubject)?>"><label class="form-label fw-bold"><?=e($examSubject)?> · Giáo viên dạy ôn thi</label><select class="form-select mb-2" name="teachers[]" multiple size="5"><?php foreach(get_teachers_sorted() as $name):?><option value="<?=e($name)?>" <?=isset($examTeachers[$key][$norm($examSubject)][$norm($name)])?'selected':''?>><?=e($name)?></option><?php endforeach;?></select><button class="btn btn-sm btn-outline-primary">Lưu phân công</button></form><?php endforeach;?></div></div><?php endforeach;?>
 <?php endif;?>
 <?php elseif($tab==='thongke'):?>
@@ -136,6 +152,7 @@ ksort($counts); usort($detailRows,static fn($a,$b)=>strnatcasecmp($a['student'][
 <div class="card"><div class="card-body"><h5>Thống kê theo nội dung, môn, lớp và nhóm</h5><div class="table-responsive"><table class="table table-striped"><thead><tr><th>Nội dung</th><th>Môn</th><th>Lớp</th><th>Nhóm ôn thi</th><th>Số học sinh</th></tr></thead><tbody><?php foreach($counts as $key=>$count):[$c,$s,$cl,$gr]=json_decode($key,true);?><tr><td><?=e($tabs[$c]??$c)?></td><td><?=e($s)?></td><td><?=e($cl)?></td><td><?=e($gr)?></td><td><a href="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>'thongke','year'=>$year,'detail_category'=>$c,'detail_subject'=>$s,'detail_class'=>$cl,'detail_group'=>$gr]))?>"><?=$count?> · Xem danh sách</a></td></tr><?php endforeach;if(!$counts):?><tr><td colspan="5" class="text-muted">Chưa có dữ liệu.</td></tr><?php endif;?></tbody></table></div></div></div>
 <?php if($detailActive):?><div class="card mt-3"><div class="card-body"><h5><?=e($tabs[$detailCategory])?> · <?=e($detailSubject)?> · <?=e($detailClass)?> <?=e($detailGroup)?></h5><div class="table-responsive"><table class="table table-sm table-striped"><thead><tr><th>STT</th><th>Họ và tên</th><th>Lớp</th><th>Nhóm</th><th>Người chọn</th></tr></thead><tbody><?php foreach($detailRows as $i=>$row):?><tr><td><?=$i+1?></td><td><?=e($row['student']['name'])?></td><td><?=e($row['student']['class'])?></td><td><?=e($row['entry']['group'])?></td><td><?=e($row['entry']['teacher'])?></td></tr><?php endforeach;if(!$detailRows):?><tr><td colspan="5">Không còn học sinh trong nhóm này.</td></tr><?php endif;?></tbody></table></div></div></div><?php endif;?>
 <?php else:?>
+<?php if(in_array($tab,['tn','ts'],true) && !$examClasses[$tab]):?><div class="alert alert-info">Chưa chọn lớp ôn thi trong Cài đặt.</div><?php endif;?>
 <?php if(in_array($tab,['tn','ts'],true) && !$subjects):?><div class="alert alert-info">Chưa cài đặt môn thi. Quản trị chọn môn trong tab Cài đặt.</div><?php endif;?>
 <form method="get" action="<?=BASE_URL?>boiduong.php" class="row g-2 mb-3"><input type="hidden" name="tab" value="<?=e($tab)?>"><div class="col-md-2"><label class="form-label">Năm học</label><input class="form-control" name="year" value="<?=e($year)?>" pattern="[0-9]{4}-[0-9]{4}"></div><div class="col-md-3"><label class="form-label">Môn</label><select class="form-select" name="subject"><?php foreach($subjects as $s):?><option value="<?=e($s)?>" <?=$s===$subject?'selected':''?>><?=e($s)?></option><?php endforeach;?></select></div><div class="col-md-3"><label class="form-label">Lớp</label><select class="form-select" name="class"><option value="">Tất cả lớp</option><?php foreach($allClasses as $cl):?><option value="<?=e($cl)?>" <?=$class===$cl?'selected':''?>><?=e($cl)?></option><?php endforeach;?></select></div><div class="col-md-2 d-flex align-items-end"><button class="btn btn-primary">Xem danh sách</button></div></form>
 <div class="card"><div class="card-body"><h5><?=e($tabs[$tab])?> · <?=e($subject)?> <span class="badge text-bg-primary"><?=count($members[$tab][$subject]??[])?></span></h5><p class="text-muted small"><?=in_array($tab,['tn','ts'],true)?'Quản trị, GVCN lớp và giáo viên được phân công dạy ôn thi được chọn học sinh và xếp nhóm TBK/TBY.':'Giáo viên đánh dấu học sinh ở lớp và môn mình dạy.'?></p><?php if($subject!=='' && $canEditAny):?>
