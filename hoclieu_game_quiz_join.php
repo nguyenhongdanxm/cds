@@ -2,7 +2,6 @@
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_store.php';
 require_once __DIR__ . '/includes/quiz_paper_store.php';
-try { qp_schema(); } catch (Throwable $e) { http_response_code(500); exit('Không thể mở trò chơi.'); }
 if (empty($_SESSION['qp_student_csrf'])) $_SESSION['qp_student_csrf'] = bin2hex(random_bytes(24));
 $csrf = (string)$_SESSION['qp_student_csrf'];
 $code = trim((string)($_REQUEST['code'] ?? ''));
@@ -11,7 +10,8 @@ if ($session && ($session['mode'] ?? '') !== 'computer') $session = null;
 $set = $session ? qp_set((string)$session['set_id']) : null;
 $questions = $session ? (json_decode((string)$session['questions_json'],true) ?: []) : [];
 $students = [];
-if ($session) foreach (csdl_students_all() as $student) {
+if ($session) $students=json_decode((string)($session['roster_json']??''),true) ?: [];
+if ($session && !$students) foreach (csdl_students_all() as $student) {
     if (!empty($student['active']) && (string)($student['class_id']??'') === (string)$session['class_id']) {
         $students[(string)$student['id']] = (string)($student['name']??$student['full_name']??'');
     }
@@ -21,7 +21,9 @@ if (!isset($students[$studentId])) $studentId = '';
 $error = '';
 if ($_SERVER['REQUEST_METHOD']==='POST' && $session) {
     if (!hash_equals($csrf,(string)($_POST['csrf']??''))) { http_response_code(403); exit('Phiên không hợp lệ.'); }
-    if ($session['status']!=='open') $error = 'Lượt chơi đã đóng.';
+    if (($_POST['action']??'')==='leave') {
+        unset($_SESSION['qp_join'][$code]);$studentId='';
+    } elseif ($session['status']!=='open') $error = 'Lượt chơi đã đóng.';
     elseif (($_POST['action']??'')==='join') {
         $id = (string)($_POST['student_id']??'');
         if (!isset($students[$id])) $error = 'Chọn học sinh trong lớp.';
@@ -31,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && $session) {
         $answer = (string)($_POST['answer']??'');
         if ($i===false || !isset($questions[$i]) || !in_array($answer,['A','B','C','D'],true)) $error='Câu trả lời không hợp lệ.';
         else {
-            $st=qp_db()->prepare('INSERT INTO cds_quiz_answers(session_code,student_id,question_index,answer,answered_at) VALUES(?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE answer=VALUES(answer),answered_at=NOW()');
+            $st=qp_db()->prepare('INSERT IGNORE INTO cds_quiz_answers(session_code,student_id,question_index,answer,answered_at) VALUES(?,?,?,?,NOW())');
             $st->execute([$code,$studentId,$i,$answer]);
             header('Location: '.BASE_URL.'hoclieu_game_quiz_join.php?code='.rawurlencode($code).'&q='.($i+1));exit;
         }
@@ -51,8 +53,8 @@ if ($session && $studentId!=='') {
 <?php if ($error): ?><p class="error"><?=e($error)?></p><?php endif; ?>
 <?php if (!$session || !$set): ?><div class="card"><h2>Nhập mã vào chơi</h2><form method="get"><input name="code" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" placeholder="Mã 8 chữ số" required><button>Vào chơi</button></form><?php if ($code!==''): ?><p>Mã không tồn tại hoặc đã hết hạn.</p><?php endif; ?></div>
 <?php elseif ($studentId===''): ?><div class="card"><h2><?=e((string)$set['title'])?></h2><p>Chọn đúng tên của em. Đây là chế độ luyện tập, giáo viên có thể kiểm tra lại danh tính trước khi tính điểm.</p><form method="post"><input type="hidden" name="code" value="<?=e($code)?>"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="join"><select name="student_id" required><option value="">Chọn tên học sinh</option><?php foreach ($students as $id=>$name): ?><option value="<?=e($id)?>"><?=e($name)?></option><?php endforeach; ?></select><button>Bắt đầu</button></form></div>
-<?php else: ?><p><?=e((string)$set['title'])?> · <?=e($students[$studentId])?> · Mã <?=e($code)?></p>
+<?php else: ?><p><?=e((string)$set['title'])?> · <?=e($students[$studentId])?> · Mã <?=e($code)?></p><form method="post"><input type="hidden" name="code" value="<?=e($code)?>"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="leave"><button class="button">Đổi người chơi trên thiết bị này</button></form>
 <?php if ($session['status']!=='open'): ?><div class="card"><h2>Lượt chơi đã đóng</h2></div>
-<?php elseif ($index>=count($questions)): ?><div class="card"><h2>Đã đến cuối bộ câu hỏi</h2><p>Em đã trả lời <?=count($past)?>/<?=count($questions)?> câu.</p><a class="button" href="?code=<?=e($code)?>&amp;q=0">Xem lại câu hỏi</a></div>
-<?php else: $q=$questions[$index]; ?><div class="card"><p class="muted">Câu <?=$index+1?> / <?=count($questions)?></p><h2><?=e((string)$q['text'])?></h2><form method="post"><input type="hidden" name="code" value="<?=e($code)?>"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="answer"><input type="hidden" name="index" value="<?=$index?>"><?php foreach (['A','B','C','D'] as $letter): ?><button class="choice" name="answer" value="<?=$letter?>"><?=$letter?>. <?=e((string)($q['choices'][$letter]??''))?></button><?php endforeach; ?></form><p class="muted">Đã chọn: <?=e($past[$index]??'Chưa trả lời')?></p><a href="?code=<?=e($code)?>&amp;q=<?=max(0,$index-1)?>">← Câu trước</a> · <a href="?code=<?=e($code)?>&amp;q=<?=$index+1?>">Câu tiếp →</a></div><?php endif; ?>
+<?php elseif ($index>=count($questions)): $correct=0;foreach ($questions as $i=>$q) if (($past[$i]??'')===($q['key']??'')) $correct++; $complete=count($past)>=count($questions); ?><div class="card"><h2><?=$complete?'Hoàn thành':'Chưa hoàn thành'?></h2><p>Em đã trả lời <?=count($past)?>/<?=count($questions)?> câu<?php if ($complete): ?>; đúng <strong><?=$correct?>/<?=count($questions)?></strong><?php endif; ?>.</p><a class="button" href="?code=<?=e($code)?>&amp;q=0">Xem lại câu hỏi</a><?php if ($complete): ?><details><summary>Xem đáp án và kết quả từng câu</summary><?php foreach ($questions as $i=>$q): ?><p>Câu <?=$i+1?>: chọn <?=e($past[$i]??'—')?> · đáp án đúng <?=e((string)$q['key'])?> <?=($past[$i]??'')===($q['key']??'')?'✓':''?></p><?php if (!empty($q['explanation'])): ?><p class="muted"><?=nl2br(e((string)$q['explanation']))?></p><?php endif; ?><?php endforeach; ?></details><?php endif; ?></div>
+<?php else: $q=$questions[$index]; ?><div class="card"><p class="muted">Câu <?=$index+1?> / <?=count($questions)?></p><h2><?=e((string)$q['text'])?></h2><?php if (!empty($q['image'])): ?><img src="<?=e((string)$q['image'])?>" alt="Hình minh họa câu hỏi" style="max-width:100%;max-height:320px;border-radius:10px"><?php endif; ?><?php if (!isset($past[$index])): ?><form method="post"><input type="hidden" name="code" value="<?=e($code)?>"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="answer"><input type="hidden" name="index" value="<?=$index?>"><?php foreach (['A','B','C','D'] as $letter): ?><button class="choice" name="answer" value="<?=$letter?>"><?=$letter?>. <?=e((string)($q['choices'][$letter]??''))?></button><?php endforeach; ?></form><?php else: ?><p>Đã ghi nhận đáp án <strong><?=e($past[$index])?></strong>.</p><?php endif; ?><a href="?code=<?=e($code)?>&amp;q=<?=max(0,$index-1)?>">← Câu trước</a> · <a href="?code=<?=e($code)?>&amp;q=<?=$index+1?>">Câu tiếp →</a></div><?php endif; ?>
 <?php endif; ?></main></body></html>
