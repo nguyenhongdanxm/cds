@@ -23,7 +23,7 @@ try {
     if (!$column) $db->exec("ALTER TABLE cds_student_support_members ADD COLUMN recommendation VARCHAR(40) NOT NULL DEFAULT ''");
 } catch (Throwable $ex) { http_response_code(503); exit('Không thể mở dữ liệu bồi dưỡng. Vui lòng kiểm tra kết nối MySQL.'); }
 // Đọc CSDL chung mà không nạp lại includes/auth.php (trùng hàm với Chuyên môn).
-try { $classes = $db->query('SELECT id,name,homeroom_teacher_id FROM cds_classes')->fetchAll(); $studentRows = $db->query('SELECT id,name,class_id,school_year_id,active FROM cds_students')->fetchAll(); }
+try { $classes = $db->query('SELECT id,name,homeroom_teacher_id FROM cds_classes')->fetchAll(); $studentRows = $db->query('SELECT id,name,class_id,school_year_id,active,gender FROM cds_students')->fetchAll(); }
 catch (Throwable $ex) { $classes = []; $studentRows = []; }
 if (!$classes) $classes = (array)load_json(dirname(__DIR__).'/data/classes.json', []);
 if (!$studentRows) $studentRows = (array)load_json(dirname(__DIR__).'/data/students.json', []);
@@ -36,7 +36,7 @@ $students = []; foreach ($studentRows as $s) {
     if (isset($s['active']) && !$s['active']) continue;
     $id = (string)($s['id'] ?? ''); if ($id === '') continue;
     $class = (string)($s['class_name'] ?? $s['class'] ?? ''); if ($class === '') $class = $classNames[(string)($s['class_id'] ?? '')] ?? '';
-    $students[$id] = ['name'=>(string)($s['name'] ?? ''), 'class'=>$class, 'class_id'=>(string)($s['class_id'] ?? ''), 'year'=>(string)($s['school_year_id'] ?? '')];
+    $students[$id] = ['name'=>(string)($s['name'] ?? ''), 'class'=>$class, 'class_id'=>(string)($s['class_id'] ?? ''), 'year'=>(string)($s['school_year_id'] ?? ''), 'gender'=>(string)($s['gender'] ?? '')];
 }
 $classOptions=[]; foreach($classes as $c) { $id=(string)($c['id']??''); $name=(string)($c['name']??''); if($id!==''&&$name!=='') $classOptions[$id]=$name; }
 $st=$db->prepare('SELECT category,class_id FROM cds_student_support_classes WHERE school_year=?'); $st->execute([$year]); $examClasses=['tn'=>[],'ts'=>[]]; foreach($st->fetchAll() as $r) if(isset($examClasses[$r['category']])) $examClasses[$r['category']][$r['class_id']]=true;
