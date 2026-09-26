@@ -1,7 +1,6 @@
 <?php
 $page_title = 'Bồi dưỡng học sinh';
 require_once __DIR__ . '/includes/functions.php';
-require_once dirname(__DIR__) . '/includes/csdl_store.php';
 require_once dirname(__DIR__) . '/includes/database.php';
 require_login();
 if (!cds_can_feature('cm.kehoach', 'view')) { http_response_code(403); exit('Không có quyền xem kế hoạch.'); }
@@ -18,8 +17,13 @@ try {
     $db->exec("CREATE TABLE IF NOT EXISTS cds_student_support_settings (school_year VARCHAR(12) NOT NULL, category VARCHAR(20) NOT NULL, subject VARCHAR(100) NOT NULL, PRIMARY KEY(school_year,category,subject)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     $db->exec("CREATE TABLE IF NOT EXISTS cds_student_support_members (school_year VARCHAR(12) NOT NULL, category VARCHAR(20) NOT NULL, subject VARCHAR(100) NOT NULL, student_id VARCHAR(100) NOT NULL, teacher VARCHAR(255) NOT NULL DEFAULT '', created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(school_year,category,subject,student_id), KEY idx_support_student(student_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 } catch (Throwable $ex) { http_response_code(503); exit('Không thể mở dữ liệu bồi dưỡng. Vui lòng kiểm tra kết nối MySQL.'); }
-$classes = csdl_classes_all(); $classNames = []; foreach ($classes as $c) $classNames[(string)($c['id'] ?? '')] = (string)($c['name'] ?? '');
-$students = []; foreach (csdl_students_all() as $s) {
+// Đọc CSDL chung mà không nạp lại includes/auth.php (trùng hàm với Chuyên môn).
+try { $classes = $db->query('SELECT id,name FROM cds_classes')->fetchAll(); $studentRows = $db->query('SELECT id,name,class_id,school_year_id,active FROM cds_students')->fetchAll(); }
+catch (Throwable $ex) { $classes = []; $studentRows = []; }
+if (!$classes) $classes = (array)load_json(dirname(__DIR__).'/data/classes.json', []);
+if (!$studentRows) $studentRows = (array)load_json(dirname(__DIR__).'/data/students.json', []);
+$classNames = []; foreach ($classes as $c) $classNames[(string)($c['id'] ?? '')] = (string)($c['name'] ?? '');
+$students = []; foreach ($studentRows as $s) {
     if (isset($s['active']) && !$s['active']) continue;
     $id = (string)($s['id'] ?? ''); if ($id === '') continue;
     $class = (string)($s['class_name'] ?? $s['class'] ?? ''); if ($class === '') $class = $classNames[(string)($s['class_id'] ?? '')] ?? '';
