@@ -21,14 +21,25 @@ function cmhome_install(PDO $db): void {
     cmhome_install_extensions($db);
 }
 function cmhome_install_extensions(PDO $db): void {
-    if($db->query("SHOW TABLES LIKE 'cmhome_class_reviews'")->fetchColumn() && $db->query("SHOW TABLES LIKE 'cmhome_layout'")->fetchColumn()) return;
+    if($db->query("SHOW TABLES LIKE 'cmhome_class_reviews'")->fetchColumn() && $db->query("SHOW TABLES LIKE 'cmhome_layout'")->fetchColumn() && $db->query("SHOW TABLES LIKE 'cmhome_family_profiles'")->fetchColumn()) return;
     $db->exec('CREATE TABLE IF NOT EXISTS cmhome_layout (class_id VARCHAR(100) NOT NULL,school_year VARCHAR(20) NOT NULL,seat_rows TINYINT UNSIGNED NOT NULL DEFAULT 6,seat_aisles TINYINT UNSIGNED NOT NULL DEFAULT 2,seats_per_desk TINYINT UNSIGNED NOT NULL DEFAULT 2,PRIMARY KEY(class_id,school_year)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
     $db->exec('CREATE TABLE IF NOT EXISTS cmhome_class_reviews (class_id VARCHAR(100) NOT NULL,school_year VARCHAR(20) NOT NULL,week_start DATE NOT NULL,rank_label VARCHAR(30) NOT NULL,comment VARCHAR(1000) NOT NULL DEFAULT \'\',updated_by VARCHAR(255) NOT NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(class_id,school_year,week_start)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+    $db->exec('CREATE TABLE IF NOT EXISTS cmhome_family_profiles (class_id VARCHAR(100) NOT NULL,school_year VARCHAR(20) NOT NULL,student_id VARCHAR(100) NOT NULL,commune VARCHAR(150) NOT NULL DEFAULT \'\',father_job VARCHAR(150) NOT NULL DEFAULT \'\',mother_job VARCHAR(150) NOT NULL DEFAULT \'\',updated_by VARCHAR(255) NOT NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(class_id,school_year,student_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+}
+function cmhome_commune(string $address): string {
+    if(preg_match('/(?:^|[,;])\s*((?:xã|phường|thị trấn)\s+[^,;]+)/ui',$address,$match))return trim($match[1]);
+    return '';
 }
 function cmhome_rows(PDO $db,string $sql,array $params=[]): array { $q=$db->prepare($sql);$q->execute($params);return $q->fetchAll(PDO::FETCH_ASSOC); }
 function cmhome_one(PDO $db,string $sql,array $params=[]): array { $rows=cmhome_rows($db,$sql,$params);return $rows[0]??[]; }
 function cmhome_exec(PDO $db,string $sql,array $params=[]): void { $q=$db->prepare($sql);$q->execute($params); }
 function cmhome_date($value): bool { $date=DateTimeImmutable::createFromFormat('!Y-m-d',(string)$value);return $date && $date->format('Y-m-d')===$value; }
+function cmhome_dob($value): string {
+    $value=trim((string)$value);
+    if(cmhome_date($value))return $value;
+    $date=DateTimeImmutable::createFromFormat('!d/m/Y',$value);
+    return $date&&$date->format('d/m/Y')===$value?$date->format('Y-m-d'):'';
+}
 function cmhome_month($value): bool { return preg_match('/^\d{4}-(0[1-9]|1[0-2])$/',(string)$value)===1; }
 function cmhome_money($value): int { if(!preg_match('/^\d{1,12}$/',(string)$value))throw new RuntimeException('Số tiền phải là số nguyên không âm.');return (int)$value; }
 function cmhome_meal_summary(string $className,array $studentIds,string $month): array {
