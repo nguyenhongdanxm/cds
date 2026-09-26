@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $selected = array_values(array_unique(array_intersect($available, array_map('strval', (array)($_POST['subjects'] ?? [])))));
             $db->beginTransaction(); $del = $db->prepare('DELETE FROM cds_student_support_settings WHERE school_year=? AND category=?'); $del->execute([$year,$cat]);
             $add = $db->prepare('INSERT INTO cds_student_support_settings(school_year,category,subject) VALUES(?,?,?)'); foreach ($selected as $v) $add->execute([$year,$cat,$v]); $db->commit();
-        } elseif (in_array($action, ['member','bulk_add','bulk_remove','set_group'], true) && in_array($cat, ['tn','ts','muinhon','chuadat'], true) && in_array($subject,$available,true)) {
+        } elseif (in_array($action, ['member','bulk_add','bulk_remove','set_group','bulk_group'], true) && in_array($cat, ['tn','ts','muinhon','chuadat'], true) && in_array($subject,$available,true)) {
             if (in_array($cat,['tn','ts'],true) && !in_array($subject,$settings[$cat],true)) throw new RuntimeException('Môn thi chưa được cài đặt hoặc tài khoản không có quyền cập nhật đăng ký.');
             $ids = in_array($action,['member','set_group'],true) ? [(string)($_POST['student_id'] ?? '')] : array_values(array_unique(array_map('strval', (array)($_POST['student_ids'] ?? []))));
             if (!$ids || count($ids) > 1500) throw new RuntimeException('Hãy chọn học sinh trong danh sách.');
@@ -87,7 +87,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (in_array($cat,['tn','ts'],true) && !isset($examClasses[$cat][$students[$id]['class_id']])) throw new RuntimeException('Lớp của học sinh chưa được cài đặt cho kỳ ôn thi.');
                 if (!$admin && !$canSelect($students[$id],$subject,$cat)) throw new RuntimeException('Giáo viên chỉ được chọn học sinh đúng lớp và môn đang phụ trách.');
             }
-            if ($action==='set_group') {
+            if ($action==='bulk_group') {
+                if (!in_array($cat,['tn','ts'],true)) throw new RuntimeException('Chỉ danh sách ôn thi mới có nhóm TBK/TBY.');
+                $group=(string)($_POST['group_name']??'');
+                if(!in_array($group,['TBK','TBY'],true)) throw new RuntimeException('Hãy chọn nhóm TBK hoặc TBY.');
+                $db->beginTransaction();
+                $q=$db->prepare('INSERT INTO cds_student_support_members(school_year,category,subject,student_id,teacher,group_name) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE group_name=VALUES(group_name)');
+                foreach($ids as $id) $q->execute([$year,$cat,$subject,$id,$teacher,$group]);
+                $db->commit();
+            } elseif ($action==='set_group') {
                 if (!in_array($cat,['tn','ts'],true)) throw new RuntimeException('Chỉ nhóm ôn thi có TBK/TBY.');
                 $group=(string)($_POST['group_name']??''); if(!in_array($group,['TBK','TBY'],true)) throw new RuntimeException('Nhóm không hợp lệ.');
                 $q=$db->prepare('UPDATE cds_student_support_members SET group_name=? WHERE school_year=? AND category=? AND subject=? AND student_id=?'); $q->execute([$group,$year,$cat,$subject,$ids[0]]);
@@ -159,6 +167,7 @@ ksort($counts); usort($detailRows,static fn($a,$b)=>strnatcasecmp($a['student'][
 <form id="supportBulk" method="post" action="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>$tab,'year'=>$year]))?>" class="d-flex gap-2 align-items-center flex-wrap mb-2">
 <input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="category" value="<?=e($tab)?>"><input type="hidden" name="subject" value="<?=e($subject)?>"><input type="hidden" name="class" value="<?=e($class)?>">
 <button class="btn btn-sm btn-outline-primary" name="action" value="bulk_add">Thêm học sinh đã tích</button><button class="btn btn-sm btn-outline-danger" name="action" value="bulk_remove" onclick="return confirm('Bỏ các học sinh đã tích khỏi nhóm này?')">Bỏ học sinh đã tích</button>
+<?php if(in_array($tab,['tn','ts'],true)):?><select name="group_name" class="form-select form-select-sm" style="width:auto" aria-label="Chọn nhóm cho học sinh đã tích"><option value="">Chọn nhóm TBK/TBY</option><option value="TBK">TBK</option><option value="TBY">TBY</option></select><button class="btn btn-sm btn-primary" name="action" value="bulk_group" onclick="if(!this.form.group_name.value){alert('Hãy chọn TBK hoặc TBY.');return false}if(!document.querySelector('.support-check:checked')){alert('Hãy tích học sinh cần gán nhóm.');return false}">Gán nhóm cho học sinh đã tích</button><?php endif;?>
 <button class="btn btn-sm btn-outline-secondary" type="button" onclick="document.querySelectorAll('.support-check').forEach(c=>c.checked=true)">Tích toàn bộ danh sách đang xem</button>
 <button class="btn btn-sm btn-outline-secondary" type="button" onclick="document.querySelectorAll('.support-check').forEach(c=>c.checked=false)">Bỏ tích</button>
 </form><?php endif;?>
