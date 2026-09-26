@@ -14,13 +14,15 @@ function qp_schema(): void {
     qp_db()->exec("CREATE TABLE IF NOT EXISTS cds_quiz_sessions (
         code VARCHAR(10) PRIMARY KEY, set_id VARCHAR(40) NOT NULL,
         class_id VARCHAR(80) NOT NULL, owner_id VARCHAR(100) NOT NULL,
-        questions_json LONGTEXT NOT NULL, mode VARCHAR(12) NOT NULL DEFAULT 'computer',
-        status VARCHAR(12) NOT NULL DEFAULT 'open',
+        questions_json LONGTEXT NOT NULL, roster_json LONGTEXT NULL, mode VARCHAR(12) NOT NULL DEFAULT 'computer',
+        status VARCHAR(12) NOT NULL DEFAULT 'open', current_index INT NOT NULL DEFAULT 0,
         created_at DATETIME NOT NULL, expires_at DATETIME NOT NULL,
         INDEX(set_id), INDEX(class_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $columns = qp_db()->query('SHOW COLUMNS FROM cds_quiz_sessions')->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('roster_json',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN roster_json LONGTEXT NULL AFTER questions_json");
     if (!in_array('mode',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN mode VARCHAR(12) NOT NULL DEFAULT 'computer' AFTER questions_json");
+    if (!in_array('current_index',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN current_index INT NOT NULL DEFAULT 0 AFTER status");
     qp_db()->exec("CREATE TABLE IF NOT EXISTS cds_quiz_answers (
         session_code VARCHAR(10) NOT NULL, student_id VARCHAR(80) NOT NULL,
         question_index INT NOT NULL, answer CHAR(1) NOT NULL,
