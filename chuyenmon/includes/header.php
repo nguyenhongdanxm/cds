@@ -8,7 +8,7 @@ $tab_q = $_GET['tab'] ?? '';
 
 $pccm_pages = ['tracuu','tongquan','them','danhsach','doicheo','rasoat','sua','ketqua','giaovien','monhoc','lop','kiemnhiem','xuat_bang','thongke'];
 $pccm_active = in_array($current, $pccm_pages, true);
-$kh_pages = ['kehoach'];
+$kh_pages = ['kehoach','boiduong'];
 $bc_pages = ['baocao','dugio','kiemtrahoso','danhgia'];
 $cmMenuCan = fn($permission) => cds_can_feature($permission, 'view');
 $cmDisabled = fn($permission) => $cmMenuCan($permission) ? '' : ' permission-disabled';
@@ -149,6 +149,7 @@ require_once __DIR__ . '/cds_module_switcher.php';
   <ul class="dropdown-menu">
     <li><a class="dropdown-item <?= ($current==='kehoach' && ($tab_q===''||$tab_q==='vanban'))?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=vanban">Kế hoạch giáo dục</a></li>
     <li><a class="dropdown-item <?= ($current==='kehoach' && $tab_q==='chitieu')?'active':'' ?>" href="<?= BASE_URL ?>kehoach.php?tab=chitieu">Chỉ tiêu</a></li>
+    <li><a class="dropdown-item <?= $current==='boiduong'?'active':'' ?>" href="<?= BASE_URL ?>boiduong.php"><i class="bi bi-mortarboard me-1"></i> Bồi dưỡng học sinh</a></li>
     <li><a class="dropdown-item <?= ($current==='activities' && $tab_q==='clubs')?'active':'' ?>" href="<?= BASE_URL ?>activities.php?tab=clubs&view=list">Các CLB</a></li>
     <li><a class="dropdown-item <?= ($current==='activities' && $tab_q==='online')?'active':'' ?>" href="<?= BASE_URL ?>activities.php?tab=online&view=students">Học Online</a></li>
   </ul>
