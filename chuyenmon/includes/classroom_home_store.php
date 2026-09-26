@@ -37,8 +37,21 @@ function cmhome_date($value): bool { $date=DateTimeImmutable::createFromFormat('
 function cmhome_dob($value): string {
     $value=trim((string)$value);
     if(cmhome_date($value))return $value;
-    $date=DateTimeImmutable::createFromFormat('!d/m/Y',$value);
-    return $date&&$date->format('d/m/Y')===$value?$date->format('Y-m-d'):'';
+    // Cùng định dạng ngày mà bảng CSDL chấp nhận khi hiển thị hồ sơ.
+    if(preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T].*)?$/',$value,$m)){
+        $y=(int)$m[1];$mo=(int)$m[2];$d=(int)$m[3];
+        return checkdate($mo,$d,$y)?sprintf('%04d-%02d-%02d',$y,$mo,$d):'';
+    }
+    if(preg_match('/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/',$value,$m)){
+        $d=(int)$m[1];$mo=(int)$m[2];$y=(int)$m[3];
+        if(strlen($m[3])===2)$y=$y<=(int)date('y')?2000+$y:1900+$y;
+        return checkdate($mo,$d,$y)?sprintf('%04d-%02d-%02d',$y,$mo,$d):'';
+    }
+    if(preg_match('/^\d+(?:\.\d+)?$/',$value)){
+        $serial=(int)floor((float)$value);
+        if($serial>=1&&$serial<=100000){$date=DateTimeImmutable::createFromFormat('!Y-m-d','1899-12-30');return $date?$date->modify('+'.$serial.' days')->format('Y-m-d'):'';}
+    }
+    return '';
 }
 function cmhome_month($value): bool { return preg_match('/^\d{4}-(0[1-9]|1[0-2])$/',(string)$value)===1; }
 function cmhome_money($value): int { if(!preg_match('/^\d{1,12}$/',(string)$value))throw new RuntimeException('Số tiền phải là số nguyên không âm.');return (int)$value; }

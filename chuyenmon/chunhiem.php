@@ -33,24 +33,23 @@ if(!isset($visibleClasses[$classId]))$classId=(string)(array_key_first($visibleC
 $class=$visibleClasses[$classId]??null;
 $tabs=['overview'=>'Tổng quan','organization'=>'Tổ chức lớp','notes'=>'Cần lưu ý','health'=>'Sức khỏe','meals'=>'Chế độ & thu chi','points'=>'Thi đua','plans'=>'Kế hoạch'];
 $tab=(string)($_GET['tab']??'overview');if(!isset($tabs[$tab]))$tab='overview';
-$students=$class?cmhome_rows($db,'SELECT id,name,gender,dob,ethnicity,hometown,address,parent_name,parent_phone,is_boarder,raw_json FROM cds_students WHERE class_id=? AND active=1 ORDER BY name',[$classId]):[];
+$students=$class?cmhome_rows($db,'SELECT id,code,cccd,name,gender,dob,ethnicity,hometown,address,parent_name,parent_phone,is_boarder,raw_json FROM cds_students WHERE class_id=? AND active=1 ORDER BY name',[$classId]):[];
 // CSDL có thể đang đọc JSON khi bản sao MySQL chưa khớp. Dùng cùng nguồn
 // hiển thị của CSDL, giữ MySQL làm dự phòng khi nguồn đó chưa sẵn sàng.
 if($class){
     require_once dirname(__DIR__).'/includes/database_sql_read.php';
+    $sourceFile=dirname(__DIR__).'/data/students.json';
+    $decoded=is_file($sourceFile)?json_decode((string)file_get_contents($sourceFile),true):null;
+    $jsonRows=is_array($decoded)?$decoded:[];
     $sourceRows=is_file(dirname(__DIR__).'/data/mysql_shadow_pending.json')?null:cds_core_sql_rows('students');
-    if(!is_array($sourceRows)){
-        $sourceFile=dirname(__DIR__).'/data/students.json';
-        $decoded=is_file($sourceFile)?json_decode((string)file_get_contents($sourceFile),true):null;
-        $sourceRows=is_array($decoded)?$decoded:[];
-    }
+    if(!is_array($sourceRows))$sourceRows=$jsonRows;
     if($sourceRows){
         $canonical=[];
         foreach($sourceRows as $row){
             if(!is_array($row)||(string)($row['class_id']??'')!==$classId||array_key_exists('active',$row)&&!$row['active'])continue;
             $sid=(string)($row['id']??'');if($sid==='')continue;
             $canonical[$sid]=[
-                'id'=>$sid,'name'=>(string)($row['name']??''),'gender'=>(string)($row['gender']??''),
+                'id'=>$sid,'code'=>(string)($row['code']??''),'cccd'=>(string)($row['cccd']??''),'name'=>(string)($row['name']??''),'gender'=>(string)($row['gender']??''),
                 'dob'=>(string)($row['dob']??''),'ethnicity'=>(string)($row['ethnicity']??''),
                 'hometown'=>(string)($row['hometown']??''),'address'=>(string)($row['address']??''),
                 'parent_name'=>(string)($row['parent_name']??''),'parent_phone'=>(string)($row['parent_phone']??''),
@@ -60,6 +59,25 @@ if($class){
         }
         if($canonical){$students=array_values($canonical);usort($students,static fn($a,$b)=>strnatcasecmp($a['name'],$b['name']));}
     }
+    // Khi bản sao SQL thiếu ngày sinh, bù từ hồ sơ JSON theo ID hoặc mã định
+    // danh duy nhất. Không ghi ngược hay thay đổi ngày đã có.
+    $sourceById=[];$sourceByCode=[];$duplicateCodes=[];
+    foreach($jsonRows as $row){
+        if(!is_array($row))continue;
+        $id=(string)($row['id']??'');if($id!=='')$sourceById[$id]=$row;
+        foreach(['code','cccd'] as $field){$code=trim((string)($row[$field]??''));if($code==='')continue;$key=$field.':'.$code;if(isset($sourceByCode[$key]))$duplicateCodes[$key]=true;else $sourceByCode[$key]=$row;}
+    }
+    foreach($students as &$student){
+        if(cmhome_dob($student['dob']??'')!=='')continue;
+        $idMatched=isset($sourceById[(string)$student['id']]);
+        $row=$sourceById[(string)$student['id']]??null;
+        if(!$row)foreach(['code','cccd'] as $field){$code=trim((string)($student[$field]??''));$key=$field.':'.$code;if($code!==''&&!isset($duplicateCodes[$key])&&isset($sourceByCode[$key])){$row=$sourceByCode[$key];break;}}
+        if($row&&($idMatched||(string)($row['class_id']??'')===$classId || trim((string)($row['class_name']??''))===trim((string)$class['name']))){
+            $dob=cmhome_dob($row['dob']??$row['ngay_sinh']??'');
+            if($dob!=='')$student['dob']=$dob;
+        }
+    }
+    unset($student);
 }
 $studentMap=[];foreach($students as $s)$studentMap[(string)$s['id']]=$s;
 $familyProfiles=[];
