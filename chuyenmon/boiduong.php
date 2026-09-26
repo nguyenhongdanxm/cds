@@ -137,6 +137,12 @@ $class=(string)($_GET['class'] ?? ''); if (!in_array($class,$allClasses,true)) $
 $groupFilter=(string)($_GET['group'] ?? ''); if (!in_array($tab,['tn','ts'],true) || !in_array($groupFilter,['TBK','TBY','unassigned'],true)) $groupFilter='';
 $subjects = in_array($tab,['tn','ts'],true) ? $settings[$tab] : ($admin ? $available : array_values(array_filter($available, static function($s) use($allowed,$norm) { foreach($allowed as $row) if(isset($row[$norm($s)])) return true; return false; })));
 $subject=(string)($_GET['subject'] ?? ''); if (!in_array($subject,$subjects,true)) $subject=$subjects[0] ?? '';
+if (isset($_GET['export']) && in_array((string)$_GET['export'],['current','all'],true)) {
+    $exportAll=$_GET['export']==='all';
+    if (!$exportAll && !in_array($tab,['tn','ts','muinhon','chuadat'],true)) { http_response_code(400); exit('Chọn danh sách cần xuất.'); }
+    require_once __DIR__.'/includes/student_support_export.php';
+    support_export_xlsx($exportAll?['tn','ts','muinhon','chuadat']:[$tab],$students,$members,$year,$class,$subject,$groupFilter,$exportAll);
+}
 $viewStudents=array_filter($students,static function($s) use($class,$subject,$tab,$examClasses) { return (!$class || $s['class']===$class) && $subject!=='' && (!in_array($tab,['tn','ts'],true) || isset($examClasses[$tab][$s['class_id']])); });
 if ($groupFilter!=='') $viewStudents=array_filter($viewStudents,static function($s,$id) use($members,$tab,$subject,$groupFilter) {
     $entry=$members[$tab][$subject][$id]??null;
@@ -179,6 +185,7 @@ require __DIR__.'/includes/header.php';
 <h2 class="mb-3"><i class="bi bi-mortarboard"></i> Bồi dưỡng học sinh</h2>
 <div class="small text-muted mb-3">Năm học <?=e($year)?> · Ôn thi lấy theo danh sách đăng ký môn; các nhóm bồi dưỡng do giáo viên phụ trách chọn.</div>
 <nav class="nav nav-pills gap-2 mb-3 flex-wrap"><?php foreach($tabs as $key=>$label):?><a class="nav-link <?=$tab===$key?'active':''?>" href="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>$key,'year'=>$year]))?>"><?=e($label)?></a><?php endforeach;?></nav>
+<div class="mb-3"><a class="btn btn-sm btn-outline-success" href="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>$tab,'year'=>$year,'export'=>'all']))?>"><i class="bi bi-file-earmark-excel"></i> Xuất tất cả 4 danh sách (4 sheet)</a></div>
 <?php if($error):?><div class="alert alert-danger"><?=e($error)?></div><?php endif;?>
 <?php if($tab==='caidat'):?>
 <?php if(!$admin):?><div class="alert alert-info">Chỉ quản trị được cài đặt môn thi.</div><?php else:?>
@@ -192,6 +199,7 @@ require __DIR__.'/includes/header.php';
 <?php if(in_array($tab,['tn','ts'],true) && !$examClasses[$tab]):?><div class="alert alert-info">Chưa chọn lớp ôn thi trong Cài đặt.</div><?php endif;?>
 <?php if(in_array($tab,['tn','ts'],true) && !$subjects):?><div class="alert alert-info">Chưa cài đặt môn thi. Quản trị chọn môn trong tab Cài đặt.</div><?php endif;?>
 <form method="get" action="<?=BASE_URL?>boiduong.php" class="row g-2 mb-3 align-items-end"><input type="hidden" name="tab" value="<?=e($tab)?>"><div class="col-6 col-lg-2"><label class="form-label">Năm học</label><input class="form-control" name="year" value="<?=e($year)?>" pattern="[0-9]{4}-[0-9]{4}"></div><div class="col-6 col-lg-3"><label class="form-label">Môn</label><select class="form-select" name="subject"><?php foreach($subjects as $s):?><option value="<?=e($s)?>" <?=$s===$subject?'selected':''?>><?=e($s)?></option><?php endforeach;?></select></div><div class="col-6 col-lg-2"><label class="form-label">Lớp</label><select class="form-select" name="class"><option value="">Tất cả lớp</option><?php foreach($allClasses as $cl):?><option value="<?=e($cl)?>" <?=$class===$cl?'selected':''?>><?=e($cl)?></option><?php endforeach;?></select></div><?php if(in_array($tab,['tn','ts'],true)):?><div class="col-6 col-lg-3"><label class="form-label">Nhóm ôn thi</label><select class="form-select" name="group"><option value="">Tất cả nhóm</option><option value="TBK" <?=$groupFilter==='TBK'?'selected':''?>>TBK</option><option value="TBY" <?=$groupFilter==='TBY'?'selected':''?>>TBY</option><option value="unassigned" <?=$groupFilter==='unassigned'?'selected':''?>>Đã chọn, chưa xếp nhóm</option></select></div><?php endif;?><div class="col-12 col-lg-2"><button class="btn btn-primary w-100">Lọc danh sách</button></div></form>
+<div class="mb-3"><a class="btn btn-sm btn-outline-success" href="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>$tab,'year'=>$year,'subject'=>$subject,'class'=>$class,'group'=>$groupFilter,'export'=>'current']))?>"><i class="bi bi-file-earmark-excel"></i> Xuất danh sách đang lọc ra Excel</a></div>
 <div class="card"><div class="card-body"><h5><?=e($tabs[$tab])?> · <?=e($subject)?> <span class="badge text-bg-primary"><?=count(array_intersect_key($viewStudents,$members[$tab][$subject]??[]))?> đã chọn / <?=count($viewStudents)?> đang xem</span></h5><p class="text-muted small"><?=in_array($tab,['tn','ts'],true)?'Quản trị, GVCN lớp và giáo viên được phân công dạy ôn thi được chọn học sinh và xếp nhóm TBK/TBY.':'Giáo viên đánh dấu học sinh ở lớp và môn mình dạy.'?></p><?php if($subject!=='' && $canEditAny):?>
 <form id="supportBulk" method="post" action="<?=BASE_URL?>boiduong.php?<?=e(http_build_query(['tab'=>$tab,'year'=>$year]))?>" class="support-bulk mb-3">
 <input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="category" value="<?=e($tab)?>"><input type="hidden" name="subject" value="<?=e($subject)?>"><input type="hidden" name="class" value="<?=e($class)?>"><input type="hidden" name="group_filter" value="<?=e($groupFilter)?>">
