@@ -16,6 +16,10 @@ function qp_schema(): void {
         class_id VARCHAR(80) NOT NULL, owner_id VARCHAR(100) NOT NULL,
         questions_json LONGTEXT NOT NULL, roster_json LONGTEXT NULL, mode VARCHAR(12) NOT NULL DEFAULT 'computer',
         status VARCHAR(12) NOT NULL DEFAULT 'open', current_index INT NOT NULL DEFAULT 0,
+        phase VARCHAR(12) NOT NULL DEFAULT 'question',
+        show_correct TINYINT(1) NOT NULL DEFAULT 0,
+        show_graph TINYINT(1) NOT NULL DEFAULT 0,
+        show_names TINYINT(1) NOT NULL DEFAULT 1,
         created_at DATETIME NOT NULL, expires_at DATETIME NOT NULL,
         INDEX(set_id), INDEX(class_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
@@ -23,6 +27,10 @@ function qp_schema(): void {
     if (!in_array('roster_json',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN roster_json LONGTEXT NULL AFTER questions_json");
     if (!in_array('mode',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN mode VARCHAR(12) NOT NULL DEFAULT 'computer' AFTER questions_json");
     if (!in_array('current_index',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN current_index INT NOT NULL DEFAULT 0 AFTER status");
+    if (!in_array('phase',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN phase VARCHAR(12) NOT NULL DEFAULT 'question' AFTER current_index");
+    if (!in_array('show_correct',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN show_correct TINYINT(1) NOT NULL DEFAULT 0 AFTER phase");
+    if (!in_array('show_graph',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN show_graph TINYINT(1) NOT NULL DEFAULT 0 AFTER show_correct");
+    if (!in_array('show_names',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN show_names TINYINT(1) NOT NULL DEFAULT 1 AFTER show_graph");
     qp_db()->exec("CREATE TABLE IF NOT EXISTS cds_quiz_answers (
         session_code VARCHAR(10) NOT NULL, student_id VARCHAR(80) NOT NULL,
         question_index INT NOT NULL, answer CHAR(1) NOT NULL,
