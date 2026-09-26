@@ -9,7 +9,7 @@ function stage_schema(): void {
 }
 function stage_admin(): bool { return (current_user()['role']??'')==='admin'; }
 function stage_initial(): array {
-    return ['round'=>'khoi_dong','scene'=>'intro','mode'=>'private','question_no'=>1,'seat'=>0,'question'=>'','answer'=>'','media'=>'','question_kind'=>'normal','practice_phase'=>'thinking','revealed'=>false,'timer_end'=>0,'timer_seconds'=>3,'buzz'=>null,'answers'=>[],'scores'=>[0,0,0,0],'names'=>['Thí sinh 1','Thí sinh 2','Thí sinh 3','Thí sinh 4'],'portraits'=>['','','',''],'logo'=>'','sounds'=>[],'pack'=>[20,20,20],'pack_index'=>0,'finish_done'=>[],'star_used'=>[false,false,false,false],'star_active'=>false,'eliminated'=>[false,false,false,false],'puzzle_open'=>[false,false,false,false,false],'puzzle_words'=>['','','',''],'puzzle_image'=>'','tie_candidates'=>[],'tie_winner'=>null,'event'=>0,'event_name'=>'','history'=>[]];
+    return ['round'=>'khoi_dong','scene'=>'intro','mode'=>'private','question_no'=>1,'seat'=>0,'question'=>'','answer'=>'','media'=>'','question_kind'=>'normal','practice_phase'=>'thinking','revealed'=>false,'timer_end'=>0,'timer_seconds'=>3,'buzz'=>null,'answers'=>[],'scores'=>[0,0,0,0],'names'=>['Thí sinh 1','Thí sinh 2','Thí sinh 3','Thí sinh 4'],'portraits'=>['','','',''],'logo'=>'','intro_video'=>'','sounds'=>[],'pack'=>[20,20,20],'pack_index'=>0,'finish_done'=>[],'star_used'=>[false,false,false,false],'star_active'=>false,'eliminated'=>[false,false,false,false],'puzzle_open'=>[false,false,false,false,false],'puzzle_words'=>['','','',''],'puzzle_image'=>'','tie_candidates'=>[],'tie_winner'=>null,'event'=>0,'event_name'=>'','history'=>[]];
 }
 function stage_room(string $code,bool $lock=false): array {
     if(!preg_match('/^[0-9]{6}$/',$code))throw new RuntimeException('Mã phiên không hợp lệ.');
@@ -46,8 +46,8 @@ function stage_duration(array $state): int {
 function stage_text($value,int $limit=4000): string { return mb_substr(trim((string)$value),0,$limit); }
 function stage_asset(string $kind): string {
     $file=$_FILES['file']??null;if(!$file||($file['error']??1)!==UPLOAD_ERR_OK||!is_uploaded_file((string)($file['tmp_name']??'')))throw new RuntimeException('Không nhận được tệp hợp lệ.');
-    $allowed=$kind==='sound'?['audio/mpeg'=>'mp3','audio/ogg'=>'ogg','audio/wav'=>'wav','audio/x-wav'=>'wav']:['image/png'=>'png','image/jpeg'=>'jpg','image/webp'=>'webp'];
-    $mime=(new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);$size=(int)$file['size'];if(!isset($allowed[$mime])||$size<1||$size>($kind==='sound'?25:8)*1024*1024)throw new RuntimeException('Định dạng hoặc dung lượng tệp không hợp lệ.');
+    $allowed=$kind==='video'?['video/mp4'=>'mp4','video/webm'=>'webm']:($kind==='sound'?['audio/mpeg'=>'mp3','audio/ogg'=>'ogg','audio/wav'=>'wav','audio/x-wav'=>'wav']:['image/png'=>'png','image/jpeg'=>'jpg','image/webp'=>'webp']);
+    $mime=(new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);$size=(int)$file['size'];if(!isset($allowed[$mime])||$size<1||$size>($kind==='video'?120:($kind==='sound'?25:8))*1024*1024)throw new RuntimeException('Định dạng hoặc dung lượng tệp không hợp lệ.');
     $dir=DATA_PATH.'/game_assets/olympia_stage';if(!is_dir($dir)&&!mkdir($dir,0755,true))throw new RuntimeException('Không thể tạo thư mục tài nguyên.');
     $name=bin2hex(random_bytes(16)).'.'.$allowed[$mime];if(!move_uploaded_file($file['tmp_name'],$dir.'/'.$name))throw new RuntimeException('Không lưu được tài nguyên.');
     return BASE_URL.'data/game_assets/olympia_stage/'.$name;

@@ -4,9 +4,9 @@ const assert = require('assert');
 
 let source = fs.readFileSync('olympia_stage.php', 'utf8').match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert(source, 'Missing stage script');
-source = source.replace(/<\?=json_encode\(\$(?:mode|csrf|code)\)\?>/g, '"test"');
+source = source.replace(/<\?=json_encode\(\$(?:mode|csrf|code|podiumSeat)\)\?>/g, '"test"');
 new vm.Script(source);
-source = source.slice(0, source.indexOf("if(MODE==='host'){"));
+source = source.slice(0, source.indexOf("function render(){"));
 
 const context = {document: {getElementById: () => null}, Date, Audio: function () {}, fetch: () => {}, setInterval: () => {}};
 vm.createContext(context);

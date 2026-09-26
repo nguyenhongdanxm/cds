@@ -14,9 +14,11 @@ try {
         $names=json_decode((string)($_POST['names']??''),true);$names=is_array($names)?array_slice(array_values($names),0,4):[];
         $state=stage_initial();foreach($names as $i=>$name)$state['names'][$i]=stage_text($name,80)?:$state['names'][$i];
         $pins=[];for($i=0;$i<4;$i++)$pins[]=str_pad((string)random_int(0,999999),6,'0',STR_PAD_LEFT);
+        $mcPin=str_pad((string)random_int(0,999999),6,'0',STR_PAD_LEFT);
+        $hashes=array_map('password_hash',$pins,array_fill(0,4,PASSWORD_DEFAULT));$hashes['mc']=password_hash($mcPin,PASSWORD_DEFAULT);
         for($attempt=0;$attempt<10;$attempt++){
             $code=str_pad((string)random_int(0,999999),6,'0',STR_PAD_LEFT);
-            try {$stmt=stage_db()->prepare('INSERT INTO cds_olympia_stage_rooms(id,room_code,state_json,seat_hashes,created_by) VALUES(?,?,?,?,?)');$stmt->execute([bin2hex(random_bytes(12)),$code,json_encode($state,JSON_UNESCAPED_UNICODE),json_encode(array_map('password_hash',$pins,array_fill(0,4,PASSWORD_DEFAULT))),stage_text(current_user()['username']??'',120)]);stage_reply(['ok'=>true,'code'=>$code,'pins'=>$pins]);}catch(PDOException $e){if($e->getCode()!=='23000')throw $e;}
+            try {$stmt=stage_db()->prepare('INSERT INTO cds_olympia_stage_rooms(id,room_code,state_json,seat_hashes,created_by) VALUES(?,?,?,?,?)');$stmt->execute([bin2hex(random_bytes(12)),$code,json_encode($state,JSON_UNESCAPED_UNICODE),json_encode($hashes),stage_text(current_user()['username']??'',120)]);stage_reply(['ok'=>true,'code'=>$code,'pins'=>$pins,'mc_pin'=>$mcPin]);}catch(PDOException $e){if($e->getCode()!=='23000')throw $e;}
         }throw new RuntimeException('Không thể tạo mã phiên, vui lòng thử lại.');
     }
     $code=(string)($_REQUEST['code']??'');
@@ -25,12 +27,19 @@ try {
         if($seat<0||$seat>3||!is_array($hashes)||!password_verify((string)($_POST['pin']??''),(string)($hashes[$seat]??'')))throw new RuntimeException('Mã ghế không đúng.');
         $_SESSION['olympia_stage_seats'][$code]=$seat;stage_reply(['ok'=>true,'seat'=>$seat]);
     }
+    if($action==='join_mc'){
+        $room=stage_room($code);$hashes=json_decode((string)$room['seat_hashes'],true);
+        if(!is_array($hashes)||empty($hashes['mc'])||!password_verify((string)($_POST['pin']??''),(string)$hashes['mc']))throw new RuntimeException('Mã máy MC không đúng.');
+        $_SESSION['olympia_stage_mc'][$code]=(string)$hashes['mc'];stage_reply(['ok'=>true,'mc'=>true]);
+    }
     $room=stage_room($code);$host=stage_admin();$seat=stage_seat($room);
+    $roomHashes=json_decode((string)$room['seat_hashes'],true);
+    $mc=$host||(is_array($roomHashes)&&isset($roomHashes['mc'],$_SESSION['olympia_stage_mc'][$code])&&hash_equals((string)$roomHashes['mc'],(string)$_SESSION['olympia_stage_mc'][$code]));
     if($action==='state'){
         $state=stage_state($room);$out=stage_public($state);
         if($seat!==null)$out['my_answer']=$state['answers'][$seat]??null;
-        if($host)$out['answer_key']=$state['answer'];
-        stage_reply(['ok'=>true,'state'=>$out,'revision'=>(int)$room['revision'],'server_ms'=>(int)round(microtime(true)*1000),'host'=>$host,'seat'=>$seat]);
+        if($mc)$out['answer_key']=$state['answer'];
+        stage_reply(['ok'=>true,'state'=>$out,'revision'=>(int)$room['revision'],'server_ms'=>(int)round(microtime(true)*1000),'host'=>$host,'mc'=>$mc,'seat'=>$seat]);
     }
     if(!$host&&$seat===null)throw new RuntimeException('Hãy nhập mã ghế trước khi chơi.');
     $db=stage_db();$db->beginTransaction();
@@ -64,6 +73,12 @@ try {
             $state['answers'][$seat]=['text'=>stage_text($_POST['answer']??'',500),'at'=>$now,'elapsed_ms'=>$state['timer_end']?max(0,$now-($state['timer_end']-$state['timer_seconds']*1000)):0];
         } elseif($host) {
             switch($action){
+                case 'rotate_mc':
+                    $mcPin=str_pad((string)random_int(0,999999),6,'0',STR_PAD_LEFT);
+                    $hashes=json_decode((string)$room['seat_hashes'],true);if(!is_array($hashes))throw new RuntimeException('Mã ghế không hợp lệ.');
+                    $hashes['mc']=password_hash($mcPin,PASSWORD_DEFAULT);
+                    $db->prepare('UPDATE cds_olympia_stage_rooms SET seat_hashes=? WHERE id=?')->execute([json_encode($hashes),$room['id']]);
+                    $state['event_name']='mc_pin';break;
                 case 'setup':
                     $names=json_decode((string)($_POST['names']??''),true);if(is_array($names)&&count($names)===4)$state['names']=array_map(fn($x)=>stage_text($x,80),$names);
                     break;
@@ -156,12 +171,12 @@ try {
                     $words=json_decode((string)($_POST['words']??''),true);if(!is_array($words)||count($words)!==4)throw new RuntimeException('Cần bốn từ hàng ngang.');
                     $state['puzzle_words']=array_map(fn($w)=>stage_text($w,80),array_values($words));$state['puzzle_open']=[false,false,false,false,false];$state['scene']='puzzle';$state['event_name']='puzzle';break;
                 case 'asset':
-                    $key=(string)($_POST['key']??'');$kind=(string)($_POST['kind']??'image');if(!preg_match('/^[a-z_0-9]{1,32}$/',$key)||!in_array($kind,['image','sound'],true))throw new RuntimeException('Loại tài nguyên không hợp lệ.');
-                    $url=stage_asset($kind);if($key==='logo')$state['logo']=$url;elseif(preg_match('/^portrait_([0-3])$/',$key,$m))$state['portraits'][(int)$m[1]]=$url;elseif($key==='puzzle_image')$state['puzzle_image']=$url;elseif($kind==='sound')$state['sounds'][$key]=$url;else $state['media']=$url;
+                    $key=(string)($_POST['key']??'');$kind=(string)($_POST['kind']??'image');if(!preg_match('/^[a-z_0-9]{1,32}$/',$key)||!in_array($kind,['image','sound','video'],true))throw new RuntimeException('Loại tài nguyên không hợp lệ.');
+                    $url=stage_asset($kind);if($key==='logo'&&$kind==='image')$state['logo']=$url;elseif(preg_match('/^portrait_([0-3])$/',$key,$m)&&$kind==='image')$state['portraits'][(int)$m[1]]=$url;elseif($key==='puzzle_image'&&$kind==='image')$state['puzzle_image']=$url;elseif($key==='intro_video'&&$kind==='video')$state['intro_video']=$url;elseif($kind==='sound'&&in_array($key,['round','question','timer','buzz','reveal','score','star','stop'],true))$state['sounds'][$key]=$url;elseif($key==='media'&&$kind==='image')$state['media']=$url;else throw new RuntimeException('Tài nguyên không đúng vị trí cài đặt.');
                     $state['event_name']='asset';break;
                 default:throw new RuntimeException('Thao tác không hợp lệ.');
             }
         }else throw new RuntimeException('Chỉ người điều khiển mới thực hiện được thao tác này.');
-        stage_save($room,$state);$db->commit();stage_reply(['ok'=>true,'state'=>$host?array_merge($state,['answer_key'=>$state['answer']]):stage_public($state),'server_ms'=>$now]);
+        stage_save($room,$state);$db->commit();$reply=['ok'=>true,'state'=>$host?array_merge($state,['answer_key'=>$state['answer']]):stage_public($state),'server_ms'=>$now];if($action==='rotate_mc')$reply['mc_pin']=$mcPin;stage_reply($reply);
     }catch(Throwable $e){$db->rollBack();throw $e;}
 }catch(Throwable $e){stage_reply(['ok'=>false,'message'=>$e->getMessage()],400);}
