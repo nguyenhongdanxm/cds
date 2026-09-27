@@ -427,6 +427,23 @@ function cds_db_migrations()
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
             ),
         ),
+        '20260927_017_health_mysql_snapshot' => array(
+            'description' => 'Bản sao hồ sơ y tế có chỉ mục ngày và học sinh, chưa thay nguồn JSON',
+            'statements' => array(
+                "CREATE TABLE IF NOT EXISTS cds_noitru_health (
+                    id VARCHAR(100) NOT NULL,
+                    student_id VARCHAR(100) NOT NULL DEFAULT '',
+                    record_date DATE NOT NULL,
+                    treatment_type VARCHAR(40) NOT NULL DEFAULT '',
+                    raw_json LONGTEXT NOT NULL,
+                    checksum_sha256 CHAR(64) NOT NULL,
+                    imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    KEY idx_cds_health_date (record_date, id),
+                    KEY idx_cds_health_student_date (student_id, record_date)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            ),
+        ),
 
     );
 }
