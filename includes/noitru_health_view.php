@@ -1,14 +1,14 @@
 <?php
 $healthView = in_array($_GET['health_view'] ?? 'record', ['record','history','inventory'], true) ? ($_GET['health_view'] ?? 'record') : 'record';
-$healthRows = array_values(array_filter(noitru_health_all(), fn($row) => noitru_student_in_scope($row['student_id'] ?? '')));
-usort($healthRows, fn($a,$b) => strcmp(($b['date'] ?? '') . ($b['created_at'] ?? ''), ($a['date'] ?? '') . ($a['created_at'] ?? '')));
-$medicines = noitru_medicines_all();
-usort($medicines, fn($a,$b) => strcasecmp($a['name'] ?? '', $b['name'] ?? ''));
+$medicines = $healthView === 'history' ? [] : noitru_medicines_all();
+if ($medicines) usort($medicines, fn($a,$b) => strcasecmp($a['name'] ?? '', $b['name'] ?? ''));
 $classGroups = [];
-foreach ($boarders as $student) $classGroups[trim($student['class_name'] ?? '') ?: '(Chưa lớp)'][] = $student;
-uksort($classGroups, 'csdl_compare_class_names');
-foreach ($classGroups as &$healthStudents) csdl_sort_students($healthStudents);
-unset($healthStudents);
+if ($healthView === 'record') {
+    foreach ($boarders as $student) $classGroups[trim($student['class_name'] ?? '') ?: '(Chưa lớp)'][] = $student;
+    uksort($classGroups, 'csdl_compare_class_names');
+    foreach ($classGroups as &$healthStudents) csdl_sort_students($healthStudents);
+    unset($healthStudents);
+}
 $healthLabels = ['medicine'=>'Phát thuốc','first_aid'=>'Sơ cứu','hospital'=>'Vào viện','family_pickup'=>'Gia đình đón về','thuoc'=>'Phát thuốc','kham'=>'Sơ cứu','theo_doi'=>'Theo dõi'];
 $historyRange = in_array($_GET['range'] ?? 'month', ['day','week','month'], true) ? ($_GET['range'] ?? 'month') : 'month';
 $historyDate = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['date'] ?? '') ? $_GET['date'] : date('Y-m-d');
@@ -18,7 +18,8 @@ elseif ($historyRange === 'week') { $historyFrom = date('Y-m-d', strtotime('mond
 else { $historyFrom = date('Y-m-01', $historyTs); $historyTo = date('Y-m-t', $historyTs); }
 $historySearch = mb_strtolower(trim($_GET['q'] ?? ''), 'UTF-8');
 $historyType = trim($_GET['type'] ?? 'all');
-$filteredHealth = array_values(array_filter($healthRows, function($row) use ($historyFrom,$historyTo,$historySearch,$historyType) {
+$filteredHealth = $healthView === 'history' ? array_values(array_filter(noitru_health_all(), function($row) use ($historyFrom,$historyTo,$historySearch,$historyType) {
+    if (!noitru_student_in_scope($row['student_id'] ?? '')) return false;
     $date = $row['date'] ?? '';
     if ($date < $historyFrom || $date > $historyTo) return false;
     if ($historyType !== 'all' && ($row['type'] ?? '') !== $historyType) return false;
@@ -27,7 +28,9 @@ $filteredHealth = array_values(array_filter($healthRows, function($row) use ($hi
         if (mb_strpos($haystack, $historySearch) === false) return false;
     }
     return true;
-}));
+})) : [];
+if ($filteredHealth) usort($filteredHealth, fn($a,$b) => strcmp(($b['date'] ?? '') . ($b['created_at'] ?? ''), ($a['date'] ?? '') . ($a['created_at'] ?? '')));
+$transactionTotals = $healthView === 'inventory' ? noitru_medicine_totals() : [];
 $historyStats = ['medicine'=>0,'first_aid'=>0,'hospital'=>0];
 foreach ($filteredHealth as $row) if (isset($historyStats[$row['type'] ?? ''])) $historyStats[$row['type']]++;
 $today = date('Y-m-d');
@@ -115,7 +118,7 @@ foreach ($medicines as $medicine) {
     <div class="health-inventory-head"><h5>Danh sách thuốc</h5><div><button class="btn btn-outline-success" type="button" data-bs-toggle="modal" data-bs-target="#medicineRestockPicker"><i class="bi bi-arrow-up-circle"></i> Bổ sung</button><button class="btn btn-info text-white" type="button" data-bs-toggle="modal" data-bs-target="#medicineFormModal" onclick="resetMedicineForm()"><i class="bi bi-plus-lg"></i> Thêm mới</button></div></div>
     <div class="health-search mb-3"><i class="bi bi-search"></i><input class="form-control" id="medicineSearch" placeholder="Tìm thuốc..."></div>
     <div class="table-responsive"><table class="table health-table align-middle" id="medicineTable"><thead><tr><th>STT</th><th>Tên thuốc</th><th>Đơn vị</th><th>Hạn SD</th><th>Nhập</th><th>Đã phát</th><th>Còn</th><th class="text-end">Thao tác</th></tr></thead><tbody>
-      <?php $transactions=noitru_medicine_transactions(); foreach ($medicines as $index=>$medicine): $imported=$issued=0; foreach($transactions as $tx) if(($tx['medicine_id']??'')===($medicine['id']??'')){if(($tx['type']??'')==='issue')$issued+=(int)($tx['quantity']??0);else $imported+=(int)($tx['quantity']??0);} $qty=(int)($medicine['quantity']??0); $low=$qty<=(int)($medicine['low_stock']??10); ?>
+      <?php foreach ($medicines as $index=>$medicine): $totals=$transactionTotals[(string)($medicine['id']??'')]??[]; $imported=$totals['imported']??0; $issued=$totals['issued']??0; $qty=(int)($medicine['quantity']??0); $low=$qty<=(int)($medicine['low_stock']??10); ?>
         <tr data-medicine-name="<?= e(mb_strtolower($medicine['name']??'','UTF-8')) ?>"><td><?= $index+1 ?></td><td><strong><?= e($medicine['name']??'') ?></strong><?php if(!empty($medicine['note'])):?><small><?= e($medicine['note']) ?></small><?php endif;?></td><td><?= e($medicine['unit']??'') ?></td><td><?= !empty($medicine['expiry_date'])?e(date('d/m/Y',strtotime($medicine['expiry_date']))):'—' ?></td><td class="text-success"><?= $imported ?></td><td class="text-warning"><?= $issued ?></td><td><span class="health-stock <?= $low?'low':'' ?>"><?= $qty ?></span></td><td class="text-end text-nowrap"><button class="btn btn-outline-success btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#medicineRestockModal" onclick='openMedicineRestock(<?= json_encode($medicine,JSON_HEX_APOS|JSON_HEX_QUOT) ?>)' title="Bổ sung"><i class="bi bi-arrow-up-circle"></i></button> <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#medicineFormModal" onclick='editMedicine(<?= json_encode($medicine,JSON_HEX_APOS|JSON_HEX_QUOT) ?>)' title="Sửa"><i class="bi bi-pencil-square"></i></button><?php if($canDeleteCurrent): ?> <form method="post" class="d-inline" onsubmit="return confirm('Xóa thuốc này khỏi danh sách?')"><input type="hidden" name="action" value="medicine_delete"><input type="hidden" name="id" value="<?= e($medicine['id']) ?>"><button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></form><?php endif; ?></td></tr>
       <?php endforeach; ?><?php if(!$medicines): ?><tr><td colspan="8"><div class="health-empty">Kho thuốc chưa có dữ liệu.</div></td></tr><?php endif; ?>
     </tbody></table></div>
