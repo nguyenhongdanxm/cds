@@ -21,6 +21,7 @@ $dutyMonthRows = noitru_duty_for_month($dutyMonth);
 $dutyManagers = noitru_duty_managers_all();
 $dutyGroups = noitru_duty_groups_all();
 
+$teachers = array_values(array_filter(csdl_teachers_all(), fn($teacher) => !empty($teacher['active'])));
 $dutyTeacherMap = [];
 $dutyTeacherMaleMap = [];
 foreach ($teachers as $teacher) {
