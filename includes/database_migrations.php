@@ -441,7 +441,9 @@ function cds_db_migrations()
                     PRIMARY KEY (id),
                     KEY idx_cds_health_date (record_date, id),
                     KEY idx_cds_health_student_date (student_id, record_date)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "INSERT IGNORE INTO cds_runtime_settings(setting_key,setting_value,updated_by) VALUES('health_shadow_write','0','migration')",
+                "INSERT IGNORE INTO cds_runtime_settings(setting_key,setting_value,updated_by) VALUES('health_sql_read','0','migration')"
             ),
         ),
 
