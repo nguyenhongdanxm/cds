@@ -7,8 +7,8 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <style>
-body{background:#f1f5f9;color:#1e293b;font-family:system-ui,-apple-system,'Segoe UI',sans-serif}
-.home-header{background:linear-gradient(110deg,#123759,#205e91);color:#fff}
+body{background:#f3f8f4;color:#173d31;font-family:system-ui,-apple-system,'Segoe UI',sans-serif}
+.home-header{background:linear-gradient(110deg,#103e2c 0%,#23734d 72%,#edf9ef 180%);color:#fff;box-shadow:0 8px 24px #173d3120}
 .home-header a{color:#fff;text-decoration:none}
 .home-header a:hover{text-decoration:underline}
 .home-header .container-fluid{min-height:68px;display:flex;align-items:center;justify-content:space-between;gap:1rem}

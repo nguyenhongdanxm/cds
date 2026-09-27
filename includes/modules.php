@@ -21,7 +21,7 @@ function get_ecosystem_modules() {
             'title' => 'Tiện ích chủ nhiệm',
             'subtitle' => 'Tổ chức lớp · chế độ · thi đua · kế hoạch',
             'icon' => 'bi-person-workspace', 'color' => '#f59e0b',
-            'status' => 'live', 'url' => BASE_URL . 'tienich_chunhiem.php', 'external' => false,
+            'status' => 'live', 'url' => '/tienich_chunhiem.php', 'external' => false,
         ],
         [
             'id' => 'vanban', 'num' => 3,

@@ -9,7 +9,7 @@ require_once __DIR__ . '/modules.php';
 $switchUser = function_exists('current_user') ? current_user() : (function_exists('cds_user') ? cds_user() : ($_SESSION['cds_user'] ?? null));
 if (!$switchUser) return;
 $switchRootUrl = '/';
-$switchRoutes = ['chuyenmon'=>'/chuyenmon/','vanban'=>'/vanban.php','thuvien'=>'/thuvien.php','csdl'=>'/csdl.php','hoclieu'=>'/hoclieu.php','noitru'=>'/noitru.php','thidua'=>'/thidua.php','trolyai'=>'/trolyai.php'];
+$switchRoutes = ['chunhiem'=>'/tienich_chunhiem.php','chuyenmon'=>'/chuyenmon/','vanban'=>'/vanban.php','thuvien'=>'/thuvien.php','csdl'=>'/csdl.php','hoclieu'=>'/hoclieu.php','noitru'=>'/noitru.php','thidua'=>'/thidua.php','trolyai'=>'/trolyai.php'];
 $switchModules = [];
 foreach (get_ecosystem_modules() as $module) {
     $id = (string)($module['id'] ?? '');
