@@ -2,7 +2,9 @@
 /** XLSX theo tháng cho tiện ích chủ nhiệm; chỉ dùng dữ liệu đã kiểm tra quyền trong trang gọi. */
 require_once __DIR__.'/lesson_book_excel.php';
 function cmhome_xlsx_text(string $ref, $value, int $style): string {
-    $value=preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/','',(string)$value);
+    $value=(string)$value;
+    if(!preg_match('//u',$value))$value=function_exists('iconv')?(iconv('UTF-8','UTF-8//IGNORE',$value)?:''):'';
+    $value=preg_replace('/[^\x{9}\x{A}\x{D}\x{20}-\x{D7FF}\x{E000}-\x{FFFD}\x{10000}-\x{10FFFF}]/u','',$value);
     return lb_xlsx_text($ref,$value??'', $style);
 }
 function cmhome_xlsx_styles(): string {
@@ -33,7 +35,7 @@ function cmhome_xlsx_sheet(string $title,string $subtitle,array $headers,array $
     $dataLast=max(3,count($rows)+3);
     if($totals){$line=$dataLast+1;$cells='';foreach($totals as $j=>$value){$ref=lb_xlsx_col($j+1).$line;$cells.=is_int($value)||is_float($value)?lb_xlsx_number($ref,$value,is_float($value)?6:8):cmhome_xlsx_text($ref,$value,4);}$xmlRows[]='<row r="'.$line.'" ht="28">'.$cells.'</row>';}
     $cols='';foreach($widths as $i=>$width){$n=$i+1;$cols.='<col min="'.$n.'" max="'.$n.'" width="'.$width.'" customWidth="1"/>';}
-    return '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:'.$lastCol.max(4,$dataLast+($totals?1:0)).'"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'.$cols.'</cols><sheetData>'.implode('',$xmlRows).'</sheetData><mergeCells count="2"><mergeCell ref="A1:'.$lastCol.'1"/><mergeCell ref="A2:'.$lastCol.'2"/></mergeCells><autoFilter ref="A3:'.$lastCol.$dataLast.'"/><printOptions horizontalCentered="1"/><pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/></worksheet>';
+    return '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:'.$lastCol.max(4,$dataLast+($totals?1:0)).'"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'.$cols.'</cols><sheetData>'.implode('',$xmlRows).'</sheetData><autoFilter ref="A3:'.$lastCol.$dataLast.'"/><mergeCells count="2"><mergeCell ref="A1:'.$lastCol.'1"/><mergeCell ref="A2:'.$lastCol.'2"/></mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/></worksheet>';
 }
 function cmhome_export_xlsx(string $type,array $students,array $mealData,array $grams,array $settings,array $ledger,string $className,string $year,string $month,array $mealDone=[],array $ledgerDone=[]): void {
     if(!class_exists('ZipArchive')){http_response_code(503);exit('Máy chủ cần bật ZipArchive để xuất Excel.');}
@@ -51,7 +53,14 @@ function cmhome_export_xlsx(string $type,array $students,array $mealData,array $
         $sheet=cmhome_xlsx_sheet('SỔ THU CHI · LỚP '.$className,'Năm học '.$year.' · Tháng '.$month.' · Thu '.number_format($income,0,',','.').' đ · Chi '.number_format($expense,0,',','.').' đ',$headers,$rows,[8,16,12,19,48,30,28,20],['TỔNG','', '',$income-$expense,'Chênh lệch thu – chi','','','']);
         $name='Sổ thu chi';
     }
-    $files=lb_xlsx_base_files($name.' '.$className.' '.$month,$name,$sheet,cmhome_xlsx_styles());
+    $styles=cmhome_xlsx_styles();
+    if(class_exists('DOMDocument')){
+        $doc=new DOMDocument();
+        if(!@$doc->loadXML($sheet,LIBXML_NONET)||!@$doc->loadXML($styles,LIBXML_NONET)){
+            http_response_code(503);exit('Dữ liệu Excel có ký tự không hợp lệ. Vui lòng kiểm tra nội dung đã nhập.');
+        }
+    }
+    $files=lb_xlsx_base_files($name.' '.$className.' '.$month,$name,$sheet,$styles);
     $tmp=tempnam(sys_get_temp_dir(),'cmhome_');if($tmp===false||!lb_xlsx_zip($files,$tmp)){if($tmp!==false)@unlink($tmp);http_response_code(503);exit('Không tạo được tệp Excel.');}
     $filename=($type==='meals'?'bua-an-gao-':'so-thu-chi-').preg_replace('/[^A-Za-z0-9_-]/','_', $className).'-'.$month.'.xlsx';
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');header('Content-Disposition: attachment; filename="'.$filename.'"');header('Content-Length: '.filesize($tmp));header('Cache-Control: private, no-store');readfile($tmp);@unlink($tmp);exit;
