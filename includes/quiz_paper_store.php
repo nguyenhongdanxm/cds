@@ -85,6 +85,14 @@ function qp_answer_correct(array $q, string $answer): bool {
         $chosen=array_values(array_intersect(['A','B','C','D'],$chosen));sort($expected);sort($chosen);
         return $chosen===$expected && count($chosen)===count(array_unique($chosen));
     }
+    if ($type==='fill') {
+        $normalize=static fn($v)=>mb_strtolower(trim(preg_replace('/\s+/u',' ',(string)$v)),'UTF-8');
+        return in_array($normalize($answer),array_map($normalize,(array)($q['fill_answers']??[])),true);
+    }
+    if ($type==='order') {
+        $chosen=json_decode($answer,true);
+        return is_array($chosen) && array_values($chosen)===array_values((array)($q['steps']??[]));
+    }
     if ($type==='match') {
         $chosen=json_decode($answer,true);
         $pairs=(array)($q['pairs']??[]);
@@ -95,6 +103,8 @@ function qp_answer_correct(array $q, string $answer): bool {
     return $answer===(string)($q['key']??'');
 }
 function qp_correct_label(array $q): string {
+    if (qp_question_type($q)==='fill') return implode(' / ',(array)($q['fill_answers']??[]));
+    if (qp_question_type($q)==='order') return implode(' → ',(array)($q['steps']??[]));
     if (qp_question_type($q)==='multi') return implode(', ',(array)($q['keys']??[]));
     if (qp_question_type($q)==='match') return implode('; ',array_map(static fn($p)=>implode(' → ',(array)$p),(array)($q['pairs']??[])));
     return (string)($q['key']??'');
