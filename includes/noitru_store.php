@@ -1382,7 +1382,21 @@ function noitru_health_all() {
     noitru_ensure_dir();
     return load_json(NOITRU_HEALTH, []);
 }
+function noitru_health_for_range(string $from, string $to): array {
+    require_once __DIR__ . '/database_health.php';
+    if (cds_health_read_effective()) {
+        try { return cds_health_sql_range($from, $to); }
+        catch (Throwable $e) { error_log('[CDS health SQL read fallback] ' . $e->getMessage()); }
+    }
+    return array_values(array_filter(noitru_health_all(), static fn($row) =>
+        ($row['date'] ?? '') >= $from && ($row['date'] ?? '') <= $to));
+}
 function noitru_health_save(array $data) {
+    require_once __DIR__ . '/database_health.php';
+    $lock = cds_health_file_lock();
+    try {
+    $wasPending = cds_health_pending();
+    cds_health_pending_mark();
     $rows = noitru_health_all();
     $id = $data['id'] ?? '';
     $found = false;
@@ -1401,11 +1415,24 @@ function noitru_health_save(array $data) {
         $data['created_at'] = noitru_now();
         $rows[] = $data;
     }
-    save_json(NOITRU_HEALTH, $rows);
+    if (!save_json(NOITRU_HEALTH, $rows)) throw new RuntimeException('Không lưu được hồ sơ y tế JSON.');
+    $saved = null;
+    foreach ($rows as $row) if (($row['id'] ?? '') === $id) { $saved = $row; break; }
+    cds_health_shadow_row($saved, (string)$id, $wasPending);
     return $id;
+    } finally { cds_health_file_unlock($lock); }
 }
 function noitru_health_delete($id) {
-    save_json(NOITRU_HEALTH, array_values(array_filter(noitru_health_all(), fn($r) => ($r['id'] ?? '') !== $id)));
+    require_once __DIR__ . '/database_health.php';
+    $lock = cds_health_file_lock();
+    try {
+        $wasPending = cds_health_pending();
+        cds_health_pending_mark();
+        if (!save_json(NOITRU_HEALTH, array_values(array_filter(noitru_health_all(), fn($r) => ($r['id'] ?? '') !== $id)))) {
+            throw new RuntimeException('Không lưu được hồ sơ y tế JSON.');
+        }
+        cds_health_shadow_row(null, (string)$id, $wasPending);
+    } finally { cds_health_file_unlock($lock); }
 }
 
 function noitru_medicines_all() {

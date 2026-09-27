@@ -18,8 +18,14 @@ elseif ($historyRange === 'week') { $historyFrom = date('Y-m-d', strtotime('mond
 else { $historyFrom = date('Y-m-01', $historyTs); $historyTo = date('Y-m-t', $historyTs); }
 $historySearch = mb_strtolower(trim($_GET['q'] ?? ''), 'UTF-8');
 $historyType = trim($_GET['type'] ?? 'all');
-$filteredHealth = $healthView === 'history' ? array_values(array_filter(noitru_health_all(), function($row) use ($historyFrom,$historyTo,$historySearch,$historyType) {
-    if (!noitru_student_in_scope($row['student_id'] ?? '')) return false;
+$healthAllowedIds = [];
+if ($healthView === 'history') {
+    foreach (noitru_boarders_on_date($historyDate) as $student) {
+        if (can_class($student['class_name'] ?? '')) $healthAllowedIds[(string)($student['id'] ?? '')] = true;
+    }
+}
+$filteredHealth = $healthView === 'history' ? array_values(array_filter(noitru_health_for_range($historyFrom, $historyTo), function($row) use ($historyFrom,$historyTo,$historySearch,$historyType,$healthAllowedIds) {
+    if (!isset($healthAllowedIds[(string)($row['student_id'] ?? '')])) return false;
     $date = $row['date'] ?? '';
     if ($date < $historyFrom || $date > $historyTo) return false;
     if ($historyType !== 'all' && ($row['type'] ?? '') !== $historyType) return false;

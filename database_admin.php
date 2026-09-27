@@ -9,6 +9,7 @@ require_once __DIR__ . '/includes/database_sql_write.php';
 require_once __DIR__ . '/includes/database_meals.php';
 require_once __DIR__ . '/includes/database_meal_read.php';
 require_once __DIR__ . '/includes/database_lesson_book.php';
+require_once __DIR__ . '/includes/database_health.php';
 require_admin();
 
 if (empty($_SESSION['cds_db_csrf'])) {
@@ -34,6 +35,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable $e) {
             flash('Không thể cài đặt nền MySQL: ' . $e->getMessage(), 'danger');
         }
+    }
+
+    if (($_POST['action'] ?? '') === 'import_health_snapshot') {
+        try {
+            $healthResult = cds_health_import_snapshot();
+            flash('Đã sao chép và đối chiếu ' . $healthResult['json'] . ' hồ sơ y tế. JSON vẫn là nguồn vận hành.',
+                $healthResult['is_match'] ? 'success' : 'warning');
+        } catch (Throwable $e) {
+            flash('Chưa thể đồng bộ y tế: ' . $e->getMessage(), 'danger');
+        }
+    }
+    if (in_array($_POST['action'] ?? '', ['set_health_shadow','set_health_sql_read'], true)) {
+        try {
+            $key = $_POST['action'] === 'set_health_shadow' ? 'health_shadow_write' : 'health_sql_read';
+            $enabled = ($_POST['enabled'] ?? '') === '1';
+            cds_health_set_mode($key, $enabled, (string)(current_user()['name'] ?? ''));
+            flash('Đã cập nhật chế độ MySQL y tế.');
+        } catch (Throwable $e) { flash('Không thể đổi chế độ y tế: ' . $e->getMessage(), 'danger'); }
     }
 
     if (($_POST['action'] ?? '') === 'import_core_snapshot') {
@@ -228,6 +247,7 @@ $mealPending = null;
 $mealReadReady = false;
 $mealReadStatus = array('configured'=>false,'effective'=>false,'ready'=>false,'reason'=>'Chưa cài đặt bản nâng cấp.');
 $lessonBookReady=false;$lessonBookComparison=null;$lessonBookShadow=false;$lessonBookReadStatus=['configured'=>false,'effective'=>false,'reason'=>'Chưa cài đặt bản nâng cấp.'];$lessonBookPending=null;
+$healthSqlReady=false;$healthComparison=null;$healthShadow=false;$healthSqlRead=false;$healthPending=false;
 $sqlReadStatus = array(
     'configured' => false,
     'ready' => false,
@@ -292,6 +312,13 @@ if ($dbStatus['connected']) {
             }
             $lessonBookReady=!isset($migrationStatus['pending']['20260903_011_lesson_book_mysql_foundation']);
             if($lessonBookReady){$lessonBookComparison=cds_lb_compare();$lessonBookShadow=cds_lb_shadow_enabled();$lessonBookReadStatus=cds_lb_read_status();$lessonBookPending=cds_lb_pending_status();}
+            $healthSqlReady=!isset($migrationStatus['pending']['20260927_017_health_mysql_snapshot']);
+            if($healthSqlReady) {
+                $healthComparison=cds_health_compare();
+                $healthPending=cds_health_pending();
+                $healthShadow=cds_health_shadow_enabled();
+                $healthSqlRead=cds_health_setting('health_sql_read');
+            }
         }
     } catch (Throwable $e) {
         $dbStatus['error'] = $e->getMessage();
@@ -944,6 +971,26 @@ include __DIR__ . '/includes/nav_top.php';
     <div class="d-flex flex-wrap justify-content-between gap-2"><div><h5 class="mb-1"><i class="bi bi-speedometer2"></i> Giai đoạn 4B – đọc Sổ đầu bài từ MySQL</h5><p class="text-muted small mb-0">Đọc, thống kê và tra PPCT bằng chỉ mục MySQL; tự quay về JSON khi lỗi hoặc còn đồng bộ chờ.</p></div><span class="badge <?= !empty($lessonBookReadStatus['effective'])?'text-bg-primary':'text-bg-secondary' ?>"><?= !empty($lessonBookReadStatus['effective'])?'Đang đọc MySQL':'Đang đọc JSON' ?></span></div>
     <?php if(!empty($lessonBookReadStatus['configured'])&&empty($lessonBookReadStatus['effective'])): ?><div class="alert alert-warning mt-3 mb-0"><?= e($lessonBookReadStatus['reason']) ?></div><?php endif; ?>
     <form method="post" class="mt-3"><input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>"><input type="hidden" name="action" value="set_lesson_book_sql_read"><input type="hidden" name="enabled" value="<?= !empty($lessonBookReadStatus['configured'])?'0':'1' ?>"><button class="btn <?= !empty($lessonBookReadStatus['configured'])?'btn-outline-secondary':'btn-primary' ?>" <?= empty($lessonBookReadStatus['configured'])&&(!$lessonBookShadow||empty($lessonBookComparison['is_match'])||$lessonBookPending)?'disabled':'' ?>><?= !empty($lessonBookReadStatus['configured'])?'Quay về đọc JSON':'Bật đọc MySQL có kiểm soát' ?></button></form>
+  </section>
+  <?php endif; ?>
+  <?php if ($healthSqlReady): ?>
+  <section class="status-card p-3 mt-3 border border-info-subtle">
+    <h5 class="mb-1"><i class="bi bi-heart-pulse"></i> Bản sao MySQL hồ sơ y tế</h5>
+    <p class="text-muted small">JSON tiếp tục là nguồn ghi. Chỉ bật đọc MySQL sau khi bản sao khớp và ghi song song hoạt động.</p>
+    <?php if ($healthComparison): ?><div class="alert <?= $healthComparison['is_match']?'alert-success':'alert-warning' ?>">
+      JSON: <?= (int)$healthComparison['json'] ?> · MySQL: <?= (int)$healthComparison['mysql'] ?> · Thiếu: <?= (int)$healthComparison['missing'] ?> · Khác: <?= (int)$healthComparison['different'] ?> · Thừa: <?= (int)$healthComparison['extra'] ?>
+    </div><?php endif; ?>
+    <?php if ($healthPending): ?><div class="alert alert-warning">Có thay đổi JSON chưa đối chiếu. Lịch sử đang đọc JSON dự phòng.</div><?php endif; ?>
+    <div class="mb-2">Ghi song song: <strong><?= $healthShadow?'Bật':'Tắt' ?></strong> · Đọc MySQL: <strong><?= $healthSqlRead&&!$healthPending&&$healthShadow?'Đang dùng':($healthSqlRead?'Tạm về JSON':'Tắt') ?></strong></div>
+    <form method="post" onsubmit="return confirm('Sao chép hồ sơ y tế hiện tại vào MySQL? Tệp JSON không bị sửa hoặc xóa.');">
+      <input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>">
+      <input type="hidden" name="action" value="import_health_snapshot">
+      <button class="btn btn-info text-white"><i class="bi bi-database-up"></i> Cập nhật và đối chiếu bản sao y tế</button>
+    </form>
+    <div class="d-flex flex-wrap gap-2 mt-2">
+      <form method="post"><input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>"><input type="hidden" name="action" value="set_health_shadow"><input type="hidden" name="enabled" value="<?= $healthShadow?'0':'1' ?>"><button class="btn <?= $healthShadow?'btn-outline-secondary':'btn-success' ?>" <?= !$healthShadow&&($healthPending||empty($healthComparison['is_match']))?'disabled':'' ?>><?= $healthShadow?'Tắt ghi song song':'Bật ghi song song' ?></button></form>
+      <form method="post"><input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>"><input type="hidden" name="action" value="set_health_sql_read"><input type="hidden" name="enabled" value="<?= $healthSqlRead?'0':'1' ?>"><button class="btn <?= $healthSqlRead?'btn-outline-secondary':'btn-primary' ?>" <?= !$healthSqlRead&&(!$healthShadow||$healthPending||empty($healthComparison['is_match']))?'disabled':'' ?>><?= $healthSqlRead?'Quay về đọc JSON':'Bật đọc MySQL lịch sử' ?></button></form>
+    </div>
   </section>
   <?php endif; ?>
 </main>
