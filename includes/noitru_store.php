@@ -1475,6 +1475,17 @@ function noitru_medicine_transactions($medicineId = '') {
     usort($rows, fn($a,$b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
     return $rows;
 }
+/** Tổng hợp kho một lượt; không sắp xếp từng giao dịch khi chỉ cần số lượng. */
+function noitru_medicine_totals(): array {
+    noitru_ensure_dir();
+    $totals = [];
+    foreach (load_json(NOITRU_MEDICINE_TX, []) as $tx) {
+        $id = (string)($tx['medicine_id'] ?? '');
+        $key = ($tx['type'] ?? '') === 'issue' ? 'issued' : 'imported';
+        $totals[$id][$key] = ($totals[$id][$key] ?? 0) + (int)($tx['quantity'] ?? 0);
+    }
+    return $totals;
+}
 
 /* —— Menus —— */
 function noitru_menus_all() {
