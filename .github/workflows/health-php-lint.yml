@@ -1,0 +1,24 @@
+name: Health PHP syntax
+on:
+  pull_request:
+    paths:
+      - 'database_admin.php'
+      - 'includes/database_health.php'
+      - 'includes/database_migrations.php'
+      - 'includes/noitru_store.php'
+      - 'includes/noitru_health_view.php'
+  workflow_dispatch:
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - run: |
+          php -l database_admin.php
+          php -l includes/database_health.php
+          php -l includes/database_migrations.php
+          php -l includes/noitru_store.php
+          php -l includes/noitru_health_view.php
