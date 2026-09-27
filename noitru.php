@@ -1024,20 +1024,22 @@ $boarders = $tab === 'attendance'
     : array_values(array_filter(noitru_assignment_apply(
         in_array($tab, ['meals','meal_summary'], true) ? noitru_boarders_on_date($scopeDate) : noitru_boarders_live()
       ), fn($student) => can_class($student['class_name'] ?? '')));
-$stats = noitru_stats();
-if (allowed_classes() !== null) {
-    $stats['total'] = count($boarders);
-    $stats['by_class'] = $stats['by_room'] = $stats['by_meal'] = [];
-    foreach ($boarders as $student) {
-        $className = $student['class_name'] ?: '(Chưa lớp)';
-        $room = $student['room_ktx'] ?: '(Chưa phòng)';
-        $meal = $student['meal_group'] ?: '(Chưa nhóm ăn)';
-        $stats['by_class'][$className] = ($stats['by_class'][$className] ?? 0) + 1;
-        $stats['by_room'][$room] = ($stats['by_room'][$room] ?? 0) + 1;
-        $stats['by_meal'][$meal] = ($stats['by_meal'][$meal] ?? 0) + 1;
+$stats = [];
+if ($tab === 'overview') {
+    $stats = noitru_stats();
+    if (allowed_classes() !== null) {
+        $stats['total'] = count($boarders);
+        $stats['by_class'] = $stats['by_room'] = $stats['by_meal'] = [];
+        foreach ($boarders as $student) {
+            $className = $student['class_name'] ?: '(Chưa lớp)';
+            $room = $student['room_ktx'] ?: '(Chưa phòng)';
+            $meal = $student['meal_group'] ?: '(Chưa nhóm ăn)';
+            $stats['by_class'][$className] = ($stats['by_class'][$className] ?? 0) + 1;
+            $stats['by_room'][$room] = ($stats['by_room'][$room] ?? 0) + 1;
+            $stats['by_meal'][$meal] = ($stats['by_meal'][$meal] ?? 0) + 1;
+        }
     }
 }
-$teachers = array_values(array_filter(csdl_teachers_all(), fn($t) => !empty($t['active'])));
 
 $tabs = [
     'overview' => ['Tổng quan', 'bi-grid', BASE_URL . 'noitru.php?tab=overview'],
