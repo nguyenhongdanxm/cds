@@ -332,10 +332,10 @@ require defined('CDS_HOMEROOM_STANDALONE') ? dirname(__DIR__).'/includes/homeroo
 .cmh-page .card{border:1px solid #dbe9dd;border-radius:18px;box-shadow:0 7px 24px #193d2b0b;overflow:hidden}.cmh-page .card-body{padding:clamp(1rem,2vw,1.4rem)}.cmh-page .card h5{font-size:1.08rem;font-weight:780;color:#225e40;margin-bottom:1rem}.cmh-page .form-control,.cmh-page .form-select{border-color:#c8dfcf;border-radius:10px;min-height:42px}.cmh-page .btn{border-radius:10px;font-weight:650}.cmh-page .btn-primary{background:#176947;border-color:#176947}.cmh-page .btn-primary:hover{background:#105333}
 .cmh-page .table-responsive{border:1px solid #dce9df;border-radius:12px}.cmh-page .table{margin-bottom:0}.cmh-page .table thead th{background:#e8f5eb;color:#235d3e;font-size:.79rem;text-transform:uppercase;letter-spacing:.025em;vertical-align:middle;white-space:nowrap;border-bottom:1px solid #c9e0d0;padding:.75rem}.cmh-page .table td{vertical-align:middle;padding:.65rem .75rem}.cmh-page .table-striped>tbody>tr:nth-of-type(odd)>*{--bs-table-bg-type:#f6fbf7}.cmh-page .table tfoot td{background:#d5efda;border-top:2px solid #8ac79c}
 .cmh-point{min-width:120px;min-height:62px;white-space:normal}.cmh-table{min-width:750px}
-.cmh-meals-table,.cmh-ledger-table{width:1130px;min-width:1130px;table-layout:fixed;font-size:.82rem;line-height:1.18}
-.cmh-ledger-table{width:850px;min-width:850px}
-.cmh-meals-table th,.cmh-meals-table td,.cmh-ledger-table th,.cmh-ledger-table td{padding:.22rem .3rem;vertical-align:middle;overflow-wrap:anywhere}
-.cmh-meals-table thead th,.cmh-ledger-table thead th{white-space:normal!important;line-height:1.16;text-align:center}
+.cmh-meals-table,.cmh-ledger-table{width:100%;min-width:1120px;table-layout:auto;font-size:.82rem;line-height:1.18}
+.cmh-ledger-table{min-width:850px}
+.cmh-page .cmh-meals-table th,.cmh-page .cmh-meals-table td,.cmh-page .cmh-ledger-table th,.cmh-page .cmh-ledger-table td{padding:.3rem .4rem;vertical-align:middle;overflow-wrap:anywhere}
+.cmh-page .cmh-meals-table thead th,.cmh-page .cmh-ledger-table thead th{white-space:normal;line-height:1.16;text-align:center}.cmh-meals-table thead th:nth-child(n+4):nth-child(-n+6),.cmh-meals-table thead th:nth-child(2),.cmh-ledger-table thead th:nth-child(2),.cmh-ledger-table thead th:nth-child(4){white-space:nowrap!important;overflow-wrap:normal}
 .cmh-meals-table td:not(.cmh-name){text-align:right}
 .cmh-meals-table th:nth-child(1),.cmh-meals-table td:nth-child(1),.cmh-ledger-table th:nth-child(1),.cmh-ledger-table td:nth-child(1){width:32px;text-align:center}
 .cmh-meals-table th:nth-child(2),.cmh-meals-table td:nth-child(2),.cmh-ledger-table th:nth-child(2),.cmh-ledger-table td:nth-child(2){width:34px;text-align:center}
