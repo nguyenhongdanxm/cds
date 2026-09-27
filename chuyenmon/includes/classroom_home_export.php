@@ -35,20 +35,20 @@ function cmhome_xlsx_sheet(string $title,string $subtitle,array $headers,array $
     $cols='';foreach($widths as $i=>$width){$n=$i+1;$cols.='<col min="'.$n.'" max="'.$n.'" width="'.$width.'" customWidth="1"/>';}
     return '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:'.$lastCol.max(4,$dataLast+($totals?1:0)).'"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'.$cols.'</cols><sheetData>'.implode('',$xmlRows).'</sheetData><mergeCells count="2"><mergeCell ref="A1:'.$lastCol.'1"/><mergeCell ref="A2:'.$lastCol.'2"/></mergeCells><autoFilter ref="A3:'.$lastCol.$dataLast.'"/><printOptions horizontalCentered="1"/><pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/></worksheet>';
 }
-function cmhome_export_xlsx(string $type,array $students,array $mealData,array $grams,array $settings,array $ledger,string $className,string $year,string $month): void {
+function cmhome_export_xlsx(string $type,array $students,array $mealData,array $grams,array $settings,array $ledger,string $className,string $year,string $month,array $mealDone=[],array $ledgerDone=[]): void {
     if(!class_exists('ZipArchive')){http_response_code(503);exit('Máy chủ cần bật ZipArchive để xuất Excel.');}
     $days=(int)date('t',strtotime($month.'-01'));
     if($type==='meals'){
-        $headers=['STT','Họ và tên','Sáng','Trưa','Tối','Tổng bữa','Gạo đã ăn (kg)','Hoàn sáng (đ)','Hoàn trưa (đ)','Hoàn tối (đ)','Tổng hoàn (đ)','Gạo còn (kg)'];
+        $headers=['STT','Họ và tên','Sáng','Trưa','Tối','Tổng bữa','Gạo đã ăn (kg)','Hoàn sáng (đ)','Hoàn trưa (đ)','Hoàn tối (đ)','Tổng hoàn (đ)','Gạo còn (kg)','Đã hoàn thành'];
         $rows=[];$sum=array_fill(0,count($headers),0);$sum[0]='TỔNG LỚP';$sum[1]='';
-        foreach($students as $i=>$student){$meal=$mealData[$student['id']]??[];$s=(int)($meal['sang']??0);$t=(int)($meal['trua']??0);$e=(int)($meal['toi']??0);$rice=(float)($meal['rice_kg']??0);$rs=max(0,$days-$s)*(int)$settings['rate_sang'];$rt=max(0,$days-$t)*(int)$settings['rate_trua'];$re=max(0,$days-$e)*(int)$settings['rate_toi'];$row=[$i+1,$student['name'],$s,$t,$e,$s+$t+$e,$rice,$rs,$rt,$re,$rs+$rt+$re,max(0,15-$rice)];$rows[]=$row;for($j=2;$j<count($row);$j++)$sum[$j]+=$row[$j];}
-        $sheet=cmhome_xlsx_sheet('BỮA ĂN VÀ GẠO · LỚP '.$className,'Năm học '.$year.' · Tháng '.$month.' · '.count($students).' học sinh · Tiền hoàn dự tính theo '. $days.' ngày/tháng; gạo 15 kg/học sinh',$headers,$rows,[8,30,11,11,11,13,19,19,19,19,21,19],$sum);
+        foreach($students as $i=>$student){$meal=$mealData[$student['id']]??[];$s=(int)($meal['sang']??0);$t=(int)($meal['trua']??0);$e=(int)($meal['toi']??0);$rice=(float)($meal['rice_kg']??0);$rs=max(0,$days-$s)*(int)$settings['rate_sang'];$rt=max(0,$days-$t)*(int)$settings['rate_trua'];$re=max(0,$days-$e)*(int)$settings['rate_toi'];$row=[$i+1,$student['name'],$s,$t,$e,$s+$t+$e,$rice,$rs,$rt,$re,$rs+$rt+$re,max(0,15-$rice),isset($mealDone[(string)$student['id']])?'Đã hoàn thành':'Chưa hoàn thành'];$rows[]=$row;for($j=2;$j<12;$j++)$sum[$j]+=$row[$j];}
+        $sheet=cmhome_xlsx_sheet('BỮA ĂN VÀ GẠO · LỚP '.$className,'Năm học '.$year.' · Tháng '.$month.' · '.count($students).' học sinh · Tiền hoàn dự tính theo '. $days.' ngày/tháng; gạo 15 kg/học sinh',$headers,$rows,[8,30,11,11,11,13,19,19,19,19,21,19,20],$sum);
         $name='Bữa ăn và gạo';
     }else{
-        $headers=['STT','Ngày','Loại','Số tiền (đ)','Nội dung','Học sinh','Người ghi'];$rows=[];$income=0;$expense=0;
+        $headers=['STT','Ngày','Loại','Số tiền (đ)','Nội dung','Học sinh','Người ghi','Đã hoàn thành'];$rows=[];$income=0;$expense=0;
         $map=[];foreach($students as $student)$map[(string)$student['id']]=$student['name'];
-        foreach($ledger as $i=>$entry){$amount=(int)$entry['amount'];if($entry['kind']==='thu')$income+=$amount;else $expense+=$amount;$rows[]=[$i+1,(string)$entry['entry_date'],$entry['kind']==='thu'?'Thu':'Chi',$amount,(string)$entry['description'],$entry['student_id']===''?'Chung cả lớp':($map[$entry['student_id']]??'Đã chuyển lớp'),(string)$entry['created_by']];}
-        $sheet=cmhome_xlsx_sheet('SỔ THU CHI · LỚP '.$className,'Năm học '.$year.' · Tháng '.$month.' · Thu '.number_format($income,0,',','.').' đ · Chi '.number_format($expense,0,',','.').' đ',$headers,$rows,[8,16,12,19,48,30,28],['TỔNG','', '',$income-$expense,'Chênh lệch thu – chi','','']);
+        foreach($ledger as $i=>$entry){$amount=(int)$entry['amount'];if($entry['kind']==='thu')$income+=$amount;else $expense+=$amount;$rows[]=[$i+1,(string)$entry['entry_date'],$entry['kind']==='thu'?'Thu':'Chi',$amount,(string)$entry['description'],$entry['student_id']===''?'Chung cả lớp':($map[$entry['student_id']]??'Đã chuyển lớp'),(string)$entry['created_by'],isset($ledgerDone[(int)$entry['id']])?'Đã hoàn thành':'Chưa hoàn thành'];}
+        $sheet=cmhome_xlsx_sheet('SỔ THU CHI · LỚP '.$className,'Năm học '.$year.' · Tháng '.$month.' · Thu '.number_format($income,0,',','.').' đ · Chi '.number_format($expense,0,',','.').' đ',$headers,$rows,[8,16,12,19,48,30,28,20],['TỔNG','', '',$income-$expense,'Chênh lệch thu – chi','','','']);
         $name='Sổ thu chi';
     }
     $files=lb_xlsx_base_files($name.' '.$className.' '.$month,$name,$sheet,cmhome_xlsx_styles());
