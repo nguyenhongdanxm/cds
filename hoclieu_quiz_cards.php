@@ -18,8 +18,11 @@ $json=json_encode($students,JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSO
 .sheet{display:contents}
 .quiz-card{grid-template-rows:17% 60% 23%;min-width:0;border-color:#064a8a}
 .quiz-card .letter{color:#064a8a}
+.quiz-card>.letter:first-child{align-self:start}
 .quiz-card .middle{grid-template-columns:17% 66% 17%;min-height:0}
 .quiz-card .code{min-width:0;min-height:0}
+.quiz-card .code{position:relative}
+.quiz-card .orientation-mark{position:absolute;top:-13%;left:46%;width:8%;height:8%;border-radius:50%;background:#d61f35;box-shadow:0 0 0 3px #fff;z-index:1}
 .card-bottom{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;min-height:0;padding:0 6px 4px}
 .student-label{display:block;width:100%;color:#bd1e30;font-size:16px;font-weight:850;line-height:1.15;overflow-wrap:anywhere;text-align:center}
 @media(max-width:600px){.student-label{font-size:12px}.card-bottom{padding:0 3px 2px;gap:0}}
@@ -41,5 +44,5 @@ $json=json_encode($students,JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSO
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script>
 const students=<?=$json?:'[]'?>,className=<?=json_encode((string)($chosen['name']??''),JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,cards=document.getElementById('cards');
 if(!window.QRCode)document.getElementById('status').textContent='Không tải được thư viện tạo QR. Kiểm tra kết nối mạng trước khi in.';
-else {students.forEach((s,i)=>{let sheet;if(i%2===0){sheet=document.createElement('div');sheet.className='sheet';cards.appendChild(sheet)}else sheet=cards.lastElementChild;let el=document.createElement('div');el.className='quiz-card';el.innerHTML='<div class="letter">A</div><div class="middle"><span class="letter">D</span><div class="code"></div><span class="letter">B</span></div><div class="card-bottom"><span class="letter">C</span><span class="student-label"></span></div>';el.querySelector('.student-label').textContent=s.name+' · Lớp '+className;sheet.appendChild(el);new QRCode(el.querySelector('.code'),{text:'CDSQ1:'+s.id,width:400,height:400,correctLevel:QRCode.CorrectLevel.L})});document.getElementById('status').textContent='Đã tạo '+students.length+' thẻ · '+Math.ceil(students.length/2)+' trang A4.';document.getElementById('print').disabled=false;document.getElementById('print').onclick=()=>window.print()}
+else {students.forEach((s,i)=>{let sheet;if(i%2===0){sheet=document.createElement('div');sheet.className='sheet';cards.appendChild(sheet)}else sheet=cards.lastElementChild;let el=document.createElement('div');el.className='quiz-card';el.innerHTML='<div class="letter">A</div><div class="middle"><span class="letter">D</span><div class="code"></div><span class="letter">B</span></div><div class="card-bottom"><span class="letter">C</span><span class="student-label"></span></div>';el.querySelector('.student-label').textContent=s.name+' · Lớp '+className;sheet.appendChild(el);new QRCode(el.querySelector('.code'),{text:'CDSQ1:'+s.id,width:400,height:400,correctLevel:QRCode.CorrectLevel.L});let mark=document.createElement('span');mark.className='orientation-mark';el.querySelector('.code').appendChild(mark)});document.getElementById('status').textContent='Đã tạo '+students.length+' thẻ · '+Math.ceil(students.length/2)+' trang A4.';document.getElementById('print').disabled=false;document.getElementById('print').onclick=()=>window.print()}
 </script><?php endif; ?></main></body></html>
