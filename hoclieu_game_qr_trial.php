@@ -164,15 +164,15 @@ function answerFromMark(loc,pixels,w,h){
   const vx=side.x-center.x,vy=side.y-center.y,scale=side.length;
   // QR libraries may include the quiet zone in their corners. Sample a narrow
   // strip beyond each edge, with tolerance for camera perspective and print size.
-  let hits=0,total=0;
-  for(const distance of [0.08,0.12,0.16])for(const lateral of [-0.025,0,0.025]){
+  let hits=0,total=0,redDistances=0;
+  for(const distance of [0.08,0.12,0.16]){let redAtDistance=0;for(const lateral of [-0.025,0,0.025]){
    const x=Math.round(side.x+vx/Math.hypot(vx,vy)*scale*distance-vy/Math.hypot(vx,vy)*scale*lateral);
    const y=Math.round(side.y+vy/Math.hypot(vx,vy)*scale*distance+vx/Math.hypot(vx,vy)*scale*lateral);
    if(x<0||x>=w||y<0||y>=h)continue;
    total++;const i=(y*w+x)*4,r=pixels[i],g=pixels[i+1],b=pixels[i+2];
-   if(r>85&&r>g*1.5&&r>b*1.25)hits++;
-  }
-  if(total>=6&&hits>=3)found.push({side,hits});
+   if(r>85&&r>g*1.5&&r>b*1.25){hits++;redAtDistance++}
+  }if(redAtDistance)redDistances++}
+  if(total>=6&&hits>=3&&redDistances>=2)found.push({side,hits});
  }
  if(found.length!==1)return null;
  const side=found[0].side,dx=side.x-center.x,dy=side.y-center.y;
