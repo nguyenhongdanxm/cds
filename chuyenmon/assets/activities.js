@@ -90,10 +90,36 @@ document.addEventListener('click',event=>{if(event.target.closest('#addScheduleS
 function cmactResetOnlineEdit(){
  const form=document.getElementById('onlineEnrollmentForm');if(!form)return;form.reset();document.getElementById('onlineEnrollmentId').value='';document.getElementById('scheduleSlots').innerHTML='';cmactSlotIndex=0;cmactAddScheduleSlot();const select=document.getElementById('onlineStudents');[...select.options].forEach(o=>o.selected=false);cmactSyncPicker(select);document.getElementById('cancelOnlineEdit').classList.add('d-none');document.querySelector('#saveOnlineEnrollment span').textContent='Lưu đăng ký';
 }
+function cmactPrintOnlineDetail(){
+ const sheet=document.querySelector('#onlineDetailDialog .online-print-sheet');
+ if(!sheet)return;
+ // In trong tài liệu riêng để CSS in A4 của phần câu lạc bộ và bố cục trang
+ // quản trị không ẩn phiếu A5 hoặc tạo ra nhiều trang trắng.
+ const frame=document.createElement('iframe');
+ frame.setAttribute('title','Phiếu đăng ký học online khổ A5 ngang');
+ frame.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+ document.body.appendChild(frame);
+ const doc=frame.contentDocument;
+ doc.open();
+ doc.write('<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Đăng ký học online</title><style>'+
+ '@page{size:A5 landscape;margin:8mm}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,sans-serif}'+
+ '.online-print-sheet{width:100%}.online-print-title{text-align:center;font-size:15pt;line-height:1.25;margin:0 0 5mm;font-weight:800}'+
+ '.online-info-grid{display:grid;grid-template-columns:minmax(0,1fr) 42mm;gap:2mm 4mm;margin-bottom:3mm}'+
+ '.online-info-item{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2mm;align-items:baseline;padding:2mm 3mm;border:1px solid #777;border-radius:2mm;min-width:0}'+
+ '.online-info-item.wide{grid-column:1/-1}.online-info-label{font-size:9pt;font-weight:700;color:#333}.online-info-value{font-size:10pt;overflow-wrap:anywhere}'+
+ '.online-schedule-table{width:100%;border-collapse:collapse;margin-top:2mm;font-size:9pt}.online-schedule-table th,.online-schedule-table td{padding:2mm 3mm;border:1px solid #555;text-align:left}.online-schedule-table th{background:#eee}'+
+ '.online-detail-note{font-size:8.5pt;margin-top:3mm;padding:2mm 3mm;border-left:2px solid #777;background:#f5f5f5;break-inside:avoid}[hidden]{display:none!important}'+
+ '</style></head><body></body></html>');
+ doc.close();
+ doc.body.appendChild(doc.importNode(sheet,true));
+ const cleanup=()=>{frame.remove()};
+ frame.contentWindow.addEventListener('afterprint',cleanup,{once:true});
+ setTimeout(()=>{if(frame.isConnected)frame.contentWindow.focus(),frame.contentWindow.print()},100);
+}
 document.addEventListener('click',event=>{
  const detailButton=event.target.closest('[data-online-detail]');if(detailButton){const payload=JSON.parse(decodeURIComponent(detailButton.dataset.onlineDetail));const record=payload.enrollment||{},student=payload.student||{},dialog=document.getElementById('onlineDetailDialog');if(!dialog)return;const date=value=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(value||''))return 'Chưa xác định';const parts=value.split('-');return parts[2]+'/'+parts[1]+'/'+parts[0]},dayLabel=value=>String(value)==='CN'?'Chủ nhật':'Thứ '+value;dialog.querySelector('[data-detail-name]').textContent=student.name||'—';dialog.querySelector('[data-detail-class]').textContent=student.class||'—';dialog.querySelector('[data-detail-program]').textContent=record.program||'Chưa ghi';dialog.querySelector('[data-detail-duration]').textContent='Từ ngày '+date(record.program_start)+' đến ngày '+date(record.program_end);const slotBody=dialog.querySelector('[data-detail-slots]');slotBody.replaceChildren();let slots=record.slots||[];if(!slots.length)slots=[{days:record.days||[],session:record.session||'',start_time:record.start_time||'',end_time:record.end_time||''}];slots.forEach((slot,index)=>{const row=document.createElement('tr');[String(index+1),(slot.days||[]).map(dayLabel).join(', '),slot.session||'—',(slot.start_time||'—')+' – '+(slot.end_time||'—')].forEach(text=>{const cell=document.createElement('td');cell.textContent=text;row.appendChild(cell)});slotBody.appendChild(row)});const noteWrap=dialog.querySelector('[data-detail-note-wrap]'),note=String(record.note||'').trim();noteWrap.hidden=!note;dialog.querySelector('[data-detail-note]').textContent=note;if(dialog.parentElement!==document.body)document.body.appendChild(dialog);if(typeof dialog.showModal==='function')dialog.showModal();else dialog.setAttribute('open','');return}
  if(event.target.closest('[data-online-close]')){document.getElementById('onlineDetailDialog')?.close();return}
- if(event.target.closest('[data-online-print]')){window.print();return}
+ if(event.target.closest('[data-online-print]')){cmactPrintOnlineDetail();return}
  const edit=event.target.closest('.edit-online-enrollment');if(edit){const record=JSON.parse(decodeURIComponent(edit.dataset.record));const form=document.getElementById('onlineEnrollmentForm');if(!form)return;document.getElementById('onlineEnrollmentId').value=record.id||'';const select=document.getElementById('onlineStudents');[...select.options].forEach(o=>o.selected=o.value===(record.student_id||''));cmactSyncPicker(select);form.elements.program_start.value=record.program_start||'';form.elements.program_end.value=record.program_end||'';form.elements.program.value=record.program||'';form.elements.note.value=record.note||'';const host=document.getElementById('scheduleSlots');host.innerHTML='';cmactSlotIndex=0;let slots=record.slots||[];if(!slots.length)slots=[{days:record.days||[],session:record.session||'',start_time:record.start_time||'',end_time:record.end_time||''}];slots.forEach(cmactAddScheduleSlot);document.getElementById('cancelOnlineEdit').classList.remove('d-none');document.querySelector('#saveOnlineEnrollment span').textContent='Cập nhật đăng ký';form.scrollIntoView({behavior:'smooth',block:'start'});}
  if(event.target.closest('#cancelOnlineEdit'))cmactResetOnlineEdit();
 });
