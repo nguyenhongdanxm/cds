@@ -9,6 +9,7 @@ on:
       - 'includes/noitru_health_view.php'
       - 'includes/noitru_duty_view.php'
       - 'hoclieu_quiz_cards.php'
+      - 'hoclieu_game_qr_trial.php'
   workflow_dispatch:
 jobs:
   lint:
@@ -26,3 +27,4 @@ jobs:
           php -l includes/noitru_health_view.php
           php -l includes/noitru_duty_view.php
           php -l hoclieu_quiz_cards.php
+          php -l hoclieu_game_qr_trial.php
