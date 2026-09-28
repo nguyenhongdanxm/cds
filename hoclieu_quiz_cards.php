@@ -16,7 +16,8 @@ $json=json_encode($students,JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSO
 <style>*{box-sizing:border-box}body{font:16px system-ui,Arial;margin:0;background:#eef4fa;color:#183153}header{background:#123460;color:#fff;padding:20px max(16px,calc((100vw - 1000px)/2))}header a{color:#fff}main{max-width:1000px;margin:22px auto;padding:0 16px}.panel{background:#fff;border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:0 5px 20px #142c4515}select,button{font:inherit;padding:10px;border-radius:9px}button{border:0;background:#126bb0;color:#fff;cursor:pointer}button:disabled{opacity:.5}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.quiz-card{aspect-ratio:1;border:2px solid #14283e;background:#fff;display:grid;grid-template-rows:15% 70% 15%;text-align:center;break-inside:avoid}.quiz-card .middle{display:grid;grid-template-columns:15% 70% 15%;align-items:center}.quiz-card .letter{font-size:28px;font-weight:900}.quiz-card .code{display:flex;align-items:center;justify-content:center}.quiz-card .code img,.quiz-card .code canvas{width:100%;height:100%;object-fit:contain}.quiz-card small{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 5px}.muted{color:#607086}@media(max-width:600px){.cards{grid-template-columns:repeat(2,1fr)}.quiz-card .letter{font-size:20px}}@media print{body{background:#fff}header,.no-print{display:none!important}main{max-width:none;margin:0;padding:0}.panel{box-shadow:none;padding:0;margin:0}.cards{grid-template-columns:repeat(3,1fr);gap:5mm}.quiz-card{width:58mm;height:58mm}}</style>
 <style>
 .sheet{display:contents}
-.quiz-card{grid-template-rows:17% 60% 23%;min-width:0}
+.quiz-card{grid-template-rows:17% 60% 23%;min-width:0;border-color:#064a8a}
+.quiz-card .letter{color:#064a8a}
 .quiz-card .middle{grid-template-columns:17% 66% 17%;min-height:0}
 .quiz-card .code{min-width:0;min-height:0}
 .card-bottom{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;min-height:0;padding:0 6px 4px}
@@ -28,7 +29,7 @@ $json=json_encode($students,JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSO
   .cards{display:block;width:190mm;margin:0;padding:0}
   .sheet{display:flex;flex-direction:column;align-items:center;gap:8mm;width:190mm;height:275mm;padding:4mm 0;break-after:page;page-break-after:always}
   .sheet:last-child{break-after:auto;page-break-after:auto}
-  .quiz-card{flex:none;width:128mm;height:128mm;aspect-ratio:auto;border:0.6mm solid #14283e;break-inside:avoid;page-break-inside:avoid}
+  .quiz-card{flex:none;width:128mm;height:128mm;aspect-ratio:auto;border:0.6mm solid #064a8a;break-inside:avoid;page-break-inside:avoid}
   .quiz-card .letter{font-size:11mm;line-height:1}
   .card-bottom{gap:1mm;padding:0 5mm 3mm}
   .student-label{font-size:5mm;line-height:1.12}
