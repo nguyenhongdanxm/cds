@@ -84,7 +84,7 @@ $savedJson=json_encode($savedAnswers,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSO
 <title>Trả lời bằng thẻ QR · Bản thử</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#eef3f9;color:#183153;font:16px system-ui,Arial,sans-serif}header{background:#123460;color:#fff;padding:18px max(18px,calc((100vw - 1140px)/2))}header a{color:#fff}main{max-width:1140px;margin:24px auto;padding:0 16px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}.panel{background:#fff;border-radius:16px;padding:20px;box-shadow:0 4px 20px #18315316;margin-bottom:16px}h1{margin:6px 0;font-size:26px}h2{margin:0 0 14px;font-size:20px}label{display:block;font-weight:650;margin:10px 0 5px}select,input,textarea,button{font:inherit}select,input,textarea{width:100%;padding:10px;border:1px solid #aabbd0;border-radius:8px}textarea{min-height:70px}button,.action{border:0;background:#126bb0;color:#fff;border-radius:9px;padding:11px 15px;cursor:pointer;text-decoration:none;display:inline-block;margin:4px 4px 4px 0}button:disabled{opacity:.5;cursor:not-allowed}.secondary{background:#47617f}.danger{background:#a93636}.answer-buttons button{min-width:55px;background:#e7f0fc;color:#14325a;border:2px solid transparent;font-weight:800}.answer-buttons button.active{border-color:#126bb0;background:#cce6ff}.muted{color:#56677c}.notice{background:#fff6d8;border-left:4px solid #e5a300;padding:10px;border-radius:6px}.camera{width:100%;height:100%;background:#07172c;object-fit:cover}.camera-stage{height:min(62vh,620px);position:relative;overflow:hidden;border-radius:16px;background:#07172c}.camera-tools{position:absolute;left:8px;right:8px;top:8px;display:flex;gap:8px;align-items:center;justify-content:space-between;background:#0009;color:#fff;border-radius:12px;padding:8px}.camera-tools button{margin:0;padding:8px}.camera-tools label{margin:0;font-size:13px}.camera-tools input{width:115px;vertical-align:middle}.detected-layer{position:absolute;inset:0;pointer-events:none}.detected-layer span{position:absolute;transform:translate(-50%,-50%);background:#092718e9;color:#fff;border:2px solid #27dc91;border-radius:10px;padding:5px 8px;font-size:13px;font-weight:800;white-space:nowrap;box-shadow:0 4px 12px #0008}.camera-feed{position:absolute;bottom:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}.camera-feed span{background:#04281ee8;border:2px solid #22c984;color:#fff;border-radius:9px;padding:7px 10px;font-weight:750}.camera-stage.scanner-full{position:fixed;z-index:9999;inset:0;width:100vw;height:100dvh;border-radius:0}.scanner-full .camera-tools{top:env(safe-area-inset-top);padding:12px}.scanner-full .camera-feed{bottom:calc(85px + env(safe-area-inset-bottom))}.scanner-full .camera{object-fit:cover}.camera-bottom{display:none}.scanner-full .camera-bottom{display:flex;position:absolute;bottom:env(safe-area-inset-bottom);left:0;right:0;gap:8px;background:#000c;padding:10px}.camera-bottom button{flex:1;margin:0}.camera-stage:not(.scanner-full) .camera-tools{flex-wrap:wrap}.results{width:100%;border-collapse:collapse}.results td,.results th{padding:9px;border-bottom:1px solid #d9e2ec;text-align:left}.results tr.ok{background:#e4f7e9}.results tr.bad{background:#ffefeb}.phone-controls{display:flex;flex-wrap:wrap;gap:4px}.phone-controls button{flex:1;min-width:125px}.scan-roster{display:flex;flex-wrap:wrap;gap:5px;margin:12px 0}.scan-roster span{font-size:13px;border-radius:15px;background:#e8edf3;padding:5px 8px}.scan-roster span.done{background:#a6e6c2;color:#064827}.scan-graph{display:flex;gap:8px;margin:10px 0}.scan-graph span{padding:5px 8px;border-radius:8px;background:#e4ecf5}.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.quiz-card{width:100%;aspect-ratio:1;border:2px solid #14283e;background:#fff;display:grid;grid-template-rows:15% 70% 15%;text-align:center;page-break-inside:avoid;break-inside:avoid}.quiz-card .middle{display:grid;grid-template-columns:15% 70% 15%;align-items:center}.quiz-card .letter{font-size:27px;font-weight:900}.quiz-card .code{display:flex;align-items:center;justify-content:center}.quiz-card .code img,.quiz-card .code canvas{width:100%;height:100%;object-fit:contain}.quiz-card small{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 5px}.status{font-weight:700;min-height:24px}.hidden{display:none!important}@media(max-width:600px){.cards{grid-template-columns:1fr 1fr}.quiz-card .letter{font-size:20px}}@media print{body{background:#fff}header,.no-print,.panel:not(.print-panel){display:none!important}main{max-width:none;margin:0;padding:0}.print-panel{box-shadow:none;padding:0;margin:0}.cards{grid-template-columns:repeat(3,1fr);gap:5mm}.quiz-card{width:58mm;height:58mm}h2{display:none}}
-.quiz-card .code{position:relative}.quiz-card .orientation-mark{position:absolute;top:-13%;left:46%;width:8%;height:8%;border-radius:50%;background:#d61f35;box-shadow:0 0 0 3px #fff;z-index:1}.quiz-card>.letter:first-child{align-self:start}
+.quiz-card>.letter:first-child{align-self:center}
 
 .mobile-dock,.mobile-results{display:none}
 @media(max-width:700px){
@@ -116,7 +116,7 @@ $savedJson=json_encode($savedAnswers,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSO
 <header><a href="<?=BASE_URL?>hoclieu.php?tab=games">← Trò chơi</a><h1>Trả lời bằng thẻ QR <small>· Bản thử</small></h1></header>
 <main><div class="panel no-print"><?php if ($paperSession): ?><strong>Lượt thẻ giấy <?=e($code)?> · Lớp <?=e((string)($chosen['name']??''))?></strong> · <a href="<?=BASE_URL?>hoclieu_game_quiz_screen.php?code=<?=e($code)?>" target="_blank" rel="noopener">Mở màn hình chiếu</a><?php else: ?><form method="get"><?php if ($quizSet): ?><input type="hidden" name="set" value="<?=e($setId)?>"><?php endif; ?><label for="class">Lớp chơi</label><select id="class" name="class" onchange="this.form.submit()"><option value="">Chọn lớp</option><?php foreach ($classes as $class): ?><option value="<?=e((string)$class['id'])?>" <?=($chosen && $class['id']===$chosen['id'])?'selected':''?>><?=e((string)$class['name'])?></option><?php endforeach; ?></select></form><?php endif; ?></div>
 <?php if ($chosen): ?>
-<p class="notice no-print"><?=$paperSession?'Đáp án quét được lưu vào báo cáo của lượt chơi này.':'Chế độ thử độc lập lưu kết quả trong trình duyệt.'?> Mỗi em xoay thẻ sao cho đáp án A, B, C hoặc D nằm trên cùng. Thẻ cần có chấm đỏ định hướng phía trên chữ A; hãy in lại thẻ cũ chưa có chấm đỏ. Không ghi điểm Olympia.</p>
+<p class="notice no-print"><?=$paperSession?'Đáp án quét được lưu vào báo cáo của lượt chơi này.':'Chế độ thử độc lập lưu kết quả trong trình duyệt.'?> Mỗi em xoay thẻ sao cho đáp án A, B, C hoặc D nằm trên cùng. Máy quét xác định hướng bằng ba ô vuông ở góc mã QR; thẻ đã in trước đây vẫn dùng được. Không ghi điểm Olympia.</p>
 <div class="grid no-print"><section class="panel"><h2>1. Câu hỏi<?php if ($quizSet): ?> · <?=e((string)$quizSet['title'])?><?php endif; ?></h2><label for="question">Nội dung</label><textarea id="question" placeholder="Nhập câu hỏi để hiển thị khi chơi" <?=$quizSet?'readonly':''?>></textarea><img id="questionImage" class="hidden" alt="Hình minh họa câu hỏi" style="max-width:100%;max-height:220px"><div id="choices"></div><label>Đáp án đúng</label><div class="answer-buttons" id="keys"></div><button id="newQuestion" <?=$quizSet?'class="hidden"':''?>>Mở câu hỏi mới</button><?php if ($quizSet && !$paperSession): ?><button id="nextQuestion">Câu tiếp theo</button><?php endif; ?><button id="clearQuestion" class="secondary">Xóa lượt quét của câu này</button><p id="current" class="status"></p></section>
 <section class="panel"><h2>2. Điều khiển và quét bằng điện thoại</h2><div class="camera-stage" id="cameraStage"><video class="camera" id="video" playsinline muted autoplay></video><div class="camera-tools"><strong id="cameraCount">0 đã quét</strong><label>Zoom <input id="cameraZoom" type="range" min="1" max="4" step="0.1" value="1"> <span id="zoomValue">1×</span></label><button type="button" id="cameraExpand" class="secondary">⛶ Toàn màn hình</button></div><div class="detected-layer" id="detectedLayer"></div><div class="camera-feed" id="cameraFeed"></div><div class="camera-bottom"><button type="button" id="cameraFinish" class="secondary">Dừng & xem kết quả</button><button type="button" id="cameraClose" class="secondary">Thu nhỏ</button></div><div class="mobile-dock"><p class="mobile-question" id="mobileQuestion">Sẵn sàng quét thẻ</p><p class="mobile-status" id="mobileStatus">Chạm Bật quét để mở camera.</p><div class="mobile-actions"><button type="button" id="mobilePrev">← Trước</button><button type="button" id="mobileStart">Bật quét</button><button type="button" id="mobileNext">Tiếp →</button><button type="button" id="mobilePublish">Công bố</button></div></div></div><canvas id="frame" class="hidden"></canvas><p id="scanStatus" class="status">Chọn lớp và mở câu hỏi để bắt đầu.</p><div class="phone-controls"><button id="startScan">Bật camera · Quét</button><button id="stopScan" class="secondary">Dừng quét</button><?php if ($paperSession): ?><button id="prevRemote" class="secondary">← Câu trước</button><button id="nextRemote">Câu tiếp →</button><button id="revealRemote" class="secondary">Hiện đáp án</button><button id="graphRemote" class="secondary">Hiện biểu đồ</button><?php endif; ?></div><div id="scanGraph" class="scan-graph"></div><div id="scanRoster" class="scan-roster"></div><p class="muted">Giữ mã hướng về camera, đủ sáng và lia máy qua các nhóm học sinh. Tên đổi màu khi đã quét. Có thể sửa thủ công ở bảng dưới.</p></section></div>
 <section class="panel no-print"><h2>3. Kết quả câu hiện tại · <span id="count">0</span>/<?=count($students)?></h2><button id="exportCsv" class="secondary">Xuất CSV kết quả</button><table class="results"><thead><tr><th>Học sinh</th><th>Đáp án</th><th>Đúng/sai</th><th>Sửa thủ công</th></tr></thead><tbody id="resultRows"></tbody></table></section>
@@ -191,34 +191,33 @@ $('resultRows').onchange=async e=>{if(!e.target.matches('.manual'))return;let q=
 };
 function csvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
 $('exportCsv').onclick=()=>{let rows=[['Câu','Nội dung','Đáp án đúng','Lớp','Học sinh','Đáp án','Kết quả']];state.questions.forEach((q,i)=>students.forEach(s=>{let a=q.answers?.[s.id]||'';rows.push([i+1,q.text,q.key,<?=json_encode((string)$chosen['name'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,s.name,a,a?(a===q.key?'Đúng':'Sai'):'Chưa trả lời'])}));let csv='\uFEFF'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'),url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download='tra-loi-the-'+classId+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
-const cards=$('cards');students.forEach(s=>{let el=document.createElement('div');el.className='quiz-card';el.innerHTML='<div class="letter">A</div><div class="middle"><span class="letter">D</span><div class="code"></div><span class="letter">B</span></div><div><span class="letter">C</span><br><small></small></div>';el.querySelector('small').textContent=s.name;cards.appendChild(el);if(window.QRCode){new QRCode(el.querySelector('.code'),{text:'CDSQ1:'+s.id,width:480,height:480,correctLevel:QRCode.CorrectLevel.L});let mark=document.createElement('span');mark.className='orientation-mark';el.querySelector('.code').appendChild(mark)}});$('printStatus').textContent=window.QRCode?'Đã tạo '+students.length+' thẻ. In ở tỷ lệ 100%, không chọn vừa trang.':'Không tải được thư viện tạo QR; kiểm tra kết nối mạng trước khi in.';$('printCards').disabled=!window.QRCode;$('printCards').onclick=()=>window.print();
-// The red dot printed above A is the orientation reference. Decoder corner ordering
-// varies between BarcodeDetector and jsQR, so use the image geometry instead.
-function answerFromMark(loc,pixels,w,h){
+const cards=$('cards');students.forEach(s=>{let el=document.createElement('div');el.className='quiz-card';el.innerHTML='<div class="letter">A</div><div class="middle"><span class="letter">D</span><div class="code"></div><span class="letter">B</span></div><div><span class="letter">C</span><br><small></small></div>';el.querySelector('small').textContent=s.name;cards.appendChild(el);if(window.QRCode){new QRCode(el.querySelector('.code'),{text:'CDSQ1:'+s.id,width:480,height:480,correctLevel:QRCode.CorrectLevel.L})}});$('printStatus').textContent=window.QRCode?'Đã tạo '+students.length+' thẻ. In ở tỷ lệ 100%, không chọn vừa trang.':'Không tải được thư viện tạo QR; kiểm tra kết nối mạng trước khi in.';$('printCards').disabled=!window.QRCode;$('printCards').onclick=()=>window.print();
+// jsQR labels the three QR finder patterns in the code's own orientation.
+// Its top edge therefore turns with the printed A side, regardless of the
+// screen-space corner order supplied by BarcodeDetector.
+function answerFromFinder(loc){
+ const p=loc?.topLeftFinderPattern,r=loc?.topRightFinderPattern;
+ if(!p||!r)return null;
+ const dx=r.x-p.x,dy=r.y-p.y;
+ if(Math.hypot(dx,dy)<20)return null;
+ const angle=Math.atan2(dy,dx)*180/Math.PI;
+ if(angle>=-45&&angle<45)return 'A';
+ if(angle>=45&&angle<135)return 'D';
+ if(angle>=-135&&angle< -45)return 'B';
+ return 'C';
+}
+function nativeCodeOrientation(ctx,loc,id,w,h){
+ if(!id||!window.jsQR)return null;
  const corners=[loc.topLeftCorner,loc.topRightCorner,loc.bottomRightCorner,loc.bottomLeftCorner];
- if(corners.some(p=>!p||!Number.isFinite(p.x)||!Number.isFinite(p.y)))return null;
- const center={x:corners.reduce((sum,p)=>sum+p.x,0)/4,y:corners.reduce((sum,p)=>sum+p.y,0)/4};
- const sides=corners.map((p,i)=>{let q=corners[(i+1)%4];return {x:(p.x+q.x)/2,y:(p.y+q.y)/2,length:Math.hypot(p.x-q.x,p.y-q.y)}});
- const found=[];
- for(const side of sides){
-  if(side.length<25)continue;
-  const vx=side.x-center.x,vy=side.y-center.y,scale=side.length;
-  // QR libraries may include the quiet zone in their corners. Sample a narrow
-  // strip beyond each edge, with tolerance for camera perspective and print size.
-  let hits=0,total=0,redDistances=0;
-  for(const distance of [0.08,0.12,0.16]){let redAtDistance=0;for(const lateral of [-0.025,0,0.025]){
-   const x=Math.round(side.x+vx/Math.hypot(vx,vy)*scale*distance-vy/Math.hypot(vx,vy)*scale*lateral);
-   const y=Math.round(side.y+vy/Math.hypot(vx,vy)*scale*distance+vx/Math.hypot(vx,vy)*scale*lateral);
-   if(x<0||x>=w||y<0||y>=h)continue;
-   total++;const i=(y*w+x)*4,r=pixels[i],g=pixels[i+1],b=pixels[i+2];
-   if(r>85&&r>g*1.5&&r>b*1.25){hits++;redAtDistance++}
-  }if(redAtDistance)redDistances++}
-  if(total>=6&&hits>=3&&redDistances>=2)found.push({side,hits});
- }
- if(found.length!==1)return null;
- const side=found[0].side,dx=side.x-center.x,dy=side.y-center.y;
- if(Math.abs(dx)>Math.abs(dy))return dx>0?'D':'B';
- return dy>0?'C':'A';
+ if(corners.some(p=>!p))return null;
+ const side=Math.max(Math.hypot(corners[0].x-corners[1].x,corners[0].y-corners[1].y),Math.hypot(corners[1].x-corners[2].x,corners[1].y-corners[2].y));
+ const margin=Math.ceil(side*0.2);
+ const x=Math.max(0,Math.floor(Math.min(...corners.map(p=>p.x))-margin)),y=Math.max(0,Math.floor(Math.min(...corners.map(p=>p.y))-margin));
+ const right=Math.min(w,Math.ceil(Math.max(...corners.map(p=>p.x))+margin)),bottom=Math.min(h,Math.ceil(Math.max(...corners.map(p=>p.y))+margin));
+ if(right<=x||bottom<=y)return null;
+ const crop=ctx.getImageData(x,y,right-x,bottom-y);
+ const match=window.jsQR(crop.data,crop.width,crop.height,{inversionAttempts:'dontInvert'});
+ return match?.data==='CDSQ1:'+id?answerFromFinder(match.location):null;
 }
 let detector=null,scanHandle=0,scanPending=false,scanTicks=0,scanLast=0,scanGeneration=0;
 function recordScan(id,answer,location,w,h,markers){
@@ -246,7 +245,7 @@ function fallbackCodes(ctx,w,h,markers){
  for(let n=0;n<Math.min(10,students.length);n++){
   let code=window.jsQR?.(data.data,w,h,{inversionAttempts:'dontInvert'});if(!code)break;
   found++;let id=code.data.startsWith('CDSQ1:')?code.data.slice(6):'';
-  recordScan(id,answerFromMark(code.location,data.data,w,h),code.location,w,h,markers);
+  recordScan(id,answerFromFinder(code.location),code.location,w,h,markers);
   let corners=[code.location.topLeftCorner,code.location.topRightCorner,code.location.bottomRightCorner,code.location.bottomLeftCorner].filter(Boolean);
   if(corners.length<4)break;maskCode(data.data,w,h,corners);
  }
@@ -265,7 +264,7 @@ async function scanFrame(generation){
   ctx.drawImage(v,(v.videoWidth-cw)/2,(v.videoHeight-ch)/2,cw,ch,0,0,w,h);
   let markers=[];
   if(detector){
-   try{let codes=await detector.detect(canvas),pixels=codes.length?ctx.getImageData(0,0,w,h).data:null;for(let code of codes){let corners=code.cornerPoints||[];if(corners.length<4)continue;let loc={topLeftCorner:corners[0],topRightCorner:corners[1],bottomRightCorner:corners[2],bottomLeftCorner:corners[3]};let id=code.rawValue?.startsWith('CDSQ1:')?code.rawValue.slice(6):'';recordScan(id,answerFromMark(loc,pixels,w,h),loc,w,h,markers)}}
+   try{let codes=await detector.detect(canvas);for(let code of codes){let corners=code.cornerPoints||[];if(corners.length<4)continue;let loc={topLeftCorner:corners[0],topRightCorner:corners[1],bottomRightCorner:corners[2],bottomLeftCorner:corners[3]};let id=code.rawValue?.startsWith('CDSQ1:')?code.rawValue.slice(6):'';recordScan(id,nativeCodeOrientation(ctx,loc,id,w,h),loc,w,h,markers)}}
    catch(e){detector=null;fallbackCodes(ctx,w,h,markers)}
   }else fallbackCodes(ctx,w,h,markers);
   if(generation===scanGeneration)$('detectedLayer').replaceChildren(...markers.map(marker=>{let el=document.createElement('span');el.textContent=marker.answer+' · '+marker.name;el.style.left=marker.x+'%';el.style.top=marker.y+'%';return el}));
@@ -276,7 +275,7 @@ async function startCamera(){
  if(!paperOpen){$('scanStatus').textContent='Lượt chơi đã đóng.';return}
  if(!current()){$('scanStatus').textContent='Hãy mở câu hỏi mới trước.';return}
  if('BarcodeDetector' in window){try{detector=new BarcodeDetector({formats:['qr_code']})}catch(e){detector=null}}
- if(!detector&&!window.jsQR){$('scanStatus').textContent='Không tải được thư viện quét mã. Kiểm tra kết nối mạng.';return}
+ if(!window.jsQR){mobileStatus('Không tải được thư viện quét mã. Kiểm tra kết nối mạng.');return}
  if(!navigator.mediaDevices?.getUserMedia){$('scanStatus').textContent='Trình duyệt cần HTTPS và quyền camera.';return}
  try{
   if(paperCode&&phase!=='scanning'){await control('phase',{phase:'scanning'});phase='scanning'}
