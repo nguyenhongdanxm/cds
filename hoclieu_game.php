@@ -433,5 +433,5 @@ renderEditor('prizeItems',prizes,'cds_wheel_prizes');
 renderEditor('taskItems',tasks,'cds_wheel_tasks');
 sizeCanvas(); draw();
 </script>
-</body>
+<?php require __DIR__ . '/includes/game_credit.php'; ?></body>
 </html>
