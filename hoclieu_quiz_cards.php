@@ -26,9 +26,9 @@ $json=json_encode($students,JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSO
 @media print{
   html,body{width:190mm;margin:0;padding:0;print-color-adjust:exact;-webkit-print-color-adjust:exact}
   .cards{display:block;width:190mm;margin:0;padding:0}
-  .sheet{display:flex;flex-direction:column;align-items:center;gap:7mm;width:190mm;height:277mm;padding:5mm 0;break-after:page;page-break-after:always}
+  .sheet{display:flex;flex-direction:column;align-items:center;gap:8mm;width:190mm;height:275mm;padding:4mm 0;break-after:page;page-break-after:always}
   .sheet:last-child{break-after:auto;page-break-after:auto}
-  .quiz-card{flex:none;width:130mm;height:130mm;aspect-ratio:auto;border:0.6mm solid #14283e;break-inside:avoid;page-break-inside:avoid}
+  .quiz-card{flex:none;width:128mm;height:128mm;aspect-ratio:auto;border:0.6mm solid #14283e;break-inside:avoid;page-break-inside:avoid}
   .quiz-card .letter{font-size:11mm;line-height:1}
   .card-bottom{gap:1mm;padding:0 5mm 3mm}
   .student-label{font-size:5mm;line-height:1.12}
