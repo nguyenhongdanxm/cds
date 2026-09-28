@@ -224,7 +224,7 @@ async function scanFrame(generation){
   ctx.drawImage(v,(v.videoWidth-cw)/2,(v.videoHeight-ch)/2,cw,ch,0,0,w,h);
   let markers=[];
   if(detector){
-   try{let codes=await detector.detect(canvas),pixels=ctx.getImageData(0,0,w,h).data;for(let code of codes){let corners=code.cornerPoints||[];if(corners.length<4)continue;let loc={topLeftCorner:corners[0],topRightCorner:corners[1],bottomRightCorner:corners[2],bottomLeftCorner:corners[3]};let id=code.rawValue?.startsWith('CDSQ1:')?code.rawValue.slice(6):'';recordScan(id,answerFromMark(loc,pixels,w,h),loc,w,h,markers)}}
+   try{let codes=await detector.detect(canvas),pixels=codes.length?ctx.getImageData(0,0,w,h).data:null;for(let code of codes){let corners=code.cornerPoints||[];if(corners.length<4)continue;let loc={topLeftCorner:corners[0],topRightCorner:corners[1],bottomRightCorner:corners[2],bottomLeftCorner:corners[3]};let id=code.rawValue?.startsWith('CDSQ1:')?code.rawValue.slice(6):'';recordScan(id,answerFromMark(loc,pixels,w,h),loc,w,h,markers)}}
    catch(e){detector=null;fallbackCodes(ctx,w,h,markers)}
   }else fallbackCodes(ctx,w,h,markers);
   if(generation===scanGeneration)$('detectedLayer').replaceChildren(...markers.map(marker=>{let el=document.createElement('span');el.textContent=marker.answer+' · '+marker.name;el.style.left=marker.x+'%';el.style.top=marker.y+'%';return el}));
