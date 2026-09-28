@@ -13,7 +13,7 @@ function olympia_setting(string $key,string $default=''): string { $s=olympia_db
 function olympia_settings(): array { $out=[];foreach(olympia_db()->query('SELECT setting_key,setting_value FROM cds_olympia_settings') as $r)$out[(string)$r['setting_key']]=(string)$r['setting_value'];return $out; }
 function olympia_save_setting(string $key,string $value): void { $s=olympia_db()->prepare('INSERT INTO cds_olympia_settings(setting_key,setting_value) VALUES(?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)');$s->execute([$key,$value]); }
 function olympia_asset_url(string $path,string $fallback=''): string { return $path!==''?BASE_URL.ltrim($path,'/'):$fallback; }
-function olympia_rankings(string $weekId,string $classId): array { $s=olympia_db()->prepare('SELECT student_id,student_name,class_name,SUM(points) points,COUNT(*) correct FROM cds_olympia_scores WHERE week_id=? AND set_id='' AND class_id=? GROUP BY student_id,student_name,class_name ORDER BY points DESC,student_name ASC');$s->execute([$weekId,$classId]);return array_map(fn($r)=>['id'=>(string)$r['student_id'],'name'=>(string)$r['student_name'],'class_name'=>(string)$r['class_name'],'points'=>(int)$r['points'],'correct'=>(int)$r['correct']],$s->fetchAll()); }
+function olympia_rankings(string $weekId,string $classId): array { $s=olympia_db()->prepare("SELECT student_id,student_name,class_name,SUM(points) points,COUNT(*) correct FROM cds_olympia_scores WHERE week_id=? AND set_id='' AND class_id=? GROUP BY student_id,student_name,class_name ORDER BY points DESC,student_name ASC");$s->execute([$weekId,$classId]);return array_map(fn($r)=>['id'=>(string)$r['student_id'],'name'=>(string)$r['student_name'],'class_name'=>(string)$r['class_name'],'points'=>(int)$r['points'],'correct'=>(int)$r['correct']],$s->fetchAll()); }
 
 function olympia_ranking_students(array $weekIds): array {
     $weekIds=array_values(array_unique(array_filter(array_map('strval',$weekIds))));if(!$weekIds)return [];
@@ -25,7 +25,7 @@ function olympia_ranking_students(array $weekIds): array {
 function olympia_ranking_classes(array $weekIds): array {
     $weekIds=array_values(array_unique(array_filter(array_map('strval',$weekIds))));if(!$weekIds)return [];
     $marks=implode(',',array_fill(0,count($weekIds),'?'));
-    $s=olympia_db()->prepare("SELECT class_id,class_name,SUM(points) points,COUNT(*) correct,COUNT(DISTINCT student_id) participants,COUNT(DISTINCT week_id) weeks FROM cds_olympia_scores WHERE week_id IN ($marks) GROUP BY class_id,class_name");
+    $s=olympia_db()->prepare("SELECT class_id,class_name,SUM(points) points,COUNT(*) correct,COUNT(DISTINCT student_id) participants,COUNT(DISTINCT week_id) weeks FROM cds_olympia_scores WHERE set_id='' AND week_id IN ($marks) GROUP BY class_id,class_name");
     $s->execute($weekIds);$rows=$s->fetchAll();
     foreach($rows as &$row){$size=count(olympia_students((string)$row['class_id']));$row['class_size']=$size;$row['average']=$size>0?round((float)$row['points']/$size,2):0.0;}unset($row);
     usort($rows,fn($a,$b)=>($b['average']<=>$a['average'])?:((int)$b['points']<=>(int)$a['points'])?:strnatcasecmp((string)$a['class_name'],(string)$b['class_name']));
@@ -45,7 +45,7 @@ function olympia_copy_week_content(string $sourceId,string $targetId,bool $copyC
     if($sourceId===''||$sourceId===$targetId||!olympia_week($sourceId))return ['classes'=>0,'questions'=>0];
     $db=olympia_db();$counts=['classes'=>0,'questions'=>0];
     if($copyClasses){$rows=$db->prepare('SELECT class_id,class_name FROM cds_olympia_week_classes WHERE week_id=?');$rows->execute([$sourceId]);$ins=$db->prepare('INSERT IGNORE INTO cds_olympia_week_classes(week_id,class_id,class_name) VALUES(?,?,?)');foreach($rows as $row){$ins->execute([$targetId,$row['class_id'],$row['class_name']]);$counts['classes']+=$ins->rowCount();}}
-    if($copyQuestions){$rows=$db->prepare('SELECT grade_scope,stage_name,question_text,answer_text,points,sort_order FROM cds_olympia_questions WHERE week_id=? ORDER BY sort_order,id');$rows->execute([$sourceId]);$ins=$db->prepare('INSERT INTO cds_olympia_questions(id,week_id,grade_scope,stage_name,question_text,answer_text,points,sort_order) VALUES(?,?,?,?,?,?,?,?)');foreach($rows as $row){$ins->execute([olympia_uid('oq'),$targetId,$row['grade_scope']??'all',$row['stage_name'],$row['question_text'],$row['answer_text'],$row['points'],$row['sort_order']]);$counts['questions']++;}}
+    if($copyQuestions){$rows=$db->prepare('SELECT grade_scope,stage_name,question_text,answer_text,points,sort_order FROM cds_olympia_questions WHERE week_id=? AND set_id='' ORDER BY sort_order,id');$rows->execute([$sourceId]);$ins=$db->prepare('INSERT INTO cds_olympia_questions(id,week_id,grade_scope,stage_name,question_text,answer_text,points,sort_order) VALUES(?,?,?,?,?,?,?,?)');foreach($rows as $row){$ins->execute([olympia_uid('oq'),$targetId,$row['grade_scope']??'all',$row['stage_name'],$row['question_text'],$row['answer_text'],$row['points'],$row['sort_order']]);$counts['questions']++;}}
     return $counts;
 }
 
