@@ -313,4 +313,4 @@ $('mobilePublish').onclick=async()=>{
 };
 $('mobileResultsClose').onclick=()=>{$('mobileResults').classList.remove('open');mobileStatus('Kết quả đã công bố · có thể chuyển câu tiếp theo.')};
 window.addEventListener('pagehide',stopCamera);render();
-</script><?php endif; ?></main></body></html>
+</script><?php endif; ?></main><?php require __DIR__ . '/includes/game_credit.php'; ?></body></html>

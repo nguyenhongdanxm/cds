@@ -290,5 +290,5 @@ document.addEventListener('keydown',e=>{
 });
 renderSetup();
 </script>
-</body>
+<?php require __DIR__ . '/includes/game_credit.php'; ?></body>
 </html>

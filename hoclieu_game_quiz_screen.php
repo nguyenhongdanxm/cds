@@ -141,4 +141,4 @@ $('showNames').onclick=()=>state&&control('show_names',{value:state.show_names?'
 $('clear').onclick=()=>{if(confirm('Xóa toàn bộ đáp án của câu hiện tại để quét lại?'))control('clear')};
 $('fullscreen').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
 refresh();setInterval(refresh,1500);
-</script></body></html>
+</script><?php require __DIR__ . '/includes/game_credit.php'; ?></body></html>

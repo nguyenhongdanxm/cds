@@ -1,0 +1,22 @@
+name: Game pages PHP syntax
+on:
+  pull_request:
+    paths:
+      - 'hoclieu.php'
+      - 'hoclieu_game*.php'
+      - 'hoclieu_quiz_cards.php'
+      - 'includes/game_credit.php'
+      - '.github/workflows/game-pages-php-lint.yml'
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - run: |
+          php -l includes/game_credit.php
+          php -l hoclieu.php
+          php -l hoclieu_quiz_cards.php
+          for file in hoclieu_game*.php; do php -l "$file"; done

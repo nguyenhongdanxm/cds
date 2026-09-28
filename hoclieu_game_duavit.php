@@ -253,5 +253,5 @@ $('reset').onclick=()=>{if(racing)return;winners=[];saveWinners();showWinners();
 $('sound').onclick=function(){soundOn=!soundOn;this.classList.toggle('active',soundOn);this.setAttribute('aria-pressed',String(soundOn));this.textContent='♪ Âm thanh: '+(soundOn?'Bật':'Tắt');if(soundOn){tone(523,.12,'triangle',.04);if(racing)startBackgroundMusic()}else stopBackgroundMusic()};
 start.onclick=begin;$('raceAgain').onclick=()=>{$('overlay').classList.remove('show');timer.textContent='00.00';render()};
 </script>
-</body>
+<?php require __DIR__ . '/includes/game_credit.php'; ?></body>
 </html>

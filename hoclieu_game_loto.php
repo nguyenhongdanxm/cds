@@ -87,4 +87,4 @@ document.getElementById('exclude').onclick=function(){excludeUsed=!excludeUsed;t
 document.getElementById('sound').onclick=function(){soundOn=!soundOn;this.classList.toggle('on',soundOn);this.textContent='Âm thanh: '+(soundOn?'Bật':'Tắt')};
 document.getElementById('reset').onclick=()=>{used=[];history=[];renderList();renderHistory();spin.disabled=students.length<2;result.innerHTML='<span class="name">Đã làm mới lượt chơi</span><span class="hint">Tất cả học sinh có thể được chọn lại</span>'};
 </script>
-</body></html>
+<?php require __DIR__ . '/includes/game_credit.php'; ?></body></html>
