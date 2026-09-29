@@ -240,7 +240,7 @@ let prizes=JSON.parse(localStorage.getItem('cds_wheel_prizes')||'null')||['+1 đ
 const prizePreset=['+2 điểm','Được chọn bài hát','Tràng pháo tay','Huy hiệu chăm học','Quyền chọn bạn cùng nhóm','Quà bất ngờ','Miễn một câu hỏi','Ngôi sao tuần này'];
 let tasks=JSON.parse(localStorage.getItem('cds_wheel_tasks')||'null')||['Nêu ý chính','Đặt câu hỏi','Tóm tắt 30 giây','Viết ví dụ','Giải thích từ khó','Mời bạn trả lời'];
 const taskPreset=['Đọc và giải thích một câu','Nêu một ví dụ thực tế','Tóm tắt bài trong 30 giây','Đặt câu hỏi cho cả lớp','Vẽ sơ đồ tư duy nhanh','Giải một câu vận dụng','Chia sẻ điều em nhớ nhất','Mời một bạn cùng trả lời'];
-let used={}, items=[], angle=0, spinning=false, speed=0, audioCtx=null, musicTimer=null, backgroundMusic=null, lastTick=-1, sparks=[], pointerKick=0;
+let used={}, items=[], angle=0, spinning=false, speed=0, audioCtx=null, musicTimer=null, backgroundMusic=null, lastTick=-1, lastFrameTime=0, sparks=[], pointerKick=0;
 
 function sourceItems(){
   if(mode==='student') return (studentsByClass[document.getElementById('classSelect').value]||[]).slice();
@@ -378,9 +378,15 @@ function showWin(text){
   document.getElementById('overlay').classList.add('show');
   fanfare(); burst();
 }
-function tick(){
+function tick(timestamp){
   if(!spinning) return;
-  angle+=speed; speed*=0.989;
+  // speed is measured per 60 Hz frame. Integrate the same decay over elapsed
+  // time so a slower display or browser does not lengthen the spin.
+  const frames=Math.max(0,(timestamp-lastFrameTime)/(1000/60));
+  lastFrameTime=timestamp;
+  const decay=Math.pow(0.989,frames);
+  angle+=speed*(1-decay)/(1-0.989);
+  speed*=decay;
   const idx=winnerIndex();
   if(idx!==lastTick){
     lastTick=idx; pegClick();
@@ -396,13 +402,14 @@ function tick(){
     document.getElementById('spinBtn').disabled=false;
     showWin(items[idx]||'Chưa có dữ liệu');
   }
-  pointerKick*=.76;draw(); requestAnimationFrame(tick);
+  pointerKick*=Math.pow(.76,frames);draw();
+  if(spinning) requestAnimationFrame(tick);
 }
 document.getElementById('spinBtn').onclick=function(){
   ensureAudio(); items=currentItems();
   if(spinning) return;
   if(items.length<2){ showWin(mode==='student'?'Chọn lớp hoặc bật lại Lặp lại tên.':'Cần ít nhất 2 ô.'); return; }
-  spinning=true; this.disabled=true; speed=0.5+Math.random()*0.18; lastTick=-1; document.getElementById('liveBadge').classList.add('live');document.getElementById('liveBadge').textContent='ĐANG QUAY'; startMusic(); requestAnimationFrame(tick);
+  spinning=true; this.disabled=true; speed=0.5+Math.random()*0.18; lastTick=-1; lastFrameTime=performance.now(); document.getElementById('liveBadge').classList.add('live');document.getElementById('liveBadge').textContent='ĐANG QUAY'; startMusic(); requestAnimationFrame(tick);
 };
 document.querySelectorAll('.modes button').forEach(btn=>btn.onclick=()=>{
   mode=btn.dataset.mode;
