@@ -447,6 +447,21 @@ function cds_db_migrations()
             ),
         ),
 
+        '20260929_018_lesson_book_drafts' => array(
+            'description' => 'Bản nháp tiết học theo tài khoản, lưu riêng khỏi sổ đã ký',
+            'statements' => array(
+                "CREATE TABLE IF NOT EXISTS cds_lesson_book_drafts (
+                    slot_id CHAR(64) NOT NULL,
+                    actor_key CHAR(64) NOT NULL,
+                    week_key VARCHAR(100) NOT NULL,
+                    payload LONGTEXT NOT NULL,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (slot_id, actor_key),
+                    KEY idx_cds_lb_draft_actor_week (actor_key, week_key)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            ),
+        ),
+
     );
 }
 

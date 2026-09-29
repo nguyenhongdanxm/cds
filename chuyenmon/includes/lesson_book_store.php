@@ -53,6 +53,32 @@ function lb_is_admin(): bool { return (lb_user()['role']??'')==='admin'; }
 function lb_is_management(): bool {$u=lb_user();return lb_is_admin()||($u['role']??'')==='bgh'||in_array('bgh',(array)($u['groups']??[]),true);}
 function lb_is_leader(): bool { $u=lb_user(); return cds_user_has_group($u,'totruong'); }
 function lb_teacher_name(): string { $u=lb_user(); return trim((string)($u['teacher_name']??$u['name']??$u['full_name']??'')); }
+function lb_draft_actor_key(): string {$u=lb_user();return hash('sha256',(string)($u['id']??$u['username']??lb_teacher_name()));}
+function lb_draft_table(): void {
+ static $ready=false;if($ready)return;
+ try{cds_db()->query('SELECT slot_id FROM cds_lesson_book_drafts LIMIT 0');}
+ catch(Throwable $e){
+  $code=(int)($e instanceof PDOException?($e->errorInfo[1]??0):0);
+  if($code!==1146)throw $e;
+  cds_db()->exec("CREATE TABLE IF NOT EXISTS cds_lesson_book_drafts (slot_id CHAR(64) NOT NULL,actor_key CHAR(64) NOT NULL,week_key VARCHAR(100) NOT NULL,payload LONGTEXT NOT NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,PRIMARY KEY(slot_id,actor_key),KEY idx_cds_lb_draft_actor_week(actor_key,week_key)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+ }
+ $ready=true;
+}
+function lb_drafts_for_week(string $weekKey): array {
+ try{lb_draft_table();$s=cds_db()->prepare('SELECT slot_id,payload,UNIX_TIMESTAMP(updated_at) AS updated_epoch FROM cds_lesson_book_drafts WHERE actor_key=? AND week_key=?');$s->execute([lb_draft_actor_key(),$weekKey]);$out=[];foreach($s->fetchAll(PDO::FETCH_ASSOC)as$r){$value=json_decode((string)$r['payload'],true);if(is_array($value))$out[(string)$r['slot_id']]=['fields'=>$value,'updated_epoch'=>(int)$r['updated_epoch']];}return$out;}
+ catch(Throwable $e){error_log('[CDS lesson draft read] '.$e->getMessage());return[];}
+}
+function lb_save_draft(array $week,array $input): array {
+ $slotId=trim((string)($input['slot_id']??''));$slot=null;foreach(lb_slots($week)as$r)if((string)($r['slot_id']??'')===$slotId){$slot=$r;break;}
+ if(!$slot||!lb_can_edit($slot)||lb_locked($week,$slot)||!empty($slot['signed_at']))return['ok'=>false,'message'=>'Tiết đã ký hoặc không được lưu bản nháp; hãy dùng nút ký để cập nhật.'];
+ $fields=[];foreach(['ppct_period'=>10,'lesson_title'=>500,'absent_names'=>2000,'teacher_comment'=>2000,'rating'=>30,'status'=>30]as$name=>$limit)$fields[$name]=mb_substr(trim((string)($input[$name]??'')),0,$limit,'UTF-8');
+ if($fields['ppct_period']!==''&&!ctype_digit($fields['ppct_period']))return['ok'=>false,'message'=>'Tiết PPCT không hợp lệ.'];
+ if(!in_array($fields['rating'],['','Tốt','Khá','Trung bình','Yếu'],true))return['ok'=>false,'message'=>'Xếp loại không hợp lệ.'];
+ if(!in_array($fields['status'],['pending','taught','substitute','fill','makeup','online','holiday','teacher_absent','class_absent','postponed','cancelled'],true))return['ok'=>false,'message'=>'Trạng thái không hợp lệ.'];
+ try{lb_draft_table();$s=cds_db()->prepare('INSERT INTO cds_lesson_book_drafts(slot_id,actor_key,week_key,payload) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE week_key=VALUES(week_key),payload=VALUES(payload),updated_at=NOW()');$s->execute([$slotId,lb_draft_actor_key(),(string)$week['key'],json_encode($fields,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)]);return['ok'=>true,'message'=>'Đã lưu bản nháp lên máy chủ.'];}
+ catch(Throwable $e){error_log('[CDS lesson draft save] '.$e->getMessage());return['ok'=>false,'message'=>'Chưa lưu được bản nháp lên máy chủ; nội dung vẫn được giữ trong trình duyệt.'];}
+}
+function lb_delete_draft(string $slotId): void {try{lb_draft_table();$s=cds_db()->prepare('DELETE FROM cds_lesson_book_drafts WHERE slot_id=? AND actor_key=?');$s->execute([$slotId,lb_draft_actor_key()]);}catch(Throwable $e){error_log('[CDS lesson draft clear] '.$e->getMessage());}}
 function lb_norm(string $v): string { return tkb_key($v); }
 function lb_same(string $a,string $b): bool { return lb_norm($a)!==''&&lb_norm($a)===lb_norm($b); }
 function lb_subject_key(string $subject):string{return cds_lb_subject_key($subject);}
