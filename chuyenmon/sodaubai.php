@@ -1,4 +1,6 @@
 <?php
+$lbJsonResponse=($_SERVER['REQUEST_METHOD']??'')==='POST'&&in_array((string)($_POST['action']??''),['sign_record','save_draft'],true)&&($_POST['response_format']??'')==='json';
+if($lbJsonResponse){ini_set('display_errors','0');ob_start();}
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/lesson_book_store.php';
 require_login();
@@ -30,7 +32,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   $action=(string)($_POST['action']??'');
   if($action==='save_and_sign')$result=lb_save_and_sign($week,$_POST);
   elseif($action==='save_record')$result=lb_save_record($week,$_POST);
-  elseif($action==='sign_record')$result=lb_commit_record($week,$_POST,true);
+  elseif($action==='sign_record'){try{$result=lb_commit_record($week,$_POST,true);}catch(Throwable $e){error_log('[CDS lesson book sign] '.$e->getMessage());$result=['ok'=>false,'message'=>'Không ký được tiết học do lỗi máy chủ. Vui lòng tải lại sổ và thử ký từng tiết.'];}}
   elseif($action==='save_draft')$result=lb_save_draft($week,$_POST);
   elseif($action==='delete_record')$result=lb_delete_record((string)($_POST['slot_id']??''),(string)($_POST['reason']??''));
   elseif($action==='upload_signature')$result=lb_upload_signature($_FILES['signature']??[]);
@@ -46,7 +48,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   elseif(in_array($action,['bulk_lock','bulk_unlock'],true)&&lb_is_admin()){$scope=in_array((string)($_POST['lock_scope']??''),['school','grade','class'],true)?(string)$_POST['lock_scope']:'school';$target=$scope==='grade'?trim((string)($_POST['lock_grade']??'')):($scope==='class'?trim((string)($_POST['lock_class']??'')):'');$result=lb_set_lock_bulk((array)($_POST['week_keys']??[]),$scope,$target,$action==='bulk_lock',trim((string)($_POST['reason']??'')));}
  }
  if(in_array($action??'',['sign_record','save_and_sign'],true)&&!empty($result['ok']))lb_delete_draft((string)($_POST['slot_id']??''));
- if(in_array($action??'',['sign_record','save_draft'],true)&&($_POST['response_format']??'')==='json'){header('Content-Type: application/json; charset=utf-8');echo json_encode($result?:['ok'=>false,'message'=>'Không xử lý được tiết học.'],JSON_UNESCAPED_UNICODE);exit;}
+ if($lbJsonResponse){$unexpected=ob_get_clean();if(trim($unexpected)!=='')error_log('[CDS lesson book JSON output] '.mb_substr(trim(strip_tags($unexpected)),0,1000,'UTF-8'));header('Content-Type: application/json; charset=utf-8');echo json_encode($result?:['ok'=>false,'message'=>'Không xử lý được tiết học.'],JSON_UNESCAPED_UNICODE);exit;}
  if($result)flash($result['message'],$result['type']??($result['ok']?'success':'danger'));header('Location: '.BASE_URL.'sodaubai.php?'.http_build_query(['tab'=>$tab,'week'=>$weekKey,'date'=>(string)($_POST['date_filter']??$_POST['date']??$_GET['date']??$date),'whole_week'=>(string)($_POST['whole_week']??$_GET['whole_week']??''),'view_mode'=>(string)($_POST['view_mode']??$_GET['view_mode']??''),'teacher'=>(string)($_POST['teacher']??$_GET['teacher']??''),'class'=>(string)($_POST['class']??$_GET['class']??'')]));exit;
 }
 $slots=lb_slots($week);$me=lb_teacher_name();$date=(string)($_GET['date']??'');if($wholeWeek)$date='';elseif($tab==='daily'&&$date===''&&!array_key_exists('date',$_GET)){$today=date('Y-m-d');$date=($today>=(string)($week['start']??'')&&$today<=(string)($week['end']??''))?$today:(string)($week['start']??'');}$classFilter=trim((string)($_GET['class']??''));$defaultView=!lb_is_admin()&&$me!==''?'teacher':'class';$viewMode=in_array((string)($_GET['view_mode']??''),['class','teacher'],true)?(string)$_GET['view_mode']:$defaultView;$teacherFilter=trim((string)($_GET['teacher']??($viewMode==='teacher'&&!lb_is_admin()?$me:'')));
@@ -199,10 +201,10 @@ document.querySelectorAll('.lb-absent').forEach(function(root){
   for(const box of selected){const form=document.getElementById(box.dataset.form);if(!form)continue;
    capture(form);clearTimeout(timers.get(form.elements.slot_id.value));if(!form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))){errors.push(form.dataset.label+': thiếu thông tin cần ký');continue;}
    status.textContent='Đang ký '+(signed+errors.length+1)+'/'+selected.length+' tiết…';
-   try{const data=new FormData(form);data.set('response_format','json');const response=await fetch(location.href,{method:'POST',body:data,credentials:'same-origin',headers:{'Accept':'application/json'}});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.message||'Không lưu được tiết học');signed++;completed.add(form.elements.slot_id.value);touched.delete(form.elements.slot_id.value);delete drafts[form.elements.slot_id.value];save();box.checked=false;}
-   catch(error){errors.push(form.dataset.label+': '+(error.message||'Lỗi kết nối'));}
+   try{const data=new FormData(form);data.set('response_format','json');const response=await fetch(location.href,{method:'POST',body:data,credentials:'same-origin',headers:{'Accept':'application/json'}});let result;try{result=await response.json()}catch(e){const problem=new Error(response.redirected?'Phiên đăng nhập đã hết hạn; hãy tải lại trang.':'Máy chủ trả về dữ liệu không hợp lệ; hãy tải lại sổ để kiểm tra tiết đã ký.');problem.stopBatch=true;throw problem}if(!response.ok){const problem=new Error(result.message||'Máy chủ không ký được tiết học.');problem.stopBatch=true;throw problem}if(!result.ok)throw new Error(result.message||'Không lưu được tiết học');signed++;completed.add(form.elements.slot_id.value);touched.delete(form.elements.slot_id.value);delete drafts[form.elements.slot_id.value];save();box.checked=false;}
+   catch(error){errors.push(form.dataset.label+': '+(error.message||'Lỗi kết nối'));if(error.stopBatch)break;}
   }
-  if(errors.length){status.textContent='Đã ký '+signed+'/'+selected.length+' tiết. Lỗi: '+errors.join('; ');status.classList.add('text-danger');button.disabled=false;if(signed){alert(status.textContent);location.reload();}}
+  if(errors.length){status.textContent='Đã ký '+signed+'/'+selected.length+' tiết. '+errors.slice(0,3).join('; ')+(errors.length>3?' (và '+(errors.length-3)+' lỗi khác)':'');status.classList.add('text-danger');button.disabled=false;if(signed){alert(status.textContent);location.reload();}}
   else if(signed){status.textContent='Đã ký '+signed+' tiết. Đang tải lại sổ…';location.reload();}
   else button.disabled=false;
  });
