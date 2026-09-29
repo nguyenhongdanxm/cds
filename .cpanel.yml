@@ -10,6 +10,9 @@ deployment:
     - /opt/alt/php83/usr/bin/php -l hoclieu_game_quiz_screen.php
     - /opt/alt/php83/usr/bin/php -l hoclieu_quiz_cards.php
     - /opt/alt/php83/usr/bin/php -l hoclieu_game_qr_trial.php
+    - /opt/alt/php83/usr/bin/php -l vaochoi.php
+    - /opt/alt/php83/usr/bin/php -l chieu.php
+    - /opt/alt/php83/usr/bin/php -l quet.php
     - /opt/alt/php83/usr/bin/php -l includes/olympia_stage.php
     - /opt/alt/php83/usr/bin/php -l olympia_stage.php
     - /opt/alt/php83/usr/bin/php -l olympia_stage_api.php
