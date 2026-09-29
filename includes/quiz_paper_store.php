@@ -36,6 +36,7 @@ function qp_schema(): void {
     if (!in_array('show_correct',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN show_correct TINYINT(1) NOT NULL DEFAULT 0 AFTER phase");
     if (!in_array('show_graph',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN show_graph TINYINT(1) NOT NULL DEFAULT 0 AFTER show_correct");
     if (!in_array('show_names',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN show_names TINYINT(1) NOT NULL DEFAULT 1 AFTER show_graph");
+    if (!in_array('class_ids_json',$columns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN class_ids_json VARCHAR(300) NULL AFTER class_id");
     qp_db()->exec("CREATE TABLE IF NOT EXISTS cds_quiz_answers (
         session_code VARCHAR(10) NOT NULL, student_id VARCHAR(80) NOT NULL,
         question_index INT NOT NULL, answer TEXT NOT NULL,
