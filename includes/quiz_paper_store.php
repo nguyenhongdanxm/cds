@@ -14,6 +14,8 @@ function qp_schema(): void {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $setColumns = qp_db()->query('SHOW COLUMNS FROM cds_quiz_sets')->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('is_public',$setColumns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sets ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0 AFTER questions_json");
+    if (!in_array('category',$setColumns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sets ADD COLUMN category VARCHAR(100) NOT NULL DEFAULT '' AFTER title");
+    if (!in_array('intro',$setColumns,true)) qp_db()->exec("ALTER TABLE cds_quiz_sets ADD COLUMN intro VARCHAR(500) NOT NULL DEFAULT '' AFTER category");
     qp_db()->exec("CREATE TABLE IF NOT EXISTS cds_quiz_sessions (
         code VARCHAR(10) PRIMARY KEY, set_id VARCHAR(40) NOT NULL,
         class_id VARCHAR(80) NOT NULL, owner_id VARCHAR(100) NOT NULL,
