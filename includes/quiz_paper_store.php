@@ -43,6 +43,7 @@ function qp_schema(): void {
         answered_at DATETIME NOT NULL,
         PRIMARY KEY(session_code,student_id,question_index)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    qp_groups_schema();
     $answerColumn = qp_db()->query("SHOW COLUMNS FROM cds_quiz_answers LIKE 'answer'")->fetch(PDO::FETCH_ASSOC);
     if ($answerColumn && preg_match('/^char\(1\)/i',(string)$answerColumn['Type'])) qp_db()->exec("ALTER TABLE cds_quiz_answers MODIFY answer TEXT NOT NULL");
     qp_db()->exec("CREATE TABLE IF NOT EXISTS cds_quiz_game_visibility (game_key VARCHAR(40) PRIMARY KEY, visible TINYINT(1) NOT NULL DEFAULT 1) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
@@ -72,6 +73,25 @@ function qp_session(string $code): ?array {
 }
 function qp_questions(array $set): array {
     return array_values(array_filter($set['questions'] ?? [], static fn($q) => is_array($q) && trim((string)($q['text'] ?? '')) !== ''));
+}
+function qp_groups_schema(): void {
+    qp_db()->exec("CREATE TABLE IF NOT EXISTS cds_quiz_groups (
+        session_code VARCHAR(10) NOT NULL, group_id VARCHAR(80) NOT NULL,
+        name VARCHAR(80) NOT NULL, created_at DATETIME NOT NULL,
+        PRIMARY KEY(session_code,group_id), UNIQUE KEY session_group_name(session_code,name)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+function qp_group_players(string $code): array {
+    try {
+        $st=qp_db()->prepare('SELECT group_id,name FROM cds_quiz_groups WHERE session_code=? ORDER BY created_at,group_id');
+        $st->execute([$code]);
+    } catch (PDOException $e) {
+        if ($e->getCode()!=='42S02') throw $e;
+        qp_groups_schema();
+        $st=qp_db()->prepare('SELECT group_id,name FROM cds_quiz_groups WHERE session_code=? ORDER BY created_at,group_id');
+        $st->execute([$code]);
+    }
+    return $st->fetchAll(PDO::FETCH_KEY_PAIR);
 }
 
 function qp_game_visibility(): array {

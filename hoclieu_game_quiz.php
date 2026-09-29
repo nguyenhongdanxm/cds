@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $st = qp_db()->prepare('INSERT INTO cds_quiz_sets(id,owner_id,title,category,intro,questions_json,is_public,created_at,updated_at) VALUES(?,?,?,?,?,?,?,NOW(),NOW())');
             $st->execute([$id,qp_owner(),$title,$category,$intro,'[]',($_POST['public']??'')==='1'?1:0]); qp_go($id,'edit');
         }
-        $set = qp_set($setId, !in_array($action,['clone_set','open_session','close_session'],true));
+        $set = qp_set($setId, !in_array($action,['clone_set','open_session','close_session','reveal_session'],true));
         if ($set && !qp_admin() && $set['owner_id']!==qp_owner() && empty($set['is_public'])) $set=null;
         if (!$set) throw new RuntimeException('Không tìm thấy bộ câu hỏi hoặc không có quyền sửa.');
         if ($action === 'visibility') {
@@ -56,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo=qp_db();$pdo->beginTransaction();
             try {
                 $pdo->prepare('DELETE FROM cds_quiz_answers WHERE session_code IN (SELECT code FROM cds_quiz_sessions WHERE set_id=?)')->execute([$setId]);
+                $pdo->prepare('DELETE FROM cds_quiz_groups WHERE session_code IN (SELECT code FROM cds_quiz_sessions WHERE set_id=?)')->execute([$setId]);
                 $pdo->prepare('DELETE FROM cds_quiz_sessions WHERE set_id=?')->execute([$setId]);
                 $pdo->prepare('DELETE FROM cds_quiz_sets WHERE id=?')->execute([$setId]);
                 $pdo->commit();
@@ -175,9 +176,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } catch (PDOException $e) { if ($e->getCode() !== '23000' || $attempt === 2) throw $e; }
             }
         }
+        if ($action === 'reveal_session') {
+            $code=(string)($_POST['code']??'');
+            $st=qp_db()->prepare(qp_admin() ? "UPDATE cds_quiz_sessions SET show_correct=1 WHERE code=? AND set_id=? AND mode='computer' AND status='open'" : "UPDATE cds_quiz_sessions SET show_correct=1 WHERE code=? AND set_id=? AND owner_id=? AND mode='computer' AND status='open'");
+            $st->execute(qp_admin()?[$code,$setId]:[$code,$setId,qp_owner()]);qp_go($setId,'play');
+        }
         if ($action === 'close_session') {
             $code = (string)($_POST['code'] ?? '');
-            $st = qp_db()->prepare(qp_admin() ? "UPDATE cds_quiz_sessions SET status='closed' WHERE code=? AND set_id=?" : "UPDATE cds_quiz_sessions SET status='closed' WHERE code=? AND set_id=? AND owner_id=?");
+            $st = qp_db()->prepare(qp_admin() ? "UPDATE cds_quiz_sessions SET status='closed',phase=IF(mode='computer','finished',phase),show_correct=IF(mode='computer',1,show_correct) WHERE code=? AND set_id=?" : "UPDATE cds_quiz_sessions SET status='closed',phase=IF(mode='computer','finished',phase),show_correct=IF(mode='computer',1,show_correct) WHERE code=? AND set_id=? AND owner_id=?");
             $st->execute(qp_admin()?[$code,$setId]:[$code,$setId,qp_owner()]); qp_go($setId);
         }
     } catch (Throwable $e) { $message = $e->getMessage(); }
@@ -230,6 +236,7 @@ $reportGrid=[];
 if ($reportSession) {
     $reportStudents=json_decode((string)($reportSession['roster_json']??''),true) ?: [];
     if (!$reportStudents) foreach (csdl_students_all() as $student) if ((string)($student['class_id']??'')===(string)$reportSession['class_id']) $reportStudents[(string)$student['id']] = (string)($student['name']??'');
+    if ($reportSession['mode']==='computer') $reportStudents=array_merge($reportStudents,qp_group_players($viewCode));
     foreach ($answers as $a) $reportGrid[(string)$a['student_id']][(int)$a['question_index']] = (string)$a['answer'];
     if (($_GET['export']??'')==='csv') {
         header('Content-Type: text/csv; charset=utf-8');
@@ -318,7 +325,8 @@ if ($reportSession) {
 <article class="session-card"><div class="session-head"><span class="session-mode"><?=($s['mode']==='paper'?'▦ Thẻ giấy A–D':'💻 Chơi trên máy')?></span><span class="session-status <?=($s['status']==='open' && $s['phase']!=='finished'?'is-open':'')?>"><?=($s['phase']==='finished'?'🏁 Đã kết thúc':($s['status']==='open'?'● Đang mở':'● Đã đóng'))?></span></div><div class="session-main"><div><small>MÃ LƯỢT CHƠI</small><strong class="session-code"><?=e((string)$s['code'])?></strong></div><div><small>LỚP THAM GIA</small><strong>🏫 <?=e($sessionLabel)?></strong></div></div>
 <div class="session-links"><?php if($s['mode']==='paper'): ?><a href="<?=e($screenUrl)?>" target="_blank" rel="noopener">📺 Màn hình chiếu ↗</a><a href="<?=e($scanUrl)?>" target="_blank" rel="noopener">📷 Máy quét ↗</a><?php else: ?><a href="<?=e($studentUrl)?>" target="_blank" rel="noopener">🎮 Học sinh vào chơi ↗</a><?php endif; ?><a href="?set=<?=e(rawurlencode($setId))?>&amp;view=play&amp;report=<?=e((string)$s['code'])?>">📊 Kết quả ↗</a></div>
 
-<?php if($s['status']==='open'): ?><form method="post" class="session-close" onsubmit="return confirm('Đóng lượt chơi này? Học sinh sẽ không thể gửi đáp án tiếp.')"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="set_id" value="<?=e($setId)?>"><input type="hidden" name="action" value="close_session"><input type="hidden" name="code" value="<?=e((string)$s['code'])?>"><button class="btn tiny danger">Đóng lượt chơi</button></form><?php endif; ?></article>
+<?php if($s['mode']==='computer' && $s['status']==='open' && empty($s['show_correct'])): ?><form method="post" class="session-close" onsubmit="return confirm('Công bố đáp án cho tất cả học sinh trong lượt chơi?')"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="set_id" value="<?=e($setId)?>"><input type="hidden" name="action" value="reveal_session"><input type="hidden" name="code" value="<?=e((string)$s['code'])?>"><button class="btn tiny primary">👁 Công bố đáp án</button></form><?php endif; ?>
+<?php if($s['status']==='open'): ?><form method="post" class="session-close" onsubmit="return confirm('Kết thúc lượt chơi này? Học sinh sẽ không thể gửi đáp án tiếp.')"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="set_id" value="<?=e($setId)?>"><input type="hidden" name="action" value="close_session"><input type="hidden" name="code" value="<?=e((string)$s['code'])?>"><button class="btn tiny danger"><?=($s['mode']==='computer'?'🏁 Kết thúc chơi':'Đóng lượt chơi')?></button></form><?php endif; ?></article>
 <?php endforeach; ?></div></section>
 <?php if ($reportSession): ?>
 <div class="card"><h2>Kết quả mã <?=e($viewCode)?></h2><p><?=($reportSession['mode']==='paper'?'Thẻ giấy':'Máy tính')?> · <?=count($reportQuestions)?> câu · <?=count($reportStudents)?> học sinh trong lớp</p><a class="button secondary" href="?set=<?=e(rawurlencode($setId))?>&amp;report=<?=e($viewCode)?>&amp;export=csv">Xuất CSV chi tiết</a>
