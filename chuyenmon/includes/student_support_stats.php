@@ -99,6 +99,7 @@ if(in_array($categoryFilter,['tn','ts'],true)) {
 }
 $examSummaryRows=[];
 $summarySubjects=$subjectFilter!==''?[$subjectFilter]:$statSubjects;
+if (in_array($categoryFilter, ['tn','ts'], true)) {
 foreach(array_merge([''],$summarySubjects) as $sub) {
     $allIds=[];
     foreach(($examSummary[$sub]??[]) as $cl=>$ids) foreach($ids as $id=>$_) $allIds[$id]=true;
@@ -111,6 +112,7 @@ foreach(array_merge([''],$summarySubjects) as $sub) {
     foreach(($examSummary[$sub]??[]) as $cl=>$_) if($classFilter==='' || $classFilter===$cl) $scopeClasses[$cl]=true;
     $classNames=array_keys($scopeClasses); usort($classNames,'strnatcasecmp');
     foreach($classNames as $cl) $examSummaryRows[]=['subject'=>$sub,'class'=>$cl,'ids'=>$examSummary[$sub][$cl]??[]];
+}
 }
 $examGenderCounts=static function(array $ids) use($students,$statGender): array {
     $counts=['Nam'=>0,'Nữ'=>0,'Chưa rõ'=>0];
