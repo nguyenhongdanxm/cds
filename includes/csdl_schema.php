@@ -54,6 +54,7 @@ function csdl_schema_students() {
         'code'          => ['label' => 'Mã HS', 'group' => 'Định danh'],
         'name'          => ['label' => 'Họ và tên', 'group' => 'Định danh'],
         'cccd'          => ['label' => 'CCCD', 'group' => 'Định danh'],
+        'health_insurance_number' => ['label' => 'Số thẻ BHYT', 'group' => 'BHYT'],
         'class_name'    => ['label' => 'Lớp', 'group' => 'Định danh'],
         'dob'           => ['label' => 'Ngày sinh', 'type' => 'date', 'group' => 'Hành chính'],
         'gender'        => ['label' => 'Giới tính', 'group' => 'Hành chính'],

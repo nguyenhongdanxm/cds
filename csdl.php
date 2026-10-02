@@ -183,6 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'name' => trim($_POST['name'] ?? ''),
             'code' => trim($_POST['code'] ?? ''),
             'cccd' => trim($_POST['cccd'] ?? ''),
+            'health_insurance_number' => trim((string)($_POST['health_insurance_number'] ?? ($currentStudent['health_insurance_number'] ?? ''))),
             'class_id' => trim($_POST['class_id'] ?? ''),
             'gender' => trim($_POST['gender'] ?? ''),
             'dob' => trim($_POST['dob'] ?? ''),

@@ -36,6 +36,7 @@ if (!empty($editing['dob'])) {
               <input type="text" name="code" class="form-control" value="<?= e($editing['code'] ?? '') ?>"></div>
             <div class="col-md-3"><label class="form-label small">CCCD</label>
               <input type="text" name="cccd" class="form-control" value="<?= e($editing['cccd'] ?? '') ?>"></div>
+            <div class="col-md-3"><label class="form-label small">Số thẻ BHYT</label><input type="text" name="health_insurance_number" class="form-control" value="<?= e($editing['health_insurance_number'] ?? '') ?>" placeholder="Nhập số trên thẻ BHYT"><div class="form-text">Giữ nguyên số 0 ở đầu và ký tự trên thẻ.</div></div>
             <div class="col-md-3"><label class="form-label small">Lớp</label>
               <select name="class_id" class="form-select">
                 <option value="">—</option>

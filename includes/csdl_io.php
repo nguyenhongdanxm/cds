@@ -90,7 +90,7 @@ function csdl_io_excel_text($v) {
 
 function csdl_io_is_text_identifier_header($header) {
     $h = mb_strtolower(trim((string)$header), 'UTF-8');
-    return in_array($h, ['mã hs','mã gv','cccd','sđt','sđt hs','sđt ph','điện thoại'], true);
+    return in_array($h, ['mã hs','mã gv','cccd','số thẻ bhyt','sđt','sđt hs','sđt ph','điện thoại'], true);
 }
 
 /** Luôn bọc "..." — tránh lẫn cột khi có dấu phẩy/chấm phẩy trong địa chỉ */
@@ -183,6 +183,7 @@ function csdl_io_student_flat(array $s, array $classes) {
         'code' => csdl_io_fixed_digits($s['code'] ?? '', 10),
         'name' => $s['name'] ?? '',
         'cccd' => csdl_io_fixed_digits($s['cccd'] ?? '', 12),
+        'health_insurance_number' => (string)($s['health_insurance_number'] ?? ''),
         'class_name' => $cn,
         'dob' => csdl_io_fmt_date($s['dob'] ?? ''),
         'gender' => $s['gender'] ?? '',
@@ -212,7 +213,7 @@ function csdl_io_template($entity) {
     } elseif ($entity === 'classes') {
         $sample = [1, '6A', '6', 'THCS', 'Nguyễn Văn A', 'P101', '35', 'Có', ''];
     } else {
-        $sample = [1, 'HS001', 'Lý Thị B', '001098765432', '6A', '01/01/2012', 'Nữ', 'Tày', 'Xín Mần', '', '', 'Phạm Văn C', '0909999999', 'Có', 'A1', '1', 'Có', date('d/m/Y'), '', '', '', ''];
+        $sample = [1, 'HS001', 'Lý Thị B', '001098765432', '0123456789', '6A', '01/01/2012', 'Nữ', 'Tày', 'Xín Mần', '', '', 'Phạm Văn C', '0909999999', 'Có', 'A1', '1', 'Có', date('d/m/Y'), '', '', '', ''];
     }
     while (count($sample) < count($headers)) $sample[] = '';
     $sample = array_slice($sample, 0, count($headers));
@@ -325,6 +326,7 @@ function csdl_io_map_headers(array $headers, array $schema) {
         'họ tên' => 'name', 'ho va ten' => 'name', 'họ và tên' => 'name', 'tên' => 'name',
         'mã' => 'code', 'ma hs' => 'code', 'mã hs' => 'code', 'ma gv' => 'code', 'mã gv' => 'code',
         'cccd' => 'cccd', 'cmnd' => 'cccd', 'số cccd' => 'cccd',
+        'bhyt' => 'health_insurance_number', 'mã bhyt' => 'health_insurance_number', 'số bhyt' => 'health_insurance_number', 'mã thẻ bhyt' => 'health_insurance_number', 'số thẻ bảo hiểm y tế' => 'health_insurance_number',
         'lớp' => 'class_name', 'lop' => 'class_name',
         'gvcn' => 'homeroom_teacher_name', 'gvcn (họ tên)' => 'homeroom_teacher_name',
         'môn dạy' => 'specialty', 'chuyên môn' => 'specialty', 'môn dạy / chuyên môn' => 'specialty',
@@ -522,7 +524,7 @@ function csdl_io_import_students($tmpPath) {
         if ($cccd !== '') $p['cccd'] = $cccd;
         if ($classId !== '') $p['class_id'] = $classId;
 
-        foreach (['gender', 'ethnicity', 'hometown', 'address', 'parent_name', 'room_ktx', 'meal_group', 'departure_type', 'departure_reason', 'note'] as $f) {
+        foreach (['health_insurance_number', 'gender', 'ethnicity', 'hometown', 'address', 'parent_name', 'room_ktx', 'meal_group', 'departure_type', 'departure_reason', 'note'] as $f) {
             $v = csdl_io_cell($row, $map, $f);
             if ($v !== '') $p[$f] = $v;
         }
