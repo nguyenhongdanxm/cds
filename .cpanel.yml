@@ -1,6 +1,10 @@
 ---
 deployment:
   tasks:
+    - /opt/alt/php83/usr/bin/php -l includes/ai_school_data.php
+    - /opt/alt/php83/usr/bin/php -l includes/ai_service.php
+    - /opt/alt/php83/usr/bin/php -l ai_api.php
+    - /opt/alt/php83/usr/bin/php -l trolyai.php
     - /opt/alt/php83/usr/bin/php -l tools/deploy_cds.php
     - /opt/alt/php83/usr/bin/php -l includes/quiz_paper_store.php
     - /opt/alt/php83/usr/bin/php -l hoclieu_game_quiz.php

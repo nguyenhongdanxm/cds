@@ -1,6 +1,7 @@
 (function(){
   var submit=document.getElementById('aiSubmit');if(!submit)return;
   var input=document.getElementById('aiInput'),reference=document.getElementById('aiReference'),task=document.getElementById('aiTask'),result=document.getElementById('aiResult'),status=document.getElementById('aiStatus'),copy=document.getElementById('aiCopy'),template=document.getElementById('aiTemplate'),sourceFile=document.getElementById('aiSourceFile'),files=document.getElementById('aiReferenceFiles'),download=document.getElementById('aiDownload');
+  if(window.CDS_AI.assistant==='dulieu'){reference.parentElement.style.display='none';files.parentElement.style.display='none';input.placeholder='Nhập câu hỏi về số liệu trong nguồn, lớp và thời gian đã chọn…';}
   function addText(parent,tag,className,text){var el=document.createElement(tag);if(className)el.className=className;el.textContent=text;parent.appendChild(el);return el}
   function renderDocument(text,preview){
     result.textContent='';result.classList.remove('empty');result.classList.add('doc-preview');result.dataset.raw=text;
@@ -31,16 +32,21 @@
     });
   }
   submit.addEventListener('click',async function(){
-    var text=input.value.trim();if(!text&&!(sourceFile&&sourceFile.files.length)){input.focus();status.textContent='Vui lòng nhập nội dung hoặc chọn văn bản chính.';return}
-    submit.disabled=true;status.textContent='Đang đọc mẫu, kiểm tra căn cứ và soạn văn bản…';result.className='result empty';result.textContent='AI đang chuẩn bị văn bản theo Nghị định 30/2020/NĐ-CP…';
+    var isData=window.CDS_AI.assistant==='dulieu';
+    var text=input.value.trim();if(isData&&!text&&task.value==='overview')text='Đánh giá số liệu trong phạm vi và thời gian đã chọn; nêu dữ liệu thiếu và việc cần xử lý.';if(!text&&!(sourceFile&&sourceFile.files.length)){input.focus();status.textContent='Vui lòng nhập nội dung hoặc chọn văn bản chính.';return}
+    submit.disabled=true;status.textContent=isData?'Đang tổng hợp dữ liệu CDS và phân tích…':'Đang xử lý yêu cầu…';result.className='result empty';result.textContent=isData?'Đang lấy số liệu theo quyền tài khoản…':'AI đang xử lý…';
     try{
       var form=new FormData();form.append('csrf',window.CDS_AI.csrf);form.append('assistant',window.CDS_AI.assistant);form.append('task',task.value);form.append('input',text);form.append('reference',reference.value.trim());form.append('template_id',template?template.value:'');
+      if(isData){[['data_source','aiDataSource'],['data_from','aiDataFrom'],['data_to','aiDataTo'],['data_class','aiDataClass']].forEach(function(pair){var el=document.getElementById(pair[1]);if(el)form.append(pair[0],el.value)});}
       if(sourceFile&&sourceFile.files[0])form.append('source_document',sourceFile.files[0]);
       if(files)Array.from(files.files).forEach(function(file){form.append('references[]',file)});
       var response=await fetch('ai_api.php',{method:'POST',credentials:'same-origin',body:form});
       var data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||'Không xử lý được yêu cầu.');
-      renderDocument(data.content,data.template_preview||null);result.dataset.templateId=data.template_id||'';
-      status.textContent='Đã soạn theo mẫu. Hãy kiểm tra các vị trí [CẦN BỔ SUNG/XÁC MINH] trước khi ban hành.';if(download)download.disabled=false;
+      if(window.CDS_AI.assistant==='vanban')renderDocument(data.content,data.template_preview||null);
+      else{result.className='result';result.textContent=data.content;result.dataset.raw=data.content;
+        if(isData){var meta=addText(result,'div','file-note','Truy xuất: '+data.retrieved_at+' · '+data.period.from+' đến '+data.period.to);(data.sources||[]).forEach(function(source){var a=addText(meta,'a','',source.label);a.href=source.url;a.style.marginRight='12px';});}
+      }result.dataset.templateId=data.template_id||'';
+      status.textContent=isData?'Đã phân tích. Xem nguồn số liệu để đối chiếu.':'Đã xử lý. Hãy kiểm tra kết quả trước khi sử dụng.';if(download)download.disabled=false;
     }catch(error){result.className='result empty';result.textContent='Không nhận được kết quả.';delete result.dataset.raw;status.textContent='Lỗi: '+error.message}
     finally{submit.disabled=false}
   });

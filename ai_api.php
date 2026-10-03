@@ -10,34 +10,47 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_
 $contentType=(string)($_SERVER['CONTENT_TYPE']??'');
 if(stripos($contentType,'multipart/form-data')!==false){$request=$_POST;}else{$request=json_decode((string)file_get_contents('php://input'),true);}
 if(!is_array($request))$request=[];
-if (!hash_equals((string)($_SESSION['ai_csrf'] ?? ''), (string)($request['csrf'] ?? ''))) { http_response_code(403); echo json_encode(['ok'=>false,'message'=>'Phiên làm việc không hợp lệ.']); exit; }
+if (empty($_SESSION['ai_csrf']) || !hash_equals((string)($_SESSION['ai_csrf'] ?? ''), (string)($request['csrf'] ?? ''))) { http_response_code(403); echo json_encode(['ok'=>false,'message'=>'Phiên làm việc không hợp lệ.']); exit; }
 $assistant = trim((string)($request['assistant'] ?? ''));
 $task = trim((string)($request['task'] ?? ''));
 $input = trim((string)($request['input'] ?? ''));
 $reference=trim((string)($request['reference']??''));
-$templateId=trim((string)($request['template_id']??''));
+$catalog = cds_ai_assistants();
+if (!isset($catalog[$assistant])) { http_response_code(400); echo json_encode(['ok'=>false,'message'=>'Trợ lý không hợp lệ.']); exit; }
+if (!can_perm($catalog[$assistant]['permission'])) { http_response_code(403); echo json_encode(['ok'=>false,'message'=>'Bạn chưa được cấp quyền dùng trợ lý này.']); exit; }
+$templateId=$assistant==='dulieu'?'':trim((string)($request['template_id']??''));
 $templateContext=$templateId!==''?cds_ai_template_context($templateId):'';
 if($templateId!==''&&$templateContext===''){http_response_code(400);echo json_encode(['ok'=>false,'message'=>'Mẫu văn bản không tồn tại hoặc không đọc được.']);exit;}
 $uploaded=['text'=>'','names'=>[]];
 $source=['text'=>'','name'=>''];
-if(isset($_FILES['source_document']))$source=cds_ai_single_reference_upload($_FILES['source_document']);
+if($assistant!=='dulieu'&&isset($_FILES['source_document']))$source=cds_ai_single_reference_upload($_FILES['source_document']);
 if($source['text']!=='')$input=($input!==''?$input."\n\n":'')."VĂN BẢN CHÍNH CẦN XỬ LÝ (".$source['name']."):\n".$source['text'];
-if(isset($_FILES['references']))$uploaded=cds_ai_reference_uploads($_FILES['references']);
+if($assistant!=='dulieu'&&isset($_FILES['references']))$uploaded=cds_ai_reference_uploads($_FILES['references']);
 if($uploaded['text']!=='')$reference.=($reference!==''?"\n\n":'').$uploaded['text'];
 if($templateContext!=='')$reference.="\n\n".$templateContext;
 if($assistant==='vanban')$reference.="\n\n".cds_ai_document_profile_context();
-$catalog = cds_ai_assistants();
-if (!isset($catalog[$assistant])) { http_response_code(400); echo json_encode(['ok'=>false,'message'=>'Trợ lý không hợp lệ.']); exit; }
-if (!can_perm($catalog[$assistant]['permission'])) { http_response_code(403); echo json_encode(['ok'=>false,'message'=>'Bạn chưa được cấp quyền dùng trợ lý này.']); exit; }
 if ($input === '') { http_response_code(400); echo json_encode(['ok'=>false,'message'=>'Vui lòng nhập nội dung hoặc yêu cầu.']); exit; }
 
 $last = (float)($_SESSION['ai_last_request_at'] ?? 0);
 if (microtime(true) - $last < 2) { http_response_code(429); echo json_encode(['ok'=>false,'message'=>'Vui lòng chờ vài giây trước khi gửi tiếp.']); exit; }
 $_SESSION['ai_last_request_at'] = microtime(true);
+if(!isset($catalog[$assistant]['tasks'][$task])){http_response_code(400);echo json_encode(['ok'=>false,'message'=>'Tác vụ không hợp lệ.']);exit;}
+$schoolContext=null;
+if($assistant==='dulieu'){
+    require_once __DIR__.'/includes/ai_school_data.php';
+    try{
+        $schoolContext=cds_ai_school_context($request);$reference=$schoolContext['reference'];
+        if(mb_strlen($input.$reference,'UTF-8')>(int)cds_ai_settings()['max_input_chars'])throw new InvalidArgumentException('Số liệu vượt giới hạn yêu cầu AI. Hãy chọn một nguồn, một lớp hoặc khoảng thời gian ngắn hơn.');
+    }
+    catch(InvalidArgumentException $e){http_response_code(400);echo json_encode(['ok'=>false,'message'=>$e->getMessage()],JSON_UNESCAPED_UNICODE);exit;}
+    catch(Throwable $e){error_log('[CDS AI data] '.$e->getMessage());http_response_code(503);echo json_encode(['ok'=>false,'message'=>'Không lấy được số liệu CDS. Vui lòng thử lại.'],JSON_UNESCAPED_UNICODE);exit;}
+}
 $result = cds_ai_call($assistant, $task, $input, $reference);
+if($schoolContext){$result['sources']=$schoolContext['sources'];$result['retrieved_at']=$schoolContext['retrieved_at'];$result['period']=['from'=>$schoolContext['filters']['from'],'to'=>$schoolContext['filters']['to']];}
+
 if (empty($result['ok'])) http_response_code(502);
 require_once __DIR__.'/includes/audit.php';
-cds_audit_log(empty($result['ok'])?'ai_request_failed':'ai_request_completed', 'trolyai', ['assistant'=>$assistant,'task'=>$task,'template_id'=>$templateId,'source_file'=>$source['name'],'reference_files'=>$uploaded['names'],'provider'=>$result['provider']??'','model'=>$result['model']??'','status'=>$result['status']??200,'input_chars'=>mb_strlen($input,'UTF-8'),'usage'=>$result['usage']??[]]);
+cds_audit_log(empty($result['ok'])?'ai_request_failed':'ai_request_completed', 'trolyai', ['assistant'=>$assistant,'task'=>$task,'template_id'=>$templateId,'source_file'=>$source['name'],'reference_files'=>$uploaded['names'],'provider'=>$result['provider']??'','model'=>$result['model']??'','status'=>$result['status']??200,'input_chars'=>mb_strlen($input,'UTF-8'),'usage'=>$result['usage']??[],'data_filters'=>$schoolContext?array_intersect_key($schoolContext['filters'],array_flip(['from','to','source','class'])):[]]);
 $result['template_id']=$templateId;
 if($templateId!==''&&!empty($result['ok']))$result['template_preview']=cds_ai_template_preview($templateId);
 echo json_encode($result, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);

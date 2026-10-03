@@ -102,6 +102,7 @@ function permission_features_catalog() {
         'tb.kiemke'   => ['module' => 'thuvien', 'label' => 'Kiểm kê tài sản', 'group' => 'Thiết bị'],
 
         // Trợ lý AI
+        'ai.dulieu'   => ['module' => 'trolyai', 'label' => 'Hỏi đáp và đánh giá số liệu CDS', 'group' => 'Trợ lý AI'],
         'ai.vanban'   => ['module' => 'trolyai', 'label' => 'Trợ lý xử lý văn bản', 'group' => 'Trợ lý AI'],
         'ai.phaply'   => ['module' => 'trolyai', 'label' => 'Trợ lý văn bản pháp lý', 'group' => 'Trợ lý AI'],
         'ai.dayhoc'   => ['module' => 'trolyai', 'label' => 'Trợ lý dạy và học', 'group' => 'Trợ lý AI'],
