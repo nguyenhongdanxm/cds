@@ -8,6 +8,14 @@ try { qp_schema(); } catch (Throwable $e) { http_response_code(500); exit('Khôn
 if (empty($_SESSION['qp_csrf'])) $_SESSION['qp_csrf'] = bin2hex(random_bytes(24));
 $csrf = (string)$_SESSION['qp_csrf'];
 $message = '';
+$quizSubjects=['Toán','Ngữ văn','Vật lí','Hóa học','Sinh học','Khoa học tự nhiên','Lịch sử','Địa lí','Lịch sử và Địa lí','Tiếng Anh','Tin học','Công nghệ','Giáo dục công dân','Giáo dục kinh tế và pháp luật','Giáo dục thể chất','Âm nhạc','Mĩ thuật','Hoạt động trải nghiệm, hướng nghiệp','Giáo dục địa phương','Kiến thức tổng hợp'];
+$quizGrades=['all'=>'Tất cả khối'];foreach(range(6,12) as $g)$quizGrades[(string)$g]='Khối '.$g;
+function qp_classification_fields(array $subjects,array $grades,array $current=[]):void {
+ $subject=(string)($current['category']??'');$grade=(string)($current['grade_scope']??'');
+ if($subject!==''&&!in_array($subject,$subjects,true))$subjects[]=$subject;
+ ?><div class="two-col"><div><label>Môn</label><select name="category" required><option value="">Chọn môn</option><?php foreach($subjects as $v):?><option value="<?=e($v)?>" <?=$subject===$v?'selected':''?>><?=e($v)?></option><?php endforeach?></select></div><div><label>Khối</label><select name="grade_scope" required><option value="">Chọn khối</option><?php foreach($grades as $v=>$label):?><option value="<?=e((string)$v)?>" <?=$grade===(string)$v?'selected':''?>><?=e($label)?></option><?php endforeach?></select></div></div><?php
+}
+
 function qp_go(string $set = '', string $view = ''): void {
     $params=[]; if ($set!=='') $params['set']=$set; if ($view!=='') $params['view']=$view;
     header('Location: ' . BASE_URL . 'hoclieu_game_quiz.php' . ($params ? '?'.http_build_query($params) : ''));
@@ -28,11 +36,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'create') {
             $title = trim((string)($_POST['title'] ?? ''));
             if ($title === '' || mb_strlen($title) > 255) throw new RuntimeException('Tên bộ câu hỏi không hợp lệ.');
-            $category=trim((string)($_POST['category']??''));$intro=trim((string)($_POST['intro']??''));
+            $category=trim((string)($_POST['category']??''));$intro=trim((string)($_POST['intro']??''));$grade=trim((string)($_POST['grade_scope']??''));
+            if(!array_key_exists($grade,$quizGrades)||(!in_array($category,$quizSubjects,true)&&$category!==(string)($set['category']??'')))throw new RuntimeException('Vui lòng chọn môn và khối hợp lệ.');
             if ($category==='' || $intro==='' || mb_strlen($category)>100 || mb_strlen($intro)>500) throw new RuntimeException('Nhập thể loại và giới thiệu ngắn cho bộ câu hỏi.');
             $id = 'qs_' . bin2hex(random_bytes(12));
-            $st = qp_db()->prepare('INSERT INTO cds_quiz_sets(id,owner_id,title,category,intro,questions_json,is_public,created_at,updated_at) VALUES(?,?,?,?,?,?,?,NOW(),NOW())');
-            $st->execute([$id,qp_owner(),$title,$category,$intro,'[]',($_POST['public']??'')==='1'?1:0]); qp_go($id,'edit');
+            $st = qp_db()->prepare('INSERT INTO cds_quiz_sets(id,owner_id,title,category,grade_scope,intro,questions_json,is_public,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,NOW(),NOW())');
+            $st->execute([$id,qp_owner(),$title,$category,$grade,$intro,'[]',($_POST['public']??'')==='1'?1:0]); qp_go($id,'edit');
         }
         $set = qp_set($setId, !in_array($action,['clone_set','open_session','close_session','reveal_session'],true));
         if ($set && !qp_admin() && $set['owner_id']!==qp_owner() && empty($set['is_public'])) $set=null;
@@ -44,17 +53,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'clone_set') {
             if (empty($set['is_public']) && !qp_admin() && $set['owner_id']!==qp_owner()) throw new RuntimeException('Bộ câu hỏi không công khai.');
             $id='qs_'.bin2hex(random_bytes(12));
-            qp_db()->prepare('INSERT INTO cds_quiz_sets(id,owner_id,title,category,intro,questions_json,is_public,created_at,updated_at) VALUES(?,?,?,?,?,?,0,NOW(),NOW())')->execute([$id,qp_owner(),$set['title'].' · Bản sao',$set['category']??'',$set['intro']??'',$set['questions_json']]); qp_go($id,'edit');
+            qp_db()->prepare('INSERT INTO cds_quiz_sets(id,owner_id,title,category,grade_scope,intro,questions_json,is_public,created_at,updated_at) VALUES(?,?,?,?,?,?,?,0,NOW(),NOW())')->execute([$id,qp_owner(),$set['title'].' · Bản sao',$set['category']??'',$set['grade_scope']??'',$set['intro']??'',$set['questions_json']]); qp_go($id,'edit');
         }
         if ($action === 'save_set') {
             $title = trim((string)($_POST['title'] ?? ''));
-            $category=trim((string)($_POST['category']??''));$intro=trim((string)($_POST['intro']??''));
+            $category=trim((string)($_POST['category']??''));$intro=trim((string)($_POST['intro']??''));$grade=trim((string)($_POST['grade_scope']??''));
+            if(!array_key_exists($grade,$quizGrades)||(!in_array($category,$quizSubjects,true)&&$category!==(string)($set['category']??'')))throw new RuntimeException('Vui lòng chọn môn và khối hợp lệ.');
             if ($title==='' || $category==='' || $intro==='' || mb_strlen($title)>255 || mb_strlen($category)>100 || mb_strlen($intro)>500) throw new RuntimeException('Thông tin bộ câu hỏi không hợp lệ.');
-            qp_db()->prepare('UPDATE cds_quiz_sets SET title=?,category=?,intro=?,is_public=?,updated_at=NOW() WHERE id=?')->execute([$title,$category,$intro,($_POST['public']??'')==='1'?1:0,$setId]); qp_go($setId,'settings');
+            qp_db()->prepare('UPDATE cds_quiz_sets SET title=?,category=?,grade_scope=?,intro=?,is_public=?,updated_at=NOW() WHERE id=?')->execute([$title,$category,$grade,$intro,($_POST['public']??'')==='1'?1:0,$setId]); qp_go($setId,'settings');
         }
         if ($action === 'delete_set') {
             $pdo=qp_db();$pdo->beginTransaction();
             try {
+                $pdo->prepare('DELETE FROM cds_quiz_progress WHERE session_code IN (SELECT code FROM cds_quiz_sessions WHERE set_id=?)')->execute([$setId]);
                 $pdo->prepare('DELETE FROM cds_quiz_answers WHERE session_code IN (SELECT code FROM cds_quiz_sessions WHERE set_id=?)')->execute([$setId]);
                 $pdo->prepare('DELETE FROM cds_quiz_groups WHERE session_code IN (SELECT code FROM cds_quiz_sessions WHERE set_id=?)')->execute([$setId]);
                 $pdo->prepare('DELETE FROM cds_quiz_sessions WHERE set_id=?')->execute([$setId]);
@@ -275,7 +286,7 @@ if ($reportSession) {
 <div class="shell workspace">
 <aside class="panel work-sidebar"><div class="sidebar-heading"><span class="sidebar-mark">🎯</span><div><small>KHÔNG GIAN LÀM VIỆC</small><strong><?=e($set?(string)$set['title']:'Hỏi Nhanh - Đáp Gọn')?></strong></div></div>
 <?php if (!$set): ?>
-<nav class="sidebar-menu" aria-label="Thư viện và tạo bộ"><a class="sidebar-item <?=$view!=='create'?'active':''?>" href="<?=BASE_URL?>hoclieu_game_quiz.php"><span>📚</span><span><b>Thư viện câu hỏi</b><small>Chọn bộ để bắt đầu</small></span></a><a class="sidebar-item <?=$view==='create'?'active':''?>" href="?view=create"><span>✨</span><span><b>Tạo bộ câu hỏi</b><small>Tên, thể loại, giới thiệu</small></span></a></nav>
+<nav class="sidebar-menu" aria-label="Thư viện và tạo bộ"><a class="sidebar-item <?=$view!=='create'?'active':''?>" href="<?=BASE_URL?>hoclieu_game_quiz.php"><span>📚</span><span><b>Thư viện câu hỏi</b><small>Chọn bộ để bắt đầu</small></span></a><a class="sidebar-item <?=$view==='create'?'active':''?>" href="?view=create"><span>✨</span><span><b>Tạo bộ câu hỏi</b><small>Tên, môn, khối, giới thiệu</small></span></a></nav>
 <?php else: ?>
 <nav class="sidebar-menu" aria-label="Các màn hình của bộ câu hỏi"><a class="sidebar-item <?=$view==='play'?'active':''?>" href="?set=<?=e(rawurlencode($setId))?>&amp;view=play"><span>🎮</span><span><b>Chọn cách chơi</b><small>Chọn lớp và mở lượt</small></span></a><?php if($canEditSet): ?><a class="sidebar-item <?=$view==='edit'?'active':''?>" href="?set=<?=e(rawurlencode($setId))?>&amp;view=edit"><span>✏️</span><span><b>Soạn câu hỏi</b><small>Sáu dạng và nhập nhanh</small></span></a><a class="sidebar-item <?=$view==='settings'?'active':''?>" href="?set=<?=e(rawurlencode($setId))?>&amp;view=settings"><span>⚙️</span><span><b>Thông tin bộ</b><small>Chia sẻ, sửa và xóa</small></span></a><?php endif; ?></nav><a class="sidebar-return" href="<?=BASE_URL?>hoclieu_game_quiz.php">← Về thư viện câu hỏi</a>
 <?php endif; ?>
@@ -285,21 +296,21 @@ if ($reportSession) {
 <?php if ($view!=='create'): ?>
 <section class="panel library-panel"><div class="section-title"><div><span class="eyebrow">BƯỚC 1 · THƯ VIỆN</span><h2>Thư viện câu hỏi</h2><p class="muted">Chọn bộ câu hỏi để xem cách chơi hoặc tạo bộ mới cho lớp.</p></div><a class="btn primary" href="?view=create">✨ Tạo bộ câu hỏi mới</a></div>
 <input type="search" id="set-search" placeholder="Tìm theo tên bộ câu hỏi…" aria-label="Tìm bộ câu hỏi">
-<div class="library-grid" id="set-list"><?php if (!$sets): ?><p class="empty">Chưa có bộ câu hỏi. Hãy tạo bộ đầu tiên ở bên dưới.</p><?php endif; ?>
+<div class="two-col" style="margin-top:12px"><div><label>Lọc theo môn</label><select id="subject-filter"><option value="">Tất cả môn</option><?php $filterSubjects=$quizSubjects;foreach($sets as $entry){$v=(string)($entry['category']??'');if($v!==''&&!in_array($v,$filterSubjects,true))$filterSubjects[]=$v;}foreach($filterSubjects as $v):?><option value="<?=e($v)?>"><?=e($v)?></option><?php endforeach?></select></div><div><label>Lọc theo khối</label><select id="grade-filter"><option value="">Tất cả</option><?php foreach($quizGrades as $v=>$label):?><option value="<?=e((string)$v)?>"><?=e($label)?></option><?php endforeach?><option value="unclassified">Chưa chọn khối</option></select></div></div><p id="filter-empty" class="hint" hidden>Không có bộ câu hỏi phù hợp.</p><div class="library-grid" id="set-list"><?php if (!$sets): ?><p class="empty">Chưa có bộ câu hỏi. Hãy tạo bộ đầu tiên ở bên dưới.</p><?php endif; ?>
 <?php foreach($sets as $row): $owned=qp_admin() || $row['owner_id']===qp_owner();$count=count(json_decode((string)$row['questions_json'],true)?:[]); ?>
-<article class="library-card set-item" data-title="<?=e(mb_strtolower((string)$row['title'].' '.($row['category']??'')))?>">
+<article class="library-card set-item" data-subject="<?=e((string)($row['category']??''))?>" data-grade="<?=e((string)($row['grade_scope']??''))?>" data-title="<?=e(mb_strtolower((string)$row['title'].' '.($row['category']??'')))?>">
 <span class="library-icon" aria-hidden="true">◉</span><span class="pill"><?=!empty($row['is_public'])?'🌐 Công khai':'🔒 Riêng tư'?></span>
-<h3><?=e((string)$row['title'])?></h3><p class="muted"><?=e((string)($row['intro']??''))?></p><div class="library-meta"><?=e((string)($row['category']?:'Chưa phân loại'))?> · <?=$count?> câu hỏi</div>
-<div class="row"><a class="btn primary" href="?set=<?=e(rawurlencode((string)$row['id']))?>">Chọn →</a><?php if(!$owned): ?><form method="post"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="set_id" value="<?=e((string)$row['id'])?>"><input type="hidden" name="action" value="clone_set"><button class="btn">Tạo bản sao để sửa</button></form><?php endif; ?></div>
+<h3><?=e((string)$row['title'])?></h3><p class="muted"><?=e((string)($row['intro']??''))?></p><div class="library-meta"><?=e((string)($row['category']?:'Chưa phân loại'))?> · <?=e($quizGrades[(string)($row['grade_scope']??'')]??'Chưa chọn khối')?> · <?=$count?> câu hỏi</div>
+<div class="row"><a class="btn primary" href="?set=<?=e(rawurlencode((string)$row['id']))?>">Chọn →</a><?php if($owned):?><form method="post" onsubmit="return confirm('Xóa bộ câu hỏi này và toàn bộ lượt chơi, kết quả liên quan? Không thể hoàn tác.')"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="set_id" value="<?=e((string)$row['id'])?>"><input type="hidden" name="action" value="delete_set"><button class="btn danger" type="submit">🗑 Xóa</button></form><?php endif?><?php if(!$owned): ?><form method="post"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="set_id" value="<?=e((string)$row['id'])?>"><input type="hidden" name="action" value="clone_set"><button class="btn">Tạo bản sao để sửa</button></form><?php endif; ?></div>
 </article><?php endforeach; ?></div></section>
 <?php else: ?>
-<section class="panel create-panel" id="create-set"><div class="section-title"><div><span class="eyebrow">TẠO NỘI DUNG</span><h2>Tạo bộ câu hỏi mới</h2></div></div><form method="post"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="create"><div class="two-col"><div><label>Tên bộ câu hỏi</label><input type="text" name="title" maxlength="255" required placeholder="Ví dụ: Ôn tập Vật lý 10"></div><div><label>Thể loại</label><input type="text" name="category" maxlength="100" required placeholder="Ví dụ: Khoa học tự nhiên"></div></div><label>Giới thiệu ngắn</label><textarea name="intro" maxlength="500" rows="2" required placeholder="Nội dung, đối tượng hoặc mục tiêu của bộ câu hỏi"></textarea><div class="create-actions"><div><label>Chia sẻ</label><select name="public"><option value="0">Riêng tư</option><option value="1">Công khai cho giáo viên</option></select></div><button class="btn primary">Tạo bộ câu hỏi →</button></div></form><p class="hint">Bộ công khai cho người khác chơi hoặc tạo bản sao. Chỉ người tạo và quản trị được sửa, xóa bộ gốc.</p></section>
+<section class="panel create-panel" id="create-set"><div class="section-title"><div><span class="eyebrow">TẠO NỘI DUNG</span><h2>Tạo bộ câu hỏi mới</h2></div></div><form method="post"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="create"><div class="two-col"><div><label>Tên bộ câu hỏi</label><input type="text" name="title" maxlength="255" required placeholder="Ví dụ: Ôn tập Vật lý 10"></div></div><?php qp_classification_fields($quizSubjects,$quizGrades); ?><label>Giới thiệu ngắn</label><textarea name="intro" maxlength="500" rows="2" required placeholder="Nội dung, đối tượng hoặc mục tiêu của bộ câu hỏi"></textarea><div class="create-actions"><div><label>Chia sẻ</label><select name="public"><option value="0">Riêng tư</option><option value="1">Công khai cho giáo viên</option></select></div><button class="btn primary">Tạo bộ câu hỏi →</button></div></form><p class="hint">Bộ công khai cho người khác chơi hoặc tạo bản sao. Chỉ người tạo và quản trị được sửa, xóa bộ gốc.</p></section>
 <?php endif; ?>
 <?php endif; ?>
 <?php if ($set): ?>
 <?php if ($view==='play'): ?>
 <section class="panel set-overview"><div class="section-title"><div><span class="eyebrow">CHỌN CÁCH CHƠI</span><h2><?=e((string)$set['title'])?></h2><p class="muted"><?=e((string)($set['intro']??''))?></p></div><div class="row"><span class="pill"><?=!empty($set['is_public'])?'🌐 Công khai':'🔒 Riêng tư'?></span><?php if($canEditSet): ?><a class="btn" href="?set=<?=e(rawurlencode($setId))?>&amp;view=edit#new-question">✏️ Soạn câu hỏi</a><?php endif; ?></div></div>
-<div class="stats"><div class="stat"><b><?=count($questions)?></b><small>câu hỏi</small></div><div class="stat"><b><?=count($sessions)?></b><small>lượt chơi của bạn</small></div><div class="stat"><b><?=e((string)($set['category']?:'Chưa phân loại'))?></b><small>thể loại</small></div></div></section>
+<div class="stats"><div class="stat"><b><?=count($questions)?></b><small>câu hỏi</small></div><div class="stat"><b><?=count($sessions)?></b><small>lượt chơi của bạn</small></div><div class="stat"><b><?=e((string)($set['category']?:'Chưa phân loại'))?></b><small>môn</small></div></div></section>
 <?php endif; ?>
 <?php if ($view==='play'): ?>
 <section class="panel play-panel"><h2>Chọn chế độ chơi</h2><p class="muted">Chọn cách học sinh trả lời, sau đó chọn lớp để mở lượt chơi.</p>
@@ -311,7 +322,7 @@ if ($reportSession) {
 <?php endif; ?>
 <?php if ($canEditSet && $view==='settings'): ?>
 <section class="panel screen-heading"><span class="screen-icon">⚙️</span><div><span class="eyebrow">THÔNG TIN BỘ</span><h2>Sửa thông tin và chia sẻ</h2><p class="muted">Quản lý tên, thể loại, mô tả và quyền xem của bộ câu hỏi.</p></div></section>
-<section class="panel settings-panel"><div class="set-editor"><form method="post"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="set_id" value="<?=e($setId)?>"><input type="hidden" name="action" value="save_set"><div class="two-col"><div><label>Tên bộ</label><input type="text" name="title" value="<?=e((string)$set['title'])?>" maxlength="255" required></div><div><label>Thể loại</label><input type="text" name="category" value="<?=e((string)($set['category']??''))?>" maxlength="100" required></div></div><label>Giới thiệu</label><textarea name="intro" rows="2" maxlength="500" required><?=e((string)($set['intro']??''))?></textarea><label>Chia sẻ</label><select name="public"><option value="0" <?=empty($set['is_public'])?'selected':''?>>Riêng tư</option><option value="1" <?=!empty($set['is_public'])?'selected':''?>>Công khai cho giáo viên</option></select><button class="btn primary" style="margin-top:12px">Lưu thông tin</button></form>
+<section class="panel settings-panel"><div class="set-editor"><form method="post"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="set_id" value="<?=e($setId)?>"><input type="hidden" name="action" value="save_set"><div class="two-col"><div><label>Tên bộ</label><input type="text" name="title" value="<?=e((string)$set['title'])?>" maxlength="255" required></div></div><?php qp_classification_fields($quizSubjects,$quizGrades,$set); ?><label>Giới thiệu</label><textarea name="intro" rows="2" maxlength="500" required><?=e((string)($set['intro']??''))?></textarea><label>Chia sẻ</label><select name="public"><option value="0" <?=empty($set['is_public'])?'selected':''?>>Riêng tư</option><option value="1" <?=!empty($set['is_public'])?'selected':''?>>Công khai cho giáo viên</option></select><button class="btn primary" style="margin-top:12px">Lưu thông tin</button></form>
 <form method="post" onsubmit="return confirm('Xóa bộ câu hỏi này và toàn bộ câu hỏi, lượt chơi, kết quả liên quan? Không thể hoàn tác.')"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="set_id" value="<?=e($setId)?>"><input type="hidden" name="action" value="delete_set"><button class="btn danger">Xóa bộ câu hỏi</button></form></div></section>
 <?php endif; ?>
 <?php if ($canEditSet && $view==='edit'): ?>
@@ -342,7 +353,7 @@ if ($reportSession) {
 <tr><td>C<?=$i+1?>. <?=e((string)$q['text'])?></td><td><?=e(qp_correct_label($q))?></td><td><?=$right?></td><td><?=$wrong?></td><td><?=$missing?></td><td><?=($right+$wrong)>0?round(100*$right/($right+$wrong),1):0?>% (trong số đã trả lời)</td></tr>
 <?php endforeach; ?></tbody></table></div></div>
 <?php endif; ?><?php endif; ?><?php endif; ?></main></div><script>
-const search=document.getElementById('set-search');if(search)search.addEventListener('input',()=>document.querySelectorAll('.set-item').forEach(el=>el.hidden=!el.dataset.title.includes(search.value.trim().toLocaleLowerCase('vi'))));
+const search=document.getElementById('set-search'),subjectFilter=document.getElementById('subject-filter'),gradeFilter=document.getElementById('grade-filter');if(search){function filterLibrary(){const term=search.value.trim().toLocaleLowerCase('vi'),subject=subjectFilter.value,grade=gradeFilter.value;let visible=0;document.querySelectorAll('.set-item').forEach(el=>{el.hidden=!el.dataset.title.includes(term)||(subject!==''&&el.dataset.subject!==subject)||(grade!==''&&(grade==='unclassified'?el.dataset.grade!=='':el.dataset.grade!==grade));if(!el.hidden)visible++});document.getElementById('filter-empty').hidden=visible>0}search.addEventListener('input',filterLibrary);subjectFilter.addEventListener('change',filterLibrary);gradeFilter.addEventListener('change',filterLibrary);filterLibrary()}
 document.querySelectorAll('.class-options').forEach(picker=>picker.addEventListener('change',event=>{const selected=picker.querySelectorAll('input:checked');if(selected.length>2){event.target.checked=false;alert('Chỉ chọn tối đa 2 lớp trong một lượt chơi.')}}));
 document.getElementById('open-play-form')?.addEventListener('submit',event=>{if(!event.currentTarget.querySelector('input[name="class_ids[]"]:checked')){event.preventDefault();alert('Hãy chọn ít nhất một lớp để chơi.')}});
 document.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>{let d=document.getElementById(b.dataset.edit);d.open=true;d.scrollIntoView({behavior:'smooth',block:'start'});d.querySelector('textarea[name=text]').focus({preventScroll:true})}));
