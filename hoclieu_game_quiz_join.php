@@ -25,7 +25,7 @@ if (($_GET['api']??'')==='state') {
 $error='';
 if ($_SERVER['REQUEST_METHOD']==='POST' && $session) {
     if (!hash_equals($csrf,(string)($_POST['csrf']??''))) {http_response_code(403);exit('Phiên không hợp lệ.');}
-    $action=(string)($_POST['action']??'');
+    $action=(string)($_POST['action']??'');if($session['status']==='open' && in_array($action,['join','next','answer'],true))qp_touch($code);
     if ($action==='leave') {unset($_SESSION['qp_join'][$code]);$studentId='';}
     elseif ($session['status']!=='open' || (qp_session($code)['status']??'closed')!=='open') $error='Lượt chơi đã đóng.';
     elseif ($action==='join') {

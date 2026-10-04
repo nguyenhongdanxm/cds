@@ -44,6 +44,10 @@ function qp_schema(): void {
         answered_at DATETIME NOT NULL,
         PRIMARY KEY(session_code,student_id,question_index)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    if (!in_array('last_activity_at',$columns,true)) {
+        qp_db()->exec("ALTER TABLE cds_quiz_sessions ADD COLUMN last_activity_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, ADD INDEX quiz_idle(status,last_activity_at)");
+    }
+    qp_db()->exec("UPDATE cds_quiz_sessions SET status='closed',phase='finished' WHERE status='open' AND (last_activity_at<DATE_SUB(NOW(),INTERVAL 30 MINUTE) OR expires_at<=NOW())");
     qp_groups_schema();
     $answerColumn = qp_db()->query("SHOW COLUMNS FROM cds_quiz_answers LIKE 'answer'")->fetch(PDO::FETCH_ASSOC);
     if ($answerColumn && preg_match('/^char\(1\)/i',(string)$answerColumn['Type'])) qp_db()->exec("ALTER TABLE cds_quiz_answers MODIFY answer TEXT NOT NULL");
@@ -76,7 +80,12 @@ function qp_set(string $id, bool $editable = false): ?array {
     $set['questions'] = json_decode((string)$set['questions_json'], true) ?: [];
     return $set;
 }
+function qp_touch(string $code): void {
+    qp_db()->prepare("UPDATE cds_quiz_sessions SET last_activity_at=NOW() WHERE code=? AND status='open'")->execute([$code]);
+}
 function qp_session(string $code): ?array {
+    qp_schema();
+    qp_db()->prepare("UPDATE cds_quiz_sessions SET status='closed',phase='finished' WHERE code=? AND status='open' AND last_activity_at<DATE_SUB(NOW(),INTERVAL 30 MINUTE)")->execute([$code]);
     $st = qp_db()->prepare('SELECT * FROM cds_quiz_sessions WHERE code=? AND expires_at>NOW()');
     $st->execute([$code]); return $st->fetch() ?: null;
 }

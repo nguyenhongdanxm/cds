@@ -52,6 +52,7 @@ if (empty($_SESSION['qp_paper_csrf'])) $_SESSION['qp_paper_csrf']=bin2hex(random
 $paperCsrf=(string)$_SESSION['qp_paper_csrf'];
 if (empty($_SESSION['qp_screen_csrf'])) $_SESSION['qp_screen_csrf']=bin2hex(random_bytes(24));
 $controlCsrf=(string)$_SESSION['qp_screen_csrf'];
+if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
 if ($_SERVER['REQUEST_METHOD']==='POST' && $paperSession) {
     header('Content-Type: application/json; charset=utf-8');
     try {
@@ -72,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && $paperSession) {
             $st=qp_db()->prepare('INSERT INTO cds_quiz_answers(session_code,student_id,question_index,answer,answered_at) VALUES(?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE answer=VALUES(answer),answered_at=NOW()');
             $st->execute([$code,$id,$index,$answer]);
         }
-        echo json_encode(['ok'=>true]);exit;
+        qp_touch($code);echo json_encode(['ok'=>true]);exit;
     } catch (Throwable $e) { http_response_code(400);echo json_encode(['ok'=>false,'message'=>$e->getMessage()],JSON_UNESCAPED_UNICODE);exit; }
 }
 $savedAnswers=[];
@@ -298,14 +299,15 @@ async function startCamera(targetIndex=null){
  if(!navigator.mediaDevices?.getUserMedia){cameraStarting=false;mobileStatus('Camera cần HTTPS. Hãy mở trang bằng Safari hoặc Chrome và cho phép camera.');return}
  try{
   mobileStatus('Đang mở camera · hãy cho phép sử dụng camera khi trình duyệt hỏi.');
+  const openingControl=(async()=>{if(paperCode){if(targetIndex!==null){await control('move',{index:String(targetIndex)});state.index=targetIndex;showCorrect=false;showGraph=false;$('answerPreview').classList.add('hidden');render();phase='question';}if(phase==='welcome')await control('start');else if(phase!=='scanning')await control('phase',{phase:'scanning'});phase='scanning';}})();openingControl.catch(()=>{});
   try{cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false})}catch(error){if(!['OverconstrainedError','NotFoundError'].includes(error.name))throw error;cameraStream=await navigator.mediaDevices.getUserMedia({video:true,audio:false})}
-  if(paperCode){if(targetIndex!==null){await control('move',{index:String(targetIndex)});state.index=targetIndex;showCorrect=false;showGraph=false;$('answerPreview').classList.add('hidden');render();phase='question';}if(phase==='welcome')await control('start');else if(phase!=='scanning')await control('phase',{phase:'scanning'});phase='scanning';}
+  await openingControl;
 
   let track=cameraStream.getVideoTracks()[0],caps=track.getCapabilities?.(),zoom=caps?.zoom;if(caps?.focusMode?.includes('continuous')){try{await track.applyConstraints({advanced:[{focusMode:'continuous'}]})}catch(e){}}hardwareZoom=!!zoom;digitalZoom=1;$('video').style.transform='';$('cameraZoom').disabled=!zoom;if(zoom){$('cameraZoom').min=String(zoom.min);$('cameraZoom').max=String(zoom.max);$('cameraZoom').step=String(zoom.step||0.1);$('cameraZoom').value=String(track.getSettings?.().zoom||Math.max(zoom.min,Math.min(zoom.max,1)))}else{$('cameraZoom').value='1';$('zoomValue').textContent='Thiết bị chưa hỗ trợ zoom camera';}
 
   $('video').srcObject=cameraStream;await $('video').play();scanning=true;lastSeen.clear();scanGeneration++;scanPending=false;if(hardwareZoom)$('zoomValue').textContent=Number($('cameraZoom').value).toFixed(1)+'×';$('cameraStage').classList.add('scanner-full');$('cameraExpand').textContent='Thu nhỏ';scanHandle=requestAnimationFrame(()=>scanFrame(scanGeneration));
   mobileStatus('Camera đang quét · giữ chữ đáp án ở cạnh trên.');$('mobileStart').textContent='Dừng quét';
- }catch(e){stopCamera();const reason=e.name==='NotAllowedError'?'Chưa được cấp quyền camera. Mở cài đặt quyền của trang và cho phép Camera, rồi bấm Bắt đầu lại.':e.name==='NotReadableError'?'Camera đang được ứng dụng khác sử dụng. Đóng ứng dụng đó rồi thử lại.':e.message;mobileStatus('Không mở được camera: '+reason)}finally{cameraStarting=false}
+ }catch(e){stopCamera();const reason=e.name==='NotAllowedError'?'Chưa được cấp quyền camera. Mở cài đặt quyền của trang và cho phép Camera, rồi bấm Bắt đầu lại.':e.name==='NotReadableError'?'Camera đang được ứng dụng khác sử dụng. Đóng ứng dụng đó rồi thử lại.':e.message;mobileStatus('Camera: '+reason+' · kiểm tra màn chiếu và bấm mở camera lại nếu cần.')}finally{cameraStarting=false}
 }
 function stopCamera(){$('mobileStart').textContent='▶ Bắt đầu · Camera';scanning=false;scanGeneration++;cancelAnimationFrame(scanHandle);scanHandle=0;$('cameraStage').classList.remove('scanner-full');cameraStream?.getTracks().forEach(t=>t.stop());cameraStream=null;$('video').srcObject=null;detector=null}
 $('startScan').onclick=()=>startCamera();
@@ -344,5 +346,7 @@ $('mobilePublish').onclick=async()=>{
  }catch(e){mobileStatus('Chưa công bố được: '+e.message)}
 };
 $('mobileResultsClose').onclick=()=>{$('mobileResults').classList.remove('open');mobileStatus('Kết quả đã công bố · có thể chuyển câu tiếp theo.')};
+let lastInteraction=0;
+document.addEventListener('pointerdown',()=>{if(!paperCode||!paperOpen||phase==='finished'||Date.now()-lastInteraction<60000)return;lastInteraction=Date.now();control('activity').catch(error=>mobileStatus(error.message));});
 window.addEventListener('pagehide',stopCamera);render();
 </script><?php endif; ?></main><?php require __DIR__ . '/includes/game_credit.php'; ?></body></html>
