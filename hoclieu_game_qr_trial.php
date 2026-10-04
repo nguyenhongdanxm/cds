@@ -2,7 +2,7 @@
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_store.php';
 require_once __DIR__ . '/includes/quiz_paper_store.php';
-require_login();
+require_login();qp_schema();
 if (!can_perm_level('hl.xem', 'view') && (current_user()['role'] ?? '') !== 'admin') {
     http_response_code(403);
     exit('Bạn không có quyền xem trò chơi.');
@@ -126,7 +126,7 @@ $savedJson=json_encode($savedAnswers,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSO
 <?php if ($chosen): ?>
 <p class="notice no-print"><?=$paperSession?'Đáp án quét được lưu vào báo cáo của lượt chơi này.':'Chế độ thử độc lập lưu kết quả trong trình duyệt.'?> Mỗi em xoay thẻ sao cho đáp án A, B, C hoặc D nằm trên cùng. Máy quét xác định hướng bằng ba ô vuông ở góc mã QR; thẻ đã in trước đây vẫn dùng được. Không ghi điểm Olympia.</p>
 <div class="grid no-print"><section class="panel"><h2>1. Câu hỏi<?php if ($quizSet): ?> · <?=e((string)$quizSet['title'])?><?php endif; ?></h2><label for="question">Nội dung</label><textarea id="question" placeholder="Nhập câu hỏi để hiển thị khi chơi" <?=$quizSet?'readonly':''?>></textarea><img id="questionImage" class="hidden" alt="Hình minh họa câu hỏi" style="max-width:100%;max-height:220px"><div id="choices"></div><label>Đáp án đúng</label><div class="answer-buttons" id="keys"></div><button id="newQuestion" <?=$quizSet?'class="hidden"':''?>>Mở câu hỏi mới</button><?php if ($quizSet && !$paperSession): ?><button id="nextQuestion">Câu tiếp theo</button><?php endif; ?><button id="clearQuestion" class="secondary">Xóa lượt quét của câu này</button><p id="current" class="status"></p></section>
-<section class="panel"><h2>2. Điều khiển và quét bằng điện thoại</h2><div class="camera-stage" id="cameraStage"><video class="camera" id="video" playsinline muted autoplay></video><div class="camera-tools"><strong id="cameraCount">0 đã quét</strong><label>Zoom <input id="cameraZoom" type="range" min="1" max="4" step="0.1" value="1"> <span id="zoomValue">1×</span></label><button type="button" id="cameraExpand" class="secondary">⛶ Toàn màn hình</button></div><button type="button" class="mobile-missing-toggle" id="mobileMissingToggle" aria-expanded="false" aria-controls="mobileMissing">👥 Xem học sinh chưa quét · 0</button><div class="mobile-missing" id="mobileMissing"><h3>Học sinh chưa quét</h3><p>Danh sách của câu hiện tại · camera vẫn tiếp tục quét.</p><div class="missing-names" id="mobileMissingNames"></div></div><div class="detected-layer" id="detectedLayer"></div><div class="camera-feed" id="cameraFeed"></div><div class="camera-bottom"><button type="button" id="cameraFinish" class="secondary">Dừng & xem kết quả</button><button type="button" id="cameraClose" class="secondary">Thu nhỏ</button></div><div class="mobile-dock"><p class="mobile-question" id="mobileQuestion">Sẵn sàng quét thẻ</p><p class="mobile-status" id="mobileStatus">Chạm Bật quét để mở camera.</p><div class="mobile-actions"><button type="button" id="mobilePrev">← Trước</button><button type="button" id="mobileStart">Bật quét</button><button type="button" id="mobileNext">Tiếp →</button><button type="button" id="mobilePublish">Công bố</button><button type="button" id="mobileFinish" hidden>🏆 Kết thúc & xếp hạng</button></div></div></div><canvas id="frame" class="hidden"></canvas><p id="scanStatus" class="status">Chọn lớp và mở câu hỏi để bắt đầu.</p><div class="phone-controls"><button id="startScan">Bật camera · Quét</button><button id="stopScan" class="secondary">Dừng quét</button><?php if ($paperSession): ?><button id="prevRemote" class="secondary">← Câu trước</button><button id="nextRemote">Câu tiếp →</button><button id="revealRemote" class="secondary">Hiện đáp án</button><button id="graphRemote" class="secondary">Hiện biểu đồ</button><?php endif; ?></div><div id="scanGraph" class="scan-graph"></div><div id="scanRoster" class="scan-roster"></div><p class="muted">Giữ mã hướng về camera, đủ sáng và lia máy qua các nhóm học sinh. Tên đổi màu khi đã quét. Có thể sửa thủ công ở bảng dưới.</p></section></div>
+<section class="panel"><h2>2. Điều khiển và quét bằng điện thoại</h2><div class="camera-stage" id="cameraStage"><video class="camera" id="video" playsinline muted autoplay></video><div class="camera-tools"><strong id="cameraCount">0 đã quét</strong><label>Zoom <input id="cameraZoom" type="range" min="1" max="4" step="0.1" value="1"> <span id="zoomValue">1×</span></label><button type="button" id="cameraExpand" class="secondary">⛶ Toàn màn hình</button></div><button type="button" class="mobile-missing-toggle" id="mobileMissingToggle" aria-expanded="false" aria-controls="mobileMissing">👥 Xem học sinh chưa quét · 0</button><div class="mobile-missing" id="mobileMissing"><h3>Học sinh chưa quét</h3><p>Danh sách của câu hiện tại · camera vẫn tiếp tục quét.</p><div class="missing-names" id="mobileMissingNames"></div></div><div class="detected-layer" id="detectedLayer"></div><div class="camera-feed" id="cameraFeed"></div><div class="camera-bottom"><button type="button" id="cameraFinish" class="secondary">Dừng & xem kết quả</button><button type="button" id="cameraClose" class="secondary">Thu nhỏ</button></div><div class="mobile-dock"><p class="mobile-question" id="mobileQuestion">Sẵn sàng quét thẻ</p><p class="mobile-status" id="mobileStatus">Chạm Bật quét để mở camera.</p><div class="mobile-actions"><button type="button" id="mobilePrev">← Trước</button><button type="button" id="mobileStart">▶ Bắt đầu · Camera</button><button type="button" id="mobileNext">Tiếp →</button><button type="button" id="mobilePublish">Công bố</button><button type="button" id="mobileFinish" hidden>🏆 Kết thúc & xếp hạng</button></div></div></div><canvas id="frame" class="hidden"></canvas><p id="scanStatus" class="status">Chọn lớp và mở câu hỏi để bắt đầu.</p><div class="phone-controls"><button id="startScan">Bật camera · Quét</button><button id="stopScan" class="secondary">Dừng quét</button><?php if ($paperSession): ?><button id="prevRemote" class="secondary">← Câu trước</button><button id="nextRemote">Câu tiếp →</button><button id="revealRemote" class="secondary">Hiện đáp án</button><button id="graphRemote" class="secondary">Hiện biểu đồ</button><?php endif; ?></div><div id="scanGraph" class="scan-graph"></div><div id="scanRoster" class="scan-roster"></div><p class="muted">Giữ mã hướng về camera, đủ sáng và lia máy qua các nhóm học sinh. Tên đổi màu khi đã quét. Có thể sửa thủ công ở bảng dưới.</p></section></div>
 <section class="panel no-print"><h2>3. Kết quả câu hiện tại · <span id="count">0</span>/<?=count($students)?></h2><button id="exportCsv" class="secondary">Xuất CSV kết quả</button><table class="results"><thead><tr><th>Học sinh</th><th>Đáp án</th><th>Đúng/sai</th><th>Sửa thủ công</th></tr></thead><tbody id="resultRows"></tbody></table></section>
 <div class="mobile-results" id="mobileResults" role="dialog" aria-modal="true" aria-label="Kết quả câu hỏi"><h2>✨ Kết quả câu hỏi</h2><p id="mobileScoreSummary" class="score-summary"></p><div id="mobileScoreColumns" class="score-columns"></div><button type="button" id="mobileResultsClose">← Quay lại máy quét</button></div>
 <section class="panel print-panel"><div class="no-print"><h2>Thẻ trả lời lớp <?=e($sessionClassLabel)?></h2><p>Mã này chỉ chứa ID nội bộ; không chứa CCCD, số điện thoại hay thông tin phụ huynh. Dùng thẻ riêng cho trò chơi, không thay QR xác minh thẻ học sinh.</p><button id="printCards" disabled>In thẻ A–D</button><p id="printStatus" class="status"></p></div><div id="cards" class="cards"></div></section>
@@ -142,7 +142,7 @@ state.questions=Array.isArray(state.questions)?state.questions:[];
 state.index=Number.isInteger(state.index)?state.index:-1;
 if(setId){state.questions=bank.map((q,i)=>({...q,answers:paperCode?(savedAnswers[i]||{}):(state.questions[i]?.answers||{})}));if(state.index<0&&bank.length)state.index=0}
 if(paperCode)state.index=<?=($paperSession?(int)$paperSession['current_index']:0)?>;
-let cameraStream=null,scanning=false,busy=false,lastSeen=new Map(),paperOpen=true,phase='question',showCorrect=false,showGraph=false,pending=new Set(),digitalZoom=1,hardwareZoom=false,feedTimer=null;
+let cameraStarting=false,cameraStream=null,scanning=false,busy=false,lastSeen=new Map(),paperOpen=true,phase=<?=json_encode((string)($paperSession['phase']??'question'))?>,showCorrect=false,showGraph=false,pending=new Set(),digitalZoom=1,hardwareZoom=false,feedTimer=null;
 const current=()=>state.questions[state.index]||null;
 function save(){sessionStorage.setItem(storageKey,JSON.stringify(state))}
 function mobileStatus(message){$('scanStatus').textContent=message;$('mobileStatus').textContent=message}
@@ -158,7 +158,7 @@ function renderMobileResults(){
  const q=current(),groups={correct:[],incorrect:[],missing:[]};
  for(const student of students){const answer=q?.answers?.[student.id]||'';groups[!answer?'missing':answer===q.key?'correct':'incorrect'].push({name:student.name,answer})}
  $('mobileQuestion').textContent=q?'Câu '+(state.index+1)+' / '+state.questions.length+' · '+(q.text||'Chưa có nội dung'):'Chưa mở câu hỏi';
- $('mobilePrev').disabled=!paperCode||state.index<=0;$('mobileNext').disabled=!paperCode||state.index>=state.questions.length-1;$('mobileFinish').hidden=!paperCode||state.index!==state.questions.length-1||phase==='finished';$('mobileFinish').disabled=phase!=='results'||!showCorrect;
+ $('mobilePrev').disabled=!paperCode||phase==='welcome'||state.index<=0;$('mobileNext').disabled=!paperCode||phase==='welcome'||state.index>=state.questions.length-1;$('mobileFinish').hidden=!paperCode||state.index!==state.questions.length-1||phase==='finished';$('mobileFinish').disabled=phase!=='results'||!showCorrect;
  $('mobileScoreSummary').textContent=groups.correct.length+' đúng · '+groups.incorrect.length+' sai · '+groups.missing.length+' chưa trả lời';
  const columns=$('mobileScoreColumns');columns.replaceChildren();
  for(const [kind,title] of [['correct','✓ Đúng'],['incorrect','✕ Sai'],['missing','— Chưa trả lời']]){
@@ -179,20 +179,21 @@ async function syncQuestion(){
  try{
   let response=await fetch(screenApi+'?code='+encodeURIComponent(paperCode)+'&api=state',{cache:'no-store'}),data=await response.json();
   if(!data.ok)throw Error('Không đọc được lượt chơi');
-  paperOpen=data.status==='open';phase=data.phase;showCorrect=data.show_correct;showGraph=data.show_graph;
+  paperOpen=data.status==='open';phase=data.phase;showCorrect=data.show_correct;showGraph=data.show_graph;if(phase==='welcome'){$('mobileQuestion').textContent='🎯 Sẵn sàng · bấm Bắt đầu để mở câu hỏi và camera';$('mobileStart').textContent='▶ Bắt đầu · Camera';}
   if(!paperOpen){stopCamera();$('scanStatus').textContent='Lượt chơi đã đóng.';return}
-  if(phase!=='scanning'&&scanning)stopCamera();
+  if(phase!=='scanning'&&scanning&&!cameraStarting)stopCamera();
   let changed=state.index!==data.index;state.index=data.index;
   let q=current(),answers=data.responses||{};
   if(q&&JSON.stringify(q.answers)!==JSON.stringify(answers)){q.answers=answers;changed=true}
   if(changed){lastSeen.clear();save();render()}else renderMobileResults()
-  $('startScan').textContent=phase==='scanning'?'Bật camera · Quét':'Mở lượt quét · Bật camera';
+  $('startScan').textContent=phase==='welcome'?'▶ Bắt đầu · Mở camera':phase==='scanning'?'Bật camera · Quét':'Mở lượt quét · Bật camera';
   $('revealRemote').textContent=showCorrect?'Ẩn đáp án':'Hiện đáp án';
   $('graphRemote').textContent=showGraph?'Ẩn biểu đồ':'Hiện biểu đồ';
   $('stopScan').disabled=phase!=='scanning';
   $('scanRoster').replaceChildren(...(data.roster||[]).map(student=>{let badge=document.createElement('span');badge.textContent=student.name+(student.answered?' ✓':'');badge.className=student.answered?'done':'';return badge}));
   $('cameraCount').textContent=data.answered+' / '+data.students+' đã quét';
   $('scanGraph').replaceChildren(...['A','B','C','D'].map(letter=>{let badge=document.createElement('span');badge.textContent=letter+': '+(data.graph?.[letter]||0);return badge}));
+  if(phase==='welcome'){$('mobileQuestion').textContent='🎯 Sẵn sàng · bấm Bắt đầu để mở câu hỏi và camera';$('mobileStart').textContent='▶ Bắt đầu · Camera';}
   if(!scanning)$('scanStatus').textContent=phase==='finished'?'Đã kết thúc · xem bảng xếp hạng trên màn chiếu.':phase==='scanning'?'Đang mở lượt quét · chạm Bật camera để nhận thẻ.':phase==='results'?'Đã dừng quét · '+data.answered+'/'+data.students+' học sinh đã trả lời.':'Câu '+(data.index+1)+' sẵn sàng.';
  }catch(e){$('scanStatus').textContent='Mất kết nối màn hình chiếu: '+e.message}
 }
@@ -289,21 +290,23 @@ async function scanFrame(generation){
  finally{scanPending=false;if(scanning&&generation===scanGeneration)scanHandle=requestAnimationFrame(()=>scanFrame(generation))}
 }
 async function startCamera(){
- if(!paperOpen||phase==='finished'){$('scanStatus').textContent='Lượt chơi đã kết thúc hoặc đã đóng.';return}
- if(!current()){$('scanStatus').textContent='Hãy mở câu hỏi mới trước.';return}
+ if(cameraStarting||scanning)return;cameraStarting=true;
+ if(!paperOpen||phase==='finished'){cameraStarting=false;mobileStatus('Lượt chơi đã kết thúc hoặc đã đóng.');return}
+ if(!current()){cameraStarting=false;mobileStatus('Hãy mở câu hỏi mới trước.');return}
  if('BarcodeDetector' in window){try{detector=new BarcodeDetector({formats:['qr_code']})}catch(e){detector=null}}
- if(!window.jsQR){mobileStatus('Không tải được thư viện quét mã. Kiểm tra kết nối mạng.');return}
- if(!navigator.mediaDevices?.getUserMedia){$('scanStatus').textContent='Trình duyệt cần HTTPS và quyền camera.';return}
+ if(!window.jsQR){cameraStarting=false;mobileStatus('Không tải được thư viện quét mã. Kiểm tra kết nối mạng.');return}
+ if(!navigator.mediaDevices?.getUserMedia){cameraStarting=false;mobileStatus('Camera cần HTTPS. Hãy mở trang bằng Safari hoặc Chrome và cho phép camera.');return}
  try{
-  if(paperCode&&phase!=='scanning'){await control('phase',{phase:'scanning'});phase='scanning'}
-  if(scanning)return;
-  cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false});
+  mobileStatus('Đang mở camera · hãy cho phép sử dụng camera khi trình duyệt hỏi.');
+  try{cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false})}catch(error){if(!['OverconstrainedError','NotFoundError'].includes(error.name))throw error;cameraStream=await navigator.mediaDevices.getUserMedia({video:true,audio:false})}
+  if(paperCode){if(phase==='welcome')await control('start');else if(phase!=='scanning')await control('phase',{phase:'scanning'});phase='scanning';}
+
   let track=cameraStream.getVideoTracks()[0],caps=track.getCapabilities?.(),zoom=caps?.zoom;if(caps?.focusMode?.includes('continuous')){try{await track.applyConstraints({advanced:[{focusMode:'continuous'}]})}catch(e){}}hardwareZoom=!!zoom;$('video').style.transform='';if(zoom){$('cameraZoom').min=String(zoom.min);$('cameraZoom').max=String(zoom.max);$('cameraZoom').step=String(zoom.step||0.1);$('cameraZoom').value=String(Math.max(zoom.min,Math.min(zoom.max,1)))}else{$('cameraZoom').min='1';$('cameraZoom').max='4';$('cameraZoom').value='1';digitalZoom=1}
   $('video').srcObject=cameraStream;await $('video').play();scanning=true;lastSeen.clear();scanGeneration++;scanPending=false;$('zoomValue').textContent=Number($('cameraZoom').value).toFixed(1)+'×';$('cameraStage').classList.add('scanner-full');$('cameraExpand').textContent='Thu nhỏ';scanHandle=requestAnimationFrame(()=>scanFrame(scanGeneration));
   mobileStatus('Camera đang quét · giữ chữ đáp án ở cạnh trên.');$('mobileStart').textContent='Dừng quét';
- }catch(e){stopCamera();$('scanStatus').textContent='Không mở được camera: '+e.message}
+ }catch(e){stopCamera();const reason=e.name==='NotAllowedError'?'Chưa được cấp quyền camera. Mở cài đặt quyền của trang và cho phép Camera, rồi bấm Bắt đầu lại.':e.name==='NotReadableError'?'Camera đang được ứng dụng khác sử dụng. Đóng ứng dụng đó rồi thử lại.':e.message;mobileStatus('Không mở được camera: '+reason)}finally{cameraStarting=false}
 }
-function stopCamera(){$('mobileStart').textContent='Bật quét';scanning=false;scanGeneration++;cancelAnimationFrame(scanHandle);scanHandle=0;$('cameraStage').classList.remove('scanner-full');cameraStream?.getTracks().forEach(t=>t.stop());cameraStream=null;$('video').srcObject=null;detector=null}
+function stopCamera(){$('mobileStart').textContent='▶ Bắt đầu · Camera';scanning=false;scanGeneration++;cancelAnimationFrame(scanHandle);scanHandle=0;$('cameraStage').classList.remove('scanner-full');cameraStream?.getTracks().forEach(t=>t.stop());cameraStream=null;$('video').srcObject=null;detector=null}
 $('startScan').onclick=startCamera;
 $('cameraExpand').onclick=()=>{$('cameraStage').classList.toggle('scanner-full');$('cameraExpand').textContent=$('cameraStage').classList.contains('scanner-full')?'Thu nhỏ':'⛶ Toàn màn hình'};
 $('cameraClose').onclick=()=>{$('cameraStage').classList.remove('scanner-full');$('cameraExpand').textContent='⛶ Toàn màn hình'};

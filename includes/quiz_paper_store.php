@@ -55,6 +55,7 @@ function qp_schema(): void {
         question_index INT NOT NULL DEFAULT 0, started_at DATETIME NOT NULL,
         PRIMARY KEY(session_code,student_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    qp_db()->exec("CREATE TABLE IF NOT EXISTS cds_quiz_audio_settings (id TINYINT UNSIGNED PRIMARY KEY,settings_json TEXT NOT NULL,updated_at DATETIME NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $ready = true;
 }
 function qp_owner(): string {
@@ -149,4 +150,10 @@ function qp_student_progress(string $code,string $studentId): array {
     $db=qp_db();$st=$db->prepare('INSERT IGNORE INTO cds_quiz_progress(session_code,student_id,question_index,started_at) VALUES(?,?,0,NOW())');
     $st->execute([$code,$studentId]);$st=$db->prepare('SELECT question_index,UNIX_TIMESTAMP(started_at) AS started_epoch,UNIX_TIMESTAMP(NOW()) AS server_epoch FROM cds_quiz_progress WHERE session_code=? AND student_id=?');
     $st->execute([$code,$studentId]);return $st->fetch(PDO::FETCH_ASSOC) ?: [];
+}
+
+function qp_question_seconds(array $question,int $fallback=20):int {return max(10,min(300,(int)($question['seconds']??$fallback)));}
+function qp_audio_settings():array {
+ $raw=qp_db()->query('SELECT settings_json FROM cds_quiz_audio_settings WHERE id=1')->fetchColumn();
+ return is_string($raw)?(json_decode($raw,true)?:[]):[];
 }
