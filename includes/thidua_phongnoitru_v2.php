@@ -39,7 +39,7 @@ function tdr_dates(string $from,string $to):array{$out=[];$t=strtotime($from);$e
 function tdr_entry_key(array $e):string{return(string)($e['week_start']??'').'|'.(string)($e['room']??'');}
 function tdr_find_entry(array $entries,string $weekStart,string $room):?int{foreach($entries as $i=>$e)if(tdr_entry_key($e)===$weekStart.'|'.$room)return$i;return null;}
 function tdr_day_deduction(array $entry,string $date):float{$n=0;foreach((array)($entry['items']??[]) as $it)if((string)($it['date']??'')===$date)$n+=(float)($it['points']??0)*max(1,(int)($it['quantity']??1));return round($n,2);}
-function tdr_day_score(?array $entry,string $date,array $settings):float{$max=(float)($settings['daily_max']??100);return max(0,round($max-($entry?tdr_day_deduction($entry,$date):0),2));}
+function tdr_day_score(?array $entry,string $date,array $settings):float{$max=(float)($settings['daily_max']??100);return round($max-($entry?tdr_day_deduction($entry,$date):0),2);}
 function tdr_effective_dates(string $from,string $to,array $skip):array{$today=date('Y-m-d');$toEff=$to>$today?$today:$to;if($toEff<$from)return[];return array_values(array_filter(tdr_dates($from,$toEff),fn($d)=>!in_array($d,$skip,true)));}
 function tdr_shift_label(string $s):string{return$s==='chieu'?'Chiều':'Sáng';}
 function tdr_fmt(float $n,int $dec=1):string{return number_format($n,$dec,',','.');}
