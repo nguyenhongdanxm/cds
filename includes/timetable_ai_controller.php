@@ -1,9 +1,21 @@
 <?php
 require_once __DIR__.'/timetable_ai.php';
-if($_SERVER['REQUEST_METHOD']==='POST'&&in_array($_POST['action']??'', ['ttb_ai_analyze','ttb_ai_apply'],true)){
+if($_SERVER['REQUEST_METHOD']==='POST'&&in_array($_POST['action']??'', ['ttb_ai_analyze','ttb_ai_apply','ttb_ai_command'],true)){
     try{
         if(!hash_equals($csrf,(string)($_POST['csrf']??'')))throw new RuntimeException('Phiên làm việc không hợp lệ.');
         $plan=ttb_plan($data,(string)$data['active_plan']);if(!$plan)throw new RuntimeException('Hãy tạo hoặc chọn phương án TKB trước.');
+        if($_POST['action']==='ttb_ai_command'){
+            if(!hash_equals(ttb_ai_fingerprint($data,$assignments,$plan),(string)($_POST['command_fingerprint']??'')))throw new RuntimeException('TKB hoặc ràng buộc đã thay đổi. Tải lại trang rồi thực hiện lệnh trên bản hiện tại.');
+            require_once __DIR__.'/timetable_ai_command.php';
+            $text=trim((string)($_POST['ai_command']??''));
+            if(mb_strlen($text,'UTF-8')>500)throw new RuntimeException('Lệnh quá dài; hãy nhập một yêu cầu chuyển buổi.');
+            $result=ttb_ai_transfer_command($data,$assignments,$plan,ttb_ai_parse_transfer($text));
+            ttb_replace_plan($data,$result['plan']);if(!ttb_save($data))throw new RuntimeException('Không lưu được lịch; chưa xác nhận chuyển thành công.');
+            $_SESSION['ttb_ai_command_result']=['text'=>$text,'changes'=>$result['changes'],'count'=>$result['count'],'scope'=>$result['scope'],'workspace'=>ttb_workspace_id()];
+            unset($_SESSION['ttb_ai_preview']);
+            flash('Đã chuyển '.$result['count'].' tiết của '.$result['scope'].'. Xem kết quả bên dưới; có thể hoàn tác ở Xem & chỉnh.','success');
+            ttb_go('ai');
+        }
         $fingerprint=ttb_ai_fingerprint($data,$assignments,$plan);
         if($_POST['action']==='ttb_ai_apply'){
             $preview=$_SESSION['ttb_ai_preview']??[];

@@ -3,6 +3,22 @@ $preview=$_SESSION['ttb_ai_preview']??null;
 $currentFingerprint=$activePlan?ttb_ai_fingerprint($data,$assignments,$activePlan):'';
 $stale=$preview&&($preview['fingerprint']??'')!==$currentFingerprint;
 ?>
+<section class="card p-3 mb-3" style="border-top:4px solid #059669">
+  <h4><i class="bi bi-lightning-charge text-success"></i> Gõ lệnh để chuyển lịch</h4>
+  <p class="small text-muted">Nhập một yêu cầu rõ buổi nguồn, buổi đích và phạm vi. Hệ thống kiểm tra và chuyển toàn bộ trên bản nháp nếu hợp lệ; giữ nguyên số tiết. Có thể hoàn tác tại Xem &amp; chỉnh.</p>
+  <?php if($activePlan): ?><form method="post">
+    <input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="ttb_ai_command"><input type="hidden" name="command_fingerprint" value="<?=e($currentFingerprint)?>">
+    <label class="form-label fw-bold" for="ttbAiCommand">Lệnh chuyển buổi học</label>
+    <textarea id="ttbAiCommand" name="ai_command" class="form-control mb-2" rows="2" maxlength="500" required placeholder="Chuyển toàn bộ buổi chiều thứ 4 sang chiều thứ 5 của toàn trường"></textarea>
+    <div class="form-text mb-3">Hỗ trợ chuyển buổi của toàn trường, một khối hoặc một lớp. Ví dụ: Chuyển buổi sáng thứ 3 sang chiều thứ 6 của lớp 12A.</div>
+    <button class="btn btn-success"><i class="bi bi-lightning-charge"></i> Thực hiện lệnh</button>
+  </form><?php else: ?><div class="alert alert-warning mb-0">Hãy tạo hoặc chọn phương án TKB trước.</div><?php endif; ?>
+  <?php $commandResult=$_SESSION['ttb_ai_command_result']??null; if($commandResult&&($commandResult['workspace']??'')===ttb_workspace_id()): ?>
+  <div class="mt-3 border-top pt-3"><h5>Kết quả lệnh gần nhất: đã chuyển <?=(int)$commandResult['count']?> tiết · <?=e($commandResult['scope'])?></h5><p class="small"><?=e($commandResult['text'])?></p>
+  <div class="table-responsive" style="max-height:360px"><table class="table table-sm table-striped"><thead><tr><th>Môn · Lớp · Giáo viên</th><th>Trước</th><th>Sau</th></tr></thead><tbody><?php foreach($commandResult['changes']as $change): ?><tr><td><?=e($change['lesson'])?></td><td><?=e($change['from'])?></td><td class="text-success"><?=e($change['to'])?></td></tr><?php endforeach; ?></tbody></table></div>
+  <a class="btn btn-outline-primary btn-sm" href="/tkb_editor.php">Xem lịch / Hoàn tác</a></div>
+  <?php endif; ?>
+</section>
 <section class="card p-3 p-md-4 mb-3" style="border-top:4px solid #7c3aed">
   <h4><i class="bi bi-stars text-primary"></i> Trợ lý AI xếp TKB</h4>
   <p class="text-muted">Kiểm tra lỗi, đề xuất đổi tiết và hỗ trợ sắp xếp. Xem trước từng thay đổi rồi áp dụng vào bản nháp.</p>
