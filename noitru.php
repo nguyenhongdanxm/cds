@@ -882,54 +882,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    /* Health */
-    if ($action === 'health_save') {
-        $sid = trim($_POST['student_id'] ?? '');
-        noitru_require_student_scope($sid);
-        $student = null;
-        foreach (noitru_boarders_live() as $s) if (($s['id'] ?? '') === $sid) { $student = $s; break; }
-        $diagnosis = trim($_POST['diagnosis'] ?? '');
-        if (!$student || $diagnosis === '') {
-            flash('Vui lòng chọn học sinh và nhập chẩn đoán / triệu chứng.', 'danger');
-            header('Location: ' . BASE_URL . 'noitru.php?tab=health&health_view=record'); exit;
+    /* Cùng khóa với lưu/sửa hồ sơ để không ghi đè giao dịch kho đồng thời. */
+    if (in_array($action, ['medicine_save','medicine_restock','medicine_delete','health_delete'], true)) {
+        $medicineActionLock=fopen(NOITRU_MEDICINES.'.health.lock','c');
+        if (!$medicineActionLock || !flock($medicineActionLock,LOCK_EX)) {
+            flash('Không khóa được dữ liệu y tế.','danger');
+            header('Location: '.BASE_URL.'noitru.php?tab=health&health_view=inventory'); exit;
         }
-        $type = trim($_POST['type'] ?? 'medicine');
-        if (!in_array($type, ['medicine','first_aid','hospital','family_pickup'], true)) $type = 'medicine';
-        $medicineItems = [];
-        if ($type === 'medicine') {
-            $medicineIds = (array)($_POST['medicine_id'] ?? []);
-            $medicineQtys = (array)($_POST['medicine_qty'] ?? []);
-            foreach ($medicineIds as $index=>$medicineId) {
-                $medicineId = trim((string)$medicineId);
-                $quantity = max(0, (int)($medicineQtys[$index] ?? 0));
-                if ($medicineId === '' || $quantity < 1) continue;
-                $medicine = noitru_medicine_find($medicineId);
-                if (!$medicine || (int)($medicine['quantity'] ?? 0) < $quantity) {
-                    flash('Thuốc được chọn không tồn tại hoặc không đủ số lượng.', 'danger');
-                    header('Location: ' . BASE_URL . 'noitru.php?tab=health&health_view=record'); exit;
-                }
-                $medicineItems[] = ['id'=>$medicineId,'name'=>$medicine['name'] ?? '','unit'=>$medicine['unit'] ?? '','quantity'=>$quantity];
-            }
-        }
-        $recordId = noitru_health_save([
-            'id' => trim($_POST['id'] ?? ''),
-            'student_id' => $sid,
-            'student_name' => $student['name'] ?? '',
-            'class_name' => $student['class_name'] ?? '',
-            'date' => trim($_POST['date'] ?? date('Y-m-d')),
-            'type' => $type,
-            'diagnosis' => $diagnosis,
-            'treatment' => trim($_POST['treatment'] ?? ''),
-            'medicines' => $medicineItems,
-            'parent_contacted' => !empty($_POST['parent_contacted']),
-            'note' => trim($_POST['note'] ?? ''),
-            'by' => $user['name'] ?? '',
-        ]);
-        foreach ($medicineItems as $item) noitru_medicine_adjust($item['id'], -$item['quantity'], 'issue', 'Phát cho ' . ($student['name'] ?? '') . ' · ' . $diagnosis . ' · Hồ sơ ' . $recordId, $user['name'] ?? '');
-        flash('Đã lưu hồ sơ y tế.');
-        header('Location: ' . BASE_URL . 'noitru.php?tab=health&health_view=record');
-        exit;
+        register_shutdown_function(static function() use ($medicineActionLock) { flock($medicineActionLock,LOCK_UN); fclose($medicineActionLock); });
     }
+    /* Health */
+    if ($action === 'health_save') { require __DIR__.'/includes/noitru_health_record_save.php'; }
     if ($action === 'health_delete') {
         noitru_health_delete(trim($_POST['id'] ?? ''));
         flash('Đã xóa hồ sơ.', 'warning');
@@ -2385,3 +2348,4 @@ toggleRicePeriod();
 </script>
 </body>
 </html>
+

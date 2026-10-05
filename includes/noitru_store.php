@@ -1442,7 +1442,7 @@ function noitru_medicines_all() {
 }
 function noitru_medicines_save_all(array $rows) {
     noitru_ensure_dir();
-    save_json(NOITRU_MEDICINES, array_values($rows));
+    if (!save_json(NOITRU_MEDICINES, array_values($rows))) throw new RuntimeException('Không lưu được kho thuốc.');
 }
 function noitru_medicine_find($id) {
     foreach (noitru_medicines_all() as $row) if (($row['id'] ?? '') === $id) return $row;
@@ -1486,7 +1486,7 @@ function noitru_medicine_adjust($id, $delta, $type, $note = '', $by = '') {
     noitru_medicines_save_all($rows);
     $tx = load_json(NOITRU_MEDICINE_TX, []);
     $tx[] = ['id'=>noitru_uid('mtx'),'medicine_id'=>$id,'type'=>$type,'quantity'=>abs((int)$delta),'before'=>$changed['before'],'after'=>$changed['after'],'note'=>$note,'by'=>$by,'created_at'=>noitru_now()];
-    save_json(NOITRU_MEDICINE_TX, $tx);
+    if (!save_json(NOITRU_MEDICINE_TX, $tx)) throw new RuntimeException('Không lưu được giao dịch thuốc.');
     return $changed['medicine'];
 }
 function noitru_medicine_delete($id) {
@@ -1508,8 +1508,10 @@ function noitru_medicine_totals(): array {
     $totals = [];
     foreach (load_json(NOITRU_MEDICINE_TX, []) as $tx) {
         $id = (string)($tx['medicine_id'] ?? '');
-        $key = ($tx['type'] ?? '') === 'issue' ? 'issued' : 'imported';
-        $totals[$id][$key] = ($totals[$id][$key] ?? 0) + (int)($tx['quantity'] ?? 0);
+        $type=(string)($tx['type']??'');
+        if(!in_array($type,['issue','initial','restock','correction_return'],true))continue;
+        $key=in_array($type,['issue','correction_return'],true)?'issued':'imported';
+        $totals[$id][$key]=($totals[$id][$key]??0)+($type==='correction_return'?-1:1)*(int)($tx['quantity']??0);
     }
     return $totals;
 }
@@ -1661,3 +1663,4 @@ function noitru_stats_full($from, $to) {
         'classes'=>$classes,
     ];
 }
+
