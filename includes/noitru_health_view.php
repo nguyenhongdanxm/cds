@@ -162,14 +162,14 @@ function openMedicineRestock(m){document.getElementById('restockMedicineId').val
 <style>
 .health-page .health-export-excel{background:#15803d!important;border:1px solid #15803d!important;color:#fff!important;font-size:14px!important;opacity:1!important;padding:10px 16px!important}
 .health-page .health-export-excel i{color:inherit!important}.health-page .health-export-image{background:#0e7490!important;color:#fff!important;border:1px solid #0e7490!important;padding:10px 16px!important}
-.health-report-preview{margin:20px 0;padding:16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px}.health-report-preview img{display:block;max-width:100%;height:auto;margin:12px 0}.health-report-preview button{margin-right:10px;margin-bottom:16px}.health-report-preview a{display:inline-block;background:#0e7490;color:white;padding:8px 16px;border-radius:6px;margin-bottom:16px}
+.health-report-dialog{width:min(620px,calc(100% - 1.2rem));max-height:90vh;overflow:auto;border:0;border-radius:20px;padding:0;box-shadow:0 25px 70px #0f172a47}.health-report-dialog::backdrop{background:#0f172aae}.health-report-dialog-body{padding:1.35rem}.health-report-dialog-head{display:flex;justify-content:space-between;gap:1rem;align-items:start}.health-report-close{border:0;background:transparent;font-size:1.2rem}.health-report-preview{margin-top:1rem;padding:.6rem;background:#eef3f8;border-radius:14px}.health-report-preview img{border-radius:10px;box-shadow:0 8px 28px #0f172a1f}.health-report-preview .health-report-actions{display:flex;justify-content:flex-end;gap:.7rem;margin-top:1.2rem}.health-report-preview .health-report-actions .btn{margin:0}@media(max-width:767.98px){.health-report-dialog-body{padding:1rem}.health-report-actions .btn{flex:1}}.health-report-preview img{display:block;max-width:100%;height:auto;margin:12px 0}.health-report-preview button{margin-right:10px;margin-bottom:16px}.health-report-preview a{display:inline-block;text-decoration:none}.health-report-actions .btn-info{background:#089dd8!important;color:#fff!important;border-color:#089dd8!important}.health-report-actions .btn-outline-secondary{background:#fff!important;color:#475569!important;border:1px solid #cbd5e1!important}
 </style>
 <?php if($healthView==='history'): ?>
-<div id="healthReportPreview" class="health-report-preview" hidden></div>
+<dialog class="health-report-dialog" id="healthReportDialog" aria-labelledby="healthReportTitle"><div class="health-report-dialog-body"><div class="health-report-dialog-head"><div><h3 class="h5 mb-1" id="healthReportTitle"><i class="bi bi-image"></i> Ảnh báo cáo sức khỏe tuần</h3><p class="text-muted small mb-0">Ảnh được dàn trang tối ưu để lưu và chia sẻ.</p></div><button class="health-report-close" type="button" id="healthReportClose" aria-label="Đóng"><i class="bi bi-x-lg"></i></button></div><div id="healthReportPreview" class="health-report-preview" hidden></div></div></dialog>
 <?php
 $reportFrom=date('Y-m-d',strtotime('monday this week',strtotime($historyDate)));
 $reportTo=date('Y-m-d',strtotime('sunday this week',strtotime($historyDate)));
-$report=['from'=>$reportFrom,'to'=>$reportTo,'total'=>0,'students'=>0,'types'=>['medicine'=>0,'first_aid'=>0,'hospital'=>0,'family_pickup'=>0],'classes'=>[]];
+$report=['school'=>defined('SCHOOL_NAME')?SCHOOL_NAME:'Trường','reporter'=>$user['name']??'','from'=>$reportFrom,'to'=>$reportTo,'total'=>0,'students'=>0,'types'=>['medicine'=>0,'first_aid'=>0,'hospital'=>0,'family_pickup'=>0],'classes'=>[]];
 $reportStudentIds=[];$reportAllowed=[];
 foreach(noitru_boarders_on_date($historyDate) as $student) if(can_class($student['class_name']??'')) $reportAllowed[(string)$student['id']]=true;
 foreach(noitru_health_for_range($reportFrom,$reportTo) as $record) {
@@ -189,6 +189,6 @@ foreach($report['classes'] as &$classSummary)$classSummary['students']=count($cl
 unset($classSummary);$report['classes']=array_values($report['classes']);
 ?>
 <script type="application/json" id="healthReportData"><?= json_encode($report,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE) ?></script>
-<script src="<?= e(BASE_URL.'assets/noitru_health_report.js?v=20261005-summary2') ?>"></script>
+<script src="<?= e(BASE_URL.'assets/noitru_health_report.js?v=20261005-attendance3') ?>"></script>
 <?php endif; ?>
 
