@@ -11,9 +11,8 @@ if (!function_exists('cds_instance_config_path')) {
         $custom = getenv('CDS_INSTANCE_CONFIG');
         if (is_string($custom) && trim($custom) !== '') return trim($custom);
 
-        if (defined('BASE_PATH')) {
-            return dirname(BASE_PATH) . '/cds_private/instance.json';
-        }
+        // BASE_PATH của Chuyên môn trỏ tới /chuyenmon, không phải gốc CDS.
+        // Neo vào vị trí helper dùng chung để mọi module đọc cùng cấu hình.
         return dirname(__DIR__, 2) . '/cds_private/instance.json';
     }
 }
