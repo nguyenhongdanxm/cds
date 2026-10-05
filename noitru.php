@@ -36,6 +36,7 @@ if ($requestedTab === '' && !can_perm($tabPerms[$tab])) {
     }
 }
 require_perm($tabPerms[$tab] ?? 'nt.tongquan');
+if ($tab === 'health' && isset($_GET['health_qr'])) require __DIR__.'/includes/noitru_health_qr.php';
 
 function noitru_attendance_students_all($date = null) {
     $classMap = [];
