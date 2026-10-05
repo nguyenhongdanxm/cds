@@ -10,32 +10,7 @@ if ($healthView === 'record') {
     unset($healthStudents);
 }
 $healthLabels = ['medicine'=>'Phát thuốc','first_aid'=>'Sơ cứu','hospital'=>'Vào viện','family_pickup'=>'Gia đình đón về','thuoc'=>'Phát thuốc','kham'=>'Sơ cứu','theo_doi'=>'Theo dõi'];
-$historyRange = in_array($_GET['range'] ?? 'month', ['day','week','month'], true) ? ($_GET['range'] ?? 'month') : 'month';
-$historyDate = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['date'] ?? '') ? $_GET['date'] : date('Y-m-d');
-$historyTs = strtotime($historyDate);
-if ($historyRange === 'day') { $historyFrom = $historyTo = $historyDate; }
-elseif ($historyRange === 'week') { $historyFrom = date('Y-m-d', strtotime('monday this week', $historyTs)); $historyTo = date('Y-m-d', strtotime('sunday this week', $historyTs)); }
-else { $historyFrom = date('Y-m-01', $historyTs); $historyTo = date('Y-m-t', $historyTs); }
-$historySearch = mb_strtolower(trim($_GET['q'] ?? ''), 'UTF-8');
-$historyType = trim($_GET['type'] ?? 'all');
-$healthAllowedIds = [];
-if ($healthView === 'history') {
-    foreach (noitru_boarders_on_date($historyDate) as $student) {
-        if (can_class($student['class_name'] ?? '')) $healthAllowedIds[(string)($student['id'] ?? '')] = true;
-    }
-}
-$filteredHealth = $healthView === 'history' ? array_values(array_filter(noitru_health_for_range($historyFrom, $historyTo), function($row) use ($historyFrom,$historyTo,$historySearch,$historyType,$healthAllowedIds) {
-    if (!isset($healthAllowedIds[(string)($row['student_id'] ?? '')])) return false;
-    $date = $row['date'] ?? '';
-    if ($date < $historyFrom || $date > $historyTo) return false;
-    if ($historyType !== 'all' && ($row['type'] ?? '') !== $historyType) return false;
-    if ($historySearch !== '') {
-        $haystack = mb_strtolower(($row['student_name'] ?? '') . ' ' . ($row['diagnosis'] ?? '') . ' ' . ($row['class_name'] ?? ''), 'UTF-8');
-        if (mb_strpos($haystack, $historySearch) === false) return false;
-    }
-    return true;
-})) : [];
-if ($filteredHealth) usort($filteredHealth, fn($a,$b) => strcmp(($b['date'] ?? '') . ($b['created_at'] ?? ''), ($a['date'] ?? '') . ($a['created_at'] ?? '')));
+require __DIR__.'/noitru_health_history_filter.php';
 $transactionTotals = $healthView === 'inventory' ? noitru_medicine_totals() : [];
 $historyStats = ['medicine'=>0,'first_aid'=>0,'hospital'=>0];
 foreach ($filteredHealth as $row) if (isset($historyStats[$row['type'] ?? ''])) $historyStats[$row['type']]++;
@@ -51,7 +26,7 @@ foreach ($medicines as $medicine) {
 <div class="health-page">
   <div class="nt-page-head health-heading">
     <div><h4><i class="bi bi-heart text-danger"></i> Quản lý sức khỏe</h4><div class="subtitle">Theo dõi và chăm sóc sức khỏe học sinh</div></div>
-    <button class="btn btn-outline-secondary" type="button" onclick="window.print()"><i class="bi bi-download"></i> Xuất báo cáo</button>
+    <?php if($healthView==='history'): ?><a class="btn btn-success" href="<?=e(BASE_URL.'noitru_health_excel.php?'.http_build_query(['range'=>$historyRange,'date'=>$historyDate,'q'=>(string)($_GET['q']??''),'type'=>$historyType]))?>"><i class="bi bi-file-earmark-excel"></i> Xuất Excel A4 ngang</a><?php else: ?><button class="btn btn-outline-secondary" type="button" onclick="window.print()"><i class="bi bi-download"></i> Xuất báo cáo</button><?php endif; ?>
   </div>
 
   <nav class="health-tabs" aria-label="Chức năng quản lý sức khỏe">
