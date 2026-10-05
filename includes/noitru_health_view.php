@@ -197,11 +197,14 @@ unset($classSummary);$report['classes']=array_values($report['classes']);
 
 <dialog id="healthQrDialog" style="width:min(94vw,520px);border:0;border-radius:16px;padding:20px">
   <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Quét thẻ học sinh</h5><button class="btn-close" id="healthQrClose" type="button" aria-label="Đóng"></button></div>
-  <div id="healthQrReader"></div>
+  <div id="healthQrReader" style="width:100%;overflow:hidden;border-radius:12px"></div>
+  <div id="healthQrCameraArea" hidden class="mt-2"><label class="form-label small" for="healthQrCamera">Chọn camera (ưu tiên camera sau chính)</label><select id="healthQrCamera" class="form-select form-select-sm"></select></div>
+  <div id="healthQrZoomArea" hidden class="mt-2"><label class="form-label small" for="healthQrZoom">Zoom <strong id="healthQrZoomValue">1×</strong></label><input id="healthQrZoom" class="form-range" type="range" min="1" max="6" step="0.1" value="1"></div>
+  <button id="healthQrTorch" hidden type="button" class="btn btn-outline-secondary btn-sm mt-2" aria-pressed="false">Bật đèn</button>
   <p id="healthQrStatus" class="small text-muted mt-2" role="status" aria-live="polite">Đưa mã QR trên thẻ học sinh vào khung camera.</p>
   <button type="button" class="btn btn-outline-primary mb-3" id="healthQrStart">Mở camera / Quét lại</button>
   <label class="form-label small" for="healthQrFile">Hoặc chọn ảnh mã QR</label><input class="form-control mb-3" type="file" id="healthQrFile" accept="image/*">
   <div id="healthQrResult" hidden class="border rounded p-3 bg-light"><strong id="healthQrName"></strong><div id="healthQrClass" class="small text-muted mb-3"></div><div class="d-flex flex-wrap gap-2"><a id="healthQrRecord" class="btn btn-primary">Ghi nhận sức khỏe</a><a id="healthQrHistory" class="btn btn-outline-primary">Lịch sử sức khỏe</a></div></div>
 </dialog>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="<?=e(BASE_URL)?>assets/noitru_health_qr.js" defer></script>
+<script src="<?=e(BASE_URL)?>assets/noitru_health_qr.js?v=20261005-camera2" defer></script>
