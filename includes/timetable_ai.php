@@ -4,6 +4,36 @@ function ttb_ai_fingerprint(array $data, array $assignments, array $plan): strin
     unset($data['plans'], $data['updated_at'], $data['_workspace']);
     return hash('sha256', serialize([$data,$assignments,$plan]));
 }
+function ttb_ai_busy_reason(array $data,array $entry,string $key): string {
+    $teacher=(string)($entry['teacher']??'');
+    if(ttb_blocked($data,$teacher,$key))return 'Ràng buộc giáo viên bận đã lưu: '.$teacher.' tại '.$key;
+    foreach((array)($entry['classes']??[])as $class)if(ttb_class_blocked($data,[$class],$key))return 'Ràng buộc lớp bận đã lưu: '.$class.' tại '.$key;
+    foreach((array)($data['scope_blocks']??[])as $rule){
+        if(($rule['key']??'')!==$key)continue;
+        $scope=(string)($rule['scope']??'school');$value=(string)($rule['value']??'');
+        foreach((array)($entry['classes']??[])as $class)if($scope==='school'||($scope==='class'&&$class===$value)||($scope==='grade'&&ttb_class_grade($class)===(ltrim($value,'0')?:'0')))
+            return 'Ràng buộc không học đã lưu: '.($scope==='school'?'toàn trường':($scope==='grade'?'khối ':'lớp ').$value).' tại '.$key;
+    }
+    return '';
+}
+function ttb_ai_collision_details(array $entries): array {
+    $teachers=[];$classes=[];$errors=[];
+    foreach($entries as $entry){
+        $slot=ttb_slot_key((int)$entry['day'],(string)$entry['session'],(int)$entry['period']);
+        $label=$entry['subject'].' lớp '.implode('+',(array)$entry['classes']);
+        $teacherKey=$entry['teacher'].'|'.$slot;
+        if(isset($teachers[$teacherKey])&&$teachers[$teacherKey]['id']!==$entry['activity_id'])
+            $errors[]='Trùng lịch dạy '.$entry['teacher'].' tại '.ttb_ai_slot_text($entry).': '.$teachers[$teacherKey]['label'].' và '.$label.' (hai tiết cùng giờ, không phải ràng buộc bận).';
+        $teachers[$teacherKey]=['id'=>$entry['activity_id'],'label'=>$label];
+        foreach((array)$entry['classes']as $class){
+            $classKey=$class.'|'.$slot;
+            if(isset($classes[$classKey])&&$classes[$classKey]['id']!==$entry['activity_id'])
+                $errors[]='Trùng lịch lớp '.$class.' tại '.ttb_ai_slot_text($entry).': '.$classes[$classKey]['label'].' và '.$label.'.';
+            $classes[$classKey]=['id'=>$entry['activity_id'],'label'=>$label];
+        }
+    }
+    return array_values(array_unique($errors));
+}
 function ttb_ai_errors(array $data,array $assignments,array $plan): array {
     $activities=ttb_apply_lesson_rules(ttb_activities($assignments,$data['groups']),$data);
     $map=array_column($activities,null,'id');$entries=[];$errors=[];$seen=[];
@@ -18,11 +48,12 @@ function ttb_ai_errors(array $data,array $assignments,array $plan): array {
         $max=$session==='Sáng'?(int)$data['settings']['morning_periods']:($session==='Chiều'?(int)$data['settings']['afternoon_periods']:0);
         if(!in_array($day,$data['settings']['days'],true)||$period<1||$period>$max)$errors[]='Khung giờ không hợp lệ: '.$label;
         $error=ttb_plan_slot_error($plan,$day,$session);if($error!=='')$errors[]=$error.': '.$label;
-        $error=ttb_manual_slot_error($data,$entry,$day,$session,$period);if($error!=='')$errors[]=$error.': '.$label;
+        $busy=ttb_ai_busy_reason($data,$entry,ttb_slot_key($day,$session,$period));
+        $error=ttb_manual_slot_error($data,$entry,$day,$session,$period);if($error!=='')$errors[]=($busy!==''?$busy:$error).': '.$label;
     }
     foreach((array)($plan['unplaced']??[])as $entry){$id=(string)($entry['id']??'');if(isset($seen[$id]))$errors[]='Tiết vừa được xếp vừa nằm trong danh sách chưa xếp: '.$id;$seen[$id]=true;}
     foreach($activities as $a)if(!isset($seen[$a['id']]))$errors[]='Thiếu tiết trong phương án: '.$a['subject'].' · '.implode('+',$a['classes']).' · '.$a['teacher'];
-    return array_values(array_unique(array_merge($errors,ttb_validate_entries($entries,$activities),ttb_subject_constraint_errors($data,$entries),ttb_room_conflicts($entries,$data))));
+    return array_values(array_unique(array_merge($errors,array_values(array_filter(ttb_validate_entries($entries,$activities),fn($message)=>!str_starts_with($message,'Trùng giáo viên ')&&!str_starts_with($message,'Trùng lớp '))),ttb_ai_collision_details($entries),ttb_subject_constraint_errors($data,$entries),ttb_room_conflicts($entries,$data))));
 }
 function ttb_ai_transition_errors(array $before,array $after): array {
     $inventory=static function(array $plan):array{$ids=[];foreach($plan['entries']??[]as $e)$ids[]=(string)($e['activity_id']??'');foreach($plan['unplaced']??[]as $e)$ids[]=(string)($e['id']??'');sort($ids,SORT_STRING);return $ids;};
