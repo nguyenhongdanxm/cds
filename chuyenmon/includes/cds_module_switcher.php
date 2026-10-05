@@ -6,9 +6,7 @@ require_once $cdsSwitcherRoot . '/includes/module_switcher.php';
 $cdsCurrentScript = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $cdsCurrentUser = function_exists('cds_user') ? cds_user() : null;
 $cdsDailyLoadAdmin = is_array($cdsCurrentUser) && (($cdsCurrentUser['role'] ?? '') === 'admin');
-$cdsDailyLoadAllowed = $cdsDailyLoadAdmin
-    || (function_exists('cds_can_feature') && cds_can_feature('cm.pccm', 'edit'))
-    || (function_exists('cds_can_feature') && cds_can_feature('cm.nhaplieu', 'edit'));
+$cdsDailyLoadAllowed = cds_can_daily_teacher_load();
 if ($cdsCurrentScript === 'thoikhoabieu.php' && $cdsDailyLoadAllowed) {
     $dailyLoadUrl = (defined('BASE_URL') ? BASE_URL : '/') . 'tkb_taigiang.php';
     echo '<style>.tkb-daily-load-shortcut{position:fixed;right:18px;bottom:82px;z-index:1035;border-radius:999px;box-shadow:0 5px 18px rgba(31,78,121,.24);font-weight:700}@media(max-width:576px){.tkb-daily-load-shortcut{right:10px;bottom:68px;font-size:.78rem;padding:.42rem .65rem}}</style>';

@@ -680,8 +680,20 @@ function cds_current_page_feature() {
     return $map[$page] ?? 'cm.dashboard';
 }
 
+function cds_can_daily_teacher_load() {
+    $user = cds_user();
+    if (!$user) return false;
+    $groups = (array)($user['groups'] ?? []);
+    if ((int)($user['permission_model_version'] ?? 1) < 2 && !$groups) $groups[] = (string)($user['role'] ?? '');
+    return ($user['role'] ?? '') === 'admin'
+        || in_array('totruong', $groups, true)
+        || cds_can_feature('cm.pccm', 'edit')
+        || cds_can_feature('cm.nhaplieu', 'edit');
+}
+
 function is_logged_in() {
     $user = cds_user();
+    if (basename($_SERVER['PHP_SELF'] ?? '') === 'tkb_taigiang.php') return cds_can_daily_teacher_load();
     return $user && (in_array(basename($_SERVER['PHP_SELF'] ?? ''), ['boiduong.php','chunhiem.php','tienich_chunhiem.php'], true) || cds_can_feature(cds_current_page_feature(), 'view'));
 }
 
