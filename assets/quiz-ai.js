@@ -40,7 +40,7 @@ el('qp-ai-save').addEventListener('submit',event=>{
  if(running){event.preventDefault();return;}const questions=selected();if(!questions.length){event.preventDefault();status.textContent='Chọn ít nhất một câu để lưu.';return;}
  const payload=JSON.stringify({questions});event.currentTarget.querySelector('[name=ai_questions]').value=payload;
  if(!panel.dataset.set){event.preventDefault();const create=el('qp-ai-create-questions');create.value=payload;const form=create.form;const title=form.querySelector('[name=title]'),grade=form.querySelector('[name=grade_scope]');if(!title.value.trim())title.value=el('qp-ai-topic').value.trim().slice(0,255);if(grade&&grade.querySelector('option[value="'+el('qp-ai-grade').value+'"]'))grade.value=el('qp-ai-grade').value;
- status.textContent='Đã chọn '+questions.length+' câu. Hoàn thiện môn, khối và giới thiệu rồi bấm Tạo bộ câu hỏi.';el('create-set').scrollIntoView({behavior:'smooth',block:'start'});form.reportValidity();}
+ status.textContent='Đã chọn '+questions.length+' câu. Hoàn thiện môn, khối và giới thiệu rồi bấm Tạo bộ câu hỏi.';el('create-set').hidden=false;el('create-set').scrollIntoView({behavior:'smooth',block:'start'});form.reportValidity();}
 });
-const create=el('qp-ai-create-questions');if(create)create.form.addEventListener('submit',event=>{if(running){event.preventDefault();status.textContent='Hãy đợi hoặc dừng AI trước khi lưu bộ.';}else update();});
+const create=el('qp-ai-create-questions');if(create)create.form.addEventListener('submit',event=>{if(running){event.preventDefault();status.textContent='Hãy đợi hoặc dừng AI trước khi lưu bộ.';}else if(panel.hidden)create.value='';else update();});
 })();

@@ -11,6 +11,7 @@ deployment:
     - /opt/alt/php83/usr/bin/php -l tools/deploy_cds.php
     - /opt/alt/php83/usr/bin/php -l includes/quiz_paper_store.php
     - /opt/alt/php83/usr/bin/php -l includes/quiz_ai.php
+    - /opt/alt/php83/usr/bin/php -l includes/quiz_result_excel.php
     - /opt/alt/php83/usr/bin/php -l hoclieu_game_quiz.php
     - /opt/alt/php83/usr/bin/php -l hoclieu_game_quiz_media.php
     - /opt/alt/php83/usr/bin/php -l hoclieu_game_quiz_join.php
