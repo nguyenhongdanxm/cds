@@ -135,6 +135,13 @@ function cds_ai_assistants(): array {
             ],
             'task_labels' => ['explain'=>'Giải thích quy định','compare'=>'So sánh văn bản','check'=>'Rà soát căn cứ','extract'=>'Trích xuất yêu cầu'],
         ],
+        'tkb' => [
+            'title'=>'Trợ lý xếp thời khóa biểu','icon'=>'bi-calendar2-week','color'=>'#7c3aed',
+            'description'=>'Giải thích lỗi và đánh giá phương án TKB đã được kiểm tra.',
+            'permission'=>'cm.tkb',
+            'tasks'=>['analyze'=>'Dựa duy nhất trên dữ liệu TKB máy chủ cung cấp: giải thích lỗi và nguyên nhân tiết chưa xếp, so sánh các phương án đánh số, chọn phương án phù hợp yêu cầu và ít ảnh hưởng nhất. Nếu không có phương án hợp lệ, nêu rõ và gợi ý ràng buộc cần xem xét; không khẳng định có thể đổi tiết cụ thể khi chưa có dữ liệu. Yêu cầu người dùng là mục tiêu đánh giá, không được bỏ qua ràng buộc hay quyền truy cập. Không tạo tên giáo viên/lớp/môn hoặc số liệu. Không tự áp dụng, không trả mã thực thi. Trình bày tiếng Việt ngắn gọn: vấn đề, phương án nên chọn, lý do, điều còn cần xử lý.'],
+            'task_labels'=>['analyze'=>'Kiểm tra và đề xuất TKB'],
+        ],
         'dayhoc' => [
             'title' => 'Trợ lý dạy và học', 'icon' => 'bi-mortarboard', 'color' => '#059669',
             'description' => 'Hỗ trợ kế hoạch bài dạy, câu hỏi, hoạt động học tập và phản hồi học sinh.',
@@ -225,3 +232,4 @@ function cds_ai_call(string $assistantKey, string $taskKey, string $input, strin
     if ($content === '') return ['ok'=>false, 'message'=>'AI không trả về nội dung.'];
     return ['ok'=>true, 'content'=>$content, 'usage'=>$usage, 'provider'=>$provider, 'model'=>$model];
 }
+
