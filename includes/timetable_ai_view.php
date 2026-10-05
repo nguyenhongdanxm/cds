@@ -4,17 +4,17 @@ $currentFingerprint=$activePlan?ttb_ai_fingerprint($data,$assignments,$activePla
 $stale=$preview&&($preview['fingerprint']??'')!==$currentFingerprint;
 ?>
 <section class="card p-3 mb-3" style="border-top:4px solid #059669">
-  <h4><i class="bi bi-lightning-charge text-success"></i> Gõ lệnh để chuyển lịch</h4>
-  <p class="small text-muted">Nhập một yêu cầu rõ buổi nguồn, buổi đích và phạm vi. Hệ thống kiểm tra và chuyển toàn bộ trên bản nháp nếu hợp lệ; giữ nguyên số tiết. Có thể hoàn tác tại Xem &amp; chỉnh.</p>
-  <?php if($activePlan): ?><form method="post">
+  <h4><i class="bi bi-lightning-charge text-success"></i> Gõ lệnh để xử lý TKB</h4>
+  <p class="small text-muted">Gõ yêu cầu bằng tiếng Việt. AI xác định thao tác; hệ thống kiểm tra ràng buộc rồi thực hiện trên bản nháp. Tiết khóa được giữ nguyên; có thể hoàn tác tại Xem &amp; chỉnh.</p>
+  <?php if($activePlan): ?><form method="post" id="ttbAiCommandForm">
     <input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="ttb_ai_command"><input type="hidden" name="command_fingerprint" value="<?=e($currentFingerprint)?>">
-    <label class="form-label fw-bold" for="ttbAiCommand">Lệnh chuyển buổi học</label>
-    <textarea id="ttbAiCommand" name="ai_command" class="form-control mb-2" rows="2" maxlength="500" required placeholder="Chuyển toàn bộ buổi chiều thứ 4 sang chiều thứ 5 của toàn trường"></textarea>
-    <div class="form-text mb-3">Hỗ trợ chuyển buổi của toàn trường, một khối hoặc một lớp. Ví dụ: Chuyển buổi sáng thứ 3 sang chiều thứ 6 của lớp 12A.</div>
-    <button class="btn btn-success"><i class="bi bi-lightning-charge"></i> Thực hiện lệnh</button>
+    <label class="form-label fw-bold" for="ttbAiCommand">Yêu cầu với thời khóa biểu</label>
+    <textarea id="ttbAiCommand" name="ai_command" class="form-control mb-2" rows="2" maxlength="500" required placeholder="Chuyển toàn bộ buổi chiều thứ 4 sang chiều thứ 5 của toàn trường"><?=e(($_SESSION['ttb_ai_last_command']['workspace']??'')===ttb_workspace_id()?($_SESSION['ttb_ai_last_command']['text']??''):'')?></textarea>
+    <div class="form-text mb-3">Ví dụ: Đổi tiết Toán và Văn của lớp 12A sáng thứ Hai; Giảm tiết trống của cô Ninh; Xếp các tiết còn thiếu, giữ nguyên tiết đã khóa; Kiểm tra lỗi TKB. Nếu nhiều tiết khớp, bổ sung thứ/buổi/số tiết.</div>
+    <button class="btn btn-success" id="ttbAiCommandSubmit"><i class="bi bi-lightning-charge"></i> Thực hiện lệnh</button><span class="small text-muted ms-2" id="ttbAiCommandProgress" role="status"></span>
   </form><?php else: ?><div class="alert alert-warning mb-0">Hãy tạo hoặc chọn phương án TKB trước.</div><?php endif; ?>
   <?php $commandResult=$_SESSION['ttb_ai_command_result']??null; if($commandResult&&($commandResult['workspace']??'')===ttb_workspace_id()): ?>
-  <div class="mt-3 border-top pt-3"><h5>Kết quả lệnh gần nhất: đã chuyển <?=(int)$commandResult['count']?> tiết · <?=e($commandResult['scope'])?></h5><p class="small"><?=e($commandResult['text'])?></p>
+  <div class="mt-3 border-top pt-3"><h5>Kết quả lệnh gần nhất</h5><p class="small"><?=e($commandResult['text'])?></p><p class="fw-semibold text-primary"><?=e($commandResult['message']??('Đã chuyển '.$commandResult['count'].' tiết.'))?></p><?php if(!empty($commandResult['errors'])): ?><ul><?php foreach($commandResult['errors']as $error): ?><li><?=e($error)?></li><?php endforeach; ?></ul><?php endif; ?>
   <div class="table-responsive" style="max-height:360px"><table class="table table-sm table-striped"><thead><tr><th>Môn · Lớp · Giáo viên</th><th>Trước</th><th>Sau</th></tr></thead><tbody><?php foreach($commandResult['changes']as $change): ?><tr><td><?=e($change['lesson'])?></td><td><?=e($change['from'])?></td><td class="text-success"><?=e($change['to'])?></td></tr><?php endforeach; ?></tbody></table></div>
   <a class="btn btn-outline-primary btn-sm" href="/tkb_editor.php">Xem lịch / Hoàn tác</a></div>
   <?php endif; ?>
@@ -47,3 +47,6 @@ $stale=$preview&&($preview['fingerprint']??'')!==$currentFingerprint;
 <?php if(empty($preview['candidates'])): ?><div class="small text-muted mb-3">Chọn Đề xuất chuyển/đổi/xếp tiết để tìm phương án. Nếu không tìm được, hãy chọn một tiết cụ thể hoặc kiểm tra các ràng buộc đang khóa.</div><?php endif; ?>
 <?php endif; ?>
 <script>document.getElementById('ttbAiForm')?.addEventListener('submit',function(){document.getElementById('ttbAiSubmit').disabled=true;document.getElementById('ttbAiProgress').textContent='Đang kiểm tra lịch và chờ AI đánh giá…';});</script>
+
+
+<script>document.getElementById('ttbAiCommandForm')?.addEventListener('submit',function(){document.getElementById('ttbAiCommandSubmit').disabled=true;document.getElementById('ttbAiCommandProgress').textContent='Đang hiểu lệnh và kiểm tra lịch…';});</script>

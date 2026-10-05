@@ -41,12 +41,12 @@ function ttb_ai_changes(array $before,array $after): array {
         $changes[]=['lesson'=>($entry['subject']??'').' · '.implode('+',$entry['classes']??[]).' · '.($entry['teacher']??''),'from'=>$previous?ttb_ai_slot_text($previous):'Chưa xếp','to'=>ttb_ai_slot_text($entry)];}
     return $changes;
 }
-function ttb_ai_candidates(array $data,array $assignments,array $plan,string $selected): array {
-    $baseline=ttb_ai_errors($data,$assignments,$plan);$result=[];$slots=ttb_slots($data['settings']);$deadline=microtime(true)+5;
+function ttb_ai_candidates(array $data,array $assignments,array $plan,string $selected,?callable $rank=null,array $targetIds=[],float $seconds=5): array {
+    $baseline=ttb_ai_errors($data,$assignments,$plan);$result=[];$slots=ttb_slots($data['settings']);$deadline=microtime(true)+max(0.1,min(5,$seconds));
     $activities=array_column(ttb_apply_lesson_rules(ttb_activities($assignments,$data['groups']),$data),null,'id');
     $targets=[];
-    foreach($plan['unplaced']??[] as $u){$id=(string)$u['id'];if($selected===''||$selected===$id)$targets[]=['id'=>$id,'entry'=>$activities[$id]??$u,'index'=>null];}
-    foreach($plan['entries']??[] as $i=>$e){$id=(string)$e['activity_id'];if(($selected===''||$selected===$id)&&empty($e['locked'])&&empty(($activities[$id]??$e)['fixed_day']))$targets[]=['id'=>$id,'entry'=>array_merge($e,$activities[$id]??[]),'index'=>$i];}
+    foreach($plan['unplaced']??[] as $u){$id=(string)$u['id'];if(($selected===''||$selected===$id)&&(!$targetIds||in_array($id,$targetIds,true)))$targets[]=['id'=>$id,'entry'=>$activities[$id]??$u,'index'=>null];}
+    foreach($plan['entries']??[] as $i=>$e){$id=(string)$e['activity_id'];if(($selected===''||$selected===$id)&&(!$targetIds||in_array($id,$targetIds,true))&&empty($e['locked'])&&empty(($activities[$id]??$e)['fixed_day']))$targets[]=['id'=>$id,'entry'=>array_merge($e,$activities[$id]??[]),'index'=>$i];}
     foreach($targets as $target)foreach($slots as $slot){
         if(microtime(true)>$deadline)break 2;
         $entry=$target['entry'];if($target['index']!==null&&ttb_ai_slot_text($entry)===ttb_ai_slot_text($slot))continue;
@@ -62,9 +62,10 @@ function ttb_ai_candidates(array $data,array $assignments,array $plan,string $se
         }
         $errors=ttb_ai_errors($data,$assignments,$copy);if(ttb_ai_transition_errors($plan,$copy))continue;if(array_diff($errors,$baseline))continue;
         $changes=ttb_ai_changes($plan,$copy);$score=count($copy['unplaced']??[])*100000+count($errors)*1000000+ttb_global_penalty($copy['entries'],$data['settings']);
-        $copy['errors']=$errors;$copy['score']=$score;$key=hash('sha256',serialize($changes));
+        $score=$rank?$rank($copy):$score;$copy['errors']=$errors;$copy['score']=$score;$key=hash('sha256',serialize($changes));
         $result[$key]=['plan'=>$copy,'changes'=>$changes,'score'=>$score,'errors'=>$errors];
         if(count($result)>30){uasort($result,fn($a,$b)=>$a['score']<=>$b['score']);$result=array_slice($result,0,12,true);}
     }
     usort($result,fn($a,$b)=>$a['score']<=>$b['score']);return array_slice($result,0,6);
 }
+

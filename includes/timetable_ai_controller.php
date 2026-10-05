@@ -7,13 +7,31 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&in_array($_POST['action']??'', ['ttb_ai_
         if($_POST['action']==='ttb_ai_command'){
             if(!hash_equals(ttb_ai_fingerprint($data,$assignments,$plan),(string)($_POST['command_fingerprint']??'')))throw new RuntimeException('TKB hoặc ràng buộc đã thay đổi. Tải lại trang rồi thực hiện lệnh trên bản hiện tại.');
             require_once __DIR__.'/timetable_ai_command.php';
+            require_once __DIR__.'/timetable_ai_language.php';
             $text=trim((string)($_POST['ai_command']??''));
-            if(mb_strlen($text,'UTF-8')>500)throw new RuntimeException('Lệnh quá dài; hãy nhập một yêu cầu chuyển buổi.');
-            $result=ttb_ai_transfer_command($data,$assignments,$plan,ttb_ai_parse_transfer($text));
-            ttb_replace_plan($data,$result['plan']);if(!ttb_save($data))throw new RuntimeException('Không lưu được lịch; chưa xác nhận chuyển thành công.');
-            $_SESSION['ttb_ai_command_result']=['text'=>$text,'changes'=>$result['changes'],'count'=>$result['count'],'scope'=>$result['scope'],'workspace'=>ttb_workspace_id()];
-            unset($_SESSION['ttb_ai_preview']);
-            flash('Đã chuyển '.$result['count'].' tiết của '.$result['scope'].'. Xem kết quả bên dưới; có thể hoàn tác ở Xem & chỉnh.','success');
+            $_SESSION['ttb_ai_last_command']=['text'=>mb_substr($text,0,500),'workspace'=>ttb_workspace_id()];
+            if(mb_strlen($text,'UTF-8')>500)throw new RuntimeException('Lệnh quá dài; hãy nhập một yêu cầu TKB rõ ràng.');
+            unset($_SESSION['ttb_ai_command_result'],$_SESSION['ttb_ai_preview']);
+            $intent=ttb_ai_interpret($text,$assignments);
+            try{$result=ttb_ai_execute_intent($data,$assignments,$plan,$intent);}
+            catch(Throwable $error){
+                // Một lệnh cụ thể bị vướng: cung cấp phương án khác để xem trước, không tự đổi mục tiêu.
+                if(in_array($intent['action']??'', ['move','swap'],true)){
+                    try{
+                        $i=ttb_ai_unique_entry($plan,ttb_ai_selector((array)($intent['selector']??[]),$assignments));
+                        $candidates=ttb_ai_candidates($data,$assignments,$plan,(string)$plan['entries'][$i]['activity_id']);
+                        if($candidates)$_SESSION['ttb_ai_preview']=['token'=>bin2hex(random_bytes(16)),'fingerprint'=>ttb_ai_fingerprint($data,$assignments,$plan),'errors'=>ttb_ai_errors($data,$assignments,$plan),'unplaced'=>count($plan['unplaced']??[]),'candidates'=>$candidates,'request'=>$text,'answer'=>'Lệnh ban đầu chưa thực hiện. Các phương án bên dưới chỉ là vị trí thay thế hợp lệ để xem xét; không bảo đảm đạt đúng đích của lệnh.','message'=>$error->getMessage()];
+                    }catch(Throwable $ignored){}
+                }
+                throw $error;
+            }
+            if(!empty($result['changed'])){
+                $fresh=ttb_data();$freshAssignments=ttb_assignments();$freshPlan=ttb_plan($fresh,(string)$fresh['active_plan']);
+                if(!$freshPlan||ttb_ai_fingerprint($fresh,$freshAssignments,$freshPlan)!==ttb_ai_fingerprint($data,$assignments,$plan))throw new RuntimeException('TKB vừa thay đổi trong lúc xử lý. Chưa áp dụng lệnh; tải lại trang và thử lại.');
+                ttb_replace_plan($fresh,$result['plan']);if(!ttb_save($fresh))throw new RuntimeException('Không lưu được lịch; chưa xác nhận thành công.');
+            }
+            $_SESSION['ttb_ai_command_result']=['text'=>$text,'changes'=>$result['changes']??[],'count'=>$result['count']??0,'scope'=>$result['scope']??'','message'=>$result['message']??'','errors'=>$result['errors']??[],'workspace'=>ttb_workspace_id()];
+            flash($result['message']??'Đã xử lý lệnh.',!empty($result['changed'])?'success':'info');
             ttb_go('ai');
         }
         $fingerprint=ttb_ai_fingerprint($data,$assignments,$plan);
@@ -53,3 +71,4 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&in_array($_POST['action']??'', ['ttb_ai_
     }catch(Throwable $e){flash($e->getMessage(),'danger');}
     ttb_go('ai');
 }
+
