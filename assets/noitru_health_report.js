@@ -1,95 +1,71 @@
-/* Báo cáo ảnh được tạo tại trình duyệt từ dữ liệu đúng bộ lọc và quyền hiện tại. */
+/* Một ảnh tổng hợp tuần, có thể lưu hoặc chia sẻ trực tiếp trên điện thoại. */
 (() => {
   'use strict';
   const button = document.getElementById('healthExportImage');
   const source = document.getElementById('healthReportData');
   const preview = document.getElementById('healthReportPreview');
   if (!button || !source || !preview) return;
-  const formatDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') ? value.split('-').reverse().join('/') : value || '';
-  function wrap(ctx, text, width) {
-    const result = [];
-    String(text || '—').split('\n').forEach(paragraph => {
-      let line = '';
-      for (const word of paragraph.split(/\s+/)) {
-        const next = line ? line + ' ' + word : word;
-        if (ctx.measureText(next).width > width && line) { result.push(line); line = word; }
-        else line = next;
-        // Break unspaced text so it cannot overlap adjacent cells.
-        while (ctx.measureText(line).width > width && line.length > 1) {
-          let cut = line.length - 1;
-          while (cut > 1 && ctx.measureText(line.slice(0, cut)).width > width) cut--;
-          result.push(line.slice(0, cut)); line = line.slice(cut);
-        }
-      }
-      result.push(line);
-    });
-    return result;
-  }
+  let previousUrl = null;
+  const date = value => String(value || '').split('-').reverse().join('/');
   button.addEventListener('click', async () => {
     button.disabled = true;
     try {
       if (document.fonts?.ready) await document.fonts.ready;
-      const data = JSON.parse(source.textContent);
-      const records = data.rows || [];
-      preview.replaceChildren(); preview.hidden = false;
-      const intro = document.createElement('p');
-      intro.textContent = 'Báo cáo theo bộ lọc hiện tại. Chọn “Tải ảnh” dưới từng trang để lưu PNG.';
-      preview.appendChild(intro);
-      const columns = [60, 160, 270, 290, 380, 260];
-      const canvas = document.createElement('canvas'); canvas.width = 1500;
+      const data = JSON.parse(source.textContent), classes = data.classes || [];
+      const canvas = document.createElement('canvas');
+      canvas.width = 1080; canvas.height = 730 + Math.max(1, classes.length) * 64;
       const ctx = canvas.getContext('2d');
-      ctx.font = '20px Arial';
-      const rows = records.map((r, index) => {
-        const meds = (r.medicines || []).map(m => `${m.name || ''} · ${m.quantity || 0} ${m.unit || ''}`).join('\n');
-        const values = [index + 1, formatDate(r.date), `${r.student_name || ''}\n${r.class_name || ''}`, r.diagnosis,
-          [data.labels?.[r.type] || r.type, meds, r.treatment].filter(Boolean).join('\n'), r.note];
-        const lines = values.map((v, i) => wrap(ctx, v, columns[i] - 24));
-        return { lines, height: Math.max(74, Math.max(...lines.map(x => x.length)) * 28 + 26) };
-      });
-      const pages = []; let page = [], height = 0;
-      for (const row of rows) {
-        if (page.length && (height + row.height > 1800 || page.length >= 20)) { pages.push(page); page = []; height = 0; }
-        page.push(row); height += row.height;
+      ctx.fillStyle = '#f3f8fb'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const gradient = ctx.createLinearGradient(0, 0, 1080, 190);
+      gradient.addColorStop(0, '#123451'); gradient.addColorStop(1, '#0d9488');
+      ctx.fillStyle = gradient; ctx.fillRect(0, 0, 1080, 190);
+      ctx.fillStyle = '#c3f5e8'; ctx.font = 'bold 23px Arial'; ctx.fillText('CHĂM SÓC SỨC KHỎE HỌC SINH', 44, 48);
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 43px Arial'; ctx.fillText('TỔNG HỢP TUẦN', 44, 107);
+      ctx.font = '27px Arial'; ctx.fillText(`${date(data.from)} – ${date(data.to)}`, 44, 153);
+      function card(x, y, w, number, label, color) {
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y, w, 108);
+        ctx.fillStyle = color; ctx.font = 'bold 43px Arial'; ctx.fillText(String(number || 0), x + 22, y + 50);
+        ctx.fillStyle = '#456277'; ctx.font = '24px Arial'; ctx.fillText(label, x + 22, y + 87);
       }
-      if (page.length || !pages.length) pages.push(page);
-      pages.forEach((items, index) => {
-        canvas.height = 370 + Math.max(90, items.reduce((n, r) => n + r.height, 0));
-        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 1500, canvas.height);
-        const gradient = ctx.createLinearGradient(0, 0, 1500, 190);
-        gradient.addColorStop(0, '#123451'); gradient.addColorStop(1, '#0d9488');
-        ctx.fillStyle = gradient; ctx.fillRect(0, 0, 1500, 190);
-        ctx.fillStyle = '#b9f5e7'; ctx.font = 'bold 19px Arial'; ctx.fillText('CHĂM SÓC SỨC KHỎE HỌC SINH', 40, 43);
-        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 36px Arial';
-        ctx.fillText('BÁO CÁO ' + (data.range === 'week' ? 'TUẦN' : data.range === 'day' ? 'NGÀY' : 'THÁNG'), 40, 96);
-        ctx.font = '23px Arial'; ctx.fillText(`${formatDate(data.from)} – ${formatDate(data.to)}`, 40, 142);
-        ctx.textAlign = 'right'; ctx.font = '20px Arial'; ctx.fillText(`Trang ${index + 1}/${pages.length}`, 1460, 142); ctx.textAlign = 'left';
-        const metrics = [ ['LƯỢT CHĂM SÓC', records.length], ['HỌC SINH', new Set(records.map(r => r.student_id || r.student_name)).size],
-          ['PHÁT THUỐC', records.filter(r => ['medicine','thuoc'].includes(r.type)).length], ['VÀO VIỆN', records.filter(r => r.type === 'hospital').length] ];
-        metrics.forEach(([label, value], i) => {
-          const x = 40 + i * 358; ctx.fillStyle = '#edf8f7'; ctx.fillRect(x, 210, 340, 76);
-          ctx.fillStyle = '#0f766e'; ctx.font = 'bold 28px Arial'; ctx.fillText(String(value), x + 16, 241);
-          ctx.fillStyle = '#456277'; ctx.font = '16px Arial'; ctx.fillText(label, x + 16, 267);
-        });
-        const headers = ['STT', 'NGÀY', 'HỌC SINH / LỚP', 'CHẨN ĐOÁN', 'XỬ LÝ / THUỐC', 'GHI CHÚ'];
-        ctx.fillStyle = '#173b53'; ctx.fillRect(40, 310, 1420, 48);
-        let x = 40; ctx.fillStyle = '#ffffff'; ctx.font = 'bold 17px Arial';
-        headers.forEach((h, i) => { ctx.fillText(h, x + 12, 340); x += columns[i]; });
-        let y = 358;
-        if (!items.length) {ctx.fillStyle = '#475569';ctx.font = '22px Arial';ctx.fillText('Không có hồ sơ trong kỳ và bộ lọc đã chọn.', 64, y + 48);}
-        items.forEach((row, rowIndex) => {
-          ctx.fillStyle = rowIndex % 2 ? '#f1f7fa' : '#ffffff'; ctx.fillRect(40, y, 1420, row.height);
-          ctx.fillStyle = '#233b4e'; ctx.font = '20px Arial'; x = 40;
-          row.lines.forEach((lines, i) => { lines.forEach((line, j) => ctx.fillText(line, x + 12, y + 28 + j * 28)); x += columns[i]; });
-          ctx.strokeStyle = '#dce6eb'; ctx.beginPath(); ctx.moveTo(40, y + row.height); ctx.lineTo(1460, y + row.height); ctx.stroke(); y += row.height;
-        });
-        const url = canvas.toDataURL('image/png');
-        const image = document.createElement('img'); image.src = url; image.alt = `Báo cáo sức khỏe trang ${index + 1}`;
-        const link = document.createElement('a'); link.href = url; link.download = `bao-cao-suc-khoe-${data.range}-${data.from}-${index + 1}.png`; link.textContent = `Tải ảnh — trang ${index + 1}`;
-        preview.append(image, link);
+      card(40, 215, 490, data.total, 'Lượt chăm sóc', '#0f766e');
+      card(550, 215, 490, data.students, 'Học sinh được chăm sóc', '#1d4ed8');
+      const metrics = [['medicine', 'Phát thuốc', '#0f766e'], ['first_aid', 'Theo dõi tại phòng y tế', '#b45309'], ['hospital', 'Vào viện', '#be123c'], ['family_pickup', 'Gia đình đón về', '#6d28d9']];
+      metrics.forEach(([key, label, color], i) => card(40 + (i % 2) * 510, 343 + Math.floor(i / 2) * 122, 490, data.types?.[key], label, color));
+      ctx.fillStyle = '#173b53'; ctx.font = 'bold 27px Arial'; ctx.fillText('TỔNG HỢP THEO LỚP', 44, 624);
+      const xs = [60, 365, 620, 895];
+      ctx.fillStyle = '#173b53'; ctx.fillRect(40, 646, 1000, 58);
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 24px Arial';
+      ['Lớp', 'Lượt', 'Học sinh', 'Vào viện'].forEach((text, i) => ctx.fillText(text, xs[i], 684));
+      classes.forEach((row, i) => {
+        const y = 704 + i * 64;
+        ctx.fillStyle = i % 2 ? '#e8f2f6' : '#ffffff'; ctx.fillRect(40, y, 1000, 64);
+        ctx.fillStyle = '#233b4e'; ctx.font = '26px Arial';
+        [row.class, row.visits, row.students, row.hospital].forEach((value, j) => ctx.fillText(String(value ?? 0), xs[j], y + 41, j === 0 ? 280 : 200));
       });
-      preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (!classes.length) {ctx.fillStyle = '#456277';ctx.font = '25px Arial';ctx.fillText('Không có hồ sơ chăm sóc sức khỏe trong tuần.', 60, 745);}
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) throw new Error('PNG generation failed');
+      if (previousUrl) URL.revokeObjectURL(previousUrl);
+      previousUrl = URL.createObjectURL(blob);
+      const name = `suc-khoe-tuan-${data.from}.png`;
+      const image = document.createElement('img'); image.src = previousUrl; image.alt = 'Ảnh tổng hợp sức khỏe học sinh theo tuần';
+      const download = document.createElement('a'); download.href = previousUrl; download.download = name; download.textContent = 'Tải ảnh';
+      const share = document.createElement('button'); share.type = 'button'; share.className = 'btn btn-primary'; share.textContent = 'Chia sẻ ảnh';
+      const hint = document.createElement('p'); hint.textContent = 'Báo cáo tổng hợp cả tuần theo ngày đã chọn.';
+      const file = typeof File === 'function' ? new File([blob], name, {type: 'image/png'}) : null;
+      share.addEventListener('click', async () => {
+        // File đã tạo sẵn: mở bảng chia sẻ ngay trong thao tác chạm của người dùng.
+        if (!file || !navigator.share || !navigator.canShare?.({files: [file]})) {
+          hint.textContent = 'Thiết bị chưa hỗ trợ chia sẻ trực tiếp. Chọn Tải ảnh hoặc nhấn giữ ảnh để lưu và gửi.';
+          download.click(); return;
+        }
+        try { await navigator.share({files: [file], title: 'Báo cáo sức khỏe tuần'}); }
+        catch (error) {if (error.name !== 'AbortError') hint.textContent = 'Chưa chia sẻ được. Bạn có thể tải ảnh để gửi.';}
+      });
+      preview.replaceChildren(hint, share, download, image); preview.hidden = false;
+      preview.scrollIntoView({behavior: 'smooth', block: 'start'});
     } catch (error) {
-      preview.hidden = false; preview.textContent = 'Không tạo được báo cáo ảnh. Hãy tải lại trang và thử lại.'; console.error(error);
-    } finally { button.disabled = false; }
+      preview.hidden = false; preview.textContent = 'Không tạo được ảnh. Hãy tải lại trang và thử lại.'; console.error(error);
+    } finally {button.disabled = false;}
   });
 })();

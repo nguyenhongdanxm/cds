@@ -22,19 +22,14 @@ if ($healthView === 'record') {
 }
 $healthLabels = ['medicine'=>'Phát thuốc','first_aid'=>'Theo dõi tại phòng y tế','hospital'=>'Vào viện','family_pickup'=>'Gia đình đón về','thuoc'=>'Phát thuốc','kham'=>'Theo dõi tại phòng y tế','theo_doi'=>'Theo dõi'];
 require __DIR__.'/noitru_health_history_filter.php';
-$transactionTotals = $healthView === 'inventory' ? noitru_medicine_totals() : [];
-$periodIssued=[]; $unitTotals=[];
-if ($healthView==='inventory') {
+$showMedicineStats = $healthView === 'inventory' && ($_GET['medicine_stats']??'') === '1';
+$transactionTotals = $showMedicineStats ? noitru_medicine_totals() : [];
+$periodIssued=[];
+if ($showMedicineStats) {
     foreach (noitru_health_for_range($historyFrom,$historyTo) as $record) foreach (($record['medicines']??[]) as $item) {
         $key=(string)($item['medicine_id']??$item['id']??''); $periodIssued[$key]=($periodIssued[$key]??0)+(int)($item['quantity']??0);
     }
-    foreach ($medicines as $medicine) {
-        $key=(string)$medicine['id']; $unit=trim($medicine['unit']??'')?:'đơn vị';
-        if (!isset($unitTotals[$unit])) $unitTotals[$unit]=['imported'=>0,'issued'=>0,'remaining'=>0];
-        $unitTotals[$unit]['imported']+=(int)($transactionTotals[$key]['imported']??0);
-        $unitTotals[$unit]['issued']+=(int)($periodIssued[$key]??0);
-        $unitTotals[$unit]['remaining']+=(int)($medicine['quantity']??0);
-    }
+
 }
 $historyStats = ['medicine'=>0,'first_aid'=>0,'hospital'=>0];
 foreach ($filteredHealth as $row) if (isset($historyStats[$row['type'] ?? ''])) $historyStats[$row['type']]++;
@@ -50,7 +45,7 @@ foreach ($medicines as $medicine) {
 <div class="health-page">
   <div class="nt-page-head health-heading">
     <div><h4><i class="bi bi-heart text-danger"></i> Quản lý sức khỏe</h4><div class="subtitle">Theo dõi và chăm sóc sức khỏe học sinh</div></div>
-    <?php if($healthView==='history'): ?><a class="btn btn-success health-export-excel" href="<?=e(BASE_URL.'noitru_health_excel.php?'.http_build_query(['range'=>$historyRange,'date'=>$historyDate,'q'=>(string)($_GET['q']??''),'type'=>$historyType]))?>"><i class="bi bi-file-earmark-excel"></i> Xuất Excel A4 ngang</a> <button type="button" class="btn health-export-image" id="healthExportImage">Xuất ảnh báo cáo</button><?php else: ?><button class="btn btn-outline-secondary" type="button" onclick="window.print()"><i class="bi bi-download"></i> Xuất báo cáo</button><?php endif; ?>
+    <?php if($healthView==='history'): ?><a class="btn btn-success health-export-excel" href="<?=e(BASE_URL.'noitru_health_excel.php?'.http_build_query(['range'=>$historyRange,'date'=>$historyDate,'q'=>(string)($_GET['q']??''),'type'=>$historyType]))?>"><i class="bi bi-file-earmark-excel"></i> Xuất Excel A4 ngang</a> <button type="button" class="btn health-export-image" id="healthExportImage">Ảnh tổng hợp tuần</button><?php else: ?><button class="btn btn-outline-secondary" type="button" onclick="window.print()"><i class="bi bi-download"></i> Xuất báo cáo</button><?php endif; ?>
   </div>
 
   <nav class="health-tabs" aria-label="Chức năng quản lý sức khỏe">
@@ -114,10 +109,16 @@ foreach ($medicines as $medicine) {
   </section>
 
 <?php else: ?>
-  <section class="health-panel mb-3"><h5>Thống kê kho thuốc</h5>
-    <form method="get" class="d-flex flex-wrap gap-2 mb-3"><input type="hidden" name="tab" value="health"><input type="hidden" name="health_view" value="inventory"><select class="form-select w-auto" name="range"><?php foreach (['week'=>'Tuần','month'=>'Tháng'] as $key=>$label): ?><option value="<?= $key ?>" <?= $historyRange===$key?'selected':'' ?>><?= $label ?></option><?php endforeach; ?></select><input class="form-control w-auto" type="date" name="date" value="<?= e($historyDate) ?>"><button class="btn btn-outline-primary">Xem thống kê</button></form>
-    <p>Từ <?= e(date('d/m/Y',strtotime($historyFrom))) ?> đến <?= e(date('d/m/Y',strtotime($historyTo))) ?> · Tồn kho hiện tại</p>
-    <div class="table-responsive"><table class="table"><thead><tr><th>Đơn vị</th><th>Tổng nhập</th><th>Đã cấp trong kỳ</th><th>Còn hiện tại</th></tr></thead><tbody><?php foreach($unitTotals as $unit=>$total): ?><tr><td><?= e($unit) ?></td><td><?= $total['imported'] ?></td><td><?= $total['issued'] ?></td><td><?= $total['remaining'] ?></td></tr><?php endforeach; ?></tbody></table></div>
+  <section class="health-panel mb-3">
+    <form method="get" class="d-flex flex-wrap gap-2"><input type="hidden" name="tab" value="health"><input type="hidden" name="health_view" value="inventory"><input type="hidden" name="medicine_stats" value="1"><select class="form-select w-auto" name="range"><?php foreach (['week'=>'Tuần','month'=>'Tháng'] as $key=>$label): ?><option value="<?= $key ?>" <?= $historyRange===$key?'selected':'' ?>><?= $label ?></option><?php endforeach; ?></select><input class="form-control w-auto" type="date" name="date" value="<?= e($historyDate) ?>"><button class="btn btn-outline-primary"><i class="bi bi-bar-chart"></i> Thống kê</button></form>
+    <?php if($showMedicineStats): ?>
+    <div class="health-medicine-statistics mt-3"><h5>Thống kê cấp thuốc <?= $historyRange==='week'?'tuần':'tháng' ?></h5><p>Từ <?= e(date('d/m/Y',strtotime($historyFrom))) ?> đến <?= e(date('d/m/Y',strtotime($historyTo))) ?> · Còn lại là tồn kho hiện tại</p>
+    <div class="table-responsive"><table class="table health-table align-middle"><thead><tr><th>Tên thuốc</th><th>Đơn vị</th><th>Tổng nhập</th><th>Đã cấp trong kỳ</th><th>Còn lại</th></tr></thead><tbody>
+    <?php foreach($medicines as $medicine): $key=(string)$medicine['id']; ?><tr><td><strong><?= e($medicine['name']??'') ?></strong></td><td><?= e($medicine['unit']??'') ?></td><td><?= (int)($transactionTotals[$key]['imported']??0) ?></td><td class="text-primary fw-bold"><?= (int)($periodIssued[$key]??0) ?></td><td class="text-success fw-bold"><?= (int)($medicine['quantity']??0) ?></td></tr><?php endforeach; ?>
+    <?php if(!$medicines): ?><tr><td colspan="5">Kho thuốc chưa có dữ liệu.</td></tr><?php endif; ?>
+    </tbody></table></div>
+    <a class="btn btn-outline-secondary btn-sm" href="<?= e(BASE_URL.'noitru.php?tab=health&health_view=inventory') ?>">Đóng thống kê</a></div>
+    <?php endif; ?>
   </section>
   <div class="health-inventory-stats">
     <a class="active" href="#medicineList"><i class="bi bi-box-seam"></i><strong><?= $inventoryStats['all'] ?></strong><span>Tất cả</span></a>
@@ -127,10 +128,10 @@ foreach ($medicines as $medicine) {
   <section class="health-panel" id="medicineList">
     <div class="health-inventory-head"><h5>Danh sách thuốc</h5><div><button class="btn btn-outline-success" type="button" data-bs-toggle="modal" data-bs-target="#medicineRestockPicker"><i class="bi bi-arrow-up-circle"></i> Bổ sung</button><button class="btn btn-info text-white" type="button" data-bs-toggle="modal" data-bs-target="#medicineFormModal" onclick="resetMedicineForm()"><i class="bi bi-plus-lg"></i> Thêm mới</button></div></div>
     <div class="health-search mb-3"><i class="bi bi-search"></i><input class="form-control" id="medicineSearch" placeholder="Tìm thuốc..."></div>
-    <div class="table-responsive"><table class="table health-table align-middle" id="medicineTable"><thead><tr><th>STT</th><th>Tên thuốc</th><th>Đơn vị</th><th>Hạn SD</th><th>Tổng nhập</th><th>Đã cấp trong kỳ</th><th>Đã cấp toàn bộ</th><th>Còn hiện tại</th><th class="text-end">Thao tác</th></tr></thead><tbody>
-      <?php foreach ($medicines as $index=>$medicine): $totals=$transactionTotals[(string)($medicine['id']??'')]??[]; $imported=$totals['imported']??0; $issued=$totals['issued']??0; $qty=(int)($medicine['quantity']??0); $low=$qty<=(int)($medicine['low_stock']??10); ?>
-        <tr data-medicine-name="<?= e(mb_strtolower($medicine['name']??'','UTF-8')) ?>"><td><?= $index+1 ?></td><td><strong><?= e($medicine['name']??'') ?></strong><?php if(!empty($medicine['note'])):?><small><?= e($medicine['note']) ?></small><?php endif;?></td><td><?= e($medicine['unit']??'') ?></td><td><?= !empty($medicine['expiry_date'])?e(date('d/m/Y',strtotime($medicine['expiry_date']))):'—' ?></td><td class="text-success"><?= $imported ?></td><td><?= (int)($periodIssued[(string)$medicine['id']]??0) ?></td><td class="text-warning"><?= $issued ?></td><td><span class="health-stock <?= $low?'low':'' ?>"><?= $qty ?></span></td><td class="text-end text-nowrap"><button class="btn btn-outline-success btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#medicineRestockModal" onclick='openMedicineRestock(<?= json_encode($medicine,JSON_HEX_APOS|JSON_HEX_QUOT) ?>)' title="Bổ sung"><i class="bi bi-arrow-up-circle"></i></button> <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#medicineFormModal" onclick='editMedicine(<?= json_encode($medicine,JSON_HEX_APOS|JSON_HEX_QUOT) ?>)' title="Sửa"><i class="bi bi-pencil-square"></i></button><?php if($canDeleteCurrent): ?> <form method="post" class="d-inline" onsubmit="return confirm('Xóa thuốc này khỏi danh sách?')"><input type="hidden" name="action" value="medicine_delete"><input type="hidden" name="id" value="<?= e($medicine['id']) ?>"><button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></form><?php endif; ?></td></tr>
-      <?php endforeach; ?><?php if(!$medicines): ?><tr><td colspan="9"><div class="health-empty">Kho thuốc chưa có dữ liệu.</div></td></tr><?php endif; ?>
+    <div class="table-responsive"><table class="table health-table align-middle" id="medicineTable"><thead><tr><th>STT</th><th>Tên thuốc</th><th>Đơn vị</th><th>Hạn SD</th><th>Còn hiện tại</th><th class="text-end">Thao tác</th></tr></thead><tbody>
+      <?php foreach ($medicines as $index=>$medicine): $qty=(int)($medicine['quantity']??0); $low=$qty<=(int)($medicine['low_stock']??10); ?>
+        <tr data-medicine-name="<?= e(mb_strtolower($medicine['name']??'','UTF-8')) ?>"><td><?= $index+1 ?></td><td><strong><?= e($medicine['name']??'') ?></strong><?php if(!empty($medicine['note'])):?><small><?= e($medicine['note']) ?></small><?php endif;?></td><td><?= e($medicine['unit']??'') ?></td><td><?= !empty($medicine['expiry_date'])?e(date('d/m/Y',strtotime($medicine['expiry_date']))):'—' ?></td><td><span class="health-stock <?= $low?'low':'' ?>"><?= $qty ?></span></td><td class="text-end text-nowrap"><button class="btn btn-outline-success btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#medicineRestockModal" onclick='openMedicineRestock(<?= json_encode($medicine,JSON_HEX_APOS|JSON_HEX_QUOT) ?>)' title="Bổ sung"><i class="bi bi-arrow-up-circle"></i></button> <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#medicineFormModal" onclick='editMedicine(<?= json_encode($medicine,JSON_HEX_APOS|JSON_HEX_QUOT) ?>)' title="Sửa"><i class="bi bi-pencil-square"></i></button><?php if($canDeleteCurrent): ?> <form method="post" class="d-inline" onsubmit="return confirm('Xóa thuốc này khỏi danh sách?')"><input type="hidden" name="action" value="medicine_delete"><input type="hidden" name="id" value="<?= e($medicine['id']) ?>"><button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></form><?php endif; ?></td></tr>
+      <?php endforeach; ?><?php if(!$medicines): ?><tr><td colspan="6"><div class="health-empty">Kho thuốc chưa có dữ liệu.</div></td></tr><?php endif; ?>
     </tbody></table></div>
   </section>
 
@@ -161,10 +162,33 @@ function openMedicineRestock(m){document.getElementById('restockMedicineId').val
 <style>
 .health-page .health-export-excel{background:#15803d!important;border:1px solid #15803d!important;color:#fff!important;font-size:14px!important;opacity:1!important;padding:10px 16px!important}
 .health-page .health-export-excel i{color:inherit!important}.health-page .health-export-image{background:#0e7490!important;color:#fff!important;border:1px solid #0e7490!important;padding:10px 16px!important}
-.health-report-preview{margin:20px 0;padding:16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px}.health-report-preview img{display:block;max-width:100%;height:auto;margin:12px 0}.health-report-preview a{display:inline-block;background:#0e7490;color:white;padding:8px 16px;border-radius:6px;margin-bottom:16px}
+.health-report-preview{margin:20px 0;padding:16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px}.health-report-preview img{display:block;max-width:100%;height:auto;margin:12px 0}.health-report-preview button{margin-right:10px;margin-bottom:16px}.health-report-preview a{display:inline-block;background:#0e7490;color:white;padding:8px 16px;border-radius:6px;margin-bottom:16px}
 </style>
 <?php if($healthView==='history'): ?>
 <div id="healthReportPreview" class="health-report-preview" hidden></div>
-<script type="application/json" id="healthReportData"><?= json_encode(['from'=>$historyFrom,'to'=>$historyTo,'range'=>$historyRange,'rows'=>array_values($filteredHealth),'labels'=>$healthLabels],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE) ?></script>
-<script src="<?= e(BASE_URL.'assets/noitru_health_report.js?v=20261005') ?>"></script>
+<?php
+$reportFrom=date('Y-m-d',strtotime('monday this week',strtotime($historyDate)));
+$reportTo=date('Y-m-d',strtotime('sunday this week',strtotime($historyDate)));
+$report=['from'=>$reportFrom,'to'=>$reportTo,'total'=>0,'students'=>0,'types'=>['medicine'=>0,'first_aid'=>0,'hospital'=>0,'family_pickup'=>0],'classes'=>[]];
+$reportStudentIds=[];$reportAllowed=[];
+foreach(noitru_boarders_on_date($historyDate) as $student) if(can_class($student['class_name']??'')) $reportAllowed[(string)$student['id']]=true;
+foreach(noitru_health_for_range($reportFrom,$reportTo) as $record) {
+    $sid=(string)($record['student_id']??'');
+    if(!isset($reportAllowed[$sid]) || !can_class($record['class_name']??''))continue;
+    $type=['thuoc'=>'medicine','kham'=>'first_aid','theo_doi'=>'first_aid'][$record['type']??'']??($record['type']??'');
+    $class=trim($record['class_name']??'')?:'Chưa lớp';
+    if(!isset($report['classes'][$class]))$report['classes'][$class]=['class'=>$class,'visits'=>0,'students'=>[],'hospital'=>0];
+    $report['total']++;$reportStudentIds[$sid]=true;
+    if(isset($report['types'][$type]))$report['types'][$type]++;
+    $report['classes'][$class]['visits']++;$report['classes'][$class]['students'][$sid]=true;
+    if($type==='hospital')$report['classes'][$class]['hospital']++;
+}
+$report['students']=count($reportStudentIds);
+uksort($report['classes'],'csdl_compare_class_names');
+foreach($report['classes'] as &$classSummary)$classSummary['students']=count($classSummary['students']);
+unset($classSummary);$report['classes']=array_values($report['classes']);
+?>
+<script type="application/json" id="healthReportData"><?= json_encode($report,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE) ?></script>
+<script src="<?= e(BASE_URL.'assets/noitru_health_report.js?v=20261005-summary2') ?>"></script>
 <?php endif; ?>
+
