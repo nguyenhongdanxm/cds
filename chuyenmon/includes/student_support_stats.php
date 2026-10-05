@@ -22,7 +22,7 @@ if ($gradeFilter !== '' && $classFilter !== '' && $statGrade($classFilter) !== $
 $subjectFilter = (string)($_GET['stats_subject'] ?? '');
 $statSubjects = array_values(array_unique(array_merge(
     in_array($categoryFilter,['tn','ts'],true) ? $settings[$categoryFilter] : $available,
-    array_keys((array)($members[$categoryFilter] ?? []))
+    in_array($categoryFilter,['tn','ts'],true) ? [] : array_keys((array)($members[$categoryFilter] ?? []))
 )));
 sort($statSubjects, SORT_NATURAL | SORT_FLAG_CASE);
 if ($subjectFilter !== '' && !in_array($subjectFilter, $statSubjects, true)) $subjectFilter = '';
@@ -45,6 +45,7 @@ foreach ($members as $category => $bySubject) {
     if (!isset($tabs[$category]) || !in_array($category, ['tn','ts','muinhon','chuadat'], true)) continue;
     foreach ($bySubject as $subject => $registered) foreach ($registered as $id => $entry) {
         if (!$inScope((string)$id)) continue;
+        if (in_array($category,['tn','ts'],true) && (!in_array($subject,$settings[$category],true) || !isset($examClasses[$category][$students[$id]['class_id']]))) continue;
         $student = $students[$id]; $grade = $studentGrades[$id];
         if ($categoryFilter === $category && in_array($category, ['tn','ts'], true)) {
             $examByStudent[$category][$id][$subject] = (string)($entry['group'] ?? '');
@@ -114,6 +115,24 @@ foreach(array_merge([''],$summarySubjects) as $sub) {
     foreach($classNames as $cl) $examSummaryRows[]=['subject'=>$sub,'class'=>$cl,'ids'=>$examSummary[$sub][$cl]??[]];
 }
 }
+// Cột lớp dùng chung cho tất cả môn, kể cả lớp chưa có đăng ký.
+$matrixClasses=[];
+if(in_array($categoryFilter,['tn','ts'],true)) {
+    foreach($examClasses[$categoryFilter] as $classId=>$_) {
+        $cl=$classOptions[$classId]??'';
+        if($cl!=='' && ($gradeFilter==='' || $statGrade($cl)===$gradeFilter) && ($classFilter==='' || $classFilter===$cl)) $matrixClasses[$cl]=true;
+    }
+}
+$matrixClasses=array_keys($matrixClasses); usort($matrixClasses,'strnatcasecmp');
+$matrixGroups=['TBK','TBY','Chưa xếp'];
+$groupMatrix=[];
+foreach($examByStudent[$categoryFilter]??[] as $id=>$subjectGroups) foreach($subjectGroups as $sub=>$gr) {
+    if($subjectFilter!=='' && $subjectFilter!==$sub) continue;
+    $gr=in_array($gr,['TBK','TBY'],true)?$gr:'Chưa xếp';
+    $cl=$students[$id]['class'];
+    $groupMatrix[$sub][$cl][$gr][$id]=true;
+    $groupMatrix[$sub][''][$gr][$id]=true;
+}
 $examGenderCounts=static function(array $ids) use($students,$statGender): array {
     $counts=['Nam'=>0,'Nữ'=>0,'Chưa rõ'=>0];
     foreach($ids as $id=>$_) $counts[$statGender($students[$id]['gender']??'')]++;
@@ -159,6 +178,16 @@ if ($detailMode === 'exam_summary' && in_array($categoryFilter,['tn','ts'],true)
         $detailTitle=$tabs[$categoryFilter].' · '.($targetSubject?:($subjectFilter?:'Tất cả môn')).' · '.($targetClass?:($classFilter?:($gradeFilter?'Khối '.$gradeFilter:'Toàn trường'))).($targetGender?' · '.$targetGender:'');
         break;
     }
+} elseif ($detailMode === 'group_matrix') {
+    $targetSubject=(string)($_GET['detail_subject']??'');
+    $targetClass=(string)($_GET['detail_class']??'');
+    $targetGroup=(string)($_GET['detail_group']??'');
+    if(in_array($targetSubject,$summarySubjects,true) && ($targetClass==='' || in_array($targetClass,$matrixClasses,true)) && in_array($targetGroup,array_merge([''],$matrixGroups),true)) {
+        $sets=$groupMatrix[$targetSubject][$targetClass]??[];
+        $ids=[]; foreach($sets as $gr=>$set) if($targetGroup==='' || $targetGroup===$gr) $ids+=$set;
+        $detailIds=array_keys($ids);
+        $detailTitle=$tabs[$categoryFilter].' · '.$targetSubject.' · '.($targetClass?:'Tổng các lớp').($targetGroup?' · '.$targetGroup:'');
+    }
 } elseif ($detailMode === 'summary') {
     $targetCat=(string)($_GET['detail_category'] ?? ''); $targetSubject=(string)($_GET['detail_subject'] ?? '');
     $targetGrade=(string)($_GET['detail_grade'] ?? ''); $targetClass=(string)($_GET['detail_class'] ?? '');
@@ -195,11 +224,17 @@ usort($detailIds, static fn($a,$b)=>strnatcasecmp($students[$a]['class'].'|'.$st
 <?php if(in_array($categoryFilter,['tn','ts'],true)):?>
 <div class="nav nav-pills gap-2 mb-3 flex-wrap"><a class="nav-link <?=$statsView==='summary'?'active':''?>" href="<?=e($statUrl(['stats_view'=>'summary','detail_mode'=>'']))?>">Tổng số theo môn, lớp, nam/nữ</a><a class="nav-link <?=$statsView==='groups'?'active':''?>" href="<?=e($statUrl(['stats_view'=>'groups','detail_mode'=>'']))?>">Theo nhóm TBK/TBY</a><a class="nav-link <?=$statsView==='overlap'?'active':''?>" href="<?=e($statUrl(['stats_view'=>'overlap','detail_mode'=>'']))?>">Giao thoa giữa các môn</a></div>
 <?php if($statsView==='summary'):?>
-<div class="card mb-3"><div class="card-body"><h5><?=e($tabs[$categoryFilter])?> · Số học sinh theo môn và lớp</h5><p class="small text-muted">Tổng chung đếm mỗi học sinh một lần dù đăng ký nhiều môn. Số theo từng môn có thể cộng lớn hơn tổng chung. Bấm vào số để xem học sinh.</p><div class="table-responsive"><table class="table table-striped table-sm align-middle"><thead><tr><th>Môn</th><th>Phạm vi</th><th>Tổng HS</th><th>Nam</th><th>Nữ</th><th>Chưa rõ giới tính</th></tr></thead><tbody>
-<?php foreach($examSummaryRows as $row):$counts=$examGenderCounts($row['ids']);$link=['detail_mode'=>'exam_summary','detail_subject'=>$row['subject'],'detail_class'=>$row['class']];?><tr class="<?=$row['class']===''?'table-primary fw-semibold':''?>"><td><?=e($row['subject']?:'TỔNG THEO BỘ LỌC')?></td><td><?=e($row['class']?:($classFilter?:($gradeFilter?'Toàn khối '.$gradeFilter:'Toàn trường')))?></td><td><a href="<?=e($statUrl($link))?>"><?=count($row['ids'])?></a></td><?php foreach(['Nam','Nữ','Chưa rõ'] as $gender):?><td><a href="<?=e($statUrl(array_merge($link,['detail_gender'=>$gender])))?>"><?=$counts[$gender]?></a></td><?php endforeach;?></tr><?php endforeach;?></tbody></table></div></div></div>
+<div class="card mb-3"><div class="card-body"><h5><?=e($tabs[$categoryFilter])?> · Số học sinh theo môn và lớp</h5><p class="small text-muted">Chỉ tính môn và lớp đang chọn trong Cài đặt. Tổng chung đếm mỗi học sinh một lần dù đăng ký nhiều môn. Bấm số để xem danh sách.</p>
+<div class="table-responsive"><table class="table table-bordered table-striped table-sm align-middle text-center"><thead><tr><th rowspan="2" class="align-middle">Môn</th><?php foreach(array_merge([''],$matrixClasses) as $cl):?><th colspan="4"><?=e($cl?:'Tổng các lớp')?></th><?php endforeach;?></tr><tr><?php foreach(array_merge([''],$matrixClasses) as $cl):?><th>Tổng HS</th><th>Nam</th><th>Nữ</th><th>Chưa rõ</th><?php endforeach;?></tr></thead><tbody>
+<?php foreach(array_merge([''],$summarySubjects) as $sub):?><tr class="<?=$sub===''?'table-primary fw-semibold':''?>"><th class="text-start"><?=e($sub?:'TỔNG HS DUY NHẤT')?></th><?php foreach(array_merge([''],$matrixClasses) as $cl):
+$ids=[]; if($cl==='') { foreach(($examSummary[$sub]??[]) as $set) $ids+=$set; } else $ids=$examSummary[$sub][$cl]??[];
+$counts=$examGenderCounts($ids);$link=['detail_mode'=>'exam_summary','detail_subject'=>$sub,'detail_class'=>$cl];?>
+<td class="fw-bold"><a href="<?=e($statUrl($link))?>"><?=count($ids)?></a></td><?php foreach(['Nam','Nữ','Chưa rõ'] as $gender):?><td><a href="<?=e($statUrl(array_merge($link,['detail_gender'=>$gender])))?>"><?=$counts[$gender]?></a></td><?php endforeach;endforeach;?></tr><?php endforeach;if(!$summarySubjects):?><tr><td colspan="<?=1+4*(count($matrixClasses)+1)?>" class="text-muted">Chưa cài đặt môn ôn thi.</td></tr><?php endif;?></tbody></table></div></div></div>
 <?php elseif($statsView==='groups'):?>
-<div class="card mb-3"><div class="card-body"><h5>Học sinh TBK/TBY theo từng môn</h5><div class="table-responsive"><table class="table table-striped table-sm"><thead><tr><th>Kỳ thi</th><th>Môn</th><th>Nhóm</th><th>Số học sinh</th></tr></thead><tbody>
-<?php foreach($examGroups as $key=>$ids):[$cat,$sub,$group]=json_decode($key,true);?><tr><td><?=e($tabs[$cat])?></td><td><?=e($sub)?></td><td><?=e($group)?></td><td><a href="<?=e($statUrl(['detail_mode'=>'exam_group','group_key'=>$key]))?>"><?=count($ids)?> · Xem DS</a></td></tr><?php endforeach;if(!$examGroups):?><tr><td colspan="4" class="text-muted text-center">Chưa có học sinh ôn thi phù hợp.</td></tr><?php endif;?></tbody></table></div></div></div>
+<div class="card mb-3"><div class="card-body"><h5>Học sinh TBK/TBY theo môn và lớp</h5><p class="small text-muted">Mỗi môn có chung các cột lớp; trong mỗi lớp chia TBK, TBY và Chưa xếp. Tổng HS = TBK + TBY + Chưa xếp. Một học sinh có thể thuộc nhóm khác nhau ở các môn.</p>
+<div class="table-responsive"><table class="table table-bordered table-striped table-sm align-middle text-center"><thead><tr><th rowspan="2" class="align-middle">Môn</th><?php foreach(array_merge([''],$matrixClasses) as $cl):?><th colspan="4"><?=e($cl?:'Tổng các lớp')?></th><?php endforeach;?></tr><tr><?php foreach(array_merge([''],$matrixClasses) as $cl):?><th>Tổng HS</th><th>TBK</th><th>TBY</th><th>Chưa xếp</th><?php endforeach;?></tr></thead><tbody>
+<?php foreach($summarySubjects as $sub):?><tr><th class="text-start"><?=e($sub)?></th><?php foreach(array_merge([''],$matrixClasses) as $cl):$sets=$groupMatrix[$sub][$cl]??[];$ids=[];foreach($sets as $set)$ids+=$set;$link=['detail_mode'=>'group_matrix','detail_subject'=>$sub,'detail_class'=>$cl];?>
+<td class="fw-bold"><a href="<?=e($statUrl($link))?>"><?=count($ids)?></a></td><?php foreach($matrixGroups as $gr):?><td><a href="<?=e($statUrl(array_merge($link,['detail_group'=>$gr])))?>"><?=count($sets[$gr]??[])?></a></td><?php endforeach;endforeach;?></tr><?php endforeach;if(!$summarySubjects):?><tr><td colspan="<?=1+4*(count($matrixClasses)+1)?>" class="text-muted">Chưa cài đặt môn ôn thi.</td></tr><?php endif;?></tbody></table></div></div></div>
 <?php else:?><div class="card mb-3"><div class="card-body"><h5>Giao thoa lớp ôn thi TBK/TBY giữa các môn</h5><p class="small text-muted">Mỗi dòng là hai lớp môn cùng có học sinh. Bấm số học sinh để xem ai bị trùng; không xếp hai lớp môn đó cùng tiết. Nhóm “Chưa xếp” cần được phân nhóm trước khi lập TKB.</p>
 <div class="table-responsive"><table class="table table-striped table-sm align-middle"><thead><tr><th>Kỳ thi</th><th>Môn 1</th><th>Nhóm 1</th><th>Môn 2</th><th>Nhóm 2</th><th>HS chung</th><th>Lưu ý TKB</th></tr></thead><tbody>
 <?php foreach($overlaps as $key=>$ids):[$cat,$a,$ga,$b,$gb]=json_decode($key,true);?><tr><td><?=e($tabs[$cat])?></td><td><?=e($a)?></td><td><?=e($ga)?></td><td><?=e($b)?></td><td><?=e($gb)?></td><td><a href="<?=e($statUrl(['detail_mode'=>'overlap','overlap_key'=>$key]))?>"><?=count($ids)?> · Xem DS</a></td><td class="text-danger fw-semibold">Không xếp cùng tiết</td></tr><?php endforeach;if(!$overlaps):?><tr><td colspan="7" class="text-muted text-center">Không có học sinh chung giữa hai môn trong phạm vi lọc.</td></tr><?php endif;?></tbody></table></div></div></div>
