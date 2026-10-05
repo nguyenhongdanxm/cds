@@ -19,38 +19,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const zoom = el('healthQrZoom');
     el('healthQrZoomArea').hidden = !(caps.zoom && caps.zoom.max > caps.zoom.min);
     if (caps.zoom && caps.zoom.max > caps.zoom.min) {
-      zoom.min = caps.zoom.min; zoom.max = Math.min(caps.zoom.max, 6);
+      zoom.min = caps.zoom.min; zoom.max = Math.max(caps.zoom.min, Math.min(caps.zoom.max, 6));
       zoom.step = caps.zoom.step || 0.1;
+      const desired = Math.min(Number(zoom.max), Math.max(Number(zoom.min), 1.75));
+      const step = Number(zoom.step);
+      const initialZoom = Math.min(Number(zoom.max), Math.max(Number(zoom.min), Number((Number(zoom.min) + Math.round((desired - Number(zoom.min)) / step) * step).toFixed(3))));
+      try { await scanner.applyVideoConstraints({advanced:[{zoom:initialZoom}]}); } catch (_) {}
+      if (!running || ticket !== session) return;
       const settings = scanner.getRunningTrackSettings();
-      zoom.value = Math.min(Number(zoom.max), Math.max(Number(zoom.min), settings.zoom || caps.zoom.min));
+      zoom.value = Math.min(Number(zoom.max), Math.max(Number(zoom.min), settings.zoom ?? caps.zoom.min));
       el('healthQrZoomValue').textContent = Number(zoom.value).toFixed(1)+'×';
     }
     torch = false; el('healthQrTorch').hidden = !caps.torch;
     el('healthQrTorch').textContent = 'Bật đèn';
     el('healthQrTorch').setAttribute('aria-pressed','false');
-    try {
-      const cameras = await navigator.mediaDevices.enumerateDevices();
-      if (!running || ticket !== session) return;
-      const select = el('healthQrCamera'); select.replaceChildren();
-      const settings = scanner.getRunningTrackSettings();
-      cameras.filter(camera => camera.kind === 'videoinput').forEach((camera,index) => {
-        const option = document.createElement('option');
-        option.value = camera.deviceId; option.textContent = camera.label || 'Camera '+(index+1);
-        option.selected = camera.deviceId === settings.deviceId; select.append(option);
-      });
-      el('healthQrCameraArea').hidden = select.options.length < 2;
-    } catch (_) {}
+
   }
   function adjust(constraints, done) {
     const ticket = session;
     controlsQueue = controlsQueue.then(async () => {
       if (!running || ticket !== session) return;
       try { await scanner.applyVideoConstraints({advanced:[constraints]}); if (running && ticket === session) done(); }
-      catch (_) { if (running && ticket === session) status('Camera không hỗ trợ điều chỉnh này. Hãy thử đổi camera.'); }
+      catch (_) { if (running && ticket === session) status('Camera không hỗ trợ điều chỉnh này. Hãy giữ thẻ đủ xa để camera lấy nét.'); }
     });
   }
   async function stop() {
-    ['healthQrZoomArea','healthQrCameraArea','healthQrTorch'].forEach(id => { el(id).hidden = true; });
+    ['healthQrZoomArea','healthQrTorch'].forEach(id => { el(id).hidden = true; });
     if (scanner && running) { running = false; try { await scanner.stop(); } catch (_) {} }
   }
   async function recognize(text, ticket) {
@@ -85,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (ticket === session && dialog.open) status(error instanceof SyntaxError ? 'Phiên đăng nhập đã hết hạn hoặc máy chủ chưa phản hồi. Vui lòng tải lại trang.' : error.message);
     } finally { busy = false; }
   }
-  async function start(cameraId) {
+  async function start() {
     if (busy || running) return;
     const ticket = ++session;
     busy = true; el('healthQrResult').hidden = true;
@@ -94,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!window.isSecureContext) throw new Error('Camera cần mở trang bằng HTTPS. Bạn có thể chọn ảnh mã QR bên dưới.');
       scanner ||= createScanner();
       status('Đang mở camera…');
-      const camera = typeof cameraId === 'string' && cameraId ? {deviceId:{exact:cameraId}} : {facingMode:{ideal:'environment'}};
+      const camera = {facingMode:{ideal:'environment'}};
       const onScan = text => { if (!busy) recognize(text,ticket); };
       // Scan the entire frame: a small shaded box used to discard codes near its edges.
       try {
@@ -111,12 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   el('healthQrOpen').addEventListener('click', () => { dialog.showModal(); start(); });
   el('healthQrStart').addEventListener('click', () => start());
-  el('healthQrCamera').addEventListener('change', async event => {
-    if (busy) return;
-    const cameraId = event.target.value;
-    busy = true; ++session; await stop(); busy = false;
-    if (dialog.open) start(cameraId);
-  });
   el('healthQrZoom').addEventListener('input', event => {
     const zoom = Number(event.target.value);
     adjust({zoom}, () => { el('healthQrZoomValue').textContent = zoom.toFixed(1)+'×'; });
