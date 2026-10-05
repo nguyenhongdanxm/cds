@@ -51,6 +51,8 @@ function cmact_online_schedule(array $enrollments, array $students, ?DateTimeImm
                     'end' => $end,
                     'session' => (string)($slot['session'] ?? ''),
                     'program' => (string)($row['program'] ?? ''),
+                    'group_id' => (string)($row['group_id'] ?? ''),
+                    'group_name' => (string)($row['group_name'] ?? ''),
                     'student_id' => $studentId,
                     'student' => $student,
                 ];
@@ -61,17 +63,21 @@ function cmact_online_schedule(array $enrollments, array $students, ?DateTimeImm
     }
 
     usort($upcoming, fn($a, $b) => $a['start'] <=> $b['start']);
-    if ($upcoming) {
-        $nextTimestamp = $upcoming[0]['start']->getTimestamp();
-        $upcoming = array_values(array_filter($upcoming, fn($item) => $item['start']->getTimestamp() === $nextTimestamp));
-    }
+    // Giữ ca học kế tiếp của từng nhóm, không chỉ ca sớm nhất toàn trường.
+    $nextByGroup = [];
+    $upcoming = array_values(array_filter($upcoming, static function($item) use (&$nextByGroup) {
+        $key = $item['group_id'] !== '' ? 'id:'.$item['group_id'] : ($item['group_name'] !== '' ? 'name:'.$item['group_name'] : 'student:'.$item['student_id']);
+        $timestamp = $item['start']->getTimestamp();
+        if (!isset($nextByGroup[$key])) $nextByGroup[$key] = $timestamp;
+        return $timestamp === $nextByGroup[$key];
+    }));
     return ['now' => $now, 'current' => cmact_online_group_schedule($current), 'upcoming' => cmact_online_group_schedule($upcoming)];
 }
 
 function cmact_online_group_schedule(array $items): array {
     $groups = [];
     foreach ($items as $item) {
-        $key = $item['start']->format('c') . '|' . $item['end']->format('c') . '|' . $item['session'] . '|' . $item['program'];
+        $key = json_encode([(string)($item['group_id']??''),(string)($item['group_name']??'')]) . '|' . $item['start']->format('c') . '|' . $item['end']->format('c') . '|' . $item['session'] . '|' . $item['program'];
         if (!isset($groups[$key])) $groups[$key] = array_merge($item, ['students' => []]);
         $studentKey = $item['student_id'] !== '' ? $item['student_id'] : $item['student']['class'] . '|' . $item['student']['name'];
         $groups[$key]['students'][$studentKey] = $item['student'];
