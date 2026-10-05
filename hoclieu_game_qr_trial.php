@@ -331,7 +331,7 @@ if(paperCode){
  $('graphRemote').onclick=async()=>{try{await control('show_graph',{value:showGraph?'0':'1'});await syncQuestion()}catch(e){$('scanStatus').textContent=e.message}};
  syncQuestion();setInterval(syncQuestion,2500);
 }
-$('mobilePreview').onclick=()=>{const q=current();if(!q||phase==='welcome'){mobileStatus('Hãy bắt đầu trước khi xem đáp án.');return}const key=q.key||'';$('previewAnswer').textContent=key+' · '+(q.choices?.[key]||'');$('previewExplanation').textContent=q.explanation?'Giải thích: '+q.explanation:'';$('answerPreview').classList.remove('hidden')};$('closePreview').onclick=()=>$('answerPreview').classList.add('hidden');
+$('mobilePreview').onclick=async()=>{const q=current();if(!q||phase==='welcome'){mobileStatus('Hãy bắt đầu trước khi xem đáp án.');return}const key=q.key||'';$('previewAnswer').textContent=key+' · '+(q.choices?.[key]||'');$('previewExplanation').textContent=q.explanation?'Giải thích: '+q.explanation:'';$('answerPreview').classList.remove('hidden');if(paperCode){try{await control('show_correct',{value:'1'});await syncQuestion();mobileStatus('Đã hiện đáp án và giải thích trên màn chiếu.')}catch(e){mobileStatus(e.message)}}};$('closePreview').onclick=()=>$('answerPreview').classList.add('hidden');
 $('mobileStart').onclick=()=>scanning?$('stopScan').click():startCamera();
 $('mobileMissingToggle').onclick=()=>{const open=$('mobileMissing').classList.toggle('open');$('mobileMissingToggle').setAttribute('aria-expanded',String(open));$('mobileMissingToggle').textContent=(open?'✕ Đóng danh sách':'👥 Xem học sinh chưa quét')+' · '+(current()?students.filter(student=>!current().answers?.[student.id]).length:students.length)};
 $('mobilePrev').onclick=()=>paperCode&&$('prevRemote').click();
