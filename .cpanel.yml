@@ -1,6 +1,9 @@
 ---
 deployment:
   tasks:
+    - /opt/alt/php83/usr/bin/php -l noitru_health_excel.php
+    - /opt/alt/php83/usr/bin/php -l includes/noitru_health_history_filter.php
+    - /opt/alt/php83/usr/bin/php -l includes/noitru_health_excel_export.php
     - /opt/alt/php83/usr/bin/php -l includes/ai_school_data.php
     - /opt/alt/php83/usr/bin/php -l includes/ai_service.php
     - /opt/alt/php83/usr/bin/php -l ai_api.php
