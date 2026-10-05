@@ -141,6 +141,7 @@ function cds_ai_assistants(): array {
             'permission' => 'ai.dayhoc',
             'tasks' => [
                 'lesson' => 'Xây dựng kế hoạch bài dạy phù hợp môn, lớp, thời lượng và yêu cầu cần đạt đã cung cấp.',
+                'quiz_json' => 'Tạo câu hỏi trò chơi theo cấu trúc JSON được yêu cầu. Chỉ trả JSON hợp lệ, không Markdown. Kiểm tra tính đúng đắn và nhất quán của đáp án, giải thích.',
                 'questions' => 'Tạo hệ thống câu hỏi theo mức độ; kèm đáp án và hướng dẫn chấm rõ ràng.',
                 'activity' => 'Thiết kế hoạt động học tích cực, khả thi với điều kiện thực tế của nhà trường.',
                 'differentiate' => 'Điều chỉnh nội dung cho các nhóm học sinh khác nhau, không hạ thấp yêu cầu cốt lõi.',
