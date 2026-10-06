@@ -2,14 +2,24 @@
 function randomIndex(n){if(!Number.isInteger(n)||n<1||n>4294967296)throw Error('Danh sách không hợp lệ.');const cap=Math.floor(4294967296/n)*n,a=new Uint32Array(1);let value;do{root.crypto.getRandomValues(a);value=a[0];}while(value>=cap);return value%n;}
 function shuffle(items){const out=items.slice();for(let i=out.length-1;i>0;i--){const j=randomIndex(i+1);[out[i],out[j]]=[out[j],out[i]];}return out;}
 function pool(students,selected,called,noRepeat){return students.filter(s=>selected.has(s.id)&&(!noRepeat||!called.has(s.id)));}
-function junction(row,col){return {x:126+col*108+Math.sin(row*1.71+col*.93)*18,y:78+row*44+Math.cos(row*.91+col*1.21)*7};}
-function plan(available,limit=8){if(!Number.isInteger(limit)||limit<1||limit>8)throw Error('Số ô đích không hợp lệ.');if(!available.length)throw Error('Không còn học sinh để chọn.');const winner=available[randomIndex(available.length)];const candidates=shuffle([winner,...shuffle(available.filter(s=>s.id!==winner.id)).slice(0,limit-1)]),slot=candidates.findIndex(s=>s.id===winner.id);let col=3;const nodes=[{x:450,y:26}];for(let i=0;i<9;i++){col=col===0?1:col===6?5:col+(randomIndex(2)?1:-1);nodes.push(junction(i,col));}const x=60+(slot+.5)*780/candidates.length;nodes.push({x,y:456});nodes.push({x,y:520});return {winner,candidates,slot,nodes};}
-// Two underground branches and a final concealed distribution pipe.
-const hidden=new Set([3,4,7,9]),weights=[.55,.65,.65,.95,1.1,.65,.65,1.05,.65,1.65,.6];
-// Every rail uses the same cubic geometry for drawing and ball movement.
-function curve(a,b,index){if(index>=9)return [a,{x:a.x,y:a.y+(b.y-a.y)/3},{x:b.x,y:a.y+2*(b.y-a.y)/3},b];const direction=b.x>=a.x?1:-1,style=(index+Math.round(a.x/108))%3;if(style===0)return [a,{x:a.x+direction*170,y:a.y-32},{x:b.x-direction*165,y:b.y+38},b];if(style===1)return [a,{x:a.x-direction*45,y:a.y+80},{x:b.x+direction*45,y:b.y-75},b];return [a,{x:a.x+direction*178,y:a.y+80},{x:b.x-direction*174,y:b.y-80},b];}
-function point(points,t){const [a,b,c,d]=points,u=1-t;return {x:u*u*u*a.x+3*u*u*t*b.x+3*u*t*t*c.x+t*t*t*d.x,y:u*u*u*a.y+3*u*u*t*b.y+3*u*t*t*c.y+t*t*t*d.y};}
-function position(plan,progress){if(progress>=1)return {...plan.nodes[11],hidden:false,index:10,t:1};const total=weights.reduce((a,b)=>a+b,0),time=Math.max(0,Math.min(1,progress))*total;let consumed=0,index=0;for(;index<weights.length-1;index++){if(time<=consumed+weights[index])break;consumed+=weights[index];}const t=Math.max(0,Math.min(1,(time-consumed)/weights[index])),p=point(curve(plan.nodes[index],plan.nodes[index+1],index),t);return {...p,hidden:hidden.has(index),index,t};}
+const ballRadius=9,pegRadius=6,pegs=[];
+for(let row=0;row<9;row++)for(let x=90+(row%2?30:0);x<=810;x+=60)pegs.push({x,y:96+row*41,row,id:pegs.length});
+// Simulate gravity, circular peg contacts and solid compartment walls. The
+// student is chosen independently, then assigned to the physical landing bin:
+// central bins therefore never give any student an advantage.
+function simulate(count){const dt=1/120,width=780/count;let x=425+randomIndex(51),y=34,vx=randomIndex(121)-60,vy=0,index=0,lastHit=-1,bin=-1;const frames=[{x,y,index,lastHit}];for(let step=0;step<2400;step++){vy+=245*dt;x+=vx*dt;y+=vy*dt;vx*=.999;
+if(x<60+ballRadius){x=60+ballRadius;vx=Math.abs(vx)*.7;}if(x>840-ballRadius){x=840-ballRadius;vx=-Math.abs(vx)*.7;}
+if(y<30){y=30;vy=Math.abs(vy)*.5;}
+if(y<460)for(const peg of pegs){if(Math.abs(peg.y-y)>16||Math.abs(peg.x-x)>16)continue;const dx=x-peg.x,dy=y-peg.y,d=Math.hypot(dx,dy),contact=ballRadius+pegRadius;if(d>=contact)continue;const nx=d>1e-7?dx/d:0,ny=d>1e-7?dy/d:-1;x=peg.x+nx*(contact+.02);y=peg.y+ny*(contact+.02);const incoming=vx*nx+vy*ny;if(incoming<0){vx-=1.67*incoming*nx;vy-=1.67*incoming*ny;vx+=(randomIndex(21)-10)*.6;if(Math.abs(vx)<8)vx+=(randomIndex(2)?1:-1)*13;index++;lastHit=peg.id;}}
+// Rounded divider tips are real obstacles, so a near-edge ball bounces
+// into a compartment rather than jumping sideways when it enters a bin.
+if(y>=464)for(let i=0;i<=count;i++){const wall=60+i*width,dx=x-wall,dy=Math.min(0,y-476),d=Math.hypot(dx,dy);if(d>=12)continue;const nx=d>1e-7?dx/d:(vx>=0?-1:1),ny=d>1e-7?dy/d:0;x=wall+nx*12.02;if(y<476)y=476+ny*12.02;const incoming=vx*nx+vy*ny;if(incoming<0){vx-=1.5*incoming*nx;vy-=1.5*incoming*ny;}}
+if(y>=488&&bin<0)bin=Math.max(0,Math.min(count-1,Math.floor((x-60)/width)));
+if(y>=520){y=520;frames.push({x,y,index,lastHit});return index>=5?{frames,slot:bin}:null;}frames.push({x,y,index,lastHit});}
+throw Error('Chưa tạo được đường rơi. Hãy thử lại.');}
+function motionFor(count){for(let attempt=0;attempt<20;attempt++){const motion=simulate(count);if(motion)return motion;}throw Error('Chưa tạo được lượt rơi. Hãy thử lại.');}
+function plan(available,limit=8){if(!Number.isInteger(limit)||limit<1||limit>8)throw Error('Số ô đích không hợp lệ.');if(!available.length)throw Error('Không còn học sinh để chọn.');const winner=available[randomIndex(available.length)],candidates=shuffle([winner,...shuffle(available.filter(s=>s.id!==winner.id)).slice(0,limit-1)]),motion=motionFor(candidates.length),winnerIndex=candidates.findIndex(s=>s.id===winner.id);[candidates[winnerIndex],candidates[motion.slot]]=[candidates[motion.slot],candidates[winnerIndex]];return {winner,candidates,slot:motion.slot,frames:motion.frames};}
+function position(plan,progress){const f=Math.max(0,Math.min(1,progress))*(plan.frames.length-1),i=Math.floor(f),a=plan.frames[i],b=plan.frames[Math.min(i+1,plan.frames.length-1)],t=f-i;return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,index:a.index,lastHit:a.lastHit,hidden:false};}
 function namesFrame(available,count){if(count<1||count>available.length)throw Error('Số tên không hợp lệ.');return shuffle(available).slice(0,count);}
-root.CDSBallEngine={randomIndex,shuffle,pool,plan,position,hidden,curve,point,namesFrame,junction};
+root.CDSBallEngine={randomIndex,shuffle,pool,plan,position,namesFrame,pegs,ballRadius,pegRadius};
 })(typeof window==='undefined'?globalThis:window);
