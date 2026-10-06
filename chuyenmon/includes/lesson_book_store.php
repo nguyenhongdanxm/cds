@@ -355,3 +355,25 @@ function lb_stat_totals(array $rows): array {
 }
 function lb_set_lock(array $week,array $classes,bool $locked,string $reason=''): array {if(!lb_is_admin())return['ok'=>false,'message'=>'Chỉ quản trị được khóa/mở sổ.'];$rows=lb_rows(LB_LOCKS_FILE);foreach($classes as$class){$key=lb_lock_key((string)$week['key'],(string)$class,'main');$found=false;foreach($rows as&$r)if(($r['key']??'')===$key){$r=array_merge($r,['locked'=>$locked,'reason'=>$reason,'at'=>date('c'),'by'=>lb_teacher_name(),'automatic'=>false]);$found=true;break;}unset($r);if(!$found)$rows[]=['key'=>$key,'week_key'=>$week['key'],'class'=>$class,'type'=>'main','locked'=>$locked,'reason'=>$reason,'at'=>date('c'),'by'=>lb_teacher_name(),'automatic'=>false];}lb_write(LB_LOCKS_FILE,$rows);lb_audit($locked?'lock':'unlock',['classes'=>$classes,'reason'=>$reason]);return['ok'=>true,'message'=>$locked?'Đã khóa sổ.':'Đã mở khóa sổ.'];}
 function lb_set_lock_bulk(array $weekKeys,string $scope,string $target,bool $locked,string $reason=''):array{if(!lb_is_admin())return['ok'=>false,'message'=>'Chỉ quản trị được khóa/mở sổ.'];$weekKeys=array_values(array_unique(array_filter(array_map('strval',$weekKeys))));if(!$weekKeys)return['ok'=>false,'message'=>'Hãy chọn ít nhất một tuần.'];if(!in_array($scope,['school','grade','class'],true))return['ok'=>false,'message'=>'Phạm vi khóa không hợp lệ.'];if($scope!=='school'&&trim($target)==='')return['ok'=>false,'message'=>'Hãy chọn khối hoặc lớp.'];$weeks=[];foreach(lb_weeks()as$week)if(in_array((string)($week['key']??''),$weekKeys,true))$weeks[]=$week;if(!$weeks)return['ok'=>false,'message'=>'Không tìm thấy tuần đã chọn.'];$rows=lb_rows(LB_LOCKS_FILE);$changed=0;$affected=[];foreach($weeks as$week){$classes=[];foreach(lb_slots($week)as$slot){$class=trim((string)($slot['class']??''));if($class==='')continue;if($scope==='grade'&&lb_grade($class)!==preg_replace('/\D+/','',$target))continue;if($scope==='class'&&!lb_same($class,$target))continue;$classes[$class]=true;}foreach(array_keys($classes)as$class){$key=lb_lock_key((string)$week['key'],$class,'main');$found=false;foreach($rows as&$row)if(($row['key']??'')===$key){$row=array_merge($row,['locked'=>$locked,'reason'=>$reason,'at'=>date('c'),'by'=>lb_teacher_name(),'automatic'=>false]);$found=true;break;}unset($row);if(!$found)$rows[]=['key'=>$key,'week_key'=>$week['key'],'class'=>$class,'type'=>'main','locked'=>$locked,'reason'=>$reason,'at'=>date('c'),'by'=>lb_teacher_name(),'automatic'=>false];$changed++;$affected[]=(string)$week['key'].'|'.$class;}}if(!$changed)return['ok'=>false,'message'=>'Phạm vi đã chọn không có lớp nào trong các tuần này.'];if(!lb_write(LB_LOCKS_FILE,$rows))return['ok'=>false,'message'=>'Không lưu được trạng thái khóa sổ.'];lb_audit($locked?'bulk_lock':'bulk_unlock',['weeks'=>$weekKeys,'scope'=>$scope,'target'=>$target,'affected'=>$changed,'reason'=>$reason]);return['ok'=>true,'message'=>($locked?'Đã khóa ':'Đã mở khóa ').$changed.' sổ lớp trong '.count($weeks).' tuần.'];}
+
+function lb_week_lock_classes(array $week): array {
+ $classes=[];foreach(get_assignments()as$r){$c=trim((string)($r['class']??''));if($c!=='')$classes[$c]=true;}
+ $tkb=lb_tkb_week($week);if($tkb)foreach(tkb_resolved_slots($tkb)as$r){$c=trim((string)($r['class']??''));if($c!=='')$classes[$c]=true;}
+ foreach(lb_rows(LB_LOCKS_FILE)as$r)if((string)($r['week_key']??'')===(string)$week['key']&&(string)($r['type']??'main')==='main'){$c=trim((string)($r['class']??''));if($c!=='')$classes[$c]=true;}
+ foreach(lb_rows(LB_RECORDS_FILE)as$r)if((string)($r['week_key']??'')===(string)$week['key']){$c=trim((string)($r['class']??''));if($c!=='')$classes[$c]=true;}
+ $out=array_keys($classes);sort($out,SORT_NATURAL);return$out;
+}
+function lb_save_week_lock_table(array $states): array {
+ if(!lb_is_admin())return['ok'=>false,'message'=>'Chỉ quản trị được khóa/mở sổ.'];
+ if(!$states)return['ok'=>true,'message'=>'Trạng thái khóa sổ chưa thay đổi.'];
+ $weeks=[];foreach(lb_weeks()as$week)$weeks[(string)$week['key']]=$week;
+ $updates=[];foreach($states as$key=>$state){
+  if(!isset($weeks[$key])||!in_array((string)$state,['0','1'],true))return['ok'=>false,'message'=>'Tuần hoặc trạng thái không hợp lệ. Hãy tải lại bảng.'];
+  $classes=lb_week_lock_classes($weeks[$key]);if(!$classes)return['ok'=>false,'message'=>'Tuần đã chọn chưa có danh sách lớp.'];
+  foreach($classes as$class){$lockKey=lb_lock_key((string)$key,$class,'main');$updates[$lockKey]=['key'=>$lockKey,'week_key'=>(string)$key,'class'=>$class,'type'=>'main','locked'=>(string)$state==='1','automatic'=>false,'reason'=>'Cập nhật bảng khóa theo tuần','at'=>date('c'),'by'=>lb_teacher_name()];}
+ }
+ $ok=cds_json_update(LB_LOCKS_FILE,static function($rows)use($updates){$out=[];foreach((array)$rows as$r)if(is_array($r))$out[(string)($r['key']??'')]=$r;foreach($updates as$key=>$r)$out[$key]=array_merge($out[$key]??[],$r);return array_values($out);},[]);
+ if(!$ok)return['ok'=>false,'message'=>'Không lưu được bảng khóa sổ.'];
+ lb_rows_bust(LB_LOCKS_FILE);lb_audit('save_week_lock_table',['weeks'=>$states]);
+ return['ok'=>true,'message'=>'Đã lưu trạng thái khóa/mở sổ của '.count($states).' tuần.'];
+}
