@@ -55,7 +55,7 @@ $switchCurrentPath = basename($switchRequestPath);
   if(box.parentElement!==document.body)document.body.appendChild(box);
   var openButton=box.querySelector('[data-cds-open]'),search=box.querySelector('[data-cds-search]');
   function normalize(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
-  function open(){box.classList.add('open');openButton.setAttribute('aria-expanded','true');setTimeout(function(){search.focus()},30)}
+  function open(){box.classList.add('open');openButton.setAttribute('aria-expanded','true');setTimeout(function(){if(!box.classList.contains('open'))return;var touchLayout=window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;var target=touchLayout?box.querySelector('.cds-launcher-close'):search;target.focus({preventScroll:true})},30)}
   function close(){box.classList.remove('open','no-result');openButton.setAttribute('aria-expanded','false');search.value='';filter('')}
   function filter(value){var query=normalize(value),visible=0;box.querySelectorAll('[data-cds-links] .cds-launcher-link').forEach(function(link){var match=!query||normalize(link.dataset.search+' '+link.textContent).includes(query);link.hidden=!match;if(match)visible++});box.classList.toggle('no-result',!!query&&visible===0)}
   openButton.addEventListener('click',function(e){e.stopPropagation();box.classList.contains('open')?close():open()});box.querySelectorAll('[data-cds-close]').forEach(function(el){el.addEventListener('click',close)});search.addEventListener('input',function(){filter(search.value)});document.addEventListener('keydown',function(e){if(e.key==='Escape')close();if(e.altKey&&String(e.key).toLowerCase()==='m'){e.preventDefault();box.classList.contains('open')?close():open()}});
