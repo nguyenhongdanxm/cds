@@ -4,12 +4,18 @@ const panel=document.getElementById('qp-ai-panel');if(!panel)return;
 const el=id=>document.getElementById(id),preview=el('qp-ai-preview'),status=el('qp-ai-status'),generate=el('qp-ai-generate'),stop=el('qp-ai-stop');
 let drafts=[],running=false,stopRequested=false;
 const letters=['A','B','C','D'];
+const difficultyLabels={easy:'🟢 Dễ',medium:'🟡 Vừa',hard:'🔴 Khó'};
+function difficultyPlan(values){const counts=['easy','medium','hard'].map(level=>({level,count:Number(values[level])}));if(counts.some(x=>!Number.isInteger(x.count)||x.count<0||x.count>20))throw Error('Số câu ở mỗi mức phải là số nguyên từ 0 đến 20.');const total=counts.reduce((n,x)=>n+x.count,0);if(total<1||total>20)throw Error('Tổng số câu dễ, vừa và khó phải từ 1 đến 20.');const batches=[];for(const {level,count} of counts)for(let remaining=count;remaining>0;remaining-=2)batches.push({difficulty:level,count:Math.min(2,remaining)});return {total,batches};}
+function difficultyValues(){return Object.fromEntries(['easy','medium','hard'].map(level=>[level,el('qp-ai-'+level).value]));}
+function updateTotal(){const values=difficultyValues(),sum=Object.values(values).reduce((n,v)=>n+Number(v),0);el('qp-ai-count').value=Number.isFinite(sum)?String(sum):'';}
+for(const level of ['easy','medium','hard'])el('qp-ai-'+level).addEventListener('input',updateTotal);updateTotal();
+
 function node(tag,text,parent){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(parent)parent.appendChild(n);return n;}
 function field(parent,label,value,onchange,multiline=true){node('label',label,parent);const n=node(multiline?'textarea':'input',undefined,parent);if(multiline)n.rows=2;else n.type='number';n.value=value;n.addEventListener('input',()=>onchange(n.value));return n;}
 function selected(){return drafts.filter(d=>d.selected).map(d=>d.q);}
 function update(){el('qp-ai-save-area').hidden=!drafts.length;const create=el('qp-ai-create-questions');if(create)create.value=selected().length?JSON.stringify({questions:selected()}):'';}
 function render(){preview.textContent='';drafts.forEach((draft,i)=>{
- const q=draft.q,card=node('article',undefined,preview);card.className='qp-ai-draft';const heading=node('div',undefined,card);heading.className='row';const label=node('label',undefined,heading),check=node('input',undefined,label);check.type='checkbox';check.checked=draft.selected;check.addEventListener('change',()=>{draft.selected=check.checked;update()});label.appendChild(document.createTextNode(' Chọn câu '+(i+1)));const remove=node('button','Bỏ câu',heading);remove.className='btn tiny';remove.type='button';remove.addEventListener('click',()=>{drafts.splice(i,1);render()});
+ const q=draft.q,card=node('article',undefined,preview);card.className='qp-ai-draft';const heading=node('div',undefined,card);heading.className='row';const label=node('label',undefined,heading),check=node('input',undefined,label);check.type='checkbox';check.checked=draft.selected;check.addEventListener('change',()=>{draft.selected=check.checked;update()});label.appendChild(document.createTextNode(' Chọn câu '+(i+1)+' · '+(difficultyLabels[draft.difficulty]||'')));const remove=node('button','Bỏ câu',heading);remove.className='btn tiny';remove.type='button';remove.addEventListener('click',()=>{drafts.splice(i,1);render()});
  field(card,'Câu hỏi',q.text,value=>{q.text=value;update()}).maxLength=2000;
  if(q.type==='single'||q.type==='multi'){const grid=node('div',undefined,card);grid.className='answer-grid';letters.forEach(letter=>{const box=node('div',undefined,grid);field(box,letter,q.choices[letter],value=>{q.choices[letter]=value;update()}).maxLength=500});}
  if(q.type==='single'||q.type==='paper_logic'){node('label','Đáp án đúng',card);const select=node('select',undefined,card);letters.forEach(letter=>{const opt=node('option',q.type==='paper_logic'?letter+' · '+q.choices[letter]:letter,select);opt.value=letter});select.value=q.key;select.addEventListener('change',()=>{q.key=select.value;update()});}
@@ -22,16 +28,16 @@ function render(){preview.textContent='';drafts.forEach((draft,i)=>{
  });update();}
 stop.addEventListener('click',()=>{stopRequested=true;stop.disabled=true;status.textContent='Sẽ dừng sau lượt AI đang xử lý; giữ các câu đã tạo.'});
 generate.addEventListener('click',async()=>{
- if(running)return;const topic=el('qp-ai-topic').value.trim(),count=Number(el('qp-ai-count').value),existing=Number(panel.dataset.existing||0);
+ if(running)return;let plan;try{plan=difficultyPlan(difficultyValues());}catch(e){status.textContent=e.message;return;}const topic=el('qp-ai-topic').value.trim(),count=plan.total,existing=Number(panel.dataset.existing||0);
  if(!topic){status.textContent='Nhập chủ đề hoặc yêu cầu tạo câu hỏi.';el('qp-ai-topic').focus();return;}
  if(!Number.isInteger(count)||count<1||count>20||existing+drafts.length+count>100){status.textContent='Chọn 1–20 câu; tổng câu đã lưu và bản nháp không vượt 100.';return;}
- const config={topic,reference:el('qp-ai-reference').value.trim(),grade:el('qp-ai-grade').value,type:el('qp-ai-type').value,difficulty:el('qp-ai-difficulty').value};
+ const config={topic,reference:el('qp-ai-reference').value.trim(),grade:el('qp-ai-grade').value,type:el('qp-ai-type').value};
  running=true;stopRequested=false;generate.disabled=true;stop.hidden=false;stop.disabled=false;el('qp-ai-save').querySelector('button').disabled=true;
  let added=0;
- try{while(added<count&&!stopRequested){status.textContent='Đang tạo '+(added+1)+'–'+Math.min(added+2,count)+' / '+count+' câu…';const form=new FormData();form.set('action','ai_generate');form.set('csrf',panel.dataset.csrf);form.set('set_id',panel.dataset.set);form.set('count',String(Math.min(2,count-added)));Object.entries(config).forEach(([key,value])=>form.set(key,value));if(drafts.length)form.set('drafts',JSON.stringify({questions:drafts.map(d=>d.q)}));
+ try{for(const batch of plan.batches){if(stopRequested)break;status.textContent='Đang tạo '+difficultyLabels[batch.difficulty]+' · '+(added+1)+'–'+(added+batch.count)+' / '+count+' câu…';const form=new FormData();form.set('action','ai_generate');form.set('csrf',panel.dataset.csrf);form.set('set_id',panel.dataset.set);form.set('count',String(batch.count));form.set('difficulty',batch.difficulty);Object.entries(config).forEach(([key,value])=>form.set(key,value));if(drafts.length)form.set('drafts',JSON.stringify({questions:drafts.map(d=>d.q)}));
  const response=await fetch('hoclieu_game_quiz.php',{method:'POST',credentials:'same-origin',body:form});let data;try{data=await response.json()}catch(e){throw new Error('Máy chủ không trả JSON. Thử lại hoặc giảm số câu.');}
- if(!response.ok||!data.ok)throw new Error(data.message||'Không tạo được câu hỏi.');if(!Array.isArray(data.questions)||data.questions.length!==Math.min(2,count-added))throw new Error('Kết quả AI chưa đủ câu hỏi.');
- data.questions.forEach(q=>drafts.push({q,selected:true}));added+=data.questions.length;render();if(added<count&&!stopRequested)await new Promise(resolve=>setTimeout(resolve,2100));
+ if(!response.ok||!data.ok)throw new Error(data.message||'Không tạo được câu hỏi.');if(!Array.isArray(data.questions)||data.questions.length!==batch.count)throw new Error('Kết quả AI chưa đủ câu hỏi.');
+ data.questions.forEach(q=>drafts.push({q,selected:true,difficulty:batch.difficulty}));added+=data.questions.length;render();if(added<count&&!stopRequested)await new Promise(resolve=>setTimeout(resolve,2100));
  }status.textContent=(stopRequested?'Đã dừng. ':'')+'Đã tạo '+added+' câu mới. Kiểm tra và chọn câu trước khi lưu.';
  }catch(error){status.textContent='Đã tạo '+added+' câu; '+error.message+' Các bản nháp đã có được giữ lại.';}
  finally{running=false;generate.disabled=false;stop.hidden=true;el('qp-ai-save').querySelector('button').disabled=false;update();}
@@ -44,3 +50,4 @@ el('qp-ai-save').addEventListener('submit',event=>{
 });
 const create=el('qp-ai-create-questions');if(create)create.form.addEventListener('submit',event=>{if(running){event.preventDefault();status.textContent='Hãy đợi hoặc dừng AI trước khi lưu bộ.';}else if(panel.hidden)create.value='';else update();});
 })();
+
