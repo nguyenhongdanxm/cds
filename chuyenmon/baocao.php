@@ -21,6 +21,10 @@ if ($tab === '') {
 if ($tab === '') $tab = 'dinhky';
 $_GET['tab'] = $tab;
 require_login();
+if ($tab === 'dinhky') {
+    require __DIR__ . '/includes/periodic_report_page.php';
+    exit;
+}
 if ($tab === 'dugio') {
     header('Location: ' . BASE_URL . 'dugio.php');
     exit;
@@ -830,3 +834,4 @@ function viewDoc(it){
 }
 </script>
 <?php require_once 'includes/footer.php'; ?>
+
