@@ -8,7 +8,8 @@ with tempfile.TemporaryDirectory() as directory:
     work=Path(directory); inc=work/'includes';inc.mkdir()
     for f in ['periodic_report.php','periodic_report_page.php','periodic_report_docx.php','observation_form.php']:
         shutil.copy(root/'chuyenmon/includes'/f,inc/f)
-    (inc/'header.php').write_text('<?php ?>HEADER',encoding='utf8')
+    # Shared navigation uses generic variables; report state must survive those assignments.
+    (inc/'header.php').write_text("<?php $group=['label'=>'Menu'];$scope=[];$report=[];$view='menu';$id='menu';$user=[];$existing=null;$visibleReports=[];$csrf='menu';$error=''; ?>HEADER",encoding='utf8')
     (inc/'footer.php').write_text('<?php ?>FOOTER',encoding='utf8')
     bootstrap=r'''<?php
     error_reporting(E_ALL); define('BASE_URL','/chuyenmon/');define('DATA_PATH','/fixture/cm');define('CM_DOCS_FILE','/fixture/cm/cm_docs.json');define('SCHOOL_NAME','Trường thử nghiệm');
@@ -30,6 +31,8 @@ with tempfile.TemporaryDirectory() as directory:
         assert not result.stderr,result.stderr
         assert 'Warning:' not in result.stdout,result.stdout
         return json.loads((work/'result.json').read_text()),result.stdout
+    state,out=run({})
+    assert 'id="pr-form"' in out and out.count('data-rich')==5 and 'Tổ A' in out and 'name="csrf" value="token"' in out
     post={'action':'periodic_save','csrf':'token','id':'','report_group':'Tổ B','month':'2026-10','next_month':'2026-11','date':'2026-10-07','school':'Trường thử nghiệm','place':'Xín Mần','number':'01/BC','recipient':'BGH','signer':'An','report_sections':{'results':'<p><b>Kết quả</b></p>'}}
     state,_=run({'post':post});saved=state['rows'][0]
     assert saved['report_group']=='Tổ A',saved
