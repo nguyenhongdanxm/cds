@@ -342,6 +342,17 @@ if ($reportSession) {
 @media(max-width:600px){.shell{padding:0 10px}.topbar .shell{gap:10px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}.brand{font-size:16px}.top-link{font-size:12px}.sidebar-item{gap:5px}.sidebar-item b{font-size:11px}.play-grid{grid-template-columns:1fr 1fr!important}#open-play-form{grid-template-columns:1fr}.play-option{grid-template-columns:1fr;padding:10px 25px 10px 10px!important;gap:5px}.play-icon{grid-row:auto;font-size:24px!important}.play-option strong{font-size:13px}.play-option small{font-size:11px}.class-options{grid-template-columns:repeat(4,minmax(0,1fr))!important}.class-options label{min-height:40px;padding:7px 5px!important;justify-content:center}.class-option input{width:17px;height:17px}.session-list{grid-template-columns:1fr}.session-links a,.btn{min-height:40px}.section-title h2{font-size:20px}.stat{padding:7px 9px}.stats{gap:5px}.student-entry{font-size:12px}.two-col,.media-grid{grid-template-columns:1fr}.qp-ai-options{grid-template-columns:repeat(2,minmax(0,1fr))}.play-actions .btn{width:100%}}
 @media(max-width:360px){.class-options{grid-template-columns:repeat(3,minmax(0,1fr))!important}.sidebar-item>span:first-child{font-size:15px}.play-option small{font-size:10px}}
 .field-help{display:block;color:#64748b;font-size:12px;font-weight:400;line-height:1.4;margin:5px 0 8px}.author-choice [aria-pressed="true"]{background:#6250dc;color:#fff}.play-icon{max-width:100%;font-size:24px!important}
+/* Compact AI options: align all six controls, including numeric inputs. */
+#qp-ai-panel .qp-ai-options{grid-template-columns:minmax(140px,1.3fr) minmax(180px,1.6fr) repeat(4,minmax(72px,.7fr));gap:10px;margin-top:10px;align-items:start}
+#qp-ai-panel .qp-ai-options>div{min-width:0}
+#qp-ai-panel .qp-ai-options label{display:block;font-size:13px;line-height:1.3;margin:0 0 6px;white-space:nowrap}
+#qp-ai-panel .qp-ai-options input,#qp-ai-panel .qp-ai-options select{display:block;width:100%;min-width:0;height:38px;padding:7px 9px;font:inherit;font-size:14px;border:1px solid #c6d5e4;border-radius:9px;box-sizing:border-box;background:#fff;color:#183153}
+#qp-ai-panel .qp-ai-options input{text-align:center;font-weight:750}
+#qp-ai-panel #qp-ai-count{background:#eaf6fc;border-color:#9dcbe2;color:#12658a}
+#qp-ai-panel .qp-ai-options .field-help{font-size:11px;line-height:1.3;margin:5px 0 0}
+#qp-ai-panel .qp-ai-options+p.hint{font-size:11px;margin:8px 0 10px}
+@media(max-width:1100px){#qp-ai-panel .qp-ai-options{grid-template-columns:repeat(4,minmax(0,1fr))}#qp-ai-panel .qp-ai-options>div:nth-child(-n+2){grid-column:span 2}}
+@media(max-width:600px){#qp-ai-panel .qp-ai-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}#qp-ai-panel .qp-ai-options>div:nth-child(-n+2){grid-column:span 1}#qp-ai-panel .qp-ai-options label{font-size:12px}#qp-ai-panel .qp-ai-options input,#qp-ai-panel .qp-ai-options select{font-size:13px}}
 </style></head><body>
 <nav class="topbar"><div class="shell"><a class="brand" href="<?=BASE_URL?>hoclieu_game_quiz.php">◉ Hỏi Nhanh - Đáp Gọn</a><a class="top-link" href="<?=BASE_URL?>hoclieu.php?tab=games">← Trò chơi</a><span class="spacer"></span><a class="small-link" href="<?=BASE_URL?>hoclieu_quiz_cards.php">In thẻ trả lời A–D ↗</a></div></nav>
 <div class="hero"><div class="shell"><span class="eyebrow">HỌC LIỆU &amp; THI · TRÒ CHƠI</span><h1>Hỏi Nhanh - Đáp Gọn</h1><p>Hỏi đáp kiến thức linh hoạt bằng máy và bảng.</p></div></div>
@@ -430,4 +441,5 @@ const helpTexts={title:'Tên ngắn để nhận biết bộ câu hỏi.',catego
 
 const playForm=document.getElementById('open-play-form');if(playForm){const pace=playForm.querySelector('[name=pace_mode]'),seconds=playForm.querySelector('[name=seconds_per_question]');function syncPace(){const computer=playForm.querySelector('[name=mode]:checked')?.value==='computer',timed=pace.value==='timed';document.getElementById('qpPace').hidden=!computer;seconds.hidden=!timed;seconds.disabled=!computer||!timed;document.getElementById('qpSecondsLabel').hidden=!timed}playForm.querySelectorAll('[name=mode]').forEach(el=>el.addEventListener('change',syncPace));pace.addEventListener('change',syncPace);syncPace()}
 </script><?php require __DIR__ . '/includes/game_credit.php'; ?><script src="<?=e(BASE_URL)?>assets/quiz-ai.js?v=20261007-3"></script></body></html>
+
 
