@@ -2,7 +2,7 @@
 function randomIndex(n){if(!Number.isInteger(n)||n<1||n>4294967296)throw Error('Danh sách không hợp lệ.');const cap=Math.floor(4294967296/n)*n,a=new Uint32Array(1);let value;do{root.crypto.getRandomValues(a);value=a[0];}while(value>=cap);return value%n;}
 function shuffle(items){const out=items.slice();for(let i=out.length-1;i>0;i--){const j=randomIndex(i+1);[out[i],out[j]]=[out[j],out[i]];}return out;}
 function pool(students,selected,called,noRepeat){return students.filter(s=>selected.has(s.id)&&(!noRepeat||!called.has(s.id)));}
-const ballRadius=14,pegRadius=7,pegs=[];
+const ballRadius=18,pegRadius=7,pegs=[];
 for(let row=0;row<9;row++)for(let x=90+(row%2?30:0);x<=810;x+=60)pegs.push({x,y:96+row*41,row,id:pegs.length});
 // Simulate gravity, circular peg contacts and solid compartment walls. The
 // student is chosen independently, then assigned to the physical landing bin:
