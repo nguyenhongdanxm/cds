@@ -3,14 +3,14 @@ function randomIndex(n){if(!Number.isInteger(n)||n<1||n>4294967296)throw Error('
 function shuffle(items){const out=items.slice();for(let i=out.length-1;i>0;i--){const j=randomIndex(i+1);[out[i],out[j]]=[out[j],out[i]];}return out;}
 function pool(students,selected,called,noRepeat){return students.filter(s=>selected.has(s.id)&&(!noRepeat||!called.has(s.id)));}
 const ballRadius=18,pegRadius=7,pegs=[];
-for(let row=0;row<9;row++)for(let x=90+(row%2?30:0);x<=810;x+=60)pegs.push({x,y:96+row*41,row,id:pegs.length});
+for(let row=0;row<8;row++)for(let x=90+(row%2?36:0);x<=810;x+=72)pegs.push({x,y:96+row*47,row,id:pegs.length});
 // Simulate gravity, circular peg contacts and solid compartment walls. The
 // student is chosen independently, then assigned to the physical landing bin:
 // central bins therefore never give any student an advantage.
 function simulate(count){const dt=1/120,width=780/count;let x=425+randomIndex(51),y=34,vx=randomIndex(121)-60,vy=0,index=0,lastHit=-1,bin=-1;const frames=[{x,y,index,lastHit}];for(let step=0;step<2400;step++){vy+=245*dt;x+=vx*dt;y+=vy*dt;vx*=.999;
 if(x<60+ballRadius){x=60+ballRadius;vx=Math.abs(vx)*.7;}if(x>840-ballRadius){x=840-ballRadius;vx=-Math.abs(vx)*.7;}
 if(y<30){y=30;vy=Math.abs(vy)*.5;}
-if(y<460)for(const peg of pegs){if(Math.abs(peg.y-y)>ballRadius+pegRadius||Math.abs(peg.x-x)>ballRadius+pegRadius)continue;const dx=x-peg.x,dy=y-peg.y,d=Math.hypot(dx,dy),contact=ballRadius+pegRadius;if(d>=contact)continue;const nx=d>1e-7?dx/d:0,ny=d>1e-7?dy/d:-1;x=peg.x+nx*(contact+.02);y=peg.y+ny*(contact+.02);const incoming=vx*nx+vy*ny;if(incoming<0){vx-=1.67*incoming*nx;vy-=1.67*incoming*ny;vx+=(randomIndex(21)-10)*.6;if(Math.abs(vx)<8)vx+=(randomIndex(2)?1:-1)*13;index++;lastHit=peg.id;}}
+if(y<460)for(const peg of pegs){if(Math.abs(peg.y-y)>ballRadius+pegRadius||Math.abs(peg.x-x)>ballRadius+pegRadius)continue;const dx=x-peg.x,dy=y-peg.y,d=Math.hypot(dx,dy),contact=ballRadius+pegRadius;if(d>=contact)continue;const nx=d>1e-7?dx/d:0,ny=d>1e-7?dy/d:-1;x=peg.x+nx*(contact+.02);y=peg.y+ny*(contact+.02);const incoming=vx*nx+vy*ny;if(incoming<0){vx-=1.76*incoming*nx;vy-=1.76*incoming*ny;vx+=(randomIndex(21)-10)*.9;if(Math.abs(vx)<8)vx+=(randomIndex(2)?1:-1)*13;index++;lastHit=peg.id;}}
 // Rounded divider tips are real obstacles, so a near-edge ball bounces
 // into a compartment rather than jumping sideways when it enters a bin.
 if(y>=459)for(let i=0;i<=count;i++){const wall=60+i*width,dx=x-wall,dy=Math.min(0,y-476),d=Math.hypot(dx,dy);if(d>=ballRadius+3)continue;const nx=d>1e-7?dx/d:(vx>=0?-1:1),ny=d>1e-7?dy/d:0;x=wall+nx*(ballRadius+3+.02);if(y<476)y=476+ny*(ballRadius+3+.02);const incoming=vx*nx+vy*ny;if(incoming<0){vx-=1.5*incoming*nx;vy-=1.5*incoming*ny;}}
