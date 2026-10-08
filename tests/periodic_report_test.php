@@ -38,5 +38,12 @@ $r=['id'=>'test_new','section'=>'bc_dinhky','title'=>'Báo cáo tháng 10 — T�
 check(pr_store($r)==='test_new','save new report');check(cm_docs_all()[0]['snapshot']===$snapshot,'snapshot preserved');
 try{pr_store(['id'=>'test_new','title'=>'overwrite'],'old');throw new RuntimeException('revision check missing');}catch(RuntimeException $e){check(strpos($e->getMessage(),'thay đổi')!==false,'stale revision blocked');}
 $GLOBALS['fail_write']=true;try{pr_store(['id'=>'test_new'],'v1');throw new RuntimeException('write error missing');}catch(RuntimeException $e){check(strpos($e->getMessage(),'Không lưu')!==false,'storage failure detected');}$GLOBALS['fail_write']=false;
+check(strpos(pr_html($r),'Kính gửi:')===false&&strpos(pr_html($r),'Nơi nhận:')!==false,'greeting removed and footer recipients retained');
+$userA=['id'=>'teacher-a','name'=>'An'];$userB=['id'=>'teacher-b','name'=>'Bình'];
+check(pr_default_place($userA)==='','no saved place initially');
+check(pr_save_default_place($userA,'  Xín Mần  ')&&pr_default_place($userA)==='Xín Mần','default place persisted and trimmed');
+check(pr_default_place($userB)==='','place preference isolated by account');
+check(pr_save_default_place($userB,'Hà Giang')&&pr_default_place($userA)==='Xín Mần','other account cannot overwrite preference');
+$GLOBALS['fail_write']=true;check(!pr_save_default_place($userA,'Khác')&&pr_default_place($userA)==='Xín Mần','preference write failure retains previous value');$GLOBALS['fail_write']=false;
 $bytes=pr_docx($r);check(substr($bytes,0,2)==='PK','real DOCX archive');$out=getenv('REPORT_TEST_OUTPUT_DIR')?:sys_get_temp_dir().'/cds-periodic-report-test';if(!is_dir($out))mkdir($out,0755,true);file_put_contents($out.'/sample-report.docx',$bytes);file_put_contents($out.'/sample-report.html',pr_html($r));
 echo "PASS: team permissions, dates, XSS sanitizer, monthly source aggregation, snapshots, revision/storage failures, DOCX generation.\n";

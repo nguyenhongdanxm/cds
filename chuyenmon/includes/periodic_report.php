@@ -76,7 +76,6 @@ function pr_body(array $r): string {
     $month=substr($r['month'],5,2).'/'.substr($r['month'],0,4);$next=substr($r['next_month'],5,2).'/'.substr($r['next_month'],0,4);$date=explode('-',$r['date']);$sections=$r['report_sections']??[];
     $html='<table class="pr-letterhead pr-national" data-pr-widths="38,62"><tr><td style="text-align:center;width:38%"><p style="font-size:13pt">'.pr_escape(pr_upper($r['school'])).'</p><p style="font-size:13pt"><strong>'.pr_escape(pr_upper($r['report_group'])).'</strong></p><p class="pr-rule" data-pr-rule="unit"></p></td><td style="text-align:center;width:62%"><p style="font-size:12pt;white-space:nowrap"><strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong></p><p style="font-size:13pt"><strong>Độc lập - Tự do - Hạnh phúc</strong></p><p class="pr-rule" data-pr-rule="national"></p></td></tr><tr><td style="text-align:center"><p style="font-size:13pt">Số: '.pr_escape($r['number']?:'…/BC-TCM').'</p></td><td style="text-align:center"><p style="font-size:13pt"><em>'.pr_escape($r['place']).', ngày '.(int)$date[2].' tháng '.(int)$date[1].' năm '.$date[0].'</em></p></td></tr></table>';
     $html.='<p style="text-align:center"><strong>BÁO CÁO</strong><br><strong>Kết quả thực hiện nhiệm vụ chuyên môn tháng '.$month.'<br>và kế hoạch thực hiện nhiệm vụ tháng '.$next.'</strong></p>';
-    $html.='<p style="text-align:center">Kính gửi: '.pr_escape($r['recipient']).'</p>';
     $html.='<h3>I. Các văn bản kế hoạch nội dung đã triển khai</h3>'.pr_clean($sections['implementation']??'');
     $html.='<h3>II. Kết quả thực hiện nhiệm vụ tháng '.$month.'</h3><h4>1. Các nội dung đã tổ chức thực hiện</h4>'.pr_clean($sections['results']??'');
     $html.='<h4>2. Tồn tại, nguyên nhân, giải pháp</h4>'.pr_clean($sections['issues']??'');
@@ -100,4 +99,21 @@ function pr_store(array $data, ?string $expectedRevision=null): string {
     if(!$found){$id=$id?:cm_doc_uid();$data['id']=$id;$data['created_at']=date('c');$rows[]=$data;}
     if(!save_json(CM_DOCS_FILE,array_values($rows)))throw new RuntimeException('Không lưu được báo cáo. Vui lòng thử lại; nội dung nhập vẫn được giữ trên trang.');
     return $id;
+}
+
+/** Địa danh mặc định riêng của tài khoản, dùng chung giữa các thiết bị. */
+function pr_place_preference_key(array $user): string {
+    $id=trim((string)($user['id']??''));
+    return $id!==''?'id:'.$id:'name:'.hash('sha256',pr_norm($user['teacher_name']??$user['name']??''));
+}
+function pr_default_place(array $user): string {
+    $preferences=load_json(DATA_PATH.'/periodic_report_preferences.json',[]);
+    $value=$preferences[pr_place_preference_key($user)]['place']??'';
+    return is_string($value)?trim($value):'';
+}
+function pr_save_default_place(array $user,string $place): bool {
+    $preferences=load_json(DATA_PATH.'/periodic_report_preferences.json',[]);
+    if(!is_array($preferences))$preferences=[];
+    $preferences[pr_place_preference_key($user)]=['place'=>trim($place),'updated_at'=>date('c')];
+    return (bool)save_json(DATA_PATH.'/periodic_report_preferences.json',$preferences);
 }
