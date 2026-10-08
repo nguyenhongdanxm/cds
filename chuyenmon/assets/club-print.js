@@ -19,11 +19,11 @@
   document.body.appendChild(frame);
   const doc=frame.contentDocument;doc.open();doc.write('<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Danh sách thành viên câu lạc bộ</title></head><body></body></html>');doc.close();
   const style=doc.createElement('style');style.textContent=`
-   @page{size:A4 portrait;margin:15mm 12mm}
-   *{box-sizing:border-box}body{margin:0;color:#000;background:#fff;font:12pt/1.3 "Times New Roman",serif}
-   .club-print-letterhead{display:grid;grid-template-columns:1fr 1.2fr;gap:6mm;text-align:center;font-size:11pt;margin-bottom:6mm}
-   .club-print-letterhead strong,.club-print-letterhead span{display:block}.club-print-motto{border-bottom:1px solid #000;padding-bottom:2mm;margin:1mm 8mm 0}
-   h1{text-align:center;font-size:16pt;margin:0 0 3mm}h2{text-align:center;font-size:14pt;margin:0 0 3mm;break-after:avoid}
+   @page{size:A4 portrait;margin:20mm 15mm 20mm 30mm}
+   *{box-sizing:border-box}body{margin:0;color:#000;background:#fff;font:13pt/1.3 "Times New Roman",serif}
+   .club-print-letterhead{display:grid;grid-template-columns:1fr 1.2fr;gap:4mm;text-align:center;font-size:12pt;margin-bottom:6mm}
+   .club-print-letterhead strong{display:block;font-weight:700}.club-print-authority{text-transform:uppercase;font-weight:400}.club-print-school{text-transform:uppercase;font-weight:700}.club-print-school-rule{width:40%;border-bottom:.6pt solid #000;margin:2mm auto 0}.club-print-motto{display:inline-block;font-size:13pt;font-weight:700;border-bottom:.6pt solid #000;padding-bottom:1mm;margin:0 auto}.club-print-letterhead{line-height:1.15;break-inside:avoid}
+   h1{text-align:center;font-size:16pt;margin:0 0 3mm}h2{text-transform:uppercase;text-align:center;font-size:14pt;margin:0 0 3mm;break-after:avoid}
    .club-print-date{text-align:right;margin-bottom:5mm;font-size:11pt}
    article{margin:0;break-inside:auto}article+article{break-before:page}
    article>div{margin-bottom:3mm;break-after:avoid}table{width:100%;border-collapse:collapse;table-layout:fixed}
@@ -50,3 +50,4 @@
   Promise.resolve(doc.fonts?.ready).then(()=>frame.contentWindow.requestAnimationFrame(print));
  });
 })();
+
