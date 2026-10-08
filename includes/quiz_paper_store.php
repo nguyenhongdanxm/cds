@@ -67,6 +67,9 @@ function qp_owner(): string {
     return (string)($user['id'] ?? $user['username'] ?? '');
 }
 function qp_admin(): bool { return (current_user()['role'] ?? '') === 'admin'; }
+function qp_can_play_set(array $set): bool {
+    return qp_admin() || (string)($set['owner_id'] ?? '') === qp_owner() || !empty($set['is_public']);
+}
 function qp_sets(): array {
     $sql = qp_admin() ? 'SELECT * FROM cds_quiz_sets ORDER BY updated_at DESC' : 'SELECT * FROM cds_quiz_sets WHERE owner_id=? OR is_public=1 ORDER BY updated_at DESC';
     $st = qp_db()->prepare($sql); $st->execute(qp_admin() ? [] : [qp_owner()]);
@@ -166,3 +169,4 @@ function qp_audio_settings():array {
  $raw=qp_db()->query('SELECT settings_json FROM cds_quiz_audio_settings WHERE id=1')->fetchColumn();
  return is_string($raw)?(json_decode($raw,true)?:[]):[];
 }
+

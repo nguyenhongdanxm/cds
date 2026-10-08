@@ -3,10 +3,6 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_store.php';
 require_once __DIR__ . '/includes/quiz_paper_store.php';
 require_login();qp_schema();
-if (!can_perm_level('hl.xem', 'view') && (current_user()['role'] ?? '') !== 'admin') {
-    http_response_code(403);
-    exit('Bạn không có quyền xem trò chơi.');
-}
 $classes = array_values(array_filter(csdl_classes_all(), static fn($class) => !empty($class['active'])));
 csdl_sort_classes($classes);
 $code = trim((string)($_GET['code'] ?? $_POST['code'] ?? ''));
@@ -44,7 +40,10 @@ $studentJson = json_encode($students, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JS
 $setId = $paperSession ? (string)$paperSession['set_id'] : trim((string)($_GET['set'] ?? ''));
 $quizSet = null;
 if ($setId !== '') {
-    try { $quizSet = qp_set($setId, true); } catch (Throwable $e) { $quizSet = null; }
+    try { $quizSet = qp_set($setId); if ($quizSet && !qp_can_play_set($quizSet)) $quizSet = null; } catch (Throwable $e) { $quizSet = null; }
+}
+if (!$paperSession && !$quizSet && !qp_admin() && !can_perm_level('hl.xem', 'view')) {
+    http_response_code(403); exit('Hãy chọn một bộ câu hỏi công khai để chơi.');
 }
 $bank = $paperSession ? (json_decode((string)$paperSession['questions_json'],true) ?: []) : ($quizSet ? qp_questions($quizSet) : []);
 $bankJson = json_encode($bank, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
@@ -141,7 +140,7 @@ let state;try{state=JSON.parse(sessionStorage.getItem(storageKey)||'{}')}catch(e
 if(!state||typeof state!=='object')state={};
 state.questions=Array.isArray(state.questions)?state.questions:[];
 state.index=Number.isInteger(state.index)?state.index:-1;
-if(setId){state.questions=bank.map((q,i)=>({...q,answers:paperCode?(savedAnswers[i]||{}):(state.questions[i]?.answers||{})}));if(state.index<0&&bank.length)state.index=0}
+if(paperCode||setId){state.questions=bank.map((q,i)=>({...q,answers:paperCode?(savedAnswers[i]||{}):(state.questions[i]?.answers||{})}));if(state.index<0&&bank.length)state.index=0}
 if(paperCode)state.index=<?=($paperSession?(int)$paperSession['current_index']:0)?>;
 let cameraStarting=false,cameraStream=null,scanning=false,busy=false,lastSeen=new Map(),paperOpen=true,phase=<?=json_encode((string)($paperSession['phase']??'question'))?>,showCorrect=false,showGraph=false,pending=new Set(),digitalZoom=1,hardwareZoom=false,feedTimer=null;
 const current=()=>state.questions[state.index]||null;
@@ -351,4 +350,5 @@ let lastInteraction=0;
 document.addEventListener('pointerdown',()=>{if(!paperCode||!paperOpen||phase==='finished'||Date.now()-lastInteraction<60000)return;lastInteraction=Date.now();control('activity').catch(error=>mobileStatus(error.message));});
 window.addEventListener('pagehide',stopCamera);render();
 </script><?php endif; ?></main><?php require __DIR__ . '/includes/game_credit.php'; ?></body></html>
+
 
