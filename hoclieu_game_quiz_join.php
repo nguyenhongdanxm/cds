@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && $session) {
     elseif ($session['status']!=='open' || (qp_session($code)['status']??'closed')!=='open') $error='Lượt chơi đã đóng.';
     elseif ($action==='join') {
         $id=(string)($_POST['student_id']??'');
-        if (!isset($students[$id])) $error='Chọn học sinh trong lớp.';
+        if (!isset($students[$id])) $error='Chọn học sinh hoặc nhóm trong lượt chơi.';
         else {$_SESSION['qp_join'][$code]=$id;$studentId=$id;}
     } elseif ($studentId!=='') {
         if ($action==='next' && $pace==='timed') {
@@ -70,7 +70,7 @@ if ($session && $studentId!=='') {$st=qp_db()->prepare('SELECT question_index,an
 <div class="top"><h1>🎯 Hỏi đáp với QR code</h1><?php if ($studentId!==''): ?><span class="pill"><?=e($students[$studentId])?></span><?php endif; ?></div>
 <?php if ($error): ?><p class="error" role="alert"><?=e($error)?></p><?php endif; ?>
 <?php if (!$session || !$set): ?><div class="card"><h2>Nhập mã vào chơi</h2><form method="get"><input name="code" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" placeholder="Mã 8 chữ số" required><button>Vào chơi</button></form><?php if ($code!==''): ?><p>Mã không tồn tại hoặc đã hết hạn.</p><?php endif; ?></div>
-<?php elseif ($studentId===''): ?><div class="card"><h2><?=e((string)$set['title'])?></h2><p>Chọn đúng tên của em.</p><form method="post"><input type="hidden" name="code" value="<?=e($code)?>"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="join"><select name="student_id" required><option value="">Chọn tên học sinh</option><?php foreach ($students as $id=>$name): ?><option value="<?=e($id)?>"><?=e($name)?></option><?php endforeach; ?></select><button>Bắt đầu</button></form></div>
+<?php elseif ($studentId===''): ?><div class="card"><h2><?=e((string)$set['title'])?></h2><p>Chọn đúng tên học sinh hoặc nhóm của mình.</p><form method="post"><input type="hidden" name="code" value="<?=e($code)?>"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="join"><select name="student_id" required><option value="">Chọn tên học sinh</option><?php foreach ($students as $id=>$name): ?><option value="<?=e($id)?>"><?=e($name)?></option><?php endforeach; ?></select><button>Bắt đầu</button></form></div>
 <?php else: ?><p class="identity"><?=e((string)$set['title'])?> · Mã <?=e($code)?> · <?=$pace==='teacher'?'Giáo viên chuyển câu':($pace==='timed'?'Tự chuyển câu theo thời gian':'Luyện tập')?></p><form method="post"><input type="hidden" name="code" value="<?=e($code)?>"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="leave"><button class="secondary">Đổi người chơi</button></form>
 <?php if ($session['status']!=='open'): ?><div class="card"><h2>Lượt chơi đã đóng</h2></div>
 <?php elseif ($pace==='teacher' && ($session['phase']??'')==='welcome'): ?><div class="card"><h2>🎯 Sẵn sàng tham gia!</h2><p>Chờ giáo viên bấm Bắt đầu để hiện câu hỏi.</p></div>
@@ -81,3 +81,4 @@ if ($session && $studentId!=='') {$st=qp_db()->prepare('SELECT question_index,an
 <?php endif; ?></main>
 <?php if ($session && $studentId!=='' && $pace==='teacher'): ?><script>(function(){let index=<?=$index?>,phase=<?=json_encode((string)($session['phase']??'question'))?>,active=true;async function check(){if(!active||document.hidden)return;try{const r=await fetch(location.pathname+'?code='+encodeURIComponent(<?=json_encode($code)?>)+'&api=state',{cache:'no-store'}),s=await r.json();if(s.ok&&(s.index!==index||s.status!=='open'||s.phase!==phase))location.reload()}catch(e){}}setInterval(check,3500);document.addEventListener('visibilitychange',check)})()</script><?php endif; ?>
 <?php if ($session && $studentId!=='' && $pace==='timed' && $index<count($questions)): ?><script>(function(){const timer=document.getElementById('timer');if(!timer)return;const end=Date.now()+Number(timer.dataset.left)*1000;function tick(){const left=Math.max(0,Math.ceil((end-Date.now())/1000));timer.textContent='⏱ '+left+' giây';timer.classList.toggle('expired',left===0);if(left===0){const form=document.getElementById('answerForm');if(form)form.querySelectorAll('button').forEach(b=>b.disabled=true);const next=document.getElementById('nextAfterTimer');if(next){next.disabled=false;next.textContent='Hết giờ · sang câu tiếp'}}}setInterval(tick,250);tick()})()</script><?php endif; ?></body></html>
+

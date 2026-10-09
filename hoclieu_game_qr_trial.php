@@ -131,7 +131,7 @@ $savedJson=json_encode($savedAnswers,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSO
 <div class="mobile-results" id="mobileResults" role="dialog" aria-modal="true" aria-label="Kết quả câu hỏi"><h2>✨ Kết quả câu hỏi</h2><p id="mobileScoreSummary" class="score-summary"></p><div id="mobileScoreColumns" class="score-columns"></div><button type="button" id="mobileResultsClose">← Quay lại máy quét</button></div>
 <section class="panel print-panel"><div class="no-print"><h2>Thẻ trả lời lớp <?=e($sessionClassLabel)?></h2><p>Mã này chỉ chứa ID nội bộ; không chứa CCCD, số điện thoại hay thông tin phụ huynh. Dùng thẻ riêng cho trò chơi, không thay QR xác minh thẻ học sinh.</p><button id="printCards" disabled>In thẻ A–D</button><p id="printStatus" class="status"></p></div><div id="cards" class="cards"></div></section>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="<?=e(BASE_URL)?>assets/quiz-camera.js?v=20261007-1"></script><script>
+<script src="<?=e(BASE_URL)?>assets/quiz-camera.js?v=20261009-1"></script><script>
 const students=<?=$studentJson?:'[]'?>, classId=<?=json_encode($classId,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,bank=<?=$bankJson?:'[]'?>,setId=<?=json_encode($quizSet?$setId:'',JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,paperCode=<?=json_encode($paperSession?$code:'',JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,paperCsrf=<?=json_encode($paperCsrf,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,controlCsrf=<?=json_encode($controlCsrf,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,savedAnswers=<?=$savedJson?:'{}'?>,screenApi=<?=json_encode(BASE_URL.'hoclieu_game_quiz_screen.php',JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>;
 const byId=new Map(students.map(s=>[s.id,s]));
 const $=id=>document.getElementById(id), escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -217,7 +217,7 @@ function answerFromFinder(loc){
  const p=loc?.topLeftFinderPattern,r=loc?.topRightFinderPattern;
  if(!p||!r)return null;
  const dx=r.x-p.x,dy=r.y-p.y;
- if(Math.hypot(dx,dy)<20)return null;
+ if(Math.hypot(dx,dy)<10)return null;
  const angle=Math.atan2(dy,dx)*180/Math.PI;
  if(angle>=-45&&angle<45)return 'A';
  if(angle>=45&&angle<135)return 'D';
@@ -233,7 +233,8 @@ function nativeCodeOrientation(ctx,loc,id,w,h){
  const x=Math.max(0,Math.floor(Math.min(...corners.map(p=>p.x))-margin)),y=Math.max(0,Math.floor(Math.min(...corners.map(p=>p.y))-margin));
  const right=Math.min(w,Math.ceil(Math.max(...corners.map(p=>p.x))+margin)),bottom=Math.min(h,Math.ceil(Math.max(...corners.map(p=>p.y))+margin));
  if(right<=x||bottom<=y)return null;
- const crop=ctx.getImageData(x,y,right-x,bottom-y);
+ let crop=ctx.getImageData(x,y,right-x,bottom-y);
+ if(side<100){const enlarged=document.createElement('canvas');enlarged.width=crop.width*2;enlarged.height=crop.height*2;const ec=enlarged.getContext('2d',{willReadFrequently:true});ec.imageSmoothingEnabled=false;ec.drawImage(ctx.canvas,x,y,crop.width,crop.height,0,0,enlarged.width,enlarged.height);crop=ec.getImageData(0,0,enlarged.width,enlarged.height);}
  const match=window.jsQR(crop.data,crop.width,crop.height,{inversionAttempts:'dontInvert'});
  return match?.data==='CDSQ1:'+id?answerFromFinder(match.location):null;
 }
@@ -259,8 +260,9 @@ function maskCode(data,w,h,corners){
  for(let y=y1;y<y2;y++)for(let x=x1;x<x2;x++){let i=(y*w+x)*4;data[i]=data[i+1]=data[i+2]=255}
 }
 function fallbackCodes(ctx,w,h,markers){
- let data=ctx.getImageData(0,0,w,h),found=0;
- for(let n=0;n<Math.min(10,students.length);n++){
+ let data=ctx.getImageData(0,0,w,h),found=0,start=performance.now();
+ for(let n=0;n<Math.min(5,students.length);n++){
+  if(n>0&&performance.now()-start>45)break;
   let code=window.jsQR?.(data.data,w,h,{inversionAttempts:'dontInvert'});if(!code)break;
   found++;let id=code.data.startsWith('CDSQ1:')?code.data.slice(6):'';
   recordScan(id,answerFromFinder(code.location),code.location,w,h,markers);
@@ -271,20 +273,23 @@ function fallbackCodes(ctx,w,h,markers){
 }
 async function scanFrame(generation){
  if(!scanning||generation!==scanGeneration||(paperCode&&phase!=='scanning'))return;
- const now=performance.now();if(scanPending||now-scanLast<75){scanHandle=requestAnimationFrame(()=>scanFrame(generation));return}
+ const now=performance.now();if(scanPending||now-scanLast<50){scanHandle=requestAnimationFrame(()=>scanFrame(generation));return}
  scanPending=true;scanLast=now;
  try{
   let v=$('video');if(v.readyState<2||!current())return;
-  const wide=!detector&&scanTicks++%4===3,limit=detector?2560:wide?1920:1280;
+  const tile=!detector&&scanTicks++%5!==0,limit=detector?2560:1280;
   let w=Math.min(limit,v.videoWidth),h=Math.round(v.videoHeight*w/v.videoWidth);if(!w||!h)return;
   let canvas=$('frame');if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}
   let ctx=canvas.getContext('2d',{willReadFrequently:!detector}),crop=hardwareZoom?1:digitalZoom,cw=v.videoWidth/crop,ch=v.videoHeight/crop;
-  ctx.drawImage(v,(v.videoWidth-cw)/2,(v.videoHeight-ch)/2,cw,ch,0,0,w,h);
+  let sx=(v.videoWidth-cw)/2,sy=(v.videoHeight-ch)/2;
+  if(tile){const region=(scanTicks-1)%5-1;const col=Math.max(0,region)%2,row=Math.floor(Math.max(0,region)/2);sx+=col*cw*0.4;sy+=row*ch*0.4;cw*=0.6;ch*=0.6;}
+  ctx.drawImage(v,sx,sy,cw,ch,0,0,w,h);
   let markers=[];
   if(detector){
    try{let codes=await detector.detect(canvas);for(let code of codes){let corners=code.cornerPoints||[];if(corners.length<4)continue;let loc={topLeftCorner:corners[0],topRightCorner:corners[1],bottomRightCorner:corners[2],bottomLeftCorner:corners[3]};let id=code.rawValue?.startsWith('CDSQ1:')?code.rawValue.slice(6):'';recordScan(id,nativeCodeOrientation(ctx,loc,id,w,h),loc,w,h,markers)}}
    catch(e){detector=null;fallbackCodes(ctx,w,h,markers)}
   }else fallbackCodes(ctx,w,h,markers);
+  if(tile)markers.forEach(m=>{m.x=((sx+(m.x/100)*cw)/v.videoWidth)*100;m.y=((sy+(m.y/100)*ch)/v.videoHeight)*100;});
   if(generation===scanGeneration)$('detectedLayer').replaceChildren(...markers.map(marker=>{let el=document.createElement('span');el.textContent=(marker.correct?'✓ ':'✕ ')+marker.answer+' · '+marker.name;el.className=marker.correct?'scan-correct':'scan-wrong';el.style.left=marker.x+'%';el.style.top=marker.y+'%';return el}));
  }catch(e){$('scanStatus').textContent='Lỗi quét: '+e.message}
  finally{scanPending=false;if(scanning&&generation===scanGeneration)scanHandle=requestAnimationFrame(()=>scanFrame(generation))}
@@ -350,5 +355,6 @@ let lastInteraction=0;
 document.addEventListener('pointerdown',()=>{if(!paperCode||!paperOpen||phase==='finished'||Date.now()-lastInteraction<60000)return;lastInteraction=Date.now();control('activity').catch(error=>mobileStatus(error.message));});
 window.addEventListener('pagehide',stopCamera);render();
 </script><?php endif; ?></main><?php require __DIR__ . '/includes/game_credit.php'; ?></body></html>
+
 
 
