@@ -115,7 +115,7 @@ $savedJson=json_encode($savedAnswers,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSO
  .mobile-dock #mobilePublish{background:linear-gradient(135deg,#ffcf48,#f07b39);color:#24152c;border:0}
  .mobile-quiz .mobile-results.open{display:flex;flex-direction:column;position:fixed;inset:0;z-index:10001;background:linear-gradient(155deg,#123960,#14113e 75%);padding:calc(18px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom));overflow:auto;color:#fff}
  .mobile-results h2{margin:0 0 8px;color:#ffd76a;font-size:24px}.mobile-results .score-summary{font-weight:850;font-size:19px;margin:8px 0 16px}
- .mobile-results .score-columns{display:grid;gap:12px}.mobile-results .score-group{background:#ffffff18;border:1px solid #ffffff35;border-radius:16px;padding:12px}.score-group h3{margin:0 0 8px}.score-group span{display:inline-block;margin:3px;padding:6px 9px;border-radius:15px;background:#ffffff23;font-size:13px}.score-group.correct{border-color:#37d99a}.score-group.incorrect{border-color:#ff9680}.score-group.missing{border-color:#a6b9d6}
+ .scan-pending{background:#714a00!important;border-color:#ffca55!important;color:#fff!important} .mobile-results .score-columns{display:grid;gap:12px}.mobile-results .score-group{background:#ffffff18;border:1px solid #ffffff35;border-radius:16px;padding:12px}.score-group h3{margin:0 0 8px}.score-group span{display:inline-block;margin:3px;padding:6px 9px;border-radius:15px;background:#ffffff23;font-size:13px}.score-group.correct{border-color:#37d99a}.score-group.incorrect{border-color:#ff9680}.score-group.missing{border-color:#a6b9d6}
  .mobile-results button{position:sticky;bottom:0;margin-top:16px;background:#ffd76a;color:#162747;font-weight:900}
 }
 
@@ -142,7 +142,7 @@ state.questions=Array.isArray(state.questions)?state.questions:[];
 state.index=Number.isInteger(state.index)?state.index:-1;
 if(paperCode||setId){state.questions=bank.map((q,i)=>({...q,answers:paperCode?(savedAnswers[i]||{}):(state.questions[i]?.answers||{})}));if(state.index<0&&bank.length)state.index=0}
 if(paperCode)state.index=<?=($paperSession?(int)$paperSession['current_index']:0)?>;
-let cameraStarting=false,cameraStream=null,scanning=false,busy=false,lastSeen=new Map(),paperOpen=true,phase=<?=json_encode((string)($paperSession['phase']??'question'))?>,showCorrect=false,showGraph=false,pending=new Set(),digitalZoom=1,hardwareZoom=false,feedTimer=null;
+let cameraStarting=false,cameraStream=null,scanning=false,busy=false,lastSeen=new Map(),paperOpen=true,phase=<?=json_encode((string)($paperSession['phase']??'question'))?>,showCorrect=false,showGraph=false,pending=new Map(),failedScans=new Map(),answerVersion=0,digitalZoom=1,hardwareZoom=false,feedTimer=null;
 const current=()=>state.questions[state.index]||null;
 function save(){sessionStorage.setItem(storageKey,JSON.stringify(state))}
 function mobileStatus(message){$('scanStatus').textContent=message;$('mobileStatus').textContent=message}
@@ -168,17 +168,22 @@ function renderMobileResults(){
  renderMobileMissing();
 }
 async function persistAnswer(id,answer,index){if(!paperCode)return true;let body=new URLSearchParams({code:paperCode,csrf:paperCsrf,student_id:id,index:String(index),answer});try{let response=await fetch(location.pathname+'?code='+encodeURIComponent(paperCode),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});let result=await response.json();if(!response.ok||!result.ok)throw Error(result.message||'Không lưu được');return true}catch(e){$('scanStatus').textContent='Chưa lưu lên máy chủ: '+e.message;await syncQuestion();return false}}
-async function control(action,values={}){let body=new URLSearchParams({csrf:controlCsrf,action,...values});let response=await fetch(screenApi+'?code='+encodeURIComponent(paperCode),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});let result=await response.json();if(!response.ok||!result.ok)throw Error(result.message||'Không điều khiển được lượt chơi');return result}
+async function flushScans(){
+ await Promise.allSettled(Array.from(pending.values()));
+ for(const [id,item] of Array.from(failedScans)){if(item.index!==state.index)throw Error('Có câu trả lời chưa lưu ở câu trước.');if(await persistAnswer(id,item.answer,item.index)){failedScans.delete(id);current().answers[id]=item.answer;answerVersion++;} }
+ if(failedScans.size)throw Error('Còn '+failedScans.size+' thẻ chưa lưu. Giữ ở câu này và bấm công bố lại khi mạng ổn định.');
+}
+async function control(action,values={}){if(action==='move'||action==='finish'||action==='clear'||(action==='phase'&&values.phase==='results'))await flushScans();let body=new URLSearchParams({csrf:controlCsrf,action,...values});let response=await fetch(screenApi+'?code='+encodeURIComponent(paperCode),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});let result=await response.json();if(!response.ok||!result.ok)throw Error(result.message||'Không điều khiển được lượt chơi');return result}
 function render(){let q=current();$('question').value=q?.text||'';$('questionImage').classList.toggle('hidden',!q?.image);if(q?.image)$('questionImage').src=q.image;$('choices').innerHTML=q?.choices?['A','B','C','D'].map(a=>'<p><b>'+a+'.</b> '+escapeHtml(q.choices[a]||'')+'</p>').join(''):'';$('current').textContent=q?'Câu '+(state.index+1)+' / '+state.questions.length+' · '+(q.text||'Chưa nhập nội dung'):'Chưa mở câu hỏi';$('keys').innerHTML=['A','B','C','D'].map(a=>'<button type="button" data-key="'+a+'" class="'+(q?.key===a?'active':'')+'" '+(setId?'disabled':'')+'>'+a+'</button>').join('');let count=0;$('resultRows').innerHTML=students.map(s=>{let a=q?.answers?.[s.id]||'',status=a?(a===q.key?'Đúng':'Sai'):'Chưa trả lời';if(a)count++;return '<tr class="'+(a?(a===q.key?'ok':'bad'):'')+'"><td>'+escapeHtml(s.name)+'</td><td>'+escapeHtml(a||'—')+'</td><td>'+status+'</td><td><select class="manual" data-id="'+escapeHtml(s.id)+'"><option value="">—</option>'+['A','B','C','D'].map(x=>'<option value="'+x+'" '+(a===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td></tr>'}).join('');$('count').textContent=count;renderMobileResults()}
 $('keys').onclick=e=>{let a=e.target.dataset.key,q=current();if(!q||!a)return;q.key=a;save();render()};
 $('question').oninput=e=>{let q=current();if(q){q.text=e.target.value;save();$('current').textContent='Câu '+(state.index+1)+' · '+(q.text||'Chưa nhập nội dung')}};
 $('newQuestion').onclick=()=>{stopCamera();state.questions.push({text:'',key:'A',answers:{}});state.index=state.questions.length-1;save();render();$('question').focus()};
 if(setId&&!paperCode)$('nextQuestion').onclick=()=>{if(state.index<state.questions.length-1){stopCamera();state.index++;save();render()}else $('scanStatus').textContent='Đã hết bộ câu hỏi.'};
 async function syncQuestion(){
- if(!paperCode||cameraStarting)return;
+ if(!paperCode||cameraStarting||pending.size)return;
  try{
-  let response=await fetch(screenApi+'?code='+encodeURIComponent(paperCode)+'&api=state',{cache:'no-store'}),data=await response.json();
-  if(!data.ok)throw Error('Không đọc được lượt chơi');if(cameraStarting)return;
+  const version=answerVersion;let response=await fetch(screenApi+'?code='+encodeURIComponent(paperCode)+'&api=state',{cache:'no-store'}),data=await response.json();
+  if(!data.ok)throw Error('Không đọc được lượt chơi');if(cameraStarting||pending.size||version!==answerVersion)return;
   paperOpen=data.status==='open';phase=data.phase;showCorrect=data.show_correct;showGraph=data.show_graph;if(phase==='welcome'){$('mobileQuestion').textContent='🎯 Sẵn sàng · bấm Bắt đầu để mở câu hỏi và camera';$('mobileStart').textContent='▶ Bắt đầu · Camera';}
   if(!paperOpen){stopCamera();renderMobileResults();$('mobileStart').disabled=true;$('mobilePublish').disabled=true;$('mobilePreview').disabled=true;$('scanStatus').textContent=phase==='finished'?'Đã kết thúc · bảng xếp hạng đang hiển thị trên màn chiếu.':'Lượt chơi đã đóng.';return}
   if(phase!=='scanning'&&scanning&&!cameraStarting)stopCamera();
@@ -239,18 +244,21 @@ function nativeCodeOrientation(ctx,loc,id,w,h){
  return match?.data==='CDSQ1:'+id?answerFromFinder(match.location):null;
 }
 let detector=null,scanHandle=0,scanPending=false,scanTicks=0,scanLast=0,scanGeneration=0;
+let scanRenderTimer=0;
+function scheduleScanRender(){if(scanRenderTimer)return;scanRenderTimer=setTimeout(()=>{scanRenderTimer=0;save();render();},80);}
 function recordScan(id,answer,location,w,h,markers){
- if(!byId.has(id)||!answer)return;
+ if(!scanning||!byId.has(id)||!answer)return;
  let center=location?.topLeftCorner,bottom=location?.bottomRightCorner;
- if(center&&bottom)markers.push({name:byId.get(id).name,answer,correct:answer===current()?.key,x:Math.min(90,Math.max(10,(center.x+bottom.x)/2/w*100)),y:Math.min(87,Math.max(15,(center.y+bottom.y)/2/h*100))});
+ if(center&&bottom)markers.push({name:byId.get(id).name,answer,correct:current()?.answers?.[id]===answer&&answer===current()?.key,saved:current()?.answers?.[id]===answer,x:Math.min(90,Math.max(10,(center.x+bottom.x)/2/w*100)),y:Math.min(87,Math.max(15,(center.y+bottom.y)/2/h*100))});
  let prior=lastSeen.get(id),now=Date.now();
  if(prior?.answer===answer&&now-prior.time<2500){
   let q=current();if(!q||q.answers[id]===answer||pending.has(id))return;
-  pending.add(id);let index=state.index;
-  persistAnswer(id,answer,index).then(ok=>{
-   pending.delete(id);if(!ok||state.index!==index)return;
-   q.answers[id]=answer;save();render();let badge=document.createElement('span');badge.textContent=(answer===q.key?'✓ ':'✕ ')+answer+' · '+byId.get(id).name;badge.className=answer===q.key?'scan-correct':'scan-wrong';$('cameraFeed').prepend(badge);while($('cameraFeed').children.length>5)$('cameraFeed').lastChild.remove();$('cameraCount').textContent=Object.keys(q.answers).length+' / '+students.length+' đã quét';$('scanStatus').textContent=byId.get(id).name+' → '+answer+' · Đã ghi nhận';
-  });
+  let index=state.index;answerVersion++;
+  const saving=persistAnswer(id,answer,index).then(ok=>{
+   if(!ok){failedScans.set(id,{answer,index});mobileStatus('Đã nhận thẻ nhưng CHƯA LƯU: '+byId.get(id).name+' · kiểm tra mạng trước khi công bố.');return;}
+   failedScans.delete(id);answerVersion++;if(state.index!==index)return;
+   current().answers[id]=answer;scheduleScanRender();let badge=document.createElement('span');badge.textContent=(answer===q.key?'✓ ':'✕ ')+answer+' · '+byId.get(id).name;badge.className=answer===q.key?'scan-correct':'scan-wrong';$('cameraFeed').prepend(badge);while($('cameraFeed').children.length>5)$('cameraFeed').lastChild.remove();$('cameraCount').textContent=Object.keys(q.answers).length+' / '+students.length+' đã quét';$('scanStatus').textContent=byId.get(id).name+' → '+answer+' · Đã ghi nhận';
+  }).finally(()=>pending.delete(id));pending.set(id,saving);
  }else lastSeen.set(id,{answer,time:now});
 }
 function maskCode(data,w,h,corners){
@@ -286,11 +294,11 @@ async function scanFrame(generation){
   ctx.drawImage(v,sx,sy,cw,ch,0,0,w,h);
   let markers=[];
   if(detector){
-   try{let codes=await detector.detect(canvas);for(let code of codes){let corners=code.cornerPoints||[];if(corners.length<4)continue;let loc={topLeftCorner:corners[0],topRightCorner:corners[1],bottomRightCorner:corners[2],bottomLeftCorner:corners[3]};let id=code.rawValue?.startsWith('CDSQ1:')?code.rawValue.slice(6):'';recordScan(id,nativeCodeOrientation(ctx,loc,id,w,h),loc,w,h,markers)}}
+   try{let codes=await detector.detect(canvas);if(!codes.length&&scanTicks++%6===0)fallbackCodes(ctx,w,h,markers);for(let code of codes){let corners=code.cornerPoints||[];if(corners.length<4)continue;let loc={topLeftCorner:corners[0],topRightCorner:corners[1],bottomRightCorner:corners[2],bottomLeftCorner:corners[3]};let id=code.rawValue?.startsWith('CDSQ1:')?code.rawValue.slice(6):'';recordScan(id,nativeCodeOrientation(ctx,loc,id,w,h),loc,w,h,markers)}}
    catch(e){detector=null;fallbackCodes(ctx,w,h,markers)}
   }else fallbackCodes(ctx,w,h,markers);
   if(tile)markers.forEach(m=>{m.x=((sx+(m.x/100)*cw)/v.videoWidth)*100;m.y=((sy+(m.y/100)*ch)/v.videoHeight)*100;});
-  if(generation===scanGeneration)$('detectedLayer').replaceChildren(...markers.map(marker=>{let el=document.createElement('span');el.textContent=(marker.correct?'✓ ':'✕ ')+marker.answer+' · '+marker.name;el.className=marker.correct?'scan-correct':'scan-wrong';el.style.left=marker.x+'%';el.style.top=marker.y+'%';return el}));
+  if(generation===scanGeneration)$('detectedLayer').replaceChildren(...markers.map(marker=>{let el=document.createElement('span');el.textContent=(marker.saved?(marker.correct?'✓ ':'✕ '):'⏳ ')+marker.answer+' · '+marker.name;el.className=marker.saved?(marker.correct?'scan-correct':'scan-wrong'):'scan-pending';el.style.left=marker.x+'%';el.style.top=marker.y+'%';return el}));
  }catch(e){$('scanStatus').textContent='Lỗi quét: '+e.message}
  finally{scanPending=false;if(scanning&&generation===scanGeneration)scanHandle=requestAnimationFrame(()=>scanFrame(generation))}
 }
@@ -355,6 +363,7 @@ let lastInteraction=0;
 document.addEventListener('pointerdown',()=>{if(!paperCode||!paperOpen||phase==='finished'||Date.now()-lastInteraction<60000)return;lastInteraction=Date.now();control('activity').catch(error=>mobileStatus(error.message));});
 window.addEventListener('pagehide',stopCamera);render();
 </script><?php endif; ?></main><?php require __DIR__ . '/includes/game_credit.php'; ?></body></html>
+
 
 
 
