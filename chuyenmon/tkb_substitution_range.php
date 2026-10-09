@@ -1,12 +1,13 @@
 <?php
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/timetable_store.php';
+require_once __DIR__.'/includes/substitution_permissions.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $user = cds_user();
 if (!$user) { http_response_code(401); echo json_encode(['ok'=>false,'message'=>'Chưa đăng nhập.'], JSON_UNESCAPED_UNICODE); exit; }
 $isAdmin = (($user['role'] ?? '') === 'admin');
-$canApprove = $isAdmin || cds_can_feature('cm.pccm','edit');
+$canApprove = tkbs_can_approve($user);
 $teachers = array_values(array_filter(array_map('strval',(array)load_json(TEACHERS_FILE,[]))));
 $teachers = sort_teachers_by_ten($teachers);
 $selfTeacher = trim((string)($user['teacher_name'] ?? $user['name'] ?? ''));
@@ -15,6 +16,7 @@ if(empty($_SESSION['tkb_range_csrf']))$_SESSION['tkb_range_csrf']=bin2hex(random
 
 $mode=(string)($_GET['mode']??'replace');if(!in_array($mode,['replace','fill'],true))$mode='replace';$from = trim((string)($_GET['from'] ?? date('Y-m-d')));$to = trim((string)($_GET['to'] ?? $from));$absent = trim((string)($_GET['absent_teacher'] ?? $selfTeacher));
 if (!$canApprove && $selfTeacher !== '') $absent = $selfTeacher;
+if(tkbs_team_leader($user)&&!tkbs_teacher_in_scope($user,$absent)){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Giáo viên không thuộc tổ phụ trách.'],JSON_UNESCAPED_UNICODE);exit;}
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/',$from) || !preg_match('/^\d{4}-\d{2}-\d{2}$/',$to)) { echo json_encode(['ok'=>false,'message'=>'Khoảng ngày không hợp lệ.'],JSON_UNESCAPED_UNICODE); exit; }
 if ($to < $from) [$from,$to]=[$to,$from];$maxTo = date('Y-m-d', strtotime($from.' +13 days'));if ($to > $maxTo) $to = $maxTo;
 if ($absent === '') { echo json_encode(['ok'=>false,'message'=>'Hãy chọn giáo viên nghỉ.'],JSON_UNESCAPED_UNICODE); exit; }
@@ -31,3 +33,4 @@ for ($ts=strtotime($from),$end=strtotime($to); $ts!==false && $ts<=$end; $ts+=86
     }
 }
 echo json_encode(['ok'=>true,'csrf'=>(string)$_SESSION['tkb_range_csrf'],'mode'=>$mode,'from'=>$from,'to'=>$to,'absent_teacher'=>$absent,'can_approve'=>$canApprove,'rows'=>$out],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+
