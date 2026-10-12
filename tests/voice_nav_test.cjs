@@ -86,6 +86,19 @@ recognize(fuzzy, 'mở thu vienn');
 assert.equal(fuzzy.location.href, 'thuvien.php');
 assert.equal(fuzzy.window.CDSVoiceNavigation.match('đi tới thu vienn')[0].name, 'Thư viện');
 
+const immediate = createNavigation([{ name: 'Thư viện', url: 'thuvien.php', keywords: ['thư viện'] }]);
+immediate.button.click();
+const immediateRec = immediate.recognitionInstances[0];
+assert.equal(immediateRec.interimResults, true);
+immediateRec.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: 'mở thư viện' }], { isFinal: true })] });
+assert.equal(immediate.location.href, 'thuvien.php');
+
+const interim = createNavigation([{ name: 'Thư viện', url: 'thuvien.php', keywords: ['thư viện'] }]);
+interim.button.click();
+const interimRec = interim.recognitionInstances[0];
+interimRec.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: 'đang nói' }], { isFinal: false })] });
+assert.equal(interim.document.body.children[0].queries['.voice-text'].textContent, 'đang nói');
+
 const unrecognized = createNavigation([{ name: 'Thư viện', url: 'thuvien.php', keywords: ['thư viện'] }]);
 recognize(unrecognized, 'mở quê hương');
 const errorDialog = unrecognized.document.body.children[0];

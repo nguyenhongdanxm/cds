@@ -40,14 +40,19 @@
   }
   function match(text) {
     var q = norm(text).replace(PREFIX, '');
-    var list = prepared.map(function (t) {
+    var list = [];
+    for (var i = 0; i < prepared.length; i++) {
+      var t = prepared[i];
       var best = 0;
-      t.terms.forEach(function (term) {
+      for (var j = 0; j < t.terms.length; j++) {
+        var term = t.terms[j];
         var sc = scoreTerm(q, term) * (1 - Math.min(0.05, Math.abs(term.length - q.length) / 500));
         if (sc > best) best = sc;
-      });
-      return { t: t, s: best };
-    }).filter(function (x) { return x.s >= 0.5; }).sort(function (a, b) { return b.s - a.s; });
+        if (sc > 0.95 && term === norm(t.name)) return [{ t: t, s: sc }];
+      }
+      if (best >= 0.5) list.push({ t: t, s: best });
+    }
+    list.sort(function (a, b) { return b.s - a.s; });
     var seen = {};
     return list.filter(function (x) { if (seen[x.t.url]) return false; seen[x.t.url] = 1; return true; });
   }
@@ -79,7 +84,7 @@
   var elStatus = root.querySelector('.voice-status'), elText = root.querySelector('.voice-text'),
     elOpts = root.querySelector('.voice-options'), elStop = root.querySelector('.voice-stop'),
     elRetry = root.querySelector('.voice-retry');
-  var rec = null, listening = false, lastFocus = null, finalText = '', gotResult = false, failed = false;
+  var rec = null, listening = false, lastFocus = null, finalText = '', handled = false, failed = false;
 
   function setState(state, status, text) {
     root.dataset.state = state;
@@ -121,7 +126,7 @@
   }
   function start() {
     elOpts.textContent = '';
-    finalText = ''; gotResult = false; failed = false;
+    finalText = ''; handled = false; failed = false;
     rec = new SR();
     rec.lang = 'vi-VN';
     rec.interimResults = true;
@@ -130,12 +135,18 @@
     rec.onstart = function () { listening = true; setState('listening', 'Đang nghe…', ''); };
     rec.onresult = function (ev) {
       var interim = '';
+      var hasFinal = false;
       for (var i = ev.resultIndex; i < ev.results.length; i++) {
         var r = ev.results[i];
-        if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript;
+        if (r.isFinal) { finalText += r[0].transcript; hasFinal = true; } else interim += r[0].transcript;
       }
-      gotResult = true;
-      elText.textContent = finalText + interim;
+      var text = (finalText + interim).trim();
+      elText.textContent = text;
+      var matches = text ? match(text) : [];
+      if (!handled && (hasFinal || (matches.length && matches[0].s > 0.95))) {
+        handled = true;
+        handle(text);
+      }
     };
     rec.onerror = function (ev) {
       failed = true;
@@ -151,9 +162,9 @@
     };
     rec.onend = function () {
       listening = false;
-      if (failed || root.hidden) return;
+      if (failed || root.hidden || handled) return;
       var t = (finalText || elText.textContent).trim();
-      if (t) handle(t); else if (root.dataset.state === 'listening') setState('error', 'Không nghe thấy giọng nói. Hãy thử lại.', '');
+      if (t) { handled = true; handle(t); } else if (root.dataset.state === 'listening') setState('error', 'Không nghe thấy giọng nói. Hãy thử lại.', '');
     };
     try { rec.start(); } catch (e) { setState('error', 'Không thể bật micro.', ''); }
   }
