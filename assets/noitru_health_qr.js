@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ['healthQrZoomArea','healthQrTorch'].forEach(id => { el(id).hidden = true; });
     if (scanner && running) { running = false; try { await scanner.stop(); } catch (_) {} }
   }
-  async function recognize(text, ticket) {
+  async function recognize(text, ticket, manual = false) {
     if (busy || ticket !== session || !dialog.open) return;
     busy = true;
     await stop();
@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const url = new URL(location.href);
       url.search = ''; url.hash = '';
       url.searchParams.set('tab', 'health'); url.searchParams.set('health_qr', text);
+      if (manual) url.searchParams.set('manual_code', text);
       const response = await fetch(url, {credentials:'same-origin', headers:{Accept:'application/json'}});
       const data = await response.json();
       if (ticket !== session || !dialog.open) return;
@@ -129,5 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (_) { if (ticket === session && dialog.open) status('Không đọc được QR trong ảnh. Hãy chọn ảnh rõ toàn bộ mã QR trên thẻ.'); }
     finally { busy = false; }
   });
+  el('healthQrManual').addEventListener('submit', async event => { event.preventDefault(); if (busy) return; const code=el('healthQrCode').value.trim(); if(!code) return; const ticket=++session; el('healthQrResult').hidden=true; await recognize(code,ticket,true); });
   window.addEventListener('pagehide', () => { ++session; stop(); });
 });
+
