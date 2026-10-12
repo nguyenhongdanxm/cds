@@ -11,7 +11,8 @@ function ntxc_json($ok,$message,$extra=[],$status=200){http_response_code($statu
 function ntxc_student_id($raw){
  $raw=trim((string)$raw); if($raw==='')return '';
  if(filter_var($raw,FILTER_VALIDATE_URL)){$q=[];parse_str((string)parse_url($raw,PHP_URL_QUERY),$q);$id=trim((string)($q['id']??''));$t=trim((string)($q['t']??''));if($id!==''&&$t!==''&&student_card_is_valid_token($id,$t))return $id;}
- foreach(noitru_boarders_live() as $s){if($raw===(string)($s['id']??'')||strcasecmp($raw,(string)($s['code']??''))===0||strcasecmp($raw,student_card_public_code($s))===0)return (string)($s['id']??'');}
+ require_once __DIR__.'/includes/student_manual_lookup.php';
+ $student=cds_student_manual_lookup(noitru_boarders_live(),$raw);return (string)($student['id']??'');
  return '';
 }
 function ntxc_public_file(array $r): string {
