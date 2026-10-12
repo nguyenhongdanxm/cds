@@ -3,6 +3,7 @@
 require_once __DIR__.'/student_card_store.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
+require_once __DIR__.'/student_manual_lookup.php';
 $raw = trim((string)($_GET['health_qr'] ?? ''));
 $parts = strlen($raw) <= 2048 ? parse_url($raw) : false;
 $params = [];
@@ -15,6 +16,7 @@ if (is_array($parts) && basename($parts['path'] ?? '') === 'student_verify.php' 
         if ((string)($candidate['id'] ?? '') === $id && can_class($candidate['class_name'] ?? '')) { $student = $candidate; break; }
     }
 }
+if(isset($_GET['manual_code'])){$student=cds_student_manual_lookup(array_values(array_filter(noitru_assignment_apply(noitru_boarders_live()),fn($candidate)=>can_class($candidate['class_name']??''))),(string)$_GET['manual_code']);$id=(string)($student['id']??'');}
 if (!$student) {
     http_response_code(404);
     echo json_encode(['error'=>'Không nhận diện được thẻ hợp lệ của học sinh nội trú trong phạm vi quản lý.'], JSON_UNESCAPED_UNICODE);
@@ -22,3 +24,4 @@ if (!$student) {
 }
 echo json_encode(['student'=>['id'=>$id,'name'=>$student['name'] ?? '', 'class_name'=>$student['class_name'] ?? '', 'code'=>$student['code'] ?? ''], 'can_record'=>can_edit_perm('nt.yte')], JSON_UNESCAPED_UNICODE);
 exit;
+
