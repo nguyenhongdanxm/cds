@@ -5,6 +5,7 @@ require_once __DIR__ . '/includes/dashboard_data.php';
 require_once __DIR__ . '/includes/push_notifications.php';
 require_once __DIR__ . '/includes/account_profile.php';
 require_once __DIR__ . '/includes/dashboard_operation_store.php';
+require_once __DIR__ . '/includes/dashboard_attendance.php';
 require_login();
 
 $user = current_user();
@@ -84,24 +85,13 @@ $birthdayUpcoming = [];
 foreach ($birthdayByRole['teacher']['tomorrow'] as $person) $birthdayUpcoming[] = 'đồng chí ' . $birthdayPersonName($person);
 foreach ($birthdayByRole['student']['tomorrow'] as $person) $birthdayUpcoming[] = 'em ' . $birthdayPersonName($person);
 $dashboard = cds_dashboard_scope_data($user);
-$adminAttendanceRecent = [];
-if (!function_exists('noitru_att_recent_reports') || !function_exists('noitru_boarders_live')) {
-    require_once __DIR__ . '/includes/noitru_store.php';
-}
-if (function_exists('noitru_att_recent_reports') && function_exists('noitru_boarders_live')) {
-    $adminAllowedClasses = allowed_classes();
-    $adminBoarders = array_values(array_filter(noitru_boarders_live(), static function ($student) use ($adminAllowedClasses) {
-        return $adminAllowedClasses === null || in_array((string)($student['class_name'] ?? ''), $adminAllowedClasses, true);
-    }));
-    $adminScopeStudentIds = $adminAllowedClasses === null ? null : array_column($adminBoarders, 'id');
-    $adminAttendanceRecent = noitru_att_recent_reports(3, $adminScopeStudentIds, count($adminBoarders));
-    if ($adminAttendanceRecent) {
-        $adminLatestAttendance = $adminAttendanceRecent[0];
-        $dashboard['noitru']['present'] = $adminLatestAttendance['present'];
-        $dashboard['noitru']['absent'] = $adminLatestAttendance['absent'] + $adminLatestAttendance['excused'];
-        $dashboard['noitru']['attendance_date'] = $adminLatestAttendance['date'];
-        $dashboard['noitru']['attendance_shift'] = $adminLatestAttendance['shift'];
-    }
+$adminAttendanceRecent = cds_dashboard_recent_attendance(allowed_classes());
+if ($adminAttendanceRecent) {
+    $adminLatestAttendance = $adminAttendanceRecent[0];
+    $dashboard['noitru']['present'] = $adminLatestAttendance['present'];
+    $dashboard['noitru']['absent'] = $adminLatestAttendance['absent'] + $adminLatestAttendance['excused'];
+    $dashboard['noitru']['attendance_date'] = $adminLatestAttendance['date'];
+    $dashboard['noitru']['attendance_shift'] = $adminLatestAttendance['shift'];
 }
 $quickActions = cds_dashboard_quick_actions($user);
 $feedItems = cds_dashboard_notice_tasks($user);
@@ -143,7 +133,7 @@ $pushUnread = cds_push_unread_count($user);
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20261012-2" rel="stylesheet">
-  <link href="<?= e(BASE_URL) ?>assets/admin-theme.css?v=20261012-2" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-theme.css?v=20261012-3" rel="stylesheet">
 </head>
 <body class="admin-dashboard">
 <?php require_once __DIR__ . '/includes/module_switcher.php'; ?>
@@ -293,13 +283,16 @@ $pushUnread = cds_push_unread_count($user);
 <nav class="mobile-dock" aria-label="Điều hướng nhanh"><a class="active" href="admin.php"><i class="bi bi-house-fill"></i><span>Trang chủ</span></a><?php foreach(array_slice($quickActions,0,3) as $action): ?><a href="<?= e($action['url']) ?>"><i class="bi <?= e($action['icon']) ?>"></i><span><?= e($action['label']) ?></span></a><?php endforeach; ?><button type="button" class="dock-voice" data-voice-open hidden aria-label="Giọng nói"><i class="bi bi-mic-fill"></i><span>Giọng nói</span></button><button type="button" id="mobileModules"><i class="bi bi-grid-fill"></i><span>Module</span></button></nav>
 
 <?php
+require_once __DIR__ . '/includes/voice_command_catalog.php';
 $voiceTargets = [['name'=>'Trang chủ','url'=>'admin.php','keywords'=>['trang chu','home','man hinh chinh','tong quan'],'category'=>'Chung']];
-$voiceKeywords = ['tintuc'=>['tin tuc','website','bai viet'],'chuyenmon'=>['chuyen mon','ke hoach day hoc','phan cong'],'chunhiem'=>['chu nhiem','tien ich chu nhiem','lop chu nhiem'],'vanban'=>['van ban','cong van','van ban moi'],'thuvien'=>['thu vien','thiet bi','sach'],'csdl'=>['co so du lieu','du lieu','hoc sinh','giao vien','csdl'],'hoclieu'=>['hoc lieu','tro choi','game'],'noitru'=>['noi tru','ky tuc xa'],'thidua'=>['thi dua','cham cong','xep loai'],'trolyai'=>['tro ly ai','tro ly','tri tue nhan tao','ai']];
+$voiceKeywords = cds_voice_module_keywords();
+$voiceQuickActions = cds_voice_quick_action_catalog();
 foreach ($modules as $module) {
     $voiceTargets[] = ['name'=>(string)$module['title'],'url'=>(string)$module['url'],'keywords'=>$voiceKeywords[$module['id'] ?? ''] ?? [],'category'=>(string)$module['title']];
 }
 foreach ($quickActions as $action) {
-    $voiceTargets[] = ['name'=>(string)$action['label'],'url'=>(string)$action['url'],'keywords'=>[],'category'=>'Thao tác nhanh'];
+    $metadata = $voiceQuickActions[$action['label']] ?? [];
+    $voiceTargets[] = ['name'=>(string)$action['label'],'url'=>(string)$action['url'],'keywords'=>$metadata['keywords'] ?? [],'category'=>$metadata['category'] ?? 'Thao tác nhanh'];
 }
 ?>
 <script type="application/json" id="voiceNavTargets"><?= json_encode($voiceTargets, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?></script>
@@ -318,5 +311,5 @@ foreach ($quickActions as $action) {
 })();
 </script>
 <script src="<?= e(BASE_URL) ?>assets/pwa-push.js?v=20260813-3" defer></script>
-<script src="<?= e(BASE_URL) ?>assets/voice-nav.js?v=20261012-1" defer></script>
+<script src="<?= e(BASE_URL) ?>assets/voice-nav.js?v=20261012-2" defer></script>
 </body></html>

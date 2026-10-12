@@ -16,9 +16,21 @@
   var PREFIX = /^(hay |xin |vui long )?(mo|chuyen den|chuyen toi|chuyen sang|chuyen|di den|di toi|di|den|toi|vao|truy cap|xem)( trang| module| muc| phan)?\s+/;
   var prepared = targets.map(function (t) {
     var names = [norm(t.name)].concat((t.keywords || []).map(norm)).filter(Boolean);
-    return { name: t.name, url: t.url, terms: names };
+    return { name: t.name, url: t.url, terms: names, category: t.category || '' };
   });
 
+  function fuzzyScore(a, b) {
+    if (Math.min(a.length, b.length) < 4 || a.length > 80 || b.length > 80) return 0;
+    var previous = Array.from({ length: b.length + 1 }, function (_, i) { return i; });
+    for (var i = 1; i <= a.length; i++) {
+      var current = [i];
+      for (var j = 1; j <= b.length; j++) {
+        current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      }
+      previous = current;
+    }
+    return 1 - previous[b.length] / Math.max(a.length, b.length);
+  }
   function scoreTerm(q, term) {
     if (!q || !term) return 0;
     if (q === term) return 1;
@@ -27,7 +39,8 @@
     var qw = q.split(' '), tw = term.split(' '), hit = 0;
     tw.forEach(function (w) { if (qw.indexOf(w) !== -1) hit++; });
     var s = hit / tw.length * 0.8;
-    return hit === tw.length ? Math.max(s, 0.85) : (tw.length > 1 && hit ? s * 0.8 : (hit ? 0.5 : 0));
+    var fuzzy = fuzzyScore(q.replace(/ /g, ''), term.replace(/ /g, ''));
+    return Math.max(hit === tw.length ? Math.max(s, 0.85) : (tw.length > 1 && hit ? s * 0.8 : (hit ? 0.5 : 0)), fuzzy >= 0.72 ? fuzzy * 0.82 : 0);
   }
   function match(text) {
     var q = norm(text).replace(PREFIX, '');
@@ -73,7 +86,8 @@
     list.forEach(function (x) {
       var b = document.createElement('button');
       b.type = 'button';
-      b.textContent = x.t.name;
+      b.textContent = (elOpts.children.length + 1) + '. ' + x.t.name;
+      b.setAttribute('aria-label', 'Chọn ' + x.t.name + ', phím ' + (elOpts.children.length + 1));
       b.addEventListener('click', function () { go(x.t); });
       elOpts.appendChild(b);
     });
@@ -89,7 +103,7 @@
       go(list[0].t);
       return;
     }
-    setState('choose', 'Bạn muốn mở trang nào?', text);
+    setState('choose', 'Bạn muốn mở trang nào? Nhấn phím 1–5 hoặc chọn bên dưới.', text);
     showOptions(list.slice(0, 5));
   }
   function stop() {
@@ -153,6 +167,9 @@
     if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'v' || e.key === 'V')) {
       e.preventDefault();
       if (root.hidden) open(); else stop();
+    } else if (!root.hidden && root.dataset.state === 'choose' && /^[1-5]$/.test(e.key)) {
+      var option = elOpts.children[Number(e.key) - 1];
+      if (option) option.click();
     } else if (e.key === 'Escape' && !root.hidden) stop();
   });
 })();
