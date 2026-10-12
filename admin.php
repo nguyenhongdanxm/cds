@@ -136,9 +136,12 @@ $pushUnread = cds_push_unread_count($user);
   <title>Trang chủ quản trị – <?= e(SCHOOL_SHORT) ?></title>
   <link rel="manifest" href="<?= e(BASE_URL) ?>manifest.webmanifest">
   <link rel="apple-touch-icon" href="<?= e(BASE_URL) ?>assets/icons/cds-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20261012-1" rel="stylesheet">
-  <link href="<?= e(BASE_URL) ?>assets/admin-theme.css?v=20261012-1" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20261012-2" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-theme.css?v=20261012-2" rel="stylesheet">
 </head>
 <body class="admin-dashboard">
 <?php require_once __DIR__ . '/includes/module_switcher.php'; ?>
@@ -148,6 +151,7 @@ $pushUnread = cds_push_unread_count($user);
     <span><strong><?= e(SCHOOL_NAME) ?></strong><small>Hệ sinh thái quản lý nhà trường</small></span>
   </a>
   <div class="header-actions">
+    <button type="button" class="voice-btn" data-voice-open hidden aria-label="Điều hướng bằng giọng nói (Alt+V)" title="Điều hướng bằng giọng nói (Alt+V)"><i class="bi bi-mic-fill"></i><span>Giọng nói</span></button>
     <details class="notification-picker">
       <summary aria-label="Thông báo<?= $pushUnread ? ', ' . $pushUnread . ' chưa đọc' : '' ?>" title="Thông báo"><i class="bi bi-bell-fill"></i><span data-push-unread <?= $pushUnread ? '' : 'hidden' ?>><?= $pushUnread ?></span></summary>
       <div class="notification-menu">
@@ -212,6 +216,7 @@ $pushUnread = cds_push_unread_count($user);
   <?php if ($quickActions): ?><section class="quick-section"><div class="section-heading"><div><span class="section-kicker">Truy cập nhanh</span><h2>Thao tác thường dùng</h2></div></div><div class="quick-grid"><?php foreach ($quickActions as $action): ?><a href="<?= e($action['url']) ?>" style="--quick-color:<?= e($action['color']) ?>"><i class="bi <?= e($action['icon']) ?>"></i><span><?= e($action['label']) ?></span><i class="bi bi-arrow-up-right"></i></a><?php endforeach; ?></div></section><?php endif; ?>
 
   <div class="content-grid">
+    <div class="main-stack">
     <section class="panel feed-panel">
       <div class="panel-head"><div><span class="section-kicker">Thông báo</span><h2>Thông báo đang và sắp diễn ra</h2></div><span class="count-pill"><?= count($feedItems) ?></span></div>
       <div class="feed-list" id="professionalFeed">
@@ -259,12 +264,6 @@ $pushUnread = cds_push_unread_count($user);
       <?php if (count($feedItems) > 5): ?><nav class="feed-pagination" aria-label="Trang thông báo"><?php for($feedPage=1,$feedPages=(int)ceil(count($feedItems)/5);$feedPage<=$feedPages;$feedPage++): ?><button type="button" class="<?= $feedPage===1?'active':'' ?>" data-feed-page-button="<?= $feedPage ?>" <?= $feedPage===1?'aria-current="page"':'' ?>><?= $feedPage ?></button><?php endfor; ?></nav><?php endif; ?>
     </section>
 
-    <div class="side-stack">
-      <?php if ($observations): ?><section class="panel observation-panel"><div class="panel-head"><div><span class="section-kicker">Chuyên môn</span><h2>Lịch dự giờ sắp tới</h2></div><i class="bi bi-journal-check panel-symbol"></i></div><div class="compact-list"><?php foreach($observations as $row): ?><div><time><strong><?= date('d',strtotime($row['dashboard_date'])) ?></strong><span>Th <?= date('m',strtotime($row['dashboard_date'])) ?></span></time><p><strong><?= e($row['teacher']??$row['teacher_name']??$row['name']??'Lịch dự giờ') ?></strong><small><?= e(implode(' · ',array_filter([$row['time']??'',$row['subject']??'',$row['class']??$row['class_name']??'']))) ?></small></p></div><?php endforeach; ?></div></section><?php endif; ?>
-
-      <section class="panel leave-panel"><div class="panel-head"><div><span class="section-kicker">Nhân sự</span><h2>Lịch nghỉ giáo viên</h2></div><i class="bi bi-calendar2-week panel-symbol"></i></div><div class="compact-list leave-list"><?php foreach($dashboard['leave'] as $row): ?><div><time><strong><?= date('d',strtotime($row['from'])) ?></strong><span>Th <?= date('m',strtotime($row['from'])) ?></span></time><p><strong><?= e($row['name']) ?></strong><small><?= e($row['reason'] ?: $row['permission']) ?><?= $row['to']!==$row['from']?' · đến '.date('d/m',strtotime($row['to'])):'' ?></small></p></div><?php endforeach; ?><?php if(!$dashboard['leave']): ?><div class="mini-empty"><i class="bi bi-calendar-check"></i><span>Không có lịch nghỉ hiện tại hoặc sắp tới.</span></div><?php endif; ?></div></section>
-    </div>
-
     <?php if(can_module('noitru','view')): ?><section class="panel operation-panel">
       <div class="panel-head"><div><span class="section-kicker">Toàn trường</span><h2>Lịch trực hôm nay</h2></div><?php if($isAdmin):?><a href="admin_operation_settings.php"><i class="bi bi-gear"></i> Cài đặt</a><?php endif;?></div>
       <div class="operation-grid">
@@ -273,13 +272,32 @@ $pushUnread = cds_push_unread_count($user);
         <article class="attendance-box"><span class="op-icon"><i class="bi bi-person-check-fill"></i></span><div class="op-copy"><span>3 lần điểm danh gần nhất</span><?php if($adminAttendanceRecent): ?><div class="attendance-recent"><?php foreach($adminAttendanceRecent as $attendance): ?><div><strong><b><?= (int)$attendance['present'] ?>/<?= (int)$attendance['total'] ?></b></strong><small><?= e($attendance['shift_label']) ?> · <?= date('d/m/Y',strtotime($attendance['date'])) ?><?= $attendance['by']!==''?' · '.e($attendance['by']):'' ?></small></div><?php endforeach; ?></div><?php else: ?><strong>Chưa có dữ liệu</strong><small>Chưa ghi nhận báo cáo điểm danh</small><?php endif; ?></div><a href="noitru_attendance.php" aria-label="Mở điểm danh"><i class="bi bi-chevron-right"></i></a></article>
       </div>
     </section><?php endif; ?>
+    </div>
+
+    <div class="side-stack">
+      <?php if ($observations): ?><section class="panel observation-panel"><div class="panel-head"><div><span class="section-kicker">Chuyên môn</span><h2>Lịch dự giờ sắp tới</h2></div><i class="bi bi-journal-check panel-symbol"></i></div><div class="compact-list"><?php foreach($observations as $row): ?><div><time><strong><?= date('d',strtotime($row['dashboard_date'])) ?></strong><span>Th <?= date('m',strtotime($row['dashboard_date'])) ?></span></time><p><strong><?= e($row['teacher']??$row['teacher_name']??$row['name']??'Lịch dự giờ') ?></strong><small><?= e(implode(' · ',array_filter([$row['time']??'',$row['subject']??'',$row['class']??$row['class_name']??'']))) ?></small></p></div><?php endforeach; ?></div></section><?php endif; ?>
+
+      <section class="panel leave-panel"><div class="panel-head"><div><span class="section-kicker">Nhân sự</span><h2>Lịch nghỉ giáo viên</h2></div><i class="bi bi-calendar2-week panel-symbol"></i></div><div class="compact-list leave-list"><?php foreach($dashboard['leave'] as $row): ?><div><time><strong><?= date('d',strtotime($row['from'])) ?></strong><span>Th <?= date('m',strtotime($row['from'])) ?></span></time><p><strong><?= e($row['name']) ?></strong><small><?= e($row['reason'] ?: $row['permission']) ?><?= $row['to']!==$row['from']?' · đến '.date('d/m',strtotime($row['to'])):'' ?></small></p></div><?php endforeach; ?><?php if(!$dashboard['leave']): ?><div class="mini-empty"><i class="bi bi-calendar-check"></i><span>Không có lịch nghỉ hiện tại hoặc sắp tới.</span></div><?php endif; ?></div></section>
+    </div>
+
   </div>
 
   <section class="module-section"><div class="section-heading"><div><span class="section-kicker">Hệ sinh thái CDS</span><h2>Các module được sử dụng</h2></div></div><div class="module-grid"><?php foreach($modules as $module): ?><a href="<?= e($module['url']) ?>" style="--module-color:<?= e($module['color']) ?>"><i class="bi <?= e($module['icon']) ?>"></i><span><strong><?= e($module['title']) ?></strong><small><?= e($module['subtitle']) ?></small></span><i class="bi bi-chevron-right"></i></a><?php endforeach; ?></div></section>
 </main>
 
-<nav class="mobile-dock" aria-label="Điều hướng nhanh"><a class="active" href="admin.php"><i class="bi bi-house-fill"></i><span>Trang chủ</span></a><?php foreach(array_slice($quickActions,0,3) as $action): ?><a href="<?= e($action['url']) ?>"><i class="bi <?= e($action['icon']) ?>"></i><span><?= e($action['label']) ?></span></a><?php endforeach; ?><button type="button" id="mobileModules"><i class="bi bi-grid-fill"></i><span>Module</span></button></nav>
+<nav class="mobile-dock" aria-label="Điều hướng nhanh"><a class="active" href="admin.php"><i class="bi bi-house-fill"></i><span>Trang chủ</span></a><?php foreach(array_slice($quickActions,0,3) as $action): ?><a href="<?= e($action['url']) ?>"><i class="bi <?= e($action['icon']) ?>"></i><span><?= e($action['label']) ?></span></a><?php endforeach; ?><button type="button" class="dock-voice" data-voice-open hidden aria-label="Giọng nói"><i class="bi bi-mic-fill"></i><span>Giọng nói</span></button><button type="button" id="mobileModules"><i class="bi bi-grid-fill"></i><span>Module</span></button></nav>
 
+<?php
+$voiceTargets = [['name'=>'Trang chủ','url'=>'admin.php','keywords'=>['trang chu','home','man hinh chinh','tong quan']]];
+$voiceKeywords = ['tintuc'=>['tin tuc','website','bai viet'],'chuyenmon'=>['chuyen mon','ke hoach day hoc','phan cong'],'chunhiem'=>['chu nhiem','tien ich chu nhiem','lop chu nhiem'],'vanban'=>['van ban','cong van','van ban moi'],'thuvien'=>['thu vien','thiet bi','sach'],'csdl'=>['co so du lieu','du lieu','hoc sinh','giao vien','csdl'],'hoclieu'=>['hoc lieu','tro choi','game'],'noitru'=>['noi tru','ky tuc xa'],'thidua'=>['thi dua','cham cong','xep loai'],'trolyai'=>['tro ly ai','tro ly','tri tue nhan tao','ai']];
+foreach ($modules as $module) {
+    $voiceTargets[] = ['name'=>(string)$module['title'],'url'=>(string)$module['url'],'keywords'=>$voiceKeywords[$module['id'] ?? ''] ?? []];
+}
+foreach ($quickActions as $action) {
+    $voiceTargets[] = ['name'=>(string)$action['label'],'url'=>(string)$action['url'],'keywords'=>[]];
+}
+?>
+<script type="application/json" id="voiceNavTargets"><?= json_encode($voiceTargets, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?></script>
 <script>
 (function(){
   const clock=document.getElementById('liveClock');
@@ -295,4 +313,5 @@ $pushUnread = cds_push_unread_count($user);
 })();
 </script>
 <script src="<?= e(BASE_URL) ?>assets/pwa-push.js?v=20260813-3" defer></script>
+<script src="<?= e(BASE_URL) ?>assets/voice-nav.js?v=20261012-1" defer></script>
 </body></html>
