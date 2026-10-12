@@ -1,0 +1,36 @@
+name: Dashboard and voice command checks
+on:
+  pull_request:
+    paths:
+      - 'admin.php'
+      - 'voice-commands-help.php'
+      - 'includes/dashboard_attendance.php'
+      - 'includes/voice_command_catalog.php'
+      - 'assets/voice-nav.js'
+      - 'tests/dashboard_attendance_public_test.php'
+      - 'tests/voice_command_catalog_test.php'
+      - 'tests/voice_nav_test.cjs'
+      - 'tools/deploy_cds.php'
+      - 'tools/deploy_cpanel.sh'
+      - '.cpanel.yml'
+      - '.github/workflows/dashboard-voice-php-lint.yml'
+  workflow_dispatch:
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: Check syntax and focused tests
+        run: |
+          php -l admin.php
+          php -l voice-commands-help.php
+          php -l includes/dashboard_attendance.php
+          php -l includes/voice_command_catalog.php
+          php -l tests/dashboard_attendance_public_test.php
+          php -l tests/voice_command_catalog_test.php
+          php tests/dashboard_attendance_public_test.php
+          php tests/voice_command_catalog_test.php
+          node tests/voice_nav_test.cjs

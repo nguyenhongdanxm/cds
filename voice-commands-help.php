@@ -2,8 +2,8 @@
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/modules.php';
 require_once __DIR__ . '/includes/voice_command_catalog.php';
-$user = current_user();
 require_login();
+$user = current_user();
 $isAdmin = ($user['role'] ?? '') === 'admin';
 if (!function_exists('cds_voice_csrf_token')) {
     function cds_voice_csrf_token(): string {
@@ -34,6 +34,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_voice_commands']
     exit;
 }
 $commands = cds_voice_commands_for_user((array)$user);
+$modulesForGuide = [];
+foreach (get_ecosystem_modules() as $module) {
+    if (($module['status'] ?? '') === 'soon') continue;
+    if ($isAdmin || ($module['status'] ?? '') === 'link' || can_module((string)($module['id'] ?? ''), 'view')) {
+        $modulesForGuide[] = $module;
+    }
+}
 $voiceTargets = array_map(static function (array $command): array {
     return [
         'name'=>(string)$command['name'],
@@ -66,6 +73,7 @@ sort($categories, SORT_NATURAL | SORT_FLAG_CASE);
     td strong{display:block;color:#183c68}.try{display:inline-flex;margin-top:7px;padding:6px 10px;border:0;border-radius:9px;background:#eaf2ff;color:#245fc4;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
     .note{color:#5f7489;font-size:13px}.status{min-height:24px;margin:10px 2px;color:#176a55;font-size:14px}
     .admin-tools{margin:24px 0;padding:20px;border:1px solid #dce6f0;border-radius:16px;background:#fff}.admin-row{display:grid;grid-template-columns:1.1fr 1.5fr 1fr 1.2fr 1fr 1.2fr .7fr .8fr auto;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid #edf1f6}.admin-row input,.admin-row textarea,.admin-row select{width:100%;min-width:0;padding:8px;border:1px solid #d4e0ed;border-radius:8px;font:inherit;font-size:13px}.admin-row textarea{min-height:58px;resize:vertical}.admin-head{font-size:11px;font-weight:700;color:#536b84}.admin-actions{display:flex;gap:8px;margin-top:12px}.admin-actions button{padding:9px 13px;border:0;border-radius:9px;background:#eaf2ff;color:#245fc4;font:inherit;font-weight:700;cursor:pointer}.admin-actions .save{background:#166534;color:white}.row-tools{display:grid;gap:6px;font-size:12px}.examples{display:block;margin-top:5px;color:#637a92;font-size:12px}
+    .module-index{margin-top:22px;padding:18px 20px;border:1px solid #dce6f0;border-radius:16px;background:#fff}.module-index ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px 24px;padding-left:20px;color:#536b84}
     .back{display:inline-flex;margin-top:16px;color:#245fc4;font-weight:700;text-decoration:none}
     @media(max-width:900px){.admin-row{grid-template-columns:1fr 1fr}.admin-head{display:none}}
     @media(max-width:600px){.tools{flex-direction:column}.tools select{width:100%}.hero{border-radius:18px}}
@@ -90,7 +98,7 @@ sort($categories, SORT_NATURAL | SORT_FLAG_CASE);
       <div class="admin-row">
         <input type="hidden" name="commands[<?= (int)$i ?>][id]" value="<?= e($command['id']??'') ?>">
         <input name="commands[<?= (int)$i ?>][name]" maxlength="80" required value="<?= e($command['name']??'') ?>" aria-label="Tên hiển thị">
-        <input name="commands[<?= (int)$i ?>][url]" maxlength="500" required value="<?= e($command['url']??'') ?>" aria-label="URL nội bộ">
+        <input name="commands[<?= (int)$i ?>][url]" maxlength="500" value="<?= e($command['url']??'') ?>" aria-label="URL nội bộ">
         <textarea name="commands[<?= (int)$i ?>][keywords]" aria-label="Từ khóa, mỗi dòng một cụm"><?= e(implode("\n",(array)($command['keywords']??[]))) ?></textarea>
         <input name="commands[<?= (int)$i ?>][category]" maxlength="40" required value="<?= e($command['category']??'') ?>" aria-label="Nhóm">
         <input name="commands[<?= (int)$i ?>][note]" maxlength="300" value="<?= e($command['note']??'') ?>" aria-label="Ghi chú">
@@ -105,6 +113,11 @@ sort($categories, SORT_NATURAL | SORT_FLAG_CASE);
     <small>* Lệnh thuộc module/chức năng chỉ hiện cho người có quyền tương ứng; lệnh tùy chỉnh không nhận diện được module có thể giới hạn chỉ quản trị.</small>
   </form>
   <?php endif; ?>
+  <section class="module-index">
+    <h2>Menu và module</h2>
+    <p class="hint">Các mục dưới đây phản ánh menu người dùng được phép truy cập. Lệnh giọng nói chỉ điều hướng tới đích nội bộ đang bật trong bảng trên.</p>
+    <ul><?php foreach($modulesForGuide as $module): ?><li><strong><?= e($module['title']??'') ?></strong> — có thể gọi “mở …”, “chuyển đến …” hoặc “đi tới …”<?= ($module['status']??'')==='link'?' (liên kết ngoài không được điều hướng bằng giọng nói).':'' ?></li><?php endforeach; ?></ul>
+  </section>
   <div class="tools">
     <input type="search" id="commandSearch" placeholder="Tìm module hoặc từ khóa…" aria-label="Tìm câu lệnh">
     <select id="commandCategory" aria-label="Lọc theo nhóm">
