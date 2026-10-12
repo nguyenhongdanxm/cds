@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_store.php';
-require_once __DIR__ . '/includes/library_book_excel.php';
-require_once __DIR__ . '/includes/library_equipment_excel.php';
+if (!isset($_GET['library_qr'])) {
+    require_once __DIR__ . '/includes/library_book_excel.php';
+    require_once __DIR__ . '/includes/library_equipment_excel.php';
+}
 require_login();
 
 $user = current_user() ?? [];
@@ -378,12 +380,11 @@ function openQr(){window.libraryQrOpen?.()}
 <button id="libraryQrTorch" hidden type="button" class="btn btn-outline-secondary btn-sm mt-2">Bật đèn</button>
 <p id="libraryQrStatus" class="small text-muted mt-2" role="status" aria-live="polite"></p>
 <button type="button" class="btn btn-outline-primary mb-3" id="libraryQrStart">Mở camera / Quét lại</button>
-<label for="libraryQrFile" class="small">Hoặc chọn ảnh mã QR</label><input id="libraryQrFile" class="form-control mb-3" type="file" accept="image/*">
 <form id="libraryQrManual" class="mb-3"><label class="form-label small" for="libraryQrCode">Nhập mã học sinh nếu không nhận QR</label><div class="input-group"><input id="libraryQrCode" class="form-control" placeholder="Mã học sinh trên thẻ" autocomplete="off" maxlength="100" required><button class="btn btn-dark">Tra cứu</button></div><small class="text-muted">Nhập đúng mã học sinh trên thẻ hoặc trong CSDL, rồi bấm Tra cứu. Không nhập họ tên.</small></form>
 <div id="libraryQrResult" hidden class="border rounded p-3 bg-light"><strong id="libraryQrName"></strong><div id="libraryQrClass" class="small text-muted mb-3"></div><div class="d-flex gap-2 flex-wrap"><a id="libraryQrRecord" class="btn btn-primary">📚 Mượn sách</a><button type="button" id="libraryQrHistory" class="btn btn-success">↩ Trả sách</button></div><div id="libraryQrLoans" hidden class="mt-3"></div></div>
 </dialog>
 <script>window.libraryQrConfig=<?=json_encode(['csrf'=>$csrf,'today'=>date('Y-m-d'),'url'=>BASE_URL.'thuvien.php'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>;</script>
-<script src="<?=e(BASE_URL)?>assets/library-qr.js?v=20261012-2" defer></script>
+<script src="<?=e(BASE_URL)?>assets/library-qr.js?v=20261012-3" defer></script>
 <?php if($tab==='library_loans'&&!empty($_GET['qr_student'])):$qrStudent=null;foreach($students as$candidate)if((string)($candidate['id']??'')===(string)$_GET['qr_student']&&!empty($candidate['active'])){$qrStudent=$candidate;break;}if($qrStudent):?>
 <script>document.addEventListener('DOMContentLoaded',function(){var student=<?=json_encode(['id'=>$qrStudent['id'],'name'=>$qrStudent['name'],'class_name'=>$classMap[(string)($qrStudent['class_id']??'')]??''],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>;document.querySelector('[name="loan_mode"][value="other"]').checked=true;bootstrap.Modal.getOrCreateInstance(document.getElementById('loanModal')).show();document.getElementById('borrowerName').value=student.name;document.getElementById('borrowerId').value=student.id;document.getElementById('borrowerType').value='student';document.getElementById('borrowerClass').value=student.class_name;});</script>
 <?php endif;endif;endif;?>
