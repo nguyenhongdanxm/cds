@@ -1,5 +1,11 @@
 <?php
 require_once 'includes/auth.php';
+// Reuse only the authenticated account on this browser; never infer identity from a saved username.
+if (is_logged_in()) {
+    header('Cache-Control: private, no-store');
+    header('Location: ' . BASE_URL . 'admin.php');
+    exit;
+}
 require_once 'includes/modules.php';
 $modules = get_ecosystem_modules();
 $user = current_user();
