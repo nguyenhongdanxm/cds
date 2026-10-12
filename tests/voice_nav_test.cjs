@@ -60,7 +60,7 @@ function createNavigation(targets) {
     clearTimeout
   };
   vm.runInNewContext(fs.readFileSync(__dirname + '/../assets/voice-nav.js', 'utf8'), sandbox);
-  return { button, document, documentEvents, location, recognitionInstances };
+  return { button, document, documentEvents, location, recognitionInstances, window: sandbox.window };
 }
 
 function recognize(nav, phrase) {
@@ -84,6 +84,7 @@ assert.equal(ambiguous.location.href, 'thietbi.php');
 const fuzzy = createNavigation([{ name: 'Thư viện', url: 'thuvien.php', keywords: ['thư viện'] }]);
 recognize(fuzzy, 'mở thu vienn');
 assert.equal(fuzzy.location.href, 'thuvien.php');
+assert.equal(fuzzy.window.CDSVoiceNavigation.match('đi tới thu vienn')[0].name, 'Thư viện');
 
 const unrecognized = createNavigation([{ name: 'Thư viện', url: 'thuvien.php', keywords: ['thư viện'] }]);
 recognize(unrecognized, 'mở quê hương');

@@ -29,4 +29,5 @@ deployment:
     - /opt/alt/php83/usr/bin/php -l includes/olympia_stage.php
     - /opt/alt/php83/usr/bin/php -l olympia_stage.php
     - /opt/alt/php83/usr/bin/php -l olympia_stage_api.php
+    - /opt/alt/php83/usr/bin/php -l voice-commands-help.php
     - /opt/alt/php83/usr/bin/php tools/deploy_cds.php

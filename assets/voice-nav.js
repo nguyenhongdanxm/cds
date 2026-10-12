@@ -2,12 +2,8 @@
   'use strict';
   var dataEl = document.getElementById('voiceNavTargets');
   var buttons = document.querySelectorAll('[data-voice-open]');
-  if (!dataEl || !buttons.length) return;
   var targets = [];
-  try { targets = JSON.parse(dataEl.textContent) || []; } catch (e) { return; }
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return; // Trình duyệt không hỗ trợ (ví dụ Firefox): giữ nút ẩn.
-  buttons.forEach(function (b) { b.hidden = false; });
+  try { if (dataEl) targets = JSON.parse(dataEl.textContent) || []; } catch (e) { targets = []; }
 
   function norm(s) {
     return String(s || '').toLowerCase().replace(/đ/g, 'd').normalize('NFD')
@@ -55,6 +51,16 @@
     var seen = {};
     return list.filter(function (x) { if (seen[x.t.url]) return false; seen[x.t.url] = 1; return true; });
   }
+  window.CDSVoiceNavigation = {
+    match: function (text) {
+      return match(text).map(function (x) { return { name: x.t.name, url: x.t.url, score: x.s }; });
+    }
+  };
+  if (!dataEl || !buttons.length) return;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return; // Trình duyệt không hỗ trợ (ví dụ Firefox): giữ nút ẩn.
+  buttons.forEach(function (b) { b.hidden = false; });
+
   function go(t) {
     var allowed = prepared.some(function (p) { return p.url === t.url; });
     if (allowed) window.location.href = t.url;
