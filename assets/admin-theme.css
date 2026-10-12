@@ -1,0 +1,251 @@
+body.admin-dashboard {
+  --navy: #12345a;
+  --blue: #2563eb;
+  --cyan: #0faaa8;
+  --indigo: #6366d9;
+  --ink: #172b43;
+  --muted: #566b82;
+  --line: #dce6f0;
+  --soft: #f3f7fc;
+  --card: #fff;
+  --grad-primary: linear-gradient(120deg, #173b68 0%, #2563eb 58%, #12aaa6 100%);
+  --grad-soft: linear-gradient(135deg, #f4f8ff 0%, #f0fbfa 100%);
+  --grad-accent: linear-gradient(135deg, #5966dc 0%, #367be9 52%, #15a7ad 100%);
+  --radius-card: 20px;
+  --radius-control: 14px;
+  --shadow: 0 12px 32px rgba(26, 57, 91, .09);
+  background-color: var(--soft);
+  background-image:
+    radial-gradient(ellipse at 8% 4%, rgba(76, 130, 235, .09), transparent 30rem),
+    radial-gradient(ellipse at 92% 15%, rgba(18, 170, 166, .075), transparent 28rem),
+    radial-gradient(rgba(39, 91, 148, .075) .7px, transparent .7px);
+  background-size: auto, auto, 22px 22px;
+  color: var(--ink);
+}
+
+body.admin-dashboard .app-header {
+  border-bottom-color: rgba(205, 220, 235, .78);
+  background: rgba(255, 255, 255, .84);
+  box-shadow: 0 4px 20px rgba(29, 57, 87, .045);
+}
+
+body.admin-dashboard .school-mark {
+  background: var(--grad-accent);
+  box-shadow: 0 7px 16px rgba(48, 100, 202, .23);
+}
+
+body.admin-dashboard .school-brand strong {
+  color: var(--navy);
+}
+
+body.admin-dashboard .notification-picker > summary,
+body.admin-dashboard .module-picker summary,
+body.admin-dashboard .user-picker summary {
+  border-color: rgba(207, 221, 235, .9);
+  background: rgba(255, 255, 255, .8);
+  box-shadow: 0 3px 10px rgba(30, 60, 92, .045);
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+body.admin-dashboard .notification-picker > summary:hover,
+body.admin-dashboard .module-picker summary:hover,
+body.admin-dashboard .user-picker summary:hover {
+  border-color: rgba(73, 119, 205, .4);
+  box-shadow: 0 6px 16px rgba(33, 75, 126, .1);
+  transform: translateY(-1px);
+}
+
+body.admin-dashboard .avatar {
+  background: var(--grad-accent);
+}
+
+body.admin-dashboard .welcome-card {
+  border: 1px solid rgba(255, 255, 255, .19);
+  background: var(--grad-primary);
+  box-shadow: 0 18px 42px rgba(20, 65, 112, .22);
+}
+
+body.admin-dashboard .welcome-card::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at 82% 18%, rgba(139, 221, 255, .2), transparent 25%),
+    repeating-linear-gradient(0deg, transparent 0 30px, rgba(255, 255, 255, .045) 30px 31px),
+    repeating-linear-gradient(90deg, transparent 0 30px, rgba(255, 255, 255, .045) 30px 31px);
+  content: "";
+  pointer-events: none;
+}
+
+body.admin-dashboard .welcome-card::after {
+  z-index: 0;
+  border-color: rgba(255, 255, 255, .17);
+  box-shadow: 0 0 0 50px rgba(255, 255, 255, .045), 0 0 0 105px rgba(255, 255, 255, .03);
+}
+
+body.admin-dashboard .welcome-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+body.admin-dashboard .clock-block strong {
+  text-shadow: 0 3px 18px rgba(5, 27, 54, .2);
+}
+
+body.admin-dashboard .stat-card {
+  border-color: rgba(211, 224, 237, .88);
+  border-radius: var(--radius-card);
+  box-shadow: 0 6px 20px rgba(27, 59, 91, .055);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+body.admin-dashboard .stat-card:hover {
+  transform: translateY(-3px);
+  border-color: #c3d6eb;
+  box-shadow: var(--shadow);
+}
+
+body.admin-dashboard .class-stat > i {
+  background: linear-gradient(145deg, #3978e8, #5e9af5);
+  color: #fff;
+}
+
+body.admin-dashboard .student-stat > i {
+  background: linear-gradient(145deg, #0b9f9a, #36c4b3);
+  color: #fff;
+}
+
+body.admin-dashboard .teacher-stat > i {
+  background: linear-gradient(145deg, #6264cc, #8985e8);
+  color: #fff;
+}
+
+body.admin-dashboard .quick-grid a,
+body.admin-dashboard .module-grid > a {
+  border-color: rgba(211, 224, 237, .9);
+  border-radius: var(--radius-control);
+  box-shadow: 0 5px 17px rgba(28, 59, 91, .045);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+body.admin-dashboard .quick-grid a:hover,
+body.admin-dashboard .module-grid > a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(29, 63, 100, .1);
+}
+
+body.admin-dashboard .quick-grid a > i:first-child,
+body.admin-dashboard .module-grid > a > i:first-child {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--quick-color, var(--module-color)) 13%, white), white);
+}
+
+body.admin-dashboard .section-kicker {
+  color: #315e91;
+}
+
+body.admin-dashboard .section-kicker::after {
+  display: block;
+  width: 36px;
+  height: 3px;
+  margin-top: 5px;
+  border-radius: 99px;
+  background: var(--grad-accent);
+  content: "";
+}
+
+body.admin-dashboard .panel {
+  border-color: rgba(211, 224, 237, .9);
+  border-radius: var(--radius-card);
+  box-shadow: 0 7px 23px rgba(27, 58, 91, .05);
+}
+
+body.admin-dashboard .panel-head > a {
+  color: #245fc4;
+}
+
+body.admin-dashboard .feed-row {
+  border-radius: 12px;
+  transition: background-color .18s ease;
+}
+
+body.admin-dashboard .feed-row:hover {
+  background: #f5f8fd;
+}
+
+body.admin-dashboard .operation-grid article {
+  border-color: #e3ebf4;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #fff, #f8faff);
+}
+
+body.admin-dashboard .op-icon {
+  background: var(--grad-soft);
+}
+
+body.admin-dashboard .schedule-pill.active,
+body.admin-dashboard .schedule-pill.future {
+  background: #e8f7f0;
+  color: #13724d;
+}
+
+body.admin-dashboard .schedule-pill.upcoming,
+body.admin-dashboard .schedule-pill.warning,
+body.admin-dashboard .schedule-pill.notice-time {
+  background: #fff3df;
+  color: #925600;
+}
+
+body.admin-dashboard .schedule-pill.overdue,
+body.admin-dashboard .schedule-pill.due-today,
+body.admin-dashboard .schedule-pill.urgent,
+body.admin-dashboard .schedule-pill.expiring {
+  background: #fff0ed;
+  color: #a92f25;
+}
+
+body.admin-dashboard .schedule-pill.new {
+  background: #eaf1ff;
+  color: #2456b5;
+}
+
+body.admin-dashboard .notification-menu,
+body.admin-dashboard .module-menu,
+body.admin-dashboard .user-menu {
+  border-color: rgba(207, 221, 235, .9);
+  border-radius: 18px;
+  box-shadow: 0 18px 48px rgba(19, 47, 79, .16);
+}
+
+body.admin-dashboard .notification-menu > header {
+  background: linear-gradient(120deg, #f6f9ff, #f2fbfa);
+}
+
+body.admin-dashboard .push-setup {
+  border-color: #d7e6f6;
+  background: var(--grad-soft);
+}
+
+body.admin-dashboard .push-setup-icon {
+  background: var(--grad-accent);
+}
+
+body.admin-dashboard .mobile-dock {
+  border-top-color: rgba(207, 221, 235, .9);
+  background: rgba(255, 255, 255, .91);
+  box-shadow: 0 -8px 24px rgba(23, 50, 79, .09);
+}
+
+body.admin-dashboard .mobile-dock .active {
+  color: #245fc4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.admin-dashboard *,
+  body.admin-dashboard *::before,
+  body.admin-dashboard *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
