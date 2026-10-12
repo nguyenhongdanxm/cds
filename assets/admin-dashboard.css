@@ -66,7 +66,8 @@
 .push-toast::before{content:"\2713";display:grid;place-items:center;flex:0 0 22px;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.18);font-weight:900}
 .push-toast.error{background:#b42335}
 .push-toast.error::before{content:"!"}
-@media(max-width:680px){.notification-menu{top:61px;max-height:calc(100dvh - 70px)}.notification-list{max-height:none}.push-setup{margin:8px 8px 2px;padding:10px}.push-setup-actions{display:flex;grid-column:auto}.push-setup button{width:auto}.push-setup>p{grid-column:auto}.push-toast{right:8px;bottom:68px;left:8px;max-width:none}}
+@media(max-width:680px){.notification-menu{top:61px;max-height:calc(100vh - 133px - env(safe-area-inset-bottom));max-height:calc(100dvh - 133px - env(safe-area-inset-bottom))}.notification-list{max-height:none}.push-setup{margin:8px 8px 2px;padding:10px}.push-setup-actions{display:flex;grid-column:auto}.push-setup button{width:auto}.push-setup>p{grid-column:auto}.push-toast{right:8px;bottom:calc(72px + env(safe-area-inset-bottom));left:8px;max-width:none}}
+@media(max-width:680px){.mobile-dock>a,.mobile-dock>button{min-width:0}.mobile-dock>a>span,.mobile-dock>button>span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 .app-header .module-picker{display:none!important}
 
 /* Vận hành hôm nay: bốn lực lượng theo lưới 2x2, điểm danh dùng trọn hàng cuối. */
