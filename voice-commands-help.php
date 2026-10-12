@@ -180,6 +180,6 @@ sort($categories, SORT_NATURAL | SORT_FLAG_CASE);
 })();
 </script>
 <script type="application/json" id="voiceNavTargets"><?= json_encode($voiceTargets, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?></script>
-<script src="<?= e(BASE_URL) ?>assets/voice-nav.js?v=20261012-3"></script>
+<script src="<?= e(BASE_URL) ?>assets/voice-nav.js?v=20261012-4"></script>
 </body>
 </html>
