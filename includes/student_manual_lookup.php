@@ -1,7 +1,7 @@
 <?php
 /** Match an exact code within the caller's authorized student scope. */
 function cds_student_code_key(string $value): string {
- $value=str_replace(["\xC2\xA0","\xE2\x80\x8B","\xEF\xBB\xBF"],'',trim($value));
+ $value=preg_replace('/[\p{Cf}\p{Z}\s]+/u','',trim($value))??trim($value);
  $value=str_replace(['–','—','‑','−','﹣','－'],'-',$value);
  $value=preg_replace('/\s+/u','',$value)??$value;
  return strtoupper($value);
