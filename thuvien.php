@@ -53,6 +53,7 @@ if(isset($_GET['library_qr'])){
  $raw=trim((string)$_GET['library_qr']);$parts=strlen($raw)<=2048?parse_url($raw):false;$params=[];if(is_array($parts))parse_str($parts['query']??'',$params);
  $id=is_string($params['id']??null)?$params['id']:'';$token=is_string($params['t']??null)?$params['t']:'';$student=null;
  if(is_array($parts)&&basename($parts['path']??'')==='student_verify.php'&&student_card_is_valid_token($id,$token))foreach($students as$candidate)if((string)($candidate['id']??'')===$id&&!empty($candidate['active'])){$student=$candidate;break;}
+ if(isset($_GET['manual_code'])){require_once __DIR__.'/includes/student_manual_lookup.php';$student=cds_student_manual_lookup(array_values(array_filter($students,fn($candidate)=>!empty($candidate['active']))),(string)$_GET['manual_code']);$id=(string)($student['id']??'');}
  if(!$student){http_response_code(404);echo json_encode(['error'=>'Không nhận diện được thẻ hợp lệ của học sinh đang học.'],JSON_UNESCAPED_UNICODE);exit;}
  $outstanding=[];foreach($data['loans']as$loan)if(($loan['borrower_type']??'')==='student'&&(string)($loan['borrower_id']??'')===$id&&empty($loan['returned_at'])&&in_array(lib_loan_status($loan),['approved','borrowed'],true))$outstanding[]=['id'=>(string)$loan['id'],'title'=>(string)($loan['book_title']??''),'quantity'=>(int)($loan['quantity']??1),'borrowed_at'=>(string)($loan['borrowed_at']??''),'due_at'=>(string)($loan['due_at']??'')];
  echo json_encode(['student'=>['id'=>$id,'name'=>$student['name']??'','class_name'=>$classMap[(string)($student['class_id']??'')]??'','code'=>$student['code']??''],'loans'=>$outstanding,'can_record'=>true],JSON_UNESCAPED_UNICODE);exit;
@@ -378,13 +379,15 @@ function openQr(){window.libraryQrOpen?.()}
 <p id="libraryQrStatus" class="small text-muted mt-2" role="status" aria-live="polite"></p>
 <button type="button" class="btn btn-outline-primary mb-3" id="libraryQrStart">Mở camera / Quét lại</button>
 <label for="libraryQrFile" class="small">Hoặc chọn ảnh mã QR</label><input id="libraryQrFile" class="form-control mb-3" type="file" accept="image/*">
+<form id="libraryQrManual" class="mb-3"><label class="form-label small" for="libraryQrCode">Nhập mã học sinh nếu không nhận QR</label><div class="input-group"><input id="libraryQrCode" class="form-control" placeholder="Mã học sinh trên thẻ" autocomplete="off" maxlength="100" required><button class="btn btn-dark">Tra cứu</button></div><small class="text-muted">Nhập đúng mã học sinh trên thẻ hoặc trong CSDL, rồi bấm Tra cứu. Không nhập họ tên.</small></form>
 <div id="libraryQrResult" hidden class="border rounded p-3 bg-light"><strong id="libraryQrName"></strong><div id="libraryQrClass" class="small text-muted mb-3"></div><div class="d-flex gap-2 flex-wrap"><a id="libraryQrRecord" class="btn btn-primary">📚 Mượn sách</a><button type="button" id="libraryQrHistory" class="btn btn-success">↩ Trả sách</button></div><div id="libraryQrLoans" hidden class="mt-3"></div></div>
 </dialog>
 <script>window.libraryQrConfig=<?=json_encode(['csrf'=>$csrf,'today'=>date('Y-m-d'),'url'=>BASE_URL.'thuvien.php'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>;</script>
-<script src="<?=e(BASE_URL)?>assets/library-qr.js?v=20261012-1" defer></script>
+<script src="<?=e(BASE_URL)?>assets/library-qr.js?v=20261012-2" defer></script>
 <?php if($tab==='library_loans'&&!empty($_GET['qr_student'])):$qrStudent=null;foreach($students as$candidate)if((string)($candidate['id']??'')===(string)$_GET['qr_student']&&!empty($candidate['active'])){$qrStudent=$candidate;break;}if($qrStudent):?>
 <script>document.addEventListener('DOMContentLoaded',function(){var student=<?=json_encode(['id'=>$qrStudent['id'],'name'=>$qrStudent['name'],'class_name'=>$classMap[(string)($qrStudent['class_id']??'')]??''],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>;document.querySelector('[name="loan_mode"][value="other"]').checked=true;bootstrap.Modal.getOrCreateInstance(document.getElementById('loanModal')).show();document.getElementById('borrowerName').value=student.name;document.getElementById('borrowerId').value=student.id;document.getElementById('borrowerType').value='student';document.getElementById('borrowerClass').value=student.class_name;});</script>
 <?php endif;endif;endif;?>
 <?php require_once __DIR__.'/includes/module_switcher.php'; ?>
 </body></html>
+
 
