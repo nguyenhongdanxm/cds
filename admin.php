@@ -129,7 +129,7 @@ $pushUnread = cds_push_unread_count($user);
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0f4c81">
+  <meta name="theme-color" content="#123b66">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="CDS Xín Mần">
@@ -137,9 +137,10 @@ $pushUnread = cds_push_unread_count($user);
   <link rel="manifest" href="<?= e(BASE_URL) ?>manifest.webmanifest">
   <link rel="apple-touch-icon" href="<?= e(BASE_URL) ?>assets/icons/cds-192.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20260910-1" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20261012-1" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-theme.css?v=20261012-1" rel="stylesheet">
 </head>
-<body>
+<body class="admin-dashboard">
 <?php require_once __DIR__ . '/includes/module_switcher.php'; ?>
 <header class="app-header">
   <a class="school-brand" href="<?= e(BASE_URL) ?>">
