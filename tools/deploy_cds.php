@@ -82,7 +82,7 @@ $rootFiles = [
     'student_photo.php','student_verify.php','thoikhoabieu.php','tkb_xep.php','tkb_editor.php','tkb_constraints.php','tkb_publish.php','trolyai.php','ai_api.php','ai_document_download.php','thuvien.php','thuvien_book_supplement.php',
     'thuvien_bienban.php','thietbi_phieu.php','thidua.php','thidua_baiviet.php','thidua_phongnoitru.php','tienich_chunhiem.php',
     'thidua_phongnoitru_delete.php','thidua_phongnoitru_history_api.php','users.php','vanban.php','vanban_open.php',
-    'vanban_preview.php','vanban_preview_file.php'
+    'vanban_preview.php','vanban_preview_file.php','voice-commands-help.php'
 ];
 foreach ($directories as $dir) { if (!is_dir($repoRoot . '/' . $dir)) { fwrite(STDERR, 'DEPLOY_SOURCE_MISSING: ' . $dir . "\n"); exit(4); } }
 foreach ($rootFiles as $file) { if (!is_file($repoRoot . '/' . $file)) { fwrite(STDERR, 'DEPLOY_SOURCE_MISSING: ' . $file . "\n"); exit(4); } }

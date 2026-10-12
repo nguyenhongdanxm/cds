@@ -85,7 +85,7 @@ $birthdayUpcoming = [];
 foreach ($birthdayByRole['teacher']['tomorrow'] as $person) $birthdayUpcoming[] = 'đồng chí ' . $birthdayPersonName($person);
 foreach ($birthdayByRole['student']['tomorrow'] as $person) $birthdayUpcoming[] = 'em ' . $birthdayPersonName($person);
 $dashboard = cds_dashboard_scope_data($user);
-$adminAttendanceRecent = cds_dashboard_recent_attendance(allowed_classes());
+$adminAttendanceRecent = cds_dashboard_recent_attendance();
 if ($adminAttendanceRecent) {
     $adminLatestAttendance = $adminAttendanceRecent[0];
     $dashboard['noitru']['present'] = $adminLatestAttendance['present'];
@@ -264,7 +264,7 @@ $pushUnread = cds_push_unread_count($user);
         <?php foreach(['management'=>'bi-person-badge-fill','departments'=>'bi-diagram-3-fill','youth'=>'bi-stars'] as $groupKey=>$groupIcon):$groupPeople=$operationGroups[$groupKey]??[];?><article class="operation-group-box"><span class="op-icon"><i class="bi <?=e($groupIcon)?>"></i></span><div class="op-copy"><span><?=e($operationGroupLabels[$groupKey]??'')?></span><?php if($groupPeople):?><div class="operation-people"><?php foreach($groupPeople as$personIndex=>$person):$personNote=trim((string)($person['note']??''),' ()');?><?=$personIndex?', ':''?><b><?=e($person['name']??'')?></b><?php if($personNote!==''):?> <span class="operation-note">(<?=e($personNote)?>)</span><?php endif;?><?php endforeach;?></div><small>Phân công hiển thị hôm nay</small><?php else:?><strong>Chưa phân công</strong><small>Chưa có lịch hiển thị trong ngày</small><?php endif;?></div></article><?php endforeach;?>
         <article class="duty-box"><span class="op-icon"><i class="bi bi-calendar2-check"></i></span><div class="op-copy"><span>Trực nội trú</span><?php if($duty && $duty['people']): ?><strong><?= e(implode(', ',$duty['people'])) ?></strong><small><?= e($duty['start']) ?> – <?= e($duty['end']) ?> hôm sau · còn <?= $dutyHours ?>h <?= $dutyMinutes ?>p</small><?php else: ?><strong>Chưa phân công</strong><small>Chưa có người trực trong ca hiện tại</small><?php endif; ?><?php if($duty && $duty['managers']): ?><em>Quản lý: <?= e(implode(', ',$duty['managers'])) ?></em><?php endif; ?></div></article>
         <?php endif; ?>
-        <article class="attendance-box"><span class="op-icon"><i class="bi bi-person-check-fill"></i></span><div class="op-copy"><span>3 lần điểm danh gần nhất</span><?php if($adminAttendanceRecent): ?><div class="attendance-recent"><?php foreach($adminAttendanceRecent as $attendance): ?><div><strong><b><?= (int)$attendance['present'] ?>/<?= (int)$attendance['total'] ?></b></strong><small><?= e($attendance['shift_label']) ?> · <?= date('d/m/Y',strtotime($attendance['date'])) ?> · Vắng <?= (int)$attendance['absent'] + (int)$attendance['excused'] ?><?= $attendance['by']!==''?' · '.e($attendance['by']):'' ?></small></div><?php endforeach; ?></div><?php else: ?><strong>Chưa có dữ liệu</strong><small>Chưa ghi nhận báo cáo điểm danh</small><?php endif; ?></div><?php if(can_module('noitru','view')): ?><a href="noitru_attendance.php" aria-label="Mở điểm danh"><i class="bi bi-chevron-right"></i></a><?php endif; ?></article>
+        <article class="attendance-box"><span class="op-icon"><i class="bi bi-person-check-fill"></i></span><div class="op-copy"><span>3 lần điểm danh gần nhất</span><?php if($adminAttendanceRecent): ?><div class="attendance-recent"><?php foreach($adminAttendanceRecent as $attendance): ?><div><strong><b><?= (int)$attendance['present'] ?>/<?= (int)$attendance['total'] ?></b></strong><small><?= e($attendance['shift_label']) ?> · <?= date('d/m/Y',strtotime($attendance['date'])) ?> · Vắng <?= (int)$attendance['absent'] + (int)$attendance['excused'] ?><?= $attendance['by']!==''?' · '.e($attendance['by']):'' ?></small></div><?php endforeach; ?></div><?php elseif(cds_dashboard_attendance_error()): ?><strong>Không thể tải dữ liệu</strong><small>Vui lòng thử lại sau.</small><?php else: ?><strong>Chưa có dữ liệu</strong><small>Chưa ghi nhận báo cáo điểm danh</small><?php endif; ?></div><?php if(can_module('noitru','view')): ?><a href="noitru_attendance.php" aria-label="Mở điểm danh"><i class="bi bi-chevron-right"></i></a><?php endif; ?></article>
       </div>
     </section>
     </div>
@@ -284,16 +284,14 @@ $pushUnread = cds_push_unread_count($user);
 
 <?php
 require_once __DIR__ . '/includes/voice_command_catalog.php';
-$voiceTargets = [['name'=>'Trang chủ','url'=>'admin.php','keywords'=>['trang chu','home','man hinh chinh','tong quan'],'category'=>'Chung']];
-$voiceKeywords = cds_voice_module_keywords();
-$voiceQuickActions = cds_voice_quick_action_catalog();
-foreach ($modules as $module) {
-    $voiceTargets[] = ['name'=>(string)$module['title'],'url'=>(string)$module['url'],'keywords'=>$voiceKeywords[$module['id'] ?? ''] ?? [],'category'=>(string)$module['title']];
-}
-foreach ($quickActions as $action) {
-    $metadata = $voiceQuickActions[$action['label']] ?? [];
-    $voiceTargets[] = ['name'=>(string)$action['label'],'url'=>(string)$action['url'],'keywords'=>$metadata['keywords'] ?? [],'category'=>$metadata['category'] ?? 'Thao tác nhanh'];
-}
+$voiceTargets = array_map(static function (array $command): array {
+    return [
+        'name'=>(string)$command['name'],
+        'url'=>(string)$command['url'],
+        'keywords'=>is_array($command['keywords'] ?? null) ? $command['keywords'] : [],
+        'category'=>(string)($command['category'] ?? ''),
+    ];
+}, cds_voice_commands_for_user($user));
 ?>
 <script type="application/json" id="voiceNavTargets"><?= json_encode($voiceTargets, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?></script>
 <script>
