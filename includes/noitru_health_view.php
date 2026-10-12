@@ -203,7 +203,9 @@ unset($classSummary);$report['classes']=array_values($report['classes']);
   <p id="healthQrStatus" class="small text-muted mt-2" role="status" aria-live="polite">Đưa mã QR trên thẻ học sinh vào khung camera.</p>
   <button type="button" class="btn btn-outline-primary mb-3" id="healthQrStart">Mở camera / Quét lại</button>
   <label class="form-label small" for="healthQrFile">Hoặc chọn ảnh mã QR</label><input class="form-control mb-3" type="file" id="healthQrFile" accept="image/*">
-  <div id="healthQrResult" hidden class="border rounded p-3 bg-light"><strong id="healthQrName"></strong><div id="healthQrClass" class="small text-muted mb-3"></div><div class="d-flex flex-wrap gap-2"><a id="healthQrRecord" class="btn btn-primary">Ghi nhận sức khỏe</a><a id="healthQrHistory" class="btn btn-outline-primary">Lịch sử sức khỏe</a></div></div>
+  <form id="healthQrManual" class="mb-3"><label class="form-label small" for="healthQrCode">Nhập mã học sinh nếu không nhận QR</label><div class="input-group"><input id="healthQrCode" class="form-control" placeholder="Mã học sinh trên thẻ" autocomplete="off" maxlength="100" required><button class="btn btn-dark">Tra cứu</button></div><small class="text-muted">Nhập đúng mã học sinh trên thẻ hoặc trong CSDL, rồi bấm Tra cứu. Không nhập họ tên.</small></form>
+<div id="healthQrResult" hidden class="border rounded p-3 bg-light"><strong id="healthQrName"></strong><div id="healthQrClass" class="small text-muted mb-3"></div><div class="d-flex flex-wrap gap-2"><a id="healthQrRecord" class="btn btn-primary">Ghi nhận sức khỏe</a><a id="healthQrHistory" class="btn btn-outline-primary">Lịch sử sức khỏe</a></div></div>
 </dialog>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="<?=e(BASE_URL)?>assets/noitru_health_qr.js?v=20261005-camera3" defer></script>
+<script src="<?=e(BASE_URL)?>assets/noitru_health_qr.js?v=20261012-manual" defer></script>
+
