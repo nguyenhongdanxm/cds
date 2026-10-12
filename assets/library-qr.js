@@ -91,7 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
         form.onsubmit=()=>confirm('Xác nhận trả '+loan.title+' × '+loan.quantity+' của '+student.name+'?');
         list.append(form);
       });
+      el('libraryQrReader').hidden = true;
       el('libraryQrResult').hidden = false;
+      el('libraryQrResult').scrollIntoView({block:'nearest'});
       status('Đã nhận diện học sinh. Chọn thao tác bên dưới.');
     } catch (error) {
       if (ticket === session && dialog.open) status(error instanceof SyntaxError ? 'Phiên đăng nhập đã hết hạn hoặc máy chủ chưa phản hồi. Vui lòng tải lại trang.' : error.message);
@@ -100,10 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
   async function start() {
     if (busy || running) return;
     const ticket = ++session;
-    busy = true; el('libraryQrResult').hidden = true;
+    busy = true; el('libraryQrResult').hidden = true; el('libraryQrReader').hidden = false;
     try {
       if (typeof Html5Qrcode === 'undefined') throw new Error('Chưa tải được bộ quét QR. Vui lòng kiểm tra kết nối và tải lại trang.');
-      if (!window.isSecureContext) throw new Error('Camera cần mở trang bằng HTTPS. Bạn có thể chọn ảnh mã QR bên dưới.');
+      if (!window.isSecureContext) throw new Error('Camera cần mở trang bằng HTTPS. Bạn có thể nhập mã học sinh bên dưới.');
       scanner ||= createScanner();
       status('Đang mở camera…');
       const camera = {facingMode:{ideal:'environment'}};
@@ -118,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
       running = true;
       if (ticket !== session || !dialog.open) await stop();
       else { await tuneCamera(ticket); if (ticket === session && dialog.open) status('Giữ thẻ đủ xa để camera lấy nét. Có thể zoom hoặc bật đèn nếu cần.'); }
-    } catch (error) { if (ticket === session && dialog.open) status(error.name === 'Error' ? error.message : 'Không mở được camera. Hãy cấp quyền camera, hoặc chọn ảnh mã QR bên dưới.'); }
+    } catch (error) { if (ticket === session && dialog.open) status(error.name === 'Error' ? error.message : 'Không mở được camera. Hãy cấp quyền camera, hoặc nhập mã học sinh bên dưới.'); }
     finally { busy = false; }
   }
   window.libraryQrOpen = () => { dialog.showModal(); start(); };
@@ -133,20 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   el('libraryQrClose').addEventListener('click', () => dialog.close());
   dialog.addEventListener('close', () => { ++session; stop(); });
-  el('libraryQrFile').addEventListener('change', async event => {
-    const file = event.target.files[0]; event.target.value = '';
-    if (!file || busy) return;
-    const ticket = ++session; busy = true; el('libraryQrResult').hidden = true;
-    try {
-      await stop();
-      if (typeof Html5Qrcode === 'undefined') throw new Error('Chưa tải được bộ quét QR. Vui lòng tải lại trang.');
-      scanner ||= createScanner();
-      const text = await scanner.scanFile(file, true);
-      busy = false;
-      await recognize(text,ticket);
-    } catch (_) { if (ticket === session && dialog.open) status('Không đọc được QR trong ảnh. Hãy chọn ảnh rõ toàn bộ mã QR trên thẻ.'); }
-    finally { busy = false; }
-  });
   el('libraryQrManual').addEventListener('submit', async event => { event.preventDefault(); if (busy) return; const code=el('libraryQrCode').value.trim(); if(!code) return; const ticket=++session; el('libraryQrResult').hidden=true; await recognize(code,ticket,true); });
   window.addEventListener('pagehide', () => { ++session; stop(); });
 });
