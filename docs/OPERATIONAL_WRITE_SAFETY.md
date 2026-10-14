@@ -37,6 +37,32 @@ khi thất bại; bản SQL lỗi; và nhận xét cùng tuần/lớp ở hai n�
 
 Workflow PR chạy cú pháp và các hồi quy chính trên PHP 8.2 và 8.3.
 
+## Kiểm thử bổ sung ngày 14/10/2026
+
+Toàn bộ thao tác dùng tệp giả lập trong thư mục tạm. Không đọc hoặc kết nối
+CSDL vận hành, Drive hay hosting của trường.
+
+| Kiểm tra | Kết quả |
+| --- | --- |
+| 209 thao tác đối chiếu mã trước sửa và mã PR trên 1.000 bản ghi | Giá trị trả về và bản ghi giống nhau; chuẩn hóa riêng ID ngẫu nhiên của bản ghi tạo mới |
+| 400 học sinh × 334 ngày, 01/08/2026–30/06/2027 | 133.600 bản ghi; sau 6 cập nhật, bản ghi và kết quả giống mã cũ |
+| Cùng fixture, một thao tác ghi, PHP 128 MB | Cả mã cũ và mã PR đều hết bộ nhớ |
+| Kiểm tra SHA-256 trước/sau lỗi hết bộ nhớ của PR | Nội dung tệp nguồn không thay đổi |
+| Cùng fixture, một thao tác ghi, PHP 256 MB | Cả hai đạt; đỉnh bộ nhớ quan sát khoảng 148–152 MiB |
+| Giả lập ghi tệp nguồn thất bại | Trả về thất bại, tệp cũ giữ nguyên và không ghi bản SQL |
+| Giả lập ghi báo cáo thất bại | Lỗi truyền lên hàm gọi; tệp báo cáo cũ giữ nguyên |
+| Kiểm thử cạnh tranh 6 tiến trình, lịch sử năm học và 3 hồi quy hiện có | Đạt |
+
+Các phép đối chiếu dùng bản gốc `67f488361201f018e2ad544a2f2e4e454fb92830`
+và mã PR `d9d99983d9468e4d43ead23633daedc77b7cf913`. Thời gian trên máy
+kiểm thử không đại diện hosting; bộ nhớ trên fixture ít trường không phải
+giới hạn trên cho dữ liệu thật. Không suy ra rằng chỉ tăng lên 256 MB là đủ.
+
+**Chưa xác nhận đủ điều kiện triển khai:** đọc/ghi cả lịch sử JSON có giới hạn
+bộ nhớ đã tồn tại từ mã cũ. Đợt tiếp theo cần giảm lượng dữ liệu đọc/ghi,
+kiểm thử SQL thật trên CSDL thử riêng và xác nhận cấu hình hosting trước
+khi kết luận vận hành an toàn đến hết năm học.
+
 ## Phạm vi chưa hoàn thành
 
 - Chưa chuyển báo ăn sang ghi SQL chính hoặc lưu cả lớp trong một lần.

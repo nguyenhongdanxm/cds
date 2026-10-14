@@ -15,7 +15,10 @@ define('NOITRU_MEAL_REPORTS', $dir . '/reports.json');
 define('LB_WEEKLY_REVIEWS_FILE', $dir . '/reviews.json');
 function noitru_ensure_dir() {}
 function load_json($file, $default = []) { return cds_json_load($file, $default); }
-function save_json($file, $data) { return cds_json_save($file, $data); }
+function save_json($file, $data) {
+    if (($GLOBALS['fail_write_path'] ?? '') === $file) return false;
+    return cds_json_save($file, $data);
+}
 function noitru_now() { return '2026-10-14T22:00:00+07:00'; }
 function noitru_uid($prefix) { return $prefix . '_' . bin2hex(random_bytes(6)); }
 function cds_meal_sql_read_effective() { return empty($GLOBALS['cds_force_json_meal_read']); }
@@ -90,6 +93,13 @@ try {
     $GLOBALS['noitru_meals_all_cache'] = [];
     check(noitru_meal_upsert(['date'=>'2026-10-15','student_id'=>'s4','sang'=>'yes']), 'Latest source used');
     check(count(cds_json_load(NOITRU_MEALS)) === 4, 'Stale cache cannot drop history');
+    $GLOBALS['fail_write_path'] = NOITRU_MEALS;
+    $before = file_get_contents(NOITRU_MEALS);
+    $mirrorCount = count($GLOBALS['mirrored'] ?? []);
+    check(!noitru_meal_upsert(['date'=>'2026-10-15','student_id'=>'failed-write','sang'=>'yes']), 'Source write failure returned');
+    check(file_get_contents(NOITRU_MEALS) === $before && count($GLOBALS['mirrored'] ?? []) === $mirrorCount, 'Write failure preserves bytes and does not publish SQL');
+    unset($GLOBALS['fail_write_path']);
+
     $before = file_get_contents(NOITRU_MEALS);
     file_put_contents(NOITRU_MEAL_REPORTS, '{invalid');
     check(!noitru_meal_upsert(['date'=>'2026-10-15','student_id'=>'s5','sang'=>'yes']), 'Corrupt report source aborts meal write');
@@ -115,6 +125,12 @@ try {
     $rows = cds_json_load(NOITRU_MEALS);
     check(count($rows) === 49 && $rows[0] === $old, 'All 48 concurrent inserts and historical row retained');
     check(count(cds_json_load(NOITRU_MEAL_REPORTS)['reports']) === 48, 'Concurrent class reports retained');
+
+    $GLOBALS['fail_write_path'] = NOITRU_MEAL_REPORTS;
+    $beforeReports = file_get_contents(NOITRU_MEAL_REPORTS);
+    check(noitru_meal_report_upsert(['date'=>'2026-10-15','class_name'=>'failure','meal'=>'sang','student_snapshot'=>[['id'=>'fixture']]]) === false, 'Report failure propagated');
+    check(file_get_contents(NOITRU_MEAL_REPORTS) === $beforeReports, 'Failed report retains existing source');
+    unset($GLOBALS['fail_write_path']);
 
     $GLOBALS['mirror_failure'] = true;
     check(noitru_meal_upsert(['date'=>'2026-10-15','student_id'=>'mirror-failure','sang'=>'yes']), 'JSON survives SQL mirror failure');
