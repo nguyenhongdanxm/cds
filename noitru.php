@@ -1547,6 +1547,7 @@ form[method="post"]:not(#dutyReportForm):not(#dutySwapRequestForm){display:none!
           <?php endforeach; ?>
         </div>
         <?php else: ?><div class="overview-empty"><i class="bi bi-journal-x"></i>Thực đơn hôm nay chưa được cập nhật.</div><?php endif; ?>
+        <?php include __DIR__ . '/includes/noitru-campus-map.php'; ?>
       </div>
     </section>
     <?php endif; ?>
