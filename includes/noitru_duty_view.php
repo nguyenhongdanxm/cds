@@ -161,6 +161,7 @@ if (!function_exists('nt_duty_url')) {
 <div class="duty-toolbar">
   <div class="duty-month-nav"><a class="duty-icon-btn" href="<?= e(nt_duty_url($dutySection,$dutyPrevMonth)) ?>"><i class="bi bi-chevron-left"></i></a><strong>Tháng <?= e(date('m/Y', strtotime($dutyMonthStart))) ?></strong><a class="duty-icon-btn" href="<?= e(nt_duty_url($dutySection,$dutyNextMonth)) ?>"><i class="bi bi-chevron-right"></i></a></div>
   <div class="duty-toolbar-actions">
+    <a class="btn btn-sm btn-outline-primary" href="<?= e(nt_duty_url('calendar', $dutyMonth, ['export'=>'word'])) ?>"><i class="bi bi-file-earmark-word"></i> Xuất Word tháng <?= e(date('m/Y', strtotime($dutyMonthStart))) ?></a>
     <?php if ($dutySection==='calendar'): ?>
     <form method="get"><input type="hidden" name="tab" value="duty"><input type="hidden" name="section" value="calendar"><input type="hidden" name="month" value="<?= e($dutyMonth) ?>"><select name="teacher" class="form-select form-select-sm" style="width:190px" onchange="this.form.submit()"><option value="">Tất cả người trực</option><?php foreach ($dutyTeacherMap as $id=>$name): ?><option value="<?= e($id) ?>" <?= $dutyTeacherFilter===$id?'selected':'' ?>><?= e($name) ?></option><?php endforeach; ?></select></form>
     <a class="btn btn-sm btn-outline-info" href="<?= e(nt_duty_url('calendar',date('Y-m'))) ?>">Hôm nay</a>
