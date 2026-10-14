@@ -20,7 +20,7 @@ $dutyNames = array_values(array_unique(array_filter(array_map(fn($row) => trim((
 $nextDutyNames = array_values(array_unique(array_filter(array_map(fn($row) => trim((string)($row['teacher_name'] ?? '')), $nextDutyRows))));
 $manager = noitru_duty_manager_for_date($reportDate) ?? [];
 $managerNames = array_values(array_filter((array)($manager['teacher_names'] ?? [])));
-$participants = array_values(array_unique(array_merge($dutyNames, $managerNames)));
+$participants = array_values(array_unique($dutyNames));
 
 $attendance = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
 $attendanceByShift = [];
