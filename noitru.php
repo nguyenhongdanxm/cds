@@ -36,6 +36,18 @@ if ($requestedTab === '' && !can_perm($tabPerms[$tab])) {
     }
 }
 require_perm($tabPerms[$tab] ?? 'nt.tongquan');
+if ($tab === 'duty' && ($_GET['export'] ?? '') === 'word') {
+    $month = trim((string)($_GET['month'] ?? date('Y-m')));
+    if (!preg_match('/^\\d{4}-(0[1-9]|1[0-2])$/', $month)) { http_response_code(400); exit('Tháng không hợp lệ.'); }
+    require_once __DIR__ . '/includes/noitru-duty-word.php';
+    $bytes = nt_duty_word($month, noitru_duty_for_month($month), noitru_duty_managers_all(), noitru_duty_settings());
+    header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    header('Content-Disposition: attachment; filename="Phan_cong_truc_noi_tru_' . $month . '.docx"');
+    header('Cache-Control: private, no-store');
+    header('X-Content-Type-Options: nosniff');
+    header('Content-Length: ' . strlen($bytes));
+    echo $bytes; exit;
+}
 if ($tab === 'health' && isset($_GET['health_qr'])) require __DIR__.'/includes/noitru_health_qr.php';
 
 function noitru_attendance_students_all($date = null) {
