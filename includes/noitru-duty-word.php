@@ -10,8 +10,9 @@ function nt_duty_word(string $month, array $rows, array $managers, array $settin
  $byDate=[];foreach($rows as$r)if(str_starts_with((string)($r['date']??''),$month.'-'))$byDate[(string)$r['date']][]=$r;
  $managerMap=[];foreach($managers as$r)$managerMap[(string)($r['date']??'')]=$r;
  $upper=static fn($s)=>function_exists('mb_strtoupper')?mb_strtoupper($s,'UTF-8'):$s;
- $body=nt_duty_word_p($upper(defined('SCHOOL_SO')?SCHOOL_SO:'SỞ GIÁO DỤC VÀ ĐÀO TẠO TUYÊN QUANG'),'center',false,24,true);
- $body.=nt_duty_word_p($upper(defined('SCHOOL_NAME')?SCHOOL_NAME:'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN'),'center',true,24,true);
+ $body=nt_duty_word_p($upper(defined('SCHOOL_SO')?SCHOOL_SO:'SỞ GIÁO DỤC VÀ ĐÀO TẠO TUYÊN QUANG'),'left',false,24,true);
+ $body.=nt_duty_word_p($upper(defined('SCHOOL_NAME')?SCHOOL_NAME:'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN'),'left',true,24,true);
+ $body.='<w:p><w:pPr><w:ind w:left="0" w:right="6155"/><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="000000"/></w:pBdr><w:spacing w:before="0" w:after="160" w:line="20" w:lineRule="exact"/><w:keepNext/></w:pPr></w:p>';
  $body.=nt_duty_word_p('PHÂN CÔNG TRỰC HỌC SINH NỘI TRÚ','center',true,28,true);
  $body.=nt_duty_word_p('Tháng '.$start->format('m').' năm '.$start->format('Y'),'center',true,26,true);
  $from=(string)($settings['start_time']??'06:00');$to=(string)($settings['end_time']??'06:00');
@@ -35,9 +36,18 @@ function nt_duty_word(string $month, array $rows, array $managers, array $settin
   foreach($byDate[$key]??[]as$r){$name=trim((string)($r['teacher_name']??''));if($name!=='')$names[]=$name;$note=trim((string)($r['note']??''));if($note!=='')$notes[]=$note;}
   $manager=$managerMap[$key]??[];$managerNames=(array)($manager['teacher_names']??[]);
   if(trim((string)($manager['note']??''))!=='')$notes[]=(string)$manager['note'];
-  $body.=$tableRow([$date->format('d/m'),$weekdays[(int)$date->format('N')-1],$names?implode("\n",array_unique($names)):'Chưa phân công',implode("\n",$managerNames),implode('; ',array_unique($notes))]);
+  $body.=$tableRow([$date->format('d/m'),$weekdays[(int)$date->format('N')-1],$names?implode("\n",array_unique($names)):'Chưa phân công',implode("\n",$managerNames),'']);
  }
- $body.='</w:tbl>'.nt_duty_word_p('','right',false,24,true).nt_duty_word_p('TỔ QUẢN LÝ NỘI TRÚ','right',true,26,true).nt_duty_word_p('(Ký, ghi rõ họ tên)','right',false,24,true).nt_duty_word_p('','right',false,24,true).nt_duty_word_p('','right',false,24,true).nt_duty_word_p('','right',false,24);
+ $body.='</w:tbl>'.nt_duty_word_p('', 'left',false,24,true);
+ $body.='<w:tbl><w:tblPr><w:tblW w:w="9355" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders>';
+ foreach(['top','left','bottom','right','insideH','insideV']as$side)$body.='<w:'.$side.' w:val="nil"/>';
+ $body.='</w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="4677"/><w:gridCol w:w="4678"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/></w:trPr>';
+ foreach(['PHÊ DUYỆT CỦA BAN GIÁM HIỆU','TỔ QUẢN LÝ NỘI TRÚ']as$signer){
+  $body.='<w:tc><w:tcPr><w:tcW w:w="4677" w:type="dxa"/></w:tcPr>'.nt_duty_word_p($signer,'center',true,24,true).nt_duty_word_p('(Ký, ghi rõ họ tên)','center',false,24,true);
+  for($i=0;$i<4;$i++)$body.=nt_duty_word_p('','center',false,24,$i<3);
+  $body.='</w:tc>';
+ }
+ $body.='</w:tr></w:tbl><w:p/>';
  $ns='http://schemas.openxmlformats.org/wordprocessingml/2006/main';$xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
  $doc=$xml.'<w:document xmlns:w="'.$ns.'"><w:body>'.$body.'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="850" w:bottom="1134" w:left="1701" w:header="567" w:footer="567"/></w:sectPr></w:body></w:document>';
  $styles=$xml.'<w:styles xmlns:w="'.$ns.'"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="24"/><w:lang w:val="vi-VN"/></w:rPr></w:rPrDefault></w:docDefaults></w:styles>';
