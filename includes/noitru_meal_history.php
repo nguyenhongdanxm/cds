@@ -41,6 +41,11 @@ function nt_meal_history_remember_deleted_sources(array $rows) {
  * báo cáo tháng và thống kê gạo không tiếp tục tính các lượt này.
  */
 function nt_meal_history_delete_related_data(array $historyRows) {
+    return noitru_meal_write(static function () use ($historyRows) {
+        return nt_meal_history_delete_related_data_unlocked($historyRows);
+    }, 0);
+}
+function nt_meal_history_delete_related_data_unlocked(array $historyRows) {
     $targets = [];
     foreach ($historyRows as $row) {
         $date = trim((string)($row['date'] ?? ''));

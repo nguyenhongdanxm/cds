@@ -6,6 +6,14 @@ require_login();
 require_module('noitru', 'view');
 $user = current_user();
 
+/** Stop before a success notice or derived report when the source write failed. */
+function noitru_meal_require_saved($result) {
+    if ($result !== false) return $result;
+    flash('Chưa lưu đầy đủ báo ăn. Vui lòng kiểm tra lại dữ liệu và thử lại; các phần đã lưu được giữ nguyên.', 'danger');
+    header('Location: ' . BASE_URL . 'noitru.php?tab=meals');
+    exit;
+}
+
 /** Định dạng khối lượng theo quy ước Việt Nam: 304,600 kg = 304 kg 600 g. */
 function noitru_format_kg($value, int $decimals = 3): string {
     $number = (float)$value;
@@ -316,22 +324,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'toi'=>$existing['toi'] ?? 'yes',
                 ];
                 foreach ($targetMeals as $targetMeal) $values[$targetMeal] = $value;
-                noitru_meal_upsert([
+                noitru_meal_require_saved(noitru_meal_upsert([
                     'date'=>$targetDate, 'student_id'=>$sid,
                     'sang'=>$values['sang'], 'trua'=>$values['trua'], 'toi'=>$values['toi'],
                     'source'=>$submissionMode==='long'?'gvcn_long':'gvcn',
                     'reported_by'=>$user['name'] ?? '',
                     'force'=>allowed_classes() === null,
-                ]);
+                ]));
             }
             foreach ($targetMeals as $targetMeal) {
                 $eatCount = count(array_filter($validStudents, fn($row) => $row['value'] === 'yes'));
-                noitru_meal_report_upsert([
+                noitru_meal_require_saved(noitru_meal_report_upsert([
                     'date'=>$targetDate, 'class_name'=>$className, 'meal'=>$targetMeal,
                     'student_count'=>count($validStudents), 'eat_count'=>$eatCount,
                     'absent_count'=>max(0, count($validStudents)-$eatCount),
                     'reported_by'=>$user['name'] ?? '', 'status'=>'submitted',
-                ]);
+                ]));
             }
         }
         flash('Đã cập nhật báo ăn mới nhất của ' . $className . ($submissionMode==='long'?' từ '.date('d/m/Y',strtotime($longFrom)).' đến '.date('d/m/Y',strtotime($longUntil)):'') . '.');
@@ -353,8 +361,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dayMap=noitru_meals_for_date($targetDate);
             foreach($targetMeals as $targetMeal) {
                 if((noitru_meal_state($targetDate,$targetMeal)['status']??'open')!=='open'){$skipped++;continue;}
-                foreach($classStudents as $student){$sid=$student['id']??'';$existing=$dayMap[$sid]??[];noitru_meal_upsert(['date'=>$targetDate,'student_id'=>$sid,'sang'=>$targetMeal==='sang'?'no':($existing['sang']??'yes'),'trua'=>$targetMeal==='trua'?'no':($existing['trua']??'yes'),'toi'=>$targetMeal==='toi'?'no':($existing['toi']??'yes'),'source'=>'gvcn_class_off','reported_by'=>$user['name']??'','force'=>true]);$dayMap[$sid]=array_merge($existing,[$targetMeal=>'no']);}
-                noitru_meal_report_upsert(['date'=>$targetDate,'class_name'=>$className,'meal'=>$targetMeal,'student_count'=>count($classStudents),'eat_count'=>0,'absent_count'=>count($classStudents),'reported_by'=>$user['name']??'','status'=>'submitted']);$updated++;
+                foreach($classStudents as $student){$sid=$student['id']??'';$existing=$dayMap[$sid]??[];noitru_meal_require_saved(noitru_meal_upsert(['date'=>$targetDate,'student_id'=>$sid,'sang'=>$targetMeal==='sang'?'no':($existing['sang']??'yes'),'trua'=>$targetMeal==='trua'?'no':($existing['trua']??'yes'),'toi'=>$targetMeal==='toi'?'no':($existing['toi']??'yes'),'source'=>'gvcn_class_off','reported_by'=>$user['name']??'','force'=>true]));$dayMap[$sid]=array_merge($existing,[$targetMeal=>'no']);}
+                noitru_meal_require_saved(noitru_meal_report_upsert(['date'=>$targetDate,'class_name'=>$className,'meal'=>$targetMeal,'student_count'=>count($classStudents),'eat_count'=>0,'absent_count'=>count($classStudents),'reported_by'=>$user['name']??'','status'=>'submitted']));$updated++;
             }
         }
         flash('Đã báo nghỉ cho lớp '.$className.' ở '.$updated.' lượt ngày/bữa'.($skipped?' (bỏ qua '.$skipped.' lượt đã khóa hoặc nghỉ toàn trường).':'.'),$skipped?'warning':'success');
@@ -362,14 +370,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($action === 'meals_lock') {
         $date = trim($_POST['date'] ?? '');
-        noitru_meals_lock_day($date, true);
+        noitru_meal_require_saved(noitru_meals_lock_day($date, true));
         flash("Đã chốt báo ăn ngày $date.");
         header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date));
         exit;
     }
     if ($action === 'meals_unlock') {
         $date = trim($_POST['date'] ?? '');
-        noitru_meals_lock_day($date, false);
+        noitru_meal_require_saved(noitru_meals_lock_day($date, false));
         flash("Đã mở khóa báo ăn ngày $date.", 'warning');
         header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date));
         exit;
@@ -379,7 +387,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $meal = trim($_POST['meal'] ?? '');
         $status = trim($_POST['status'] ?? 'open');
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) && in_array($meal, ['sang','trua','toi'], true) && in_array($status, ['open','locked','off'], true)) {
-            noitru_meal_state_set($date, $meal, $status, $user['name'] ?? '');
+            noitru_meal_require_saved(noitru_meal_state_set($date, $meal, $status, $user['name'] ?? ''));
             flash($status === 'locked' ? 'Đã chốt số liệu bữa ăn.' : ($status === 'off' ? 'Đã thông báo nghỉ bữa ăn.' : 'Đã mở lại để nhận báo cáo.'), $status === 'off' ? 'warning' : 'success');
         }
         header('Location: ' . BASE_URL . 'noitru.php?tab=meal_summary&date=' . urlencode($date)); exit;
@@ -390,12 +398,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status=($_POST['status']??'off')==='open'?'open':'off';
         if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$from)||!preg_match('/^\d{4}-\d{2}-\d{2}$/',$until)||$until<$from||!$targetMeals){flash('Khoảng ngày hoặc bữa ăn không hợp lệ.','danger');header('Location: '.BASE_URL.'noitru.php?tab=meal_summary');exit;}
         $maxUntil=date('Y-m-d',strtotime($from.' +120 days'));if($until>$maxUntil)$until=$maxUntil;$count=0;
-        for($targetDate=$from;$targetDate<=$until;$targetDate=date('Y-m-d',strtotime($targetDate.' +1 day')))foreach($targetMeals as $targetMeal){noitru_meal_state_set($targetDate,$targetMeal,$status,$user['name']??'');$count++;}
+        for($targetDate=$from;$targetDate<=$until;$targetDate=date('Y-m-d',strtotime($targetDate.' +1 day')))foreach($targetMeals as $targetMeal){noitru_meal_require_saved(noitru_meal_state_set($targetDate,$targetMeal,$status,$user['name']??''));$count++;}
         flash(($status==='off'?'Đã đặt nghỉ toàn trường cho ':'Đã mở lại ').$count.' lượt ngày/bữa.',$status==='off'?'warning':'success');
         header('Location: '.BASE_URL.'noitru.php?tab=meal_summary&date='.urlencode($from));exit;
     }
     if ($action === 'meal_settings') {
-        noitru_meal_settings_save($_POST);
+        noitru_meal_require_saved(noitru_meal_settings_save($_POST));
         $rice = noitru_rice_data();
         foreach (['sang','trua','toi'] as $mealKey) {
             $rice['settings'][$mealKey . '_grams'] = max(0, (float)($_POST[$mealKey . '_grams'] ?? ($rice['settings'][$mealKey . '_grams'] ?? 0)));
@@ -431,20 +439,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($students as $student) {
                 $sid = $student['id'] ?? '';
                 $existing = $dayMap[$sid] ?? [];
-                noitru_meal_upsert([
+                noitru_meal_require_saved(noitru_meal_upsert([
                     'date'=>$date, 'student_id'=>$sid,
                     'sang'=>$meal==='sang'?'yes':($existing['sang']??'yes'),
                     'trua'=>$meal==='trua'?'yes':($existing['trua']??'yes'),
                     'toi'=>$meal==='toi'?'yes':($existing['toi']??'yes'),
                     'source'=>'manager_fill', 'reported_by'=>$user['name']??'', 'force'=>true,
-                ]);
+                ]));
                 $dayMap[$sid] = array_merge($existing, [$meal=>'yes']);
             }
-            noitru_meal_report_upsert([
+            noitru_meal_require_saved(noitru_meal_report_upsert([
                 'date'=>$date, 'class_name'=>$class, 'meal'=>$meal,
                 'student_count'=>count($students), 'eat_count'=>count($students), 'absent_count'=>0,
                 'reported_by'=>$user['name']??'', 'status'=>'submitted',
-            ]);
+            ]));
             $filled++;
         }
         flash($filled ? 'Đã xác nhận đủ suất cho ' . $filled . ' lớp còn lại.' : 'Tất cả lớp đã báo cáo.', 'success');
