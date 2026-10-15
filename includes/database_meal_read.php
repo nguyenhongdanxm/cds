@@ -21,6 +21,7 @@ function cds_meal_sql_read_status()
     $configured = cds_meal_sql_read_configured();
     if (!$configured) return $GLOBALS['cds_meal_sql_read_status_cache'] = array('configured'=>false,'effective'=>false,'ready'=>false,'reason'=>'Chưa bật đọc MySQL báo ăn.');
     if (!cds_meal_shadow_enabled()) return $GLOBALS['cds_meal_sql_read_status_cache'] = array('configured'=>true,'effective'=>false,'ready'=>false,'reason'=>'Giai đoạn 3A đang tắt.');
+    if (is_file(cds_meal_inflight_path())) return $GLOBALS['cds_meal_sql_read_status_cache'] = array('configured'=>true,'effective'=>false,'ready'=>false,'reason'=>'Lần ghi báo ăn chưa hoàn tất; dùng nguồn JSON.');
     if (is_array(cds_meal_pending_status())) return $GLOBALS['cds_meal_sql_read_status_cache'] = array('configured'=>true,'effective'=>false,'ready'=>false,'reason'=>'Còn lần đồng bộ báo ăn đang chờ.');
     try {
         cds_db()->query('SELECT 1 FROM cds_meal_daily LIMIT 1');
@@ -106,6 +107,22 @@ function cds_meal_sql_reports_data()
     $settings = json_decode((string)$stmt->fetchColumn(), true);
     if (!is_array($settings)) $settings = array();
     return array('reports'=>$reports,'states'=>$states,'settings'=>$settings);
+}
+
+function cds_meal_sql_report_meta():array{
+    $states=cds_meal_sql_decode_rows('SELECT raw_json FROM cds_meal_states ORDER BY meal_date,meal_code');
+    $raw=cds_db()->query('SELECT raw_json FROM cds_meal_settings WHERE id=1')->fetchColumn();
+    $settings=json_decode((string)$raw,true);return ['states'=>$states,'settings'=>is_array($settings)?$settings:[]];
+}
+
+function cds_meal_sql_report_rows($date=null):Generator{
+    $pdo=cds_db();$offset=0;
+    do{
+        $sql='SELECT raw_json FROM cds_meal_reports'.($date===null?'':' WHERE meal_date=?').' ORDER BY meal_date,class_name,meal_code LIMIT 250 OFFSET '.(int)$offset;
+        $stmt=$pdo->prepare($sql);$stmt->execute($date===null?[]:[$date]);$count=0;
+        while($raw=$stmt->fetchColumn()){$row=json_decode((string)$raw,true);if(!is_array($row))throw new RuntimeException('Bản báo cáo SQL không hợp lệ.');$count++;yield$row;}
+        $offset+=$count;
+    }while($count===250);
 }
 
 function cds_meal_sql_fallback($context, Throwable $error)

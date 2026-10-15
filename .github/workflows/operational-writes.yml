@@ -1,0 +1,100 @@
+name: Operational write regressions
+on:
+  pull_request:
+    paths:
+      - 'includes/json_store.php'
+      - 'includes/json_rows.php'
+      - 'includes/json_fields.php'
+      - 'includes/noitru_report_stream.php'
+      - 'includes/noitru_store.php'
+      - 'includes/noitru_meal_history.php'
+      - 'includes/database_meals.php'
+      - 'includes/database_meal_read.php'
+      - 'includes/database_migrations.php'
+      - 'chuyenmon/includes/lesson_book_store.php'
+      - 'noitru.php'
+      - 'tests/operational_writes_test.php'
+      - 'tests/weekly_review_year_test.php'
+      - 'tests/meal_mysql_integration_test.php'
+      - 'tests/json_interruption_test.php'
+      - 'tests/json_rows_test.php'
+      - 'tests/json_fields_test.php'
+      - 'tests/report_stream_parity_test.php'
+      - 'tests/year_meal_memory_test.php'
+      - 'tests/support/load_functions.php'
+      - 'tests/support/meal_summary_reference.php'
+      - '.github/workflows/operational-writes.yml'
+  workflow_dispatch:
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+      - name: Syntax
+        run: |
+          php -l includes/json_store.php
+          php -l includes/json_rows.php
+          php -l includes/json_fields.php
+          php -l includes/noitru_report_stream.php
+          php -l includes/noitru_store.php
+          php -l includes/noitru_meal_history.php
+          php -l includes/database_meals.php
+          php -l chuyenmon/includes/lesson_book_store.php
+          php -l noitru.php
+          php -l tests/operational_writes_test.php
+          php -l tests/weekly_review_year_test.php
+          php -l tests/support/load_functions.php
+      - name: Data preservation and competing writes
+        run: |
+          php tests/operational_writes_test.php
+          php tests/weekly_review_year_test.php
+          php tests/lesson_book_manual_test.php
+          php tests/dashboard_attendance_public_test.php
+          php tests/substitution_permissions_test.php
+          php tests/ai-school-data.test.php
+          php tests/json_interruption_test.php
+          php tests/json_rows_test.php
+          php tests/json_fields_test.php
+          php tests/report_stream_parity_test.php
+          php -d memory_limit=128M tests/year_meal_memory_test.php
+  disposable-sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        database: ['mysql:8.0', 'mariadb:10.11']
+    services:
+      mysql:
+        image: ${{ matrix.database }}
+        env:
+          MYSQL_ROOT_PASSWORD: fixture-root-only-password
+          MYSQL_DATABASE: cds_disposable_test
+          MYSQL_USER: cds_fixture
+          MYSQL_PASSWORD: fixture-only-password
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql
+      - name: Isolated real database regressions
+        env:
+          CDS_TEST_MYSQL: disposable-ci
+          CDS_TEST_MYSQL_PORT: ${{ job.services.mysql.ports[3306] }}
+        run: |
+          php -l tests/meal_mysql_integration_test.php
+          php tests/meal_mysql_integration_test.php

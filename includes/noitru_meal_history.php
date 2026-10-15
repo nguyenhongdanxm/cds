@@ -41,6 +41,11 @@ function nt_meal_history_remember_deleted_sources(array $rows) {
  * báo cáo tháng và thống kê gạo không tiếp tục tính các lượt này.
  */
 function nt_meal_history_delete_related_data(array $historyRows) {
+    return noitru_meal_write(static function () use ($historyRows) {
+        return nt_meal_history_delete_related_data_unlocked($historyRows);
+    }, 0);
+}
+function nt_meal_history_delete_related_data_unlocked(array $historyRows) {
     $targets = [];
     foreach ($historyRows as $row) {
         $date = trim((string)($row['date'] ?? ''));
@@ -56,13 +61,13 @@ function nt_meal_history_delete_related_data(array $historyRows) {
     foreach (array_keys($targets) as $targetKey) $deletedTargets[$targetKey] = true;
     noitru_meal_deleted_targets_save($deletedTargets);
 
-    $reportData = noitru_meal_reports_data();
-    $beforeReports = count($reportData['reports'] ?? []);
-    $reportData['reports'] = array_values(array_filter($reportData['reports'] ?? [], function ($report) use ($targets) {
-        $key = (string)($report['date'] ?? '') . '|' . (string)($report['class_name'] ?? '') . '|' . (string)($report['meal'] ?? '');
-        return !isset($targets[$key]);
-    }));
-    noitru_meal_reports_save($reportData);
+    $beforeReports = iterator_count(noitru_meal_report_rows());
+    if (!noitru_meal_reports_mutate(static function ($rows) use ($targets) {
+        foreach ($rows as $report) {
+            $key = (string)($report['date'] ?? '') . '|' . (string)($report['class_name'] ?? '') . '|' . (string)($report['meal'] ?? '');
+            if (!isset($targets[$key])) yield $report;
+        }
+    })) return 0;
 
     $studentsByClass = [];
     foreach (noitru_boarders_live() as $student) {
@@ -77,21 +82,21 @@ function nt_meal_history_delete_related_data(array $historyRows) {
         if ($className !== '' && $studentId !== '') $studentsByClass[$className][$studentId] = true;
     }
 
-    $mealRows = noitru_meals_all();
-    foreach ($mealRows as &$mealRow) {
-        $date = (string)($mealRow['date'] ?? '');
-        $studentId = (string)($mealRow['student_id'] ?? '');
-        foreach ($targets as $target) {
-            if ($date !== $target['date'] || empty($studentsByClass[$target['class_name']][$studentId])) continue;
-            unset($mealRow[$target['meal']]);
+    $mealRows = (static function () use ($targets, $studentsByClass) {
+        foreach (cds_json_rows(NOITRU_MEALS) as $mealRow) {
+            $date = (string)($mealRow['date'] ?? '');
+            $studentId = (string)($mealRow['student_id'] ?? '');
+            foreach ($targets as $target) {
+                if ($date !== $target['date'] || empty($studentsByClass[$target['class_name']][$studentId])) continue;
+                unset($mealRow[$target['meal']]);
+            }
+            if (isset($mealRow['sang']) || isset($mealRow['trua']) || isset($mealRow['toi'])) yield $mealRow;
         }
-    }
-    unset($mealRow);
-    $mealRows = array_values(array_filter($mealRows, fn($row) => isset($row['sang']) || isset($row['trua']) || isset($row['toi'])));
-    if (!save_json(NOITRU_MEALS, $mealRows)) return 0;
+    })();
+    if (!cds_json_rows_save(NOITRU_MEALS, $mealRows)) return 0;
     noitru_meal_read_cache_clear();
     if (!cds_meal_shadow_sync('history_delete')) cds_meal_shadow_notify_failure();
-    return $beforeReports - count($reportData['reports']);
+    return $beforeReports - iterator_count(noitru_meal_report_rows());
 }
 
 function nt_meal_history_target_keys(array $historyRows) {
@@ -114,7 +119,7 @@ function nt_meal_history_all() {
     }
     $changed = false;
     $deletedSources = nt_meal_history_deleted_sources();
-    foreach ((array)(noitru_meal_reports_data()['reports'] ?? []) as $report) {
+    foreach (noitru_meal_report_rows() as $report) {
         $reportId = trim((string)($report['id'] ?? ''));
         $reportKey = implode('|', [(string)($report['date']??''),(string)($report['class_name']??''),(string)($report['meal']??'')]);
         if ($reportId === '' || isset($deletedSources[$reportId]) || isset($known[$reportId]) || isset($knownKeys[$reportKey])) continue;

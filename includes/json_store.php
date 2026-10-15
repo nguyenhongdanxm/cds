@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/json_rows.php';
+require_once __DIR__ . '/json_fields.php';
 /**
  * Đọc/ghi JSON dùng chung cho toàn bộ CDS.
  *
@@ -14,6 +16,20 @@ if (!function_exists('cds_json_load')) {
         if ($raw === false) return $default;
         $data = json_decode($raw, true);
         return is_array($data) ? $data : $default;
+    }
+}
+
+/** A write must never turn an unreadable/corrupt existing file into an empty store. */
+if (!function_exists('cds_json_load_for_update')) {
+    function cds_json_load_for_update(string $file, $default = []) {
+        if (!file_exists($file)) return $default;
+        $raw = @file_get_contents($file);
+        if ($raw === false) throw new RuntimeException('Không đọc được tệp dữ liệu: ' . basename($file));
+        $data = json_decode($raw, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
+            throw new RuntimeException('Tệp dữ liệu không hợp lệ; giữ nguyên tệp: ' . basename($file));
+        }
+        return $data;
     }
 }
 
@@ -52,9 +68,12 @@ if (!function_exists('cds_json_update')) {
             return false;
         }
         try {
-            $current = cds_json_load($file, $default);
+            $current = cds_json_load_for_update($file, $default);
             $next = $update($current);
             return $next === false ? false : cds_json_save($file, $next);
+        } catch (RuntimeException $e) {
+            error_log('[CDS JSON update] ' . $e->getMessage());
+            return false;
         } finally {
             @flock($lock, LOCK_UN);
             @fclose($lock);

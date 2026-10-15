@@ -231,7 +231,7 @@ function lb_weekly_reviews(string $weekKey='',string $class=''): array {
   cds_lb_weekly_reviews_import_json($json);
   try{return cds_lb_weekly_reviews_sql($weekKey,$class);}catch(Throwable$e){error_log('[CDS weekly review read fallback] '.$e->getMessage());}
  }
- return array_values(array_filter($json,fn($r)=>($weekKey===''||(string)($r['week_key']??'')===$weekKey)&&($class===''||lb_same($class,(string)($r['class']??'')))));
+ return array_values(array_filter($json,fn($r)=>cds_lb_weekly_review_school_year($r)===cds_lb_weekly_review_school_year([])&&($weekKey===''||(string)($r['week_key']??'')===$weekKey)&&($class===''||lb_same($class,(string)($r['class']??'')))));
 }
 function lb_can_review_class(string $class,string $type): bool {
  if($type==='leadership')return lb_is_management();if($type!=='homeroom')return false;if(lb_is_admin())return true;$u=lb_user();
@@ -243,11 +243,12 @@ function lb_save_weekly_review(array $week,array $in): array {
  $class=trim((string)($in['class']??''));$type=(string)($in['review_type']??'homeroom');$content=trim((string)($in['content']??''));
  if(!in_array($type,['homeroom','leadership'],true)||$class===''||$content==='')return['ok'=>false,'message'=>'Chọn lớp và nhập nội dung nhận xét tuần.'];
  if(!lb_can_review_class($class,$type))return['ok'=>false,'message'=>'Bạn không có quyền nhận xét tuần của lớp này.'];
- $year=function_exists('cds_school_year_resolve')?cds_school_year_resolve():[];$schoolYear=(string)($year['id']??$year['label']??'unknown');$key=(string)$week['key'].'|'.lb_norm($class).'|'.$type;$now=date('c');$by=lb_teacher_name();$existing=null;
- foreach(lb_rows(LB_WEEKLY_REVIEWS_FILE)as$r)if(($r['key']??'')===$key){$existing=$r;break;}
+ $year=function_exists('cds_school_year_resolve')?cds_school_year_resolve():[];$schoolYear=(string)($year['id']??$year['label']??'unknown');$key=$schoolYear.'|'.(string)$week['key'].'|'.lb_norm($class).'|'.$type;$now=date('c');$by=lb_teacher_name();$existing=null;
+ $reviewKey=cds_lb_weekly_review_enrich(['school_year_key'=>$schoolYear,'week_key'=>$week['key'],'class'=>$class,'type'=>$type])['review_key'];
+ foreach(lb_rows(LB_WEEKLY_REVIEWS_FILE)as$r)if(cds_lb_weekly_review_enrich($r)['review_key']===$reviewKey){$existing=$r;break;}
  $row=array_merge(is_array($existing)?$existing:[],['id'=>(string)($existing['id']??lb_id('review')),'key'=>$key,'school_year_key'=>$schoolYear,'week_key'=>$week['key'],'week_label'=>$week['label'],'class'=>$class,'type'=>$type,'content'=>$content,'created_at'=>(string)($existing['created_at']??$now),'created_by'=>(string)($existing['created_by']??$by),'updated_at'=>$now,'updated_by'=>$by]);
  $sqlReady=function_exists('cds_lb_weekly_review_table_ready')&&cds_lb_weekly_review_table_ready();if($sqlReady&&!cds_lb_weekly_review_upsert($row))return['ok'=>false,'message'=>'Không lưu được nhận xét tuần vào MySQL. Vui lòng thử lại.'];
- $jsonOk=cds_json_update(LB_WEEKLY_REVIEWS_FILE,function($rows)use($key,$row){$rows=array_values(array_filter(is_array($rows)?$rows:[],'is_array'));$found=false;foreach($rows as&$r)if((string)($r['key']??'')===$key){$r=$row;$found=true;break;}unset($r);if(!$found)$rows[]=$row;return$rows;},[]);
+ $jsonOk=cds_json_update(LB_WEEKLY_REVIEWS_FILE,function($rows)use($row){$rows=array_values(array_filter(is_array($rows)?$rows:[],'is_array'));$reviewKey=cds_lb_weekly_review_enrich($row)['review_key'];$found=false;foreach($rows as&$r)if(cds_lb_weekly_review_enrich($r)['review_key']===$reviewKey){$r=$row;$found=true;break;}unset($r);if(!$found)$rows[]=$row;return$rows;},[]);
  if($jsonOk)lb_rows_bust(LB_WEEKLY_REVIEWS_FILE);elseif(!$sqlReady)return['ok'=>false,'message'=>'Không lưu được nhận xét tuần.'];
  lb_audit('save_weekly_review',['week_key'=>$week['key'],'class'=>$class,'review_type'=>$type,'storage'=>$sqlReady?'mysql+json':'json']);
  return['ok'=>true,'type'=>$jsonOk?'success':'warning','message'=>$jsonOk?'Đã lưu nhận xét tuần.':'Đã lưu MySQL; JSON dự phòng đang chờ cập nhật.'];

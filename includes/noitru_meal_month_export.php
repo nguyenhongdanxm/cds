@@ -230,7 +230,7 @@ function nt_xlsx_school_summary_xml(array $classes, $month, $type, $schoolYear) 
     $yearNumber = (int)date('Y', strtotime($start));
     $mealKeys = $type === 'breakfast' ? ['sang'=>'Sáng'] : ['trua'=>'Trưa','toi'=>'Tối'];
     $dayMaps = [];$reportedMap = [];$offMap = [];
-    foreach ((array)(noitru_meal_reports_data()['reports']??[]) as $report) {
+    foreach (noitru_meal_report_rows() as $report) {
         $reportDate=(string)($report['date']??'');
         if (substr($reportDate,0,7)!==$month) continue;
         $reportedMap[$reportDate.'|'.(string)($report['class_name']??'').'|'.(string)($report['meal']??'')]=true;

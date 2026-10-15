@@ -122,7 +122,7 @@ function cds_ai_school_context(array $request): array {
                     $data=['meals'=>['sang'=>0,'trua'=>0,'toi'=>0],'by_day'=>[],'by_class'=>[],'report_count'=>0];
                     $riceSettings=noitru_rice_data()['settings']??[];$riceSettings=array_merge(['sang_grams'=>0,'trua_grams'=>180,'toi_grams'=>180],$riceSettings);$data['locked_rice_kg']=0.0;
                     $dayCache=[];$stateCache=[];
-                    foreach(noitru_meal_reports_data()['reports']??[]as$r){$date=(string)($r['date']??'');$class=(string)($r['class_name']??'');$meal=(string)($r['meal']??'');if($date<$filters['from']||$date>$filters['to']||!isset($data['meals'][$meal])||!cds_ai_data_class_allowed($class,$filters))continue;
+                    foreach(noitru_meal_report_rows()as$r){$date=(string)($r['date']??'');$class=(string)($r['class_name']??'');$meal=(string)($r['meal']??'');if($date<$filters['from']||$date>$filters['to']||!isset($data['meals'][$meal])||!cds_ai_data_class_allowed($class,$filters))continue;
                         $stateKey=$date.'|'.$meal;if(!isset($stateCache[$stateKey]))$stateCache[$stateKey]=noitru_meal_state($date,$meal)['status']??'open';$state=$stateCache[$stateKey];if($state==='off'||($key==='rice'&&$state!=='locked'))continue;
                         if(!isset($dayCache[$date]))$dayCache[$date]=noitru_meals_for_date($date);
                         $counts=noitru_meal_report_effective_counts($r,$date,$meal,$dayCache[$date]);$n=(int)$counts['eat'];$data['report_count']++;$data['meals'][$meal]+=$n;$data['by_day'][$date][$meal]=($data['by_day'][$date][$meal]??0)+$n;$data['by_class'][$class][$meal]=($data['by_class'][$class][$meal]??0)+$n;
