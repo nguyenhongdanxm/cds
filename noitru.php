@@ -312,26 +312,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$student || ($student['class_name'] ?? '') !== $className) continue;
             $validStudents[] = ['id'=>$sid, 'value'=>(($statuses[$i] ?? 'yes') === 'no' ? 'no' : 'yes')];
         }
+        $mealUpdates = [];
         foreach ($targetDates as $targetDate) {
-            $dayMap = noitru_meals_for_date($targetDate);
             foreach ($validStudents as $studentRow) {
-                $sid = $studentRow['id'];
-                $value = $studentRow['value'];
-                $existing = $dayMap[$sid] ?? [];
-                $values = [
-                    'sang'=>$existing['sang'] ?? 'yes',
-                    'trua'=>$existing['trua'] ?? 'yes',
-                    'toi'=>$existing['toi'] ?? 'yes',
-                ];
-                foreach ($targetMeals as $targetMeal) $values[$targetMeal] = $value;
-                noitru_meal_require_saved(noitru_meal_upsert([
-                    'date'=>$targetDate, 'student_id'=>$sid,
-                    'sang'=>$values['sang'], 'trua'=>$values['trua'], 'toi'=>$values['toi'],
+                $update = ['date'=>$targetDate, 'student_id'=>$studentRow['id'],
                     'source'=>$submissionMode==='long'?'gvcn_long':'gvcn',
-                    'reported_by'=>$user['name'] ?? '',
-                    'force'=>allowed_classes() === null,
-                ]));
+                    'reported_by'=>$user['name'] ?? '', 'force'=>allowed_classes() === null];
+                foreach ($targetMeals as $targetMeal) $update[$targetMeal] = $studentRow['value'];
+                $mealUpdates[] = $update;
             }
+        }
+        noitru_meal_require_saved(noitru_meal_upsert_many($mealUpdates, true));
+        foreach ($targetDates as $targetDate) {
             foreach ($targetMeals as $targetMeal) {
                 $eatCount = count(array_filter($validStudents, fn($row) => $row['value'] === 'yes'));
                 noitru_meal_require_saved(noitru_meal_report_upsert([
@@ -358,10 +350,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $classStudents=array_values(array_filter(noitru_boarders_live(),fn($student)=>($student['class_name']??'')===$className));
         $updated=0;$skipped=0;
         for($targetDate=$from;$targetDate<=$until;$targetDate=date('Y-m-d',strtotime($targetDate.' +1 day'))) {
-            $dayMap=noitru_meals_for_date($targetDate);
             foreach($targetMeals as $targetMeal) {
                 if((noitru_meal_state($targetDate,$targetMeal)['status']??'open')!=='open'){$skipped++;continue;}
-                foreach($classStudents as $student){$sid=$student['id']??'';$existing=$dayMap[$sid]??[];noitru_meal_require_saved(noitru_meal_upsert(['date'=>$targetDate,'student_id'=>$sid,'sang'=>$targetMeal==='sang'?'no':($existing['sang']??'yes'),'trua'=>$targetMeal==='trua'?'no':($existing['trua']??'yes'),'toi'=>$targetMeal==='toi'?'no':($existing['toi']??'yes'),'source'=>'gvcn_class_off','reported_by'=>$user['name']??'','force'=>true]));$dayMap[$sid]=array_merge($existing,[$targetMeal=>'no']);}
+                $updates=[];foreach($classStudents as $student)$updates[]=['date'=>$targetDate,'student_id'=>$student['id']??'',$targetMeal=>'no','source'=>'gvcn_class_off','reported_by'=>$user['name']??'','force'=>true];
+                noitru_meal_require_saved(noitru_meal_upsert_many($updates,true));
                 noitru_meal_require_saved(noitru_meal_report_upsert(['date'=>$targetDate,'class_name'=>$className,'meal'=>$targetMeal,'student_count'=>count($classStudents),'eat_count'=>0,'absent_count'=>count($classStudents),'reported_by'=>$user['name']??'','status'=>'submitted']));$updated++;
             }
         }
@@ -432,22 +424,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $class = trim($student['class_name'] ?? '') ?: '(Chưa lớp)';
             $classes[$class][] = $student;
         }
-        $dayMap = noitru_meals_for_date($date);
         $filled = 0;
         foreach ($classes as $class=>$students) {
             if (isset($reportedClasses[$class])) continue;
-            foreach ($students as $student) {
-                $sid = $student['id'] ?? '';
-                $existing = $dayMap[$sid] ?? [];
-                noitru_meal_require_saved(noitru_meal_upsert([
-                    'date'=>$date, 'student_id'=>$sid,
-                    'sang'=>$meal==='sang'?'yes':($existing['sang']??'yes'),
-                    'trua'=>$meal==='trua'?'yes':($existing['trua']??'yes'),
-                    'toi'=>$meal==='toi'?'yes':($existing['toi']??'yes'),
-                    'source'=>'manager_fill', 'reported_by'=>$user['name']??'', 'force'=>true,
-                ]));
-                $dayMap[$sid] = array_merge($existing, [$meal=>'yes']);
-            }
+            $updates = [];
+            foreach ($students as $student) $updates[] = ['date'=>$date, 'student_id'=>$student['id'] ?? '',
+                $meal=>'yes', 'source'=>'manager_fill', 'reported_by'=>$user['name']??'', 'force'=>true];
+            noitru_meal_require_saved(noitru_meal_upsert_many($updates, true));
             noitru_meal_require_saved(noitru_meal_report_upsert([
                 'date'=>$date, 'class_name'=>$class, 'meal'=>$meal,
                 'student_count'=>count($students), 'eat_count'=>count($students), 'absent_count'=>0,

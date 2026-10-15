@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'includes/json_store.php'
+      - 'includes/json_rows.php'
       - 'includes/noitru_store.php'
       - 'includes/noitru_meal_history.php'
       - 'includes/database_meals.php'
@@ -14,6 +15,8 @@ on:
       - 'tests/weekly_review_year_test.php'
       - 'tests/meal_mysql_integration_test.php'
       - 'tests/json_interruption_test.php'
+      - 'tests/json_rows_test.php'
+      - 'tests/year_meal_memory_test.php'
       - 'tests/support/load_functions.php'
       - '.github/workflows/operational-writes.yml'
   workflow_dispatch:
@@ -31,6 +34,7 @@ jobs:
       - name: Syntax
         run: |
           php -l includes/json_store.php
+          php -l includes/json_rows.php
           php -l includes/noitru_store.php
           php -l includes/noitru_meal_history.php
           php -l includes/database_meals.php
@@ -45,6 +49,8 @@ jobs:
           php tests/weekly_review_year_test.php
           php tests/lesson_book_manual_test.php
           php tests/json_interruption_test.php
+          php tests/json_rows_test.php
+          php -d memory_limit=128M tests/year_meal_memory_test.php
   disposable-sql:
     runs-on: ubuntu-latest
     timeout-minutes: 10

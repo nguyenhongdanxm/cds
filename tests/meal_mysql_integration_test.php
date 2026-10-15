@@ -9,7 +9,7 @@ function cds_instance_config($key = null, $default = null) {
         'database'=>'cds_disposable_test','username'=>'cds_fixture','password'=>'fixture-only-password','charset'=>'utf8mb4'];
     return $default;
 }
-$worker = ($argv[1] ?? '') === 'worker';
+$worker = in_array(($argv[1] ?? ''), ['worker','crash'], true);
 $root = $worker ? (string)($argv[2] ?? '') : sys_get_temp_dir() . '/cds-mysql-fixture-' . bin2hex(random_bytes(8));
 check(str_starts_with($root, sys_get_temp_dir() . '/cds-mysql-fixture-') && !str_contains($root, '..'), 'Unsafe fixture path');
 if (!$worker) mkdir($root . '/noitru', 0700, true);
@@ -36,7 +36,7 @@ function new_request() {
 }
 load_functions(__DIR__ . '/../includes/noitru_store.php', [
     'noitru_meal_write','noitru_meal_read_cache_clear','noitru_meals_all','noitru_meals_for_date',
-    'noitru_meal_upsert','noitru_meal_upsert_unlocked','noitru_meals_lock_day','noitru_meals_lock_day_unlocked',
+    'noitru_meal_upsert_many','noitru_meal_upsert_many_unlocked','noitru_meals_replace_rows','noitru_meal_upsert','noitru_meal_upsert_unlocked','noitru_meals_lock_day','noitru_meals_lock_day_unlocked',
     'noitru_meal_target_key','noitru_meal_deleted_targets','noitru_meal_deleted_targets_save','noitru_meal_deleted_targets_save_unlocked',
     'noitru_meal_reports_data','noitru_meal_reports_save','noitru_meal_reports_save_unlocked',
     'noitru_meal_report_upsert','noitru_meal_report_upsert_unlocked','noitru_meal_state_set','noitru_meal_state_set_unlocked',
@@ -44,6 +44,13 @@ load_functions(__DIR__ . '/../includes/noitru_store.php', [
 $pdo = cds_db();
 check($pdo->query('SELECT DATABASE()')->fetchColumn() === 'cds_disposable_test', 'Wrong database');
 if ($worker) {
+    if (($argv[1] ?? '') === 'crash') {
+        noitru_meal_write(static function () {
+            check(noitru_meals_replace_rows([], [['id'=>'crash','date'=>'2026-10-15','student_id'=>'crash','sang'=>'yes']]), 'Crash fixture JSON published');
+            exit(86); // Stop after JSON publication, before the SQL mirror.
+        });
+        exit(87);
+    }
     $id = (int)($argv[3] ?? 0);
     for ($i = 0; $i < 8; $i++) {
         check(noitru_meal_upsert(['date'=>'2026-10-15','student_id'=>"w$id-$i",'sang'=>'yes','trua'=>'no','toi'=>'yes']), 'Concurrent SQL meal save');
@@ -65,6 +72,11 @@ try {
     check(cds_meal_sql_read_effective(), 'SQL enabled');
     check(noitru_meal_upsert(['date'=>'2026-10-15','student_id'=>'first','sang'=>'yes','trua'=>'no','toi'=>'yes']), 'Real SQL update');
     check(cds_meal_compare_snapshot()['is_match'], 'Exact raw JSON match after write');
+    check(noitru_meal_upsert_many([
+        ['date'=>'2026-10-15','student_id'=>'first','sang'=>'no'],
+        ['date'=>'2026-10-15','student_id'=>'first','toi'=>'no'],
+    ]), 'Real SQL batch with sparse updates');
+    check(cds_meal_compare_snapshot()['is_match'], 'Real SQL batch matches source exactly');
     check(noitru_meal_state_set('2026-10-15','sang','locked','Fixture'), 'Meal state write');
     check(noitru_meals_lock_day('2026-10-15', true), 'Day lock write');
     $before = file_get_contents(NOITRU_MEALS);
@@ -100,8 +112,19 @@ try {
     check(count($source['daily']) === 35 && count($source['reports']) === 32, 'All concurrent records retained');
     check($source['daily'][0] === $old, 'Historical record retained exactly');
     check($pdo->query("SELECT raw_json FROM cds_meal_daily WHERE student_id='old'")->fetchColumn() === cds_meal_json($old), 'Historical SQL record retained');
+    $pipes=[];
+    $process=proc_open([PHP_BINARY,__FILE__,'crash',$root],[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes);
+    check(is_resource($process),'Crash worker started'); fclose($pipes[0]);
+    $output=stream_get_contents($pipes[1]).stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);
+    check(proc_close($process)===86,'Interrupted exactly after source publication: '.$output);
+    check(is_file(cds_meal_inflight_path()) && !cds_meal_compare_snapshot()['is_match'],'Unfinished JSON/SQL write is durable and detected');
+    new_request();
+    check(!cds_meal_sql_read_effective() && isset(noitru_meals_for_date('2026-10-15')['crash']),'Fresh request must not read stale SQL after interrupted writer');
+    check(noitru_meal_write(static fn()=>cds_meal_shadow_sync('crash_recovery')),'Interrupted writer recovery');
+    new_request();
+    check(cds_meal_compare_snapshot()['is_match'] && cds_meal_sql_read_effective() && !is_file(cds_meal_inflight_path()),'Crash recovery restores both stores before SQL reads resume');
     cds_meal_sql_read_set(false,current_user());
-    new_request(); check(!cds_meal_sql_read_effective() && count(noitru_meals_all()) === 35, 'Explicit JSON-only read mode retained');
+    new_request(); check(!cds_meal_sql_read_effective() && count(noitru_meals_all()) === 36, 'Explicit JSON-only read mode retained');
     echo 'PASS real SQL: migrations, read on/off, locks, injected SQL failure, cross-request fallback, recovery, 4 concurrent writers, exact history. Server: ' . $pdo->query('SELECT VERSION()')->fetchColumn() . "\n";
 } finally {
     if ($renamed) $pdo->exec('RENAME TABLE cds_meal_daily_unavailable TO cds_meal_daily');

@@ -42,7 +42,7 @@ function noitru_student_away_on_date($id, $date) { return $id === 's2' ? ['reaso
 function noitru_boarders_live() { return [['id'=>'s1','class_name'=>'6A']]; }
 
 $mealFunctions = ['noitru_meal_write','noitru_meal_read_cache_clear','noitru_meals_all',
-    'noitru_meal_upsert','noitru_meal_upsert_unlocked','noitru_meals_generate_day',
+    'noitru_meal_upsert_many','noitru_meal_upsert_many_unlocked','noitru_meals_replace_rows','noitru_meal_upsert','noitru_meal_upsert_unlocked','noitru_meals_generate_day',
     'noitru_meals_generate_day_unlocked','noitru_meals_lock_day','noitru_meals_lock_day_unlocked',
     'noitru_meal_target_key','noitru_meal_deleted_targets','noitru_meal_deleted_targets_save',
     'noitru_meal_deleted_targets_save_unlocked','noitru_meal_reports_data','noitru_meal_reports_save',
@@ -85,6 +85,15 @@ try {
     check(noitru_meals_lock_day('2026-10-14', false), 'Unlock supported');
     check(!cds_json_load(NOITRU_MEALS)[0]['locked'], 'Unlock preserved');
 
+    check(noitru_meal_upsert_many([
+        ['date'=>'2026-10-14','student_id'=>'s1','sang'=>'yes'],
+        ['date'=>'2026-10-14','student_id'=>'s1','toi'=>'no'],
+    ]), 'Batch accepts sequential updates to same pupil');
+    $batchRow=cds_json_load(NOITRU_MEALS)[0];
+    check($batchRow['id']==='old' && $batchRow['trua']==='no' && $batchRow['sang']==='yes' && $batchRow['toi']==='no','Batch preserves identity and untouched meals');
+    check(noitru_meal_upsert_many([['date'=>'2026-10-14','student_id'=>'s1','sang'=>'no']],true),'Sparse form save');
+    check(cds_json_load(NOITRU_MEALS)[0]['toi']==='no','Sparse form cannot overwrite another meal with a stale value');
+
     nt_meal_history_delete_related_data([['date'=>'2026-10-14','class_name'=>'6A','meal'=>'sang']]);
     $afterDelete = cds_json_load(NOITRU_MEALS);
     check(!isset($afterDelete[0]['sang']) && $afterDelete[0]['trua'] === 'no' && $afterDelete[1]['sang'] === 'no', 'History deletion retains other meals and other pupils');
@@ -93,10 +102,9 @@ try {
     $GLOBALS['noitru_meals_all_cache'] = [];
     check(noitru_meal_upsert(['date'=>'2026-10-15','student_id'=>'s4','sang'=>'yes']), 'Latest source used');
     check(count(cds_json_load(NOITRU_MEALS)) === 4, 'Stale cache cannot drop history');
-    $GLOBALS['fail_write_path'] = NOITRU_MEALS;
     $before = file_get_contents(NOITRU_MEALS);
     $mirrorCount = count($GLOBALS['mirrored'] ?? []);
-    check(!noitru_meal_upsert(['date'=>'2026-10-15','student_id'=>'failed-write','sang'=>'yes']), 'Source write failure returned');
+    check(!noitru_meal_upsert(['date'=>'2026-10-15','student_id'=>'failed-write','sang'=>'yes','note'=>"\xB1"]), 'Source write failure returned');
     check(file_get_contents(NOITRU_MEALS) === $before && count($GLOBALS['mirrored'] ?? []) === $mirrorCount, 'Write failure preserves bytes and does not publish SQL');
     unset($GLOBALS['fail_write_path']);
 

@@ -21,6 +21,7 @@ function cds_meal_sql_read_status()
     $configured = cds_meal_sql_read_configured();
     if (!$configured) return $GLOBALS['cds_meal_sql_read_status_cache'] = array('configured'=>false,'effective'=>false,'ready'=>false,'reason'=>'Chưa bật đọc MySQL báo ăn.');
     if (!cds_meal_shadow_enabled()) return $GLOBALS['cds_meal_sql_read_status_cache'] = array('configured'=>true,'effective'=>false,'ready'=>false,'reason'=>'Giai đoạn 3A đang tắt.');
+    if (is_file(cds_meal_inflight_path())) return $GLOBALS['cds_meal_sql_read_status_cache'] = array('configured'=>true,'effective'=>false,'ready'=>false,'reason'=>'Lần ghi báo ăn chưa hoàn tất; dùng nguồn JSON.');
     if (is_array(cds_meal_pending_status())) return $GLOBALS['cds_meal_sql_read_status_cache'] = array('configured'=>true,'effective'=>false,'ready'=>false,'reason'=>'Còn lần đồng bộ báo ăn đang chờ.');
     try {
         cds_db()->query('SELECT 1 FROM cds_meal_daily LIMIT 1');

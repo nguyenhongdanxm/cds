@@ -84,7 +84,7 @@ function nt_rice_build_detail($from, $to, array $riceData) {
         $validReports[$date . '|' . $className . '|' . $meal] = true;
     }
 
-    foreach (noitru_meals_all() as $mealRow) {
+    foreach (cds_json_rows(NOITRU_MEALS) as $mealRow) {
         $date = (string)($mealRow['date'] ?? '');
         $studentId = trim((string)($mealRow['student_id'] ?? ''));
         if ($date < $from || $date > $to || !isset($studentsById[$studentId])) continue;

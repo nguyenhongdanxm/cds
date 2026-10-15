@@ -321,25 +321,34 @@ function noitru_meal_write(callable $write, $failure = false) {
     }
     $hadForce = array_key_exists('cds_force_json_meal_read', $GLOBALS);
     $previousForce = $GLOBALS['cds_force_json_meal_read'] ?? null;
+    $inflight = function_exists('cds_meal_inflight_path') ? cds_meal_inflight_path() : '';
+    $markerStarted = false; $finished = false;
     try {
         // Refuse to overwrite either source when an existing file cannot be read.
-        $mealRows = cds_json_load_for_update(NOITRU_MEALS, []);
+        foreach (cds_json_rows(NOITRU_MEALS) as $validatedRow) { /* validate without retaining history */ }
         cds_json_load_for_update(NOITRU_MEAL_REPORTS, []);
+        if ($inflight !== '' && cds_meal_shadow_enabled()) {
+            if (is_file($inflight) && !cds_meal_pending_mark('interrupted_write')) return $failure;
+            if (!cds_json_save($inflight, ['at'=>date('c')])) return $failure;
+            $markerStarted = true;
+        }
         $GLOBALS['cds_force_json_meal_read'] = true;
         noitru_meal_read_cache_clear();
-        $GLOBALS['noitru_meals_all_cache'] = $mealRows;
         $depth++;
-        return $write();
+        $result = $write();
+        $finished = $result !== false;
+        return $result;
     } catch (RuntimeException $e) {
         error_log('[CDS meal write] ' . $e->getMessage());
         return $failure;
     } finally {
         $depth = 0;
+        if ($markerStarted && $finished) @unlink($inflight);
         // A failed mirror deliberately sets this flag: preserve its fallback.
-        if (!is_array(cds_meal_pending_status())) {
+        if (!is_array(cds_meal_pending_status()) && ($inflight === '' || !is_file($inflight))) {
             if ($hadForce) $GLOBALS['cds_force_json_meal_read'] = $previousForce;
             else unset($GLOBALS['cds_force_json_meal_read']);
-        }
+        } else $GLOBALS['cds_force_json_meal_read'] = true;
         noitru_meal_read_cache_clear();
         @flock($handle, LOCK_UN);
         @fclose($handle);
@@ -539,7 +548,7 @@ function noitru_meals_for_date($date) {
         try { $rows = cds_meal_sql_daily_for_date($date); }
         catch (Throwable $e) { cds_meal_sql_fallback('daily_date', $e); }
     }
-    if (!is_array($rows)) $rows = load_json(NOITRU_MEALS, []);
+    if (!is_array($rows)) $rows = cds_json_rows(NOITRU_MEALS);
     foreach ($rows as $m) {
         if (($m['date'] ?? '') === $date) $out[$m['student_id'] ?? ''] = $m;
     }
@@ -551,44 +560,65 @@ function noitru_meals_for_range($from, $to) {
         try { return cds_meal_sql_daily_for_range($from, $to); }
         catch (Throwable $e) { cds_meal_sql_fallback('daily_range', $e); }
     }
-    return array_values(array_filter(load_json(NOITRU_MEALS, []), function ($row) use ($from, $to) {
+    $out = [];
+    foreach (cds_json_rows(NOITRU_MEALS) as $row) {
         $date = (string)($row['date'] ?? '');
-        return $date >= $from && $date <= $to;
-    }));
+        if ($date >= $from && $date <= $to) $out[] = $row;
+    }
+    return $out;
 }
 function noitru_meal_upsert(array $row) {
     return noitru_meal_write(static function () use ($row) {
         return noitru_meal_upsert_unlocked($row);
     }, false);
 }
+/** Replace selected source positions, then append, without retaining unrelated history. */
+function noitru_meals_replace_rows(array $changes, array $append = []): bool {
+    $rows = (static function () use ($changes, $append) {
+        foreach (cds_json_rows(NOITRU_MEALS) as $index => $row) yield $changes[$index] ?? $row;
+        foreach ($append as $row) yield $row;
+    })();
+    return cds_json_rows_save(NOITRU_MEALS, $rows);
+}
 function noitru_meal_upsert_unlocked(array $row) {
-    $rows = noitru_meals_all();
-    $date = $row['date'] ?? '';
-    $sid = $row['student_id'] ?? '';
-    $found = false;
-    $savedRow = null;
-    foreach ($rows as &$m) {
-        if (($m['date'] ?? '') === $date && ($m['student_id'] ?? '') === $sid) {
-            if (!empty($m['locked']) && empty($row['force'])) return false;
-            $m = array_merge($m, $row);
-            unset($m['force']);
-            $m['updated_at'] = noitru_now();
-            $savedRow = $m;
-            $found = true;
-            break;
+    return noitru_meal_upsert_many_unlocked([$row]);
+}
+/** Preserve sequential upsert results, but publish one JSON replacement per batch. */
+function noitru_meal_upsert_many(array $updates, bool $defaultMissingMeals = false): bool {
+    return noitru_meal_write(static function () use ($updates, $defaultMissingMeals) {
+        return noitru_meal_upsert_many_unlocked($updates, $defaultMissingMeals);
+    }, false);
+}
+function noitru_meal_upsert_many_unlocked(array $updates, bool $defaultMissingMeals = false): bool {
+    if (!$updates) return true;
+    $needed = [];
+    foreach ($updates as $row) $needed[serialize([$row['date'] ?? '', $row['student_id'] ?? ''])] = true;
+    $positions = []; $current = [];
+    foreach (cds_json_rows(NOITRU_MEALS) as $index => $row) {
+        $key = serialize([$row['date'] ?? '', $row['student_id'] ?? '']);
+        if (isset($needed[$key]) && !isset($positions[$key])) { $positions[$key] = $index; $current[$key] = $row; }
+    }
+    $changed = []; $newOrder = [];
+    foreach ($updates as $input) {
+        $key = serialize([$input['date'] ?? '', $input['student_id'] ?? '']);
+        $existing = $current[$key] ?? null;
+        if ($existing !== null && !empty($existing['locked']) && empty($input['force'])) return false;
+        $defaults = $defaultMissingMeals ? ['sang'=>'yes','trua'=>'yes','toi'=>'yes'] : [];
+        if ($existing !== null) {
+            $next = array_merge($defaults, $existing, $input, ['updated_at'=>noitru_now()]);
+        } else {
+            $next = array_merge($defaults, $input);
+            $next['id'] = $input['id'] ?? noitru_uid('ml'); $next['created_at'] = noitru_now();
+            $newOrder[] = $key;
         }
+        unset($next['force']); $current[$key] = $next; $changed[$key] = $next;
     }
-    unset($m);
-    if (!$found) {
-        $row['id'] = $row['id'] ?? noitru_uid('ml');
-        $row['created_at'] = noitru_now();
-        unset($row['force']);
-        $rows[] = $row;
-        $savedRow = $row;
-    }
-    if (!save_json(NOITRU_MEALS, $rows)) return false;
-    noitru_meal_read_cache_clear($date);
-    if ($savedRow && !cds_meal_shadow_daily_row($savedRow)) cds_meal_shadow_notify_failure();
+    $replacements = []; $append = [];
+    foreach ($changed as $key => $row) if (isset($positions[$key])) $replacements[$positions[$key]] = $row;
+    foreach ($newOrder as $key) $append[] = $changed[$key];
+    if (!noitru_meals_replace_rows($replacements, $append)) return false;
+    noitru_meal_read_cache_clear();
+    foreach ($changed as $row) if (!cds_meal_shadow_daily_row($row)) { cds_meal_shadow_notify_failure(); break; }
     return true;
 }
 function noitru_meals_generate_day($date) {
@@ -598,7 +628,11 @@ function noitru_meals_generate_day($date) {
 }
 function noitru_meals_generate_day_unlocked($date) {
     $n = 0;
-    $rows = noitru_meals_all();
+    $rows = [];
+    foreach (cds_json_rows(NOITRU_MEALS) as $index => $saved) {
+        if (($saved['date'] ?? '') === $date) $rows[$index] = $saved;
+    }
+    $sourcePositions = array_fill_keys(array_keys($rows), true);
     $positions = [];
     foreach ($rows as $index => $saved) {
         if (($saved['date'] ?? '') === $date) $positions[(string)($saved['student_id'] ?? '')] = $index;
@@ -629,7 +663,7 @@ function noitru_meals_generate_day_unlocked($date) {
         }
         $n++;
     }
-    if (!save_json(NOITRU_MEALS, $rows)) return 0;
+    if (!noitru_meals_replace_rows(array_intersect_key($rows, $sourcePositions), array_values(array_diff_key($rows, $sourcePositions)))) return 0;
     noitru_meal_read_cache_clear($date);
     if (!cds_meal_shadow_daily_rows($rows, $date)) cds_meal_shadow_notify_failure();
     return $n;
@@ -640,14 +674,16 @@ function noitru_meals_lock_day($date, $lock = true) {
     }, false);
 }
 function noitru_meals_lock_day_unlocked($date, $lock = true) {
-    $rows = noitru_meals_all();
-    foreach ($rows as &$m) {
-        if (($m['date'] ?? '') === $date) $m['locked'] = $lock;
-    }
-    unset($m);
-    if (!save_json(NOITRU_MEALS, $rows)) return false;
+    $dayRows = [];
+    $rows = (static function () use ($date, $lock, &$dayRows) {
+        foreach (cds_json_rows(NOITRU_MEALS) as $row) {
+            if (($row['date'] ?? '') === $date) { $row['locked'] = $lock; $dayRows[] = $row; }
+            yield $row;
+        }
+    })();
+    if (!cds_json_rows_save(NOITRU_MEALS, $rows)) return false;
     noitru_meal_read_cache_clear($date);
-    if (!cds_meal_shadow_daily_rows($rows, $date)) cds_meal_shadow_notify_failure();
+    if (!cds_meal_shadow_daily_rows($dayRows, $date)) cds_meal_shadow_notify_failure();
     return true;
 }
 function noitru_meals_count_day($date) {
@@ -781,7 +817,7 @@ function noitru_meal_period_summary($from, $to, array $students) {
     }
 
     $meals = [];
-    foreach (noitru_meals_all() as $row) {
+    foreach (cds_json_rows(NOITRU_MEALS) as $row) {
         $date = (string)($row['date'] ?? '');
         $studentId = (string)($row['student_id'] ?? '');
         if ($date >= $from && $date <= $to && $studentId !== '') $meals[$date][$studentId] = $row;
@@ -1663,7 +1699,7 @@ function noitru_menu_template_save(array $template) {
 
 function noitru_stats_full($from, $to) {
     $mealSum = ['sang' => 0, 'trua' => 0, 'toi' => 0, 'days' => []];
-    foreach (noitru_meals_all() as $m) {
+    foreach (cds_json_rows(NOITRU_MEALS) as $m) {
         $d = $m['date'] ?? '';
         if ($d < $from || $d > $to) continue;
         if (!isset($mealSum['days'][$d])) $mealSum['days'][$d] = ['sang' => 0, 'trua' => 0, 'toi' => 0];

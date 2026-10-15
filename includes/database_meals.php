@@ -11,6 +11,11 @@ function cds_meal_pending_path()
     return defined('DATA_PATH') ? DATA_PATH . '/noitru/meal_mysql_shadow_pending.json' : '';
 }
 
+function cds_meal_inflight_path()
+{
+    return defined('DATA_PATH') ? DATA_PATH . '/noitru/meal_write_inflight.json' : '';
+}
+
 function cds_meal_pending_status()
 {
     $path = cds_meal_pending_path();

@@ -82,18 +82,18 @@ function nt_meal_history_delete_related_data_unlocked(array $historyRows) {
         if ($className !== '' && $studentId !== '') $studentsByClass[$className][$studentId] = true;
     }
 
-    $mealRows = noitru_meals_all();
-    foreach ($mealRows as &$mealRow) {
-        $date = (string)($mealRow['date'] ?? '');
-        $studentId = (string)($mealRow['student_id'] ?? '');
-        foreach ($targets as $target) {
-            if ($date !== $target['date'] || empty($studentsByClass[$target['class_name']][$studentId])) continue;
-            unset($mealRow[$target['meal']]);
+    $mealRows = (static function () use ($targets, $studentsByClass) {
+        foreach (cds_json_rows(NOITRU_MEALS) as $mealRow) {
+            $date = (string)($mealRow['date'] ?? '');
+            $studentId = (string)($mealRow['student_id'] ?? '');
+            foreach ($targets as $target) {
+                if ($date !== $target['date'] || empty($studentsByClass[$target['class_name']][$studentId])) continue;
+                unset($mealRow[$target['meal']]);
+            }
+            if (isset($mealRow['sang']) || isset($mealRow['trua']) || isset($mealRow['toi'])) yield $mealRow;
         }
-    }
-    unset($mealRow);
-    $mealRows = array_values(array_filter($mealRows, fn($row) => isset($row['sang']) || isset($row['trua']) || isset($row['toi'])));
-    if (!save_json(NOITRU_MEALS, $mealRows)) return 0;
+    })();
+    if (!cds_json_rows_save(NOITRU_MEALS, $mealRows)) return 0;
     noitru_meal_read_cache_clear();
     if (!cds_meal_shadow_sync('history_delete')) cds_meal_shadow_notify_failure();
     return $beforeReports - count($reportData['reports']);
