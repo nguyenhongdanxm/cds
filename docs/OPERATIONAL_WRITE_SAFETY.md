@@ -111,6 +111,10 @@ bản tối ưu streaming, không phải kết quả của phiên bản hiện t
   theo lô thay vì ghi lại cả năm cho từng học sinh.
 - Báo cáo dùng luồng JSON hoặc trang SQL 250 dòng. Khóa đọc dùng chung
   khóa miền báo ăn để một báo cáo không trộn hai phiên bản khi có người ghi.
+- Đồng bộ SQL theo lô tối đa 100 dòng, với mục tiêu 256 KiB JSON/lô; một
+  dòng lớn được giữ nguyên. Khóa đối chiếu cũng nạp theo lô 200 thay vì từng
+  dòng. Transaction và giá trị từng dòng giữ nguyên; kiểm thử đối chiếu
+  toàn bộ dữ liệu và rollback khi khóa bị SQL collation gộp nhầm.
 - Dấu inflight được tạo trước khi ghi nguồn, chặn SQL cũ nếu tiến trình
   dừng sau JSON nhưng trước SQL. Khôi phục SQL dùng luồng trong transaction;
   nguồn thiếu khóa/trùng khóa hoặc số dòng SQL khác nguồn thì rollback và

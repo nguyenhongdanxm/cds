@@ -179,9 +179,9 @@ function cds_meal_delete_missing(PDO $pdo, $table, array $keys, array $columns, 
     $pdo->exec('DROP TEMPORARY TABLE IF EXISTS cds_meal_sync_keys');
     // Match the production meal tables instead of inheriting the server default.
     $pdo->exec('CREATE TEMPORARY TABLE cds_meal_sync_keys (key_value VARCHAR(512) NOT NULL PRIMARY KEY) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
-    $insert = $pdo->prepare('INSERT IGNORE INTO cds_meal_sync_keys (key_value) VALUES (?)');
-    foreach (array_values(array_unique($keys)) as $key) {
-        $insert->execute(array((string)$key));
+    foreach (array_chunk(array_values(array_unique($keys)), 200) as $batch) {
+        $insert = $pdo->prepare('INSERT IGNORE INTO cds_meal_sync_keys (key_value) VALUES ' . implode(',', array_fill(0, count($batch), '(?)')));
+        $insert->execute(array_map('strval', $batch));
     }
     $expression = count($columns) === 1
         ? 'CAST(t.' . $columns[0] . ' AS CHAR)'
@@ -190,6 +190,29 @@ function cds_meal_delete_missing(PDO $pdo, $table, array $keys, array $columns, 
     $expression = 'CONVERT(' . $expression . ' USING utf8mb4) COLLATE utf8mb4_unicode_ci';
     $pdo->exec('DELETE t FROM ' . $table . ' t LEFT JOIN cds_meal_sync_keys k ON k.key_value=' . $expression . ' WHERE k.key_value IS NULL');
     $pdo->exec('DROP TEMPORARY TABLE IF EXISTS cds_meal_sync_keys');
+}
+
+/** Batch up to 100 rows, targeting 256 KiB raw JSON; a single larger row stays intact. */
+function cds_meal_batch_flush(PDO $pdo, string $sql, array &$batch): void
+{
+    if (!$batch) return;
+    $tuple = '(?,?,?,?,?,?,?,?,NOW())';
+    $needle = 'VALUES ' . $tuple;
+    $position = strpos($sql, $needle);
+    if ($position === false) throw new InvalidArgumentException('Mẫu SQL báo ăn không hợp lệ.');
+    $statement = substr_replace($sql, 'VALUES ' . implode(',', array_fill(0, count($batch), $tuple)), $position, strlen($needle));
+    $values = array();
+    foreach ($batch as $params) foreach ($params as $value) $values[] = $value;
+    $pdo->prepare($statement)->execute($values);
+    $batch = array();
+}
+
+function cds_meal_batch_add(PDO $pdo, string $sql, array &$batch, array $params): void
+{
+    $bytes = strlen((string)$params[6]);
+    foreach ($batch as $saved) $bytes += strlen((string)$saved[6]);
+    if ($batch && (count($batch) >= 100 || $bytes > 262144)) cds_meal_batch_flush($pdo, $sql, $batch);
+    $batch[] = $params;
 }
 
 function cds_meal_import_snapshot($actor = array(), $sourceData = null, $streaming = false)
@@ -218,7 +241,7 @@ function cds_meal_import_snapshot($actor = array(), $sourceData = null, $streami
             VALUES (?,?,?,?,?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE breakfast=VALUES(breakfast),lunch=VALUES(lunch),
             dinner=VALUES(dinner),is_locked=VALUES(is_locked),raw_json=VALUES(raw_json),
             source_updated_at=VALUES(source_updated_at),imported_at=NOW()";
-        $stmt = $pdo->prepare($dailySql); $dailyKeys = array();
+        $dailyBatch = array(); $dailyKeys = array();
         foreach ($data['daily'] as $row) {
             $date = (string)($row['date'] ?? ''); $sid = (string)($row['student_id'] ?? '');
             $key = $date . '|' . $sid;
@@ -227,9 +250,10 @@ function cds_meal_import_snapshot($actor = array(), $sourceData = null, $streami
             }
             if ($streaming) $dailyKeys[$key] = $key; else $dailyKeys[] = $key;
             $counts['daily']++;
-            $stmt->execute(array($date,$sid,(string)($row['sang']??''),(string)($row['trua']??''),(string)($row['toi']??''),
+            cds_meal_batch_add($pdo, $dailySql, $dailyBatch, array($date,$sid,(string)($row['sang']??''),(string)($row['trua']??''),(string)($row['toi']??''),
                 !empty($row['locked'])?1:0,cds_meal_json($row),cds_meal_datetime($row['updated_at']??$row['created_at']??'')));
         }
+        cds_meal_batch_flush($pdo, $dailySql, $dailyBatch);
         cds_meal_delete_missing($pdo, 'cds_meal_daily', $dailyKeys, array('meal_date','student_id'));
 
         $reportSql = "INSERT INTO cds_meal_reports
@@ -237,7 +261,7 @@ function cds_meal_import_snapshot($actor = array(), $sourceData = null, $streami
             VALUES (?,?,?,?,?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE meal_date=VALUES(meal_date),class_name=VALUES(class_name),
             meal_code=VALUES(meal_code),student_count=VALUES(student_count),absent_count=VALUES(absent_count),
             raw_json=VALUES(raw_json),source_updated_at=VALUES(source_updated_at),imported_at=NOW()";
-        $stmt = $pdo->prepare($reportSql); $reportIds = array(); $reportTargets = array();
+        $reportBatch = array(); $reportIds = array(); $reportTargets = array();
         foreach ($data['reports'] as $row) {
             $id = cds_meal_report_id($row);
             if ($streaming) {
@@ -248,10 +272,11 @@ function cds_meal_import_snapshot($actor = array(), $sourceData = null, $streami
                 $reportTargets[$key] = true; $reportIds[$id] = $id;
             } else $reportIds[] = $id;
             $counts['reports']++;
-            $stmt->execute(array($id,(string)$row['date'],(string)$row['class_name'],(string)$row['meal'],
+            cds_meal_batch_add($pdo, $reportSql, $reportBatch, array($id,(string)$row['date'],(string)$row['class_name'],(string)$row['meal'],
                 max(0,(int)($row['student_count']??0)),max(0,(int)($row['absent_count']??0)),cds_meal_json($row),
                 cds_meal_datetime($row['updated_at']??$row['created_at']??'')));
         }
+        cds_meal_batch_flush($pdo, $reportSql, $reportBatch);
         cds_meal_delete_missing($pdo, 'cds_meal_reports', $reportIds, array('id'), true);
 
         $stateSql = "INSERT INTO cds_meal_states
@@ -411,17 +436,18 @@ function cds_meal_shadow_reports_data(array $data)
     $pdo=null;
     try {
         $pdo=cds_db();$pdo->beginTransaction();
-        $stmt=$pdo->prepare("INSERT INTO cds_meal_reports
+        $reportSql="INSERT INTO cds_meal_reports
             (id,meal_date,class_name,meal_code,student_count,absent_count,raw_json,source_updated_at,imported_at)
             VALUES (?,?,?,?,?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE meal_date=VALUES(meal_date),class_name=VALUES(class_name),
             meal_code=VALUES(meal_code),student_count=VALUES(student_count),absent_count=VALUES(absent_count),
-            raw_json=VALUES(raw_json),source_updated_at=VALUES(source_updated_at),imported_at=NOW()");
-        $ids=array();foreach(($data['reports']??array())as$row){
+            raw_json=VALUES(raw_json),source_updated_at=VALUES(source_updated_at),imported_at=NOW()";
+        $batch=array();$ids=array();foreach(($data['reports']??array())as$row){
             $id=cds_meal_report_id($row);$ids[]=$id;
-            $stmt->execute(array($id,(string)($row['date']??''),(string)($row['class_name']??''),(string)($row['meal']??''),
+            cds_meal_batch_add($pdo,$reportSql,$batch,array($id,(string)($row['date']??''),(string)($row['class_name']??''),(string)($row['meal']??''),
                 max(0,(int)($row['student_count']??0)),max(0,(int)($row['absent_count']??0)),cds_meal_json($row),
                 cds_meal_datetime($row['updated_at']??$row['created_at']??'')));
         }
+        cds_meal_batch_flush($pdo,$reportSql,$batch);
         cds_meal_delete_missing($pdo,'cds_meal_reports',$ids,array('id'),true);
         $stmt=$pdo->prepare("INSERT INTO cds_meal_states
             (meal_date,meal_code,status_code,raw_json,source_updated_at,imported_at)

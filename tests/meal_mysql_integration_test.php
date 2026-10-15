@@ -136,7 +136,9 @@ try {
         $snapshot=[];for($i=0;$i<($c<8?29:28);$i++)$snapshot[]=['id'=>'s'.$c.'-'.$i,'name'=>'Học sinh giả lập '.$i,'class_name'=>sprintf('L%02d',$c),'meal_group'=>'Nội trú','admission_date'=>'2026-08-01','departure_date'=>''];
         yield ['id'=>$date.'-'.$c.'-'.$meal,'date'=>$date,'class_name'=>sprintf('L%02d',$c),'meal'=>$meal,'student_count'=>count($snapshot),'student_snapshot'=>$snapshot,'unknown'=>true];
     }}),'Create full-year report recovery source');
+    $recoveryStart=microtime(true);
     check(noitru_meal_write(static fn()=>cds_meal_shadow_sync('full_year_fixture')),'Full-year bounded recovery');
+    $recoverySeconds=microtime(true)-$recoveryStart;
     check(cds_meal_pending_status()===null,'Recovery marker cleared');
     // Compare every raw record with bounded SELECT pages; no full-table PDO buffer.
     foreach(['daily'=>['cds_meal_daily','meal_date,student_id',cds_json_rows(NOITRU_MEALS)],
@@ -150,7 +152,16 @@ try {
         check($offset===($type==='daily'?133600:14028),'Expected source record count');
         check((int)$pdo->query('SELECT COUNT(*) FROM '.$table)->fetchColumn()===$offset,'No extra SQL rows');
     }
-    echo 'PASS bounded SQL recovery: 133600 daily records, 14028 reports, 400800 student snapshots; peak '.round(memory_get_peak_usage(true)/1048576,1).' MiB'.PHP_EOL;
+    echo 'PASS bounded SQL recovery: 133600 daily records, 14028 reports, 400800 student snapshots; peak '.round(memory_get_peak_usage(true)/1048576,1).' MiB; recovery '.round($recoverySeconds,3).' seconds (CI fixture only)'.PHP_EOL;
+    // Case-folding collisions must not publish a reduced SQL mirror or clear recovery markers.
+    $sqlBefore=$pdo->query("SELECT raw_json FROM cds_meal_daily ORDER BY meal_date,student_id LIMIT 1")->fetchColumn();
+    cds_json_rows_save(NOITRU_MEALS,[['date'=>'2027-06-30','student_id'=>'Case-ID','sang'=>'yes'],['date'=>'2027-06-30','student_id'=>'case-id','sang'=>'no']]);
+    check(!noitru_meal_write(static fn()=>cds_meal_shadow_sync('collation_collision')),'Colliding source keys rejected');
+    check((int)$pdo->query('SELECT COUNT(*) FROM cds_meal_daily')->fetchColumn()===133600,'Rejected recovery rolls back all SQL deletions');
+    check($pdo->query("SELECT raw_json FROM cds_meal_daily ORDER BY meal_date,student_id LIMIT 1")->fetchColumn()===$sqlBefore,'Rejected recovery retains original raw SQL record');
+    check(is_array(cds_meal_pending_status()),'Rejected recovery retains pending marker');
+    new_request();check(!cds_meal_sql_read_effective(),'Rejected recovery cannot expose stale SQL');
+    echo 'PASS SQL collation collision: full transaction rollback and durable JSON fallback'.PHP_EOL;
     echo 'PASS real SQL: migrations, read on/off, locks, injected SQL failure, cross-request fallback, recovery, 4 concurrent writers, exact history. Server: ' . $pdo->query('SELECT VERSION()')->fetchColumn() . "\n";
 } finally {
     if ($renamed) $pdo->exec('RENAME TABLE cds_meal_daily_unavailable TO cds_meal_daily');
