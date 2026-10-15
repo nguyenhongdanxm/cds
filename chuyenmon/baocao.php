@@ -3,6 +3,7 @@ $page_title = 'Báo cáo chuyên môn';
 require_once 'includes/functions.php';
 require_once 'includes/cm_docs.php';
 require_once __DIR__ . '/includes/lesson_book_store.php';
+require_once __DIR__ . '/includes/progress_runtime.php';
 
 $tabs = [
     'dinhky' => ['Báo cáo định kỳ', 'bi-calendar-month', 'cm.baocao.dinhky'],
@@ -115,22 +116,19 @@ function cm_progress_auto_metrics(array $assignments, array $year, ?array $week)
     if (!$wantedScopes) return $result;
 
     $scheduledByScope = [];
-    foreach (lb_weeks() as $statWeek) {
+    $calendarWeeks = lb_weeks();
+    $calendarVersion = hash('sha256', json_encode($calendarWeeks, JSON_THROW_ON_ERROR));
+    $scheduleVersion = cm_progress_schedule_version();
+    foreach ($calendarWeeks as $statWeek) {
         $start = (string)($statWeek['start'] ?? '');
         $end = (string)($statWeek['end'] ?? '');
-        if (($to !== '' && $start > $to) || ($from !== '' && $end < $from)) continue;
-        /* Mảng rỗng buộc lb_slots chỉ dựng TKB, không dò ghép từng tiết với
-           toàn bộ bản ghi Sổ đầu bài. Dạy thay, dạy bù và lấp tiết đã duyệt
-           vẫn được lb_slots bổ sung từ dữ liệu TKB. */
-        foreach (lb_slots($statWeek, []) as $row) {
-            $date = (string)($row['date'] ?? '');
-            if ($date === '' || $date < $from || $date > $to) continue;
-            $scopeKey = cm_progress_scope_key(
-                (string)($row['class'] ?? ''),
-                (string)($row['subject'] ?? '')
-            );
-            if (!isset($wantedScopes[$scopeKey])) continue;
-            $scheduledByScope[$scopeKey] = ($scheduledByScope[$scopeKey] ?? 0) + 1;
+        if ($start > $to || $end < $from) continue;
+        foreach (cm_progress_schedule_counts($statWeek, $scheduleVersion, $calendarVersion) as $date=>$scopes) {
+            if ($date < $from || $date > $to) continue;
+            foreach ($scopes as $scopeKey=>$count) {
+                if (!isset($wantedScopes[$scopeKey])) continue;
+                $scheduledByScope[$scopeKey] = ($scheduledByScope[$scopeKey] ?? 0) + $count;
+            }
         }
     }
 
@@ -176,19 +174,11 @@ function cm_progress_auto_metrics(array $assignments, array $year, ?array $week)
 }
 
 $progressFile = DATA_PATH . '/program_progress.json';
-$progressRecords = load_json($progressFile, []);
+$progressRecords = ($_SERVER['REQUEST_METHOD'] === 'POST') ? load_json($progressFile, []) : ($tab === 'tiendo' ? cm_progress_records_for_view($progressFile) : []);
 $progressYear = cm_progress_school_year();
 $progressWeeks = cm_progress_weeks($progressYear);
-$progressWeekNumber = max(1, (int)($_GET['week'] ?? 0));
-if (empty($_GET['week'])) {
-    $today = date('Y-m-d');
-    foreach ($progressWeeks as $week) {
-        if ($today >= $week['start'] && $today <= $week['end']) { $progressWeekNumber = (int)$week['number']; break; }
-    }
-}
-$progressWeek = null;
-foreach ($progressWeeks as $week) if ((int)$week['number'] === $progressWeekNumber) { $progressWeek = $week; break; }
-if (!$progressWeek && $progressWeeks) { $progressWeek = $progressWeeks[0]; $progressWeekNumber = 1; }
+$progressWeek = cm_progress_selected_week($progressWeeks, $_GET['week'] ?? '', date('Y-m-d'));
+$progressWeekNumber = (int)($progressWeek['number'] ?? 1);
 
 $progressAssignmentsAll = get_assignments();
 $progressAssignmentMap = [];
@@ -203,9 +193,12 @@ $sessionTeacherName = trim($_SESSION['cds_user']['teacher_name'] ?? $_SESSION['c
 $progressTeacher = $progressIsAdmin ? trim($_GET['teacher'] ?? $sessionTeacherName) : $sessionTeacherName;
 $progressView = ($progressIsAdmin && ($_GET['view'] ?? '') === 'thongke') ? 'thongke' : 'nhaplieu';
 $progressStatusFilter = in_array($_GET['status'] ?? 'all', ['all','fast','slow','ontime','missing'], true) ? ($_GET['status'] ?? 'all') : 'all';
+$progressGradeFilter = in_array((string)($_GET['grade'] ?? ''), array_map('strval', range(6,12)), true) ? (string)$_GET['grade'] : '';
 $progressSubjectFilter = trim($_GET['subject'] ?? '');
 $progressClassFilter = trim($_GET['class'] ?? '');
 $progressTeacherFilter = trim($_GET['filter_teacher'] ?? '');
+if ($progressGradeFilter !== '' && $progressClassFilter !== '' && cm_progress_grade($progressClassFilter) !== $progressGradeFilter) $progressClassFilter = '';
+$progressFilterGrades = [];
 $progressFilterSubjects = [];
 $progressFilterClasses = [];
 $progressFilterTeachers = [];
@@ -214,9 +207,15 @@ foreach ($progressAssignmentMap as $assignment) {
     $className = trim($assignment['class'] ?? '');
     $teacherName = trim($assignment['teacher'] ?? '');
     if ($subjectName !== '') $progressFilterSubjects[$subjectName] = true;
-    if ($className !== '') $progressFilterClasses[$className] = true;
+    if ($className !== '') {
+        $grade = cm_progress_grade($className);
+        if (in_array($grade, array_map('strval',range(6,12)), true)) $progressFilterGrades[$grade] = true;
+        if ($progressGradeFilter === '' || $grade === $progressGradeFilter) $progressFilterClasses[$className] = true;
+    }
     if ($teacherName !== '') $progressFilterTeachers[$teacherName] = true;
 }
+$progressFilterGrades = array_keys($progressFilterGrades);
+sort($progressFilterGrades,SORT_NUMERIC);
 $progressFilterSubjects = array_keys($progressFilterSubjects);
 $progressFilterClasses = array_keys($progressFilterClasses);
 $progressFilterTeachers = array_keys($progressFilterTeachers);
@@ -235,13 +234,14 @@ foreach ($progressAssignmentMap as $key => $assignment) {
     if ($progressView === 'nhaplieu') {
         if ($progressTeacher === '' || cm_progress_name_key($assignment['teacher'] ?? '') !== cm_progress_name_key($progressTeacher)) continue;
     } else {
+        if ($progressGradeFilter !== '' && cm_progress_grade((string)($assignment['class'] ?? '')) !== $progressGradeFilter) continue;
         if ($progressSubjectFilter !== '' && ($assignment['subject'] ?? '') !== $progressSubjectFilter) continue;
         if ($progressClassFilter !== '' && ($assignment['class'] ?? '') !== $progressClassFilter) continue;
         if ($progressTeacherFilter !== '' && ($assignment['teacher'] ?? '') !== $progressTeacherFilter) continue;
     }
     $progressMetricAssignments[$key] = $assignment;
 }
-$progressAutoByAssignment = cm_progress_auto_metrics($progressMetricAssignments, $progressYear, $progressWeek);
+$progressAutoByAssignment = $tab === 'tiendo' ? cm_progress_auto_metrics($progressMetricAssignments, $progressYear, $progressWeek) : [];
 $progressByAssignment = [];
 $progressPreviousByAssignment = [];
 $progressMilestonesByAssignment = [];
@@ -452,6 +452,12 @@ function cm_view_btns($it) {
     </select>
   </div>
   <?php elseif ($progressView === 'thongke'): ?>
+  <div><label class="form-label fw-semibold" for="progress-grade">Khối</label>
+    <select class="form-select" id="progress-grade" name="grade" onchange="this.form.submit()">
+      <option value="">Tất cả khối</option>
+      <?php foreach ($progressFilterGrades as $grade): ?><option value="<?= e((string)$grade) ?>" <?= (string)$grade===$progressGradeFilter?'selected':'' ?>>Khối <?= e((string)$grade) ?></option><?php endforeach; ?>
+    </select>
+  </div>
   <div><label class="form-label fw-semibold">Tiến độ</label>
     <select class="form-select" name="status" onchange="this.form.submit()">
       <option value="all" <?= $progressStatusFilter==='all'?'selected':'' ?>>Tất cả trạng thái</option>
@@ -479,7 +485,7 @@ function cm_view_btns($it) {
       <?php foreach ($progressFilterTeachers as $teacherName): ?><option value="<?= e($teacherName) ?>" <?= $teacherName===$progressTeacherFilter?'selected':'' ?>><?= e($teacherName) ?></option><?php endforeach; ?>
     </select>
   </div>
-  <?php if ($progressStatusFilter!=='all' || $progressSubjectFilter!=='' || $progressClassFilter!=='' || $progressTeacherFilter!==''): ?>
+  <?php if ($progressGradeFilter!=='' || $progressStatusFilter!=='all' || $progressSubjectFilter!=='' || $progressClassFilter!=='' || $progressTeacherFilter!==''): ?>
   <div><a class="btn btn-outline-secondary w-100" href="<?= BASE_URL ?>baocao.php?tab=tiendo&view=thongke&week=<?= $progressWeekNumber ?>"><i class="bi bi-x-circle"></i> Xóa bộ lọc</a></div>
   <?php endif; ?>
   <?php endif; ?>
@@ -552,7 +558,7 @@ document.querySelectorAll('[data-progress-row]').forEach(function(row){
 
 <?php else:
   $statsRows=[];$fast=0;$slow=0;$onTime=0;$missing=0;
-  foreach($progressAssignmentMap as $key=>$assignment){
+  foreach($progressMetricAssignments as $key=>$assignment){
     if($progressSubjectFilter!=='' && ($assignment['subject']??'')!==$progressSubjectFilter)continue;
     if($progressClassFilter!=='' && ($assignment['class']??'')!==$progressClassFilter)continue;
     if($progressTeacherFilter!=='' && ($assignment['teacher']??'')!==$progressTeacherFilter)continue;
