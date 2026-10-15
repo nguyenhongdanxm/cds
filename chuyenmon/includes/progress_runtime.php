@@ -33,7 +33,7 @@ function cm_progress_selected_week(array $weeks, $requested, string $today): ?ar
 }
 /** Fingerprint all schedule sources. Never cache signed PPCT/actual progress. */
 function cm_progress_schedule_version(): ?string {
-    $files = [__FILE__, __DIR__.'/lesson_book_store.php', __DIR__.'/timetable_store.php'];
+    $files = [__FILE__, dirname(__DIR__).'/baocao.php', __DIR__.'/lesson_book_store.php', __DIR__.'/timetable_store.php', dirname(__DIR__,2).'/includes/database_lesson_book.php'];
     foreach (['TKB_WEEKS_FILE','TKB_MAPPING_FILE','TKB_SUBSTITUTIONS_FILE','TKB_ROOMS_FILE','TKB_ROOM_BOOKINGS_FILE'] as $name) {
         if (!defined($name)) return null;
         $files[] = constant($name);
