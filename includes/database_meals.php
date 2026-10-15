@@ -172,7 +172,8 @@ function cds_meal_delete_missing(PDO $pdo, $table, array $keys, array $columns, 
     }
     /* Dùng bảng tạm theo từng lô để lịch sử dài không tạo một câu SQL quá lớn. */
     $pdo->exec('DROP TEMPORARY TABLE IF EXISTS cds_meal_sync_keys');
-    $pdo->exec('CREATE TEMPORARY TABLE cds_meal_sync_keys (key_value VARCHAR(512) NOT NULL PRIMARY KEY) ENGINE=InnoDB');
+    // Match the production meal tables instead of inheriting the server default.
+    $pdo->exec('CREATE TEMPORARY TABLE cds_meal_sync_keys (key_value VARCHAR(512) NOT NULL PRIMARY KEY) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
     $insert = $pdo->prepare('INSERT IGNORE INTO cds_meal_sync_keys (key_value) VALUES (?)');
     foreach (array_values(array_unique($keys)) as $key) {
         $insert->execute(array((string)$key));
@@ -180,6 +181,8 @@ function cds_meal_delete_missing(PDO $pdo, $table, array $keys, array $columns, 
     $expression = count($columns) === 1
         ? 'CAST(t.' . $columns[0] . ' AS CHAR)'
         : 'CONCAT_WS(\'|\',' . implode(',', array_map(function ($column) { return 't.' . $column; }, $columns)) . ')';
+    // CAST/CONCAT can carry the connection collation, even when table columns match.
+    $expression = 'CONVERT(' . $expression . ' USING utf8mb4) COLLATE utf8mb4_unicode_ci';
     $pdo->exec('DELETE t FROM ' . $table . ' t LEFT JOIN cds_meal_sync_keys k ON k.key_value=' . $expression . ' WHERE k.key_value IS NULL');
     $pdo->exec('DROP TEMPORARY TABLE IF EXISTS cds_meal_sync_keys');
 }

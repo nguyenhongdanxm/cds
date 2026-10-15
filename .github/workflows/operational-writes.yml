@@ -5,11 +5,15 @@ on:
       - 'includes/json_store.php'
       - 'includes/noitru_store.php'
       - 'includes/noitru_meal_history.php'
+      - 'includes/database_meals.php'
+      - 'includes/database_meal_read.php'
+      - 'includes/database_migrations.php'
       - 'chuyenmon/includes/lesson_book_store.php'
       - 'noitru.php'
       - 'tests/operational_writes_test.php'
       - 'tests/weekly_review_year_test.php'
       - 'tests/meal_mysql_integration_test.php'
+      - 'tests/json_interruption_test.php'
       - 'tests/support/load_functions.php'
       - '.github/workflows/operational-writes.yml'
   workflow_dispatch:
@@ -29,6 +33,7 @@ jobs:
           php -l includes/json_store.php
           php -l includes/noitru_store.php
           php -l includes/noitru_meal_history.php
+          php -l includes/database_meals.php
           php -l chuyenmon/includes/lesson_book_store.php
           php -l noitru.php
           php -l tests/operational_writes_test.php
@@ -39,6 +44,7 @@ jobs:
           php tests/operational_writes_test.php
           php tests/weekly_review_year_test.php
           php tests/lesson_book_manual_test.php
+          php tests/json_interruption_test.php
   disposable-sql:
     runs-on: ubuntu-latest
     timeout-minutes: 10
