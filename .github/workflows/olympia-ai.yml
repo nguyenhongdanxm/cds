@@ -1,0 +1,62 @@
+name: Olympia AI safety
+on:
+  pull_request:
+    paths:
+      - 'hoclieu_game_olympia.php'
+      - 'includes/olympia_ai*.php'
+      - 'assets/olympia-ai.js'
+      - 'tests/olympia_ai*'
+      - '.github/workflows/olympia-ai.yml'
+  workflow_dispatch:
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l hoclieu_game_olympia.php
+          php -l includes/olympia_ai.php
+          php -l includes/olympia_ai_panel.php
+          node --check assets/olympia-ai.js
+          php tests/olympia_ai_test.php
+          node tests/olympia_ai_ui_test.cjs
+  disposable-sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        database: ['mysql:8.0', 'mariadb:10.11']
+    services:
+      mysql:
+        image: ${{ matrix.database }}
+        env:
+          MYSQL_ROOT_PASSWORD: fixture-root-only-password
+          MYSQL_DATABASE: cds_disposable_test
+          MYSQL_USER: cds_fixture
+          MYSQL_PASSWORD: fixture-only-password
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring
+      - name: Safe synthetic database test
+        env:
+          CDS_TEST_MYSQL: disposable-ci
+          CDS_TEST_MYSQL_PORT: ${{ job.services.mysql.ports[3306] }}
+        run: php tests/olympia_ai_mysql_test.php
