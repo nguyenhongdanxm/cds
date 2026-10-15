@@ -1,0 +1,33 @@
+name: Timetable editor AI safety
+on:
+  pull_request:
+    paths:
+      - 'tkb_editor.php'
+      - 'tkb_xep.php'
+      - 'includes/timetable*'
+      - 'assets/timetable-editor-ai.js'
+      - 'tests/timetable_editor_ai*'
+      - '.github/workflows/timetable-editor-ai.yml'
+  workflow_dispatch:
+jobs:
+  editor-ai:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l tkb_editor.php
+          php -l tkb_xep.php
+          php -l includes/timetable_editor_ai.php
+          php -l includes/timetable_editor_ai_panel.php
+          php -l includes/timetable_slot_validation.php
+          php tests/timetable_editor_ai_test.php
+          php tests/timetable_workspace_copy_test.php
+          node --check assets/timetable-editor-ai.js
+          node tests/timetable_editor_ai_ui_test.cjs
