@@ -19,6 +19,7 @@ on:
       - 'tests/json_interruption_test.php'
       - 'tests/json_rows_test.php'
       - 'tests/json_fields_test.php'
+      - 'tests/report_stream_parity_test.php'
       - 'tests/year_meal_memory_test.php'
       - 'tests/support/load_functions.php'
       - '.github/workflows/operational-writes.yml'
@@ -56,6 +57,7 @@ jobs:
           php tests/json_interruption_test.php
           php tests/json_rows_test.php
           php tests/json_fields_test.php
+          php tests/report_stream_parity_test.php
           php -d memory_limit=128M tests/year_meal_memory_test.php
   disposable-sql:
     runs-on: ubuntu-latest

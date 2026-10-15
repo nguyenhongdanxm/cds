@@ -98,13 +98,48 @@ trường. Thử ngắt tiến trình ở đây kiểm chứng tính nguyên t�
 không chứng minh toàn bộ thao tác qua nhiều tệp và SQL là một transaction.
 Giới hạn 128 MB khi đọc cả năm JSON ở mục trước chưa được giải quyết.
 
+## Cập nhật bộ nhớ và ghi theo lô ngày 15/10/2026
+
+Các giới hạn 128 MB ghi ở các lần kiểm thử trước là kết quả lịch sử trước
+bản tối ưu streaming, không phải kết quả của phiên bản hiện tại.
+
+- Đọc, kiểm tra và thay thế bản ghi JSON theo luồng; tệp gốc chỉ được thay
+  khi đã hoàn thành toàn bộ tệp tạm. Giữ thứ tự, kiểu dữ liệu, trường tùy
+  chỉnh và danh sách học sinh lịch sử; không xóa lịch sử để giảm bộ nhớ.
+- Các biểu mẫu báo ăn chỉ gửi bữa được sửa, tránh ghi đè bữa khác từ biểu
+  mẫu đã cũ. Báo thường, báo dài ngày, nghỉ cả lớp và xác nhận đủ suất lưu
+  theo lô thay vì ghi lại cả năm cho từng học sinh.
+- Báo cáo dùng luồng JSON hoặc trang SQL 250 dòng. Khóa đọc dùng chung
+  khóa miền báo ăn để một báo cáo không trộn hai phiên bản khi có người ghi.
+- Dấu inflight được tạo trước khi ghi nguồn, chặn SQL cũ nếu tiến trình
+  dừng sau JSON nhưng trước SQL. Khôi phục SQL dùng luồng trong transaction;
+  nguồn thiếu khóa/trùng khóa hoặc số dòng SQL khác nguồn thì rollback và
+  giữ dấu chờ. Không tự xóa dấu chờ khi khôi phục lỗi.
+
+Kết quả cục bộ trên PHP 8.3, dữ liệu hoàn toàn giả lập:
+
+| Kiểm tra | Kết quả |
+| --- | --- |
+| 100 fixture danh sách JSON và 100 fixture đối tượng JSON | Đạt; gồm UTF-8, escape, ranh giới chunk, nguồn hỏng, lỗi giữa luồng |
+| 60 lô báo cáo so với quy tắc tuần tự cũ | Đạt; giữ first-match, snapshot, tombstone và metadata |
+| 400 học sinh × 334 ngày, 60 thay đổi theo lô, PHP 128 MB | 133.600 bản ghi giữ nguyên ngoài trường được sửa |
+| 14 lớp × 334 ngày × 3 bữa, giữ danh sách học sinh trong mỗi phiếu | 14.028 phiếu và 400.800 lượt snapshot được đối chiếu toàn bộ |
+| Chạy chung cả báo ăn và báo cáo cả năm, PHP 128 MB | Đạt; đỉnh bộ nhớ quan sát 6 MiB |
+
+Lệnh kiểm thử mới: `php tests/json_fields_test.php`,
+`php tests/report_stream_parity_test.php`,
+`php -d memory_limit=128M tests/year_meal_memory_test.php`.
+Workflow SQL riêng kiểm thử khôi phục và đối chiếu từng dòng của fixture
+cả năm trên MySQL/MariaDB; kết quả phải được xác nhận trên đúng commit
+cuối trước khi merge. Số liệu bộ nhớ/thời gian trên fixture không bảo đảm
+hiệu năng hosting hoặc mọi dữ liệu thực tế.
+
 ## Phạm vi chưa hoàn thành
 
-- Chưa chuyển báo ăn sang ghi SQL chính hoặc lưu cả lớp trong một lần.
+- Chưa chuyển báo ăn sang ghi SQL chính. JSON tiếp tục là nguồn ghi.
 - Khóa này không biến việc ghi nhiều tệp thành một transaction có rollback.
 - Hai người sửa cùng một ô vẫn theo quy tắc lần lưu sau cùng; chưa có kiểm
-  tra phiên bản biểu mẫu. Payload bữa ăn từ biểu mẫu cũ vẫn cần cải thiện
-  tiếp để tránh gửi lại các bữa không được chủ động sửa.
+  tra phiên bản biểu mẫu. Biểu mẫu mới chỉ gửi các bữa chủ động sửa.
 - Không tự suy đoán hoặc chuyển đổi các nhận xét rất cũ thiếu năm học;
   chúng giữ cơ chế tương thích xác định năm hiện hành của mã cũ.
 - Đã kiểm thử MySQL/MariaDB dùng một lần; chưa kiểm thử hosting của trường.

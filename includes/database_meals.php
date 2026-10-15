@@ -268,6 +268,14 @@ function cds_meal_import_snapshot($actor = array(), $sourceData = null, $streami
         $pdo->prepare("INSERT INTO cds_meal_settings (id,raw_json,imported_at) VALUES (1,?,NOW())
             ON DUPLICATE KEY UPDATE raw_json=VALUES(raw_json),imported_at=NOW()")
             ->execute(array(cds_meal_json($data['settings'])));
+        if ($streaming) {
+            // Detect keys that the SQL collation folds together before committing recovery.
+            foreach (array('daily'=>'cds_meal_daily','reports'=>'cds_meal_reports') as $kind=>$table) {
+                if ((int)$pdo->query('SELECT COUNT(*) FROM '.$table)->fetchColumn() !== $counts[$kind]) {
+                    throw new RuntimeException('Số bản ghi SQL không khớp nguồn; hủy khôi phục.');
+                }
+            }
+        }
         $audit = $pdo->prepare("INSERT INTO cds_audit_log
             (actor_user_id,actor_name,module_key,action_key,entity_type,entity_id,after_json,request_ip,created_at)
             VALUES (?,?,'noitru','import_meal_snapshot','meal_snapshot','3A',?,?,NOW())");
