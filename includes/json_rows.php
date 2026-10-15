@@ -1,15 +1,18 @@
 <?php
 /** Incremental JSON-list I/O. Existing files are published only after full validation. */
-function cds_json_rows(string $file): Generator {
+function cds_json_rows(string $file, int $at = 0, ?int $length = null): Generator {
     if (!file_exists($file)) return;
     $handle = @fopen($file, 'rb');
     if (!$handle) throw new RuntimeException('Không đọc được dữ liệu: ' . basename($file));
     $phase = 'root'; $record = ''; $depth = 0; $string = false; $escaped = false;
     try {
-        while (!feof($handle)) {
-            $chunk = fread($handle, 65536);
+        if ($at > 0 && fseek($handle, $at) !== 0) throw new RuntimeException('Không tìm được vùng JSON.');
+        $remaining = $length;
+        while (!feof($handle) && ($remaining === null || $remaining > 0)) {
+            $chunk = fread($handle, $remaining === null ? 65536 : min(65536, $remaining));
             if ($chunk === false) throw new RuntimeException('Lỗi đọc dữ liệu: ' . basename($file));
-            for ($i = 0, $length = strlen($chunk); $i < $length; $i++) {
+            if ($remaining !== null) $remaining -= strlen($chunk);
+            for ($i = 0, $chunkLength = strlen($chunk); $i < $chunkLength; $i++) {
                 $char = $chunk[$i];
                 if ($phase === 'record') {
                     if (!$escaped) {
@@ -46,7 +49,7 @@ function cds_json_rows(string $file): Generator {
                 throw new RuntimeException('Danh sách JSON không hợp lệ; giữ nguyên nguồn: ' . basename($file));
             }
         }
-        if ($phase !== 'end') throw new RuntimeException('Danh sách JSON chưa hoàn chỉnh; giữ nguyên nguồn: ' . basename($file));
+        if ($phase !== 'end' || ($remaining !== null && $remaining !== 0)) throw new RuntimeException('Danh sách JSON chưa hoàn chỉnh; giữ nguyên nguồn: ' . basename($file));
     } finally { fclose($handle); }
 }
 

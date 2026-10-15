@@ -73,7 +73,7 @@ function nt_rice_build_detail($from, $to, array $riceData) {
 
     $validReports = [];
     $stateCache = [];
-    foreach (noitru_meal_reports_data()['reports'] ?? [] as $report) {
+    foreach (noitru_meal_report_rows() as $report) {
         $date = (string)($report['date'] ?? '');
         $meal = (string)($report['meal'] ?? '');
         $className = trim((string)($report['class_name'] ?? '')) ?: '(Chưa lớp)';

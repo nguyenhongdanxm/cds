@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/json_rows.php';
+require_once __DIR__ . '/json_fields.php';
 /**
  * Đọc/ghi JSON dùng chung cho toàn bộ CDS.
  *

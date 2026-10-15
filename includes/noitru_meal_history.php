@@ -61,13 +61,13 @@ function nt_meal_history_delete_related_data_unlocked(array $historyRows) {
     foreach (array_keys($targets) as $targetKey) $deletedTargets[$targetKey] = true;
     noitru_meal_deleted_targets_save($deletedTargets);
 
-    $reportData = noitru_meal_reports_data();
-    $beforeReports = count($reportData['reports'] ?? []);
-    $reportData['reports'] = array_values(array_filter($reportData['reports'] ?? [], function ($report) use ($targets) {
-        $key = (string)($report['date'] ?? '') . '|' . (string)($report['class_name'] ?? '') . '|' . (string)($report['meal'] ?? '');
-        return !isset($targets[$key]);
-    }));
-    noitru_meal_reports_save($reportData);
+    $beforeReports = iterator_count(noitru_meal_report_rows());
+    if (!noitru_meal_reports_mutate(static function ($rows) use ($targets) {
+        foreach ($rows as $report) {
+            $key = (string)($report['date'] ?? '') . '|' . (string)($report['class_name'] ?? '') . '|' . (string)($report['meal'] ?? '');
+            if (!isset($targets[$key])) yield $report;
+        }
+    })) return 0;
 
     $studentsByClass = [];
     foreach (noitru_boarders_live() as $student) {
@@ -96,7 +96,7 @@ function nt_meal_history_delete_related_data_unlocked(array $historyRows) {
     if (!cds_json_rows_save(NOITRU_MEALS, $mealRows)) return 0;
     noitru_meal_read_cache_clear();
     if (!cds_meal_shadow_sync('history_delete')) cds_meal_shadow_notify_failure();
-    return $beforeReports - count($reportData['reports']);
+    return $beforeReports - iterator_count(noitru_meal_report_rows());
 }
 
 function nt_meal_history_target_keys(array $historyRows) {
@@ -119,7 +119,7 @@ function nt_meal_history_all() {
     }
     $changed = false;
     $deletedSources = nt_meal_history_deleted_sources();
-    foreach ((array)(noitru_meal_reports_data()['reports'] ?? []) as $report) {
+    foreach (noitru_meal_report_rows() as $report) {
         $reportId = trim((string)($report['id'] ?? ''));
         $reportKey = implode('|', [(string)($report['date']??''),(string)($report['class_name']??''),(string)($report['meal']??'')]);
         if ($reportId === '' || isset($deletedSources[$reportId]) || isset($known[$reportId]) || isset($knownKeys[$reportKey])) continue;

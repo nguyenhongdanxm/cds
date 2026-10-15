@@ -23,6 +23,7 @@ require __DIR__ . '/../includes/database_meals.php';
 require __DIR__ . '/../includes/database_meal_read.php';
 require __DIR__ . '/../includes/database_migrations.php';
 require __DIR__ . '/support/load_functions.php';
+require __DIR__ . '/../includes/noitru_report_stream.php';
 function load_json($file, $default = []) { return cds_json_load($file, $default); }
 function save_json($file, $data) { return cds_json_save($file, $data); }
 function noitru_ensure_dir() {}
@@ -39,7 +40,7 @@ load_functions(__DIR__ . '/../includes/noitru_store.php', [
     'noitru_meal_upsert_many','noitru_meal_upsert_many_unlocked','noitru_meals_replace_rows','noitru_meal_upsert','noitru_meal_upsert_unlocked','noitru_meals_lock_day','noitru_meals_lock_day_unlocked',
     'noitru_meal_target_key','noitru_meal_deleted_targets','noitru_meal_deleted_targets_save','noitru_meal_deleted_targets_save_unlocked',
     'noitru_meal_reports_data','noitru_meal_reports_save','noitru_meal_reports_save_unlocked',
-    'noitru_meal_report_upsert','noitru_meal_report_upsert_unlocked','noitru_meal_state_set','noitru_meal_state_set_unlocked',
+    'noitru_meal_report_snapshot','noitru_meal_report_upsert','noitru_meal_report_upsert_unlocked','noitru_meal_state_set','noitru_meal_state_set_unlocked',
 ]);
 $pdo = cds_db();
 check($pdo->query('SELECT DATABASE()')->fetchColumn() === 'cds_disposable_test', 'Wrong database');
@@ -125,6 +126,31 @@ try {
     check(cds_meal_compare_snapshot()['is_match'] && cds_meal_sql_read_effective() && !is_file(cds_meal_inflight_path()),'Crash recovery restores both stores before SQL reads resume');
     cds_meal_sql_read_set(false,current_user());
     new_request(); check(!cds_meal_sql_read_effective() && count(noitru_meals_all()) === 36, 'Explicit JSON-only read mode retained');
+    // Full-year recovery must fit the same 128 MiB budget as normal requests.
+    unset($source,$before);new_request();
+    check(ini_set('memory_limit','128M')!==false,'Set bounded recovery memory');
+    $first=new DateTimeImmutable('2026-08-01');
+    $dates=[];for($i=0;$i<334;$i++)$dates[]=$first->modify('+'.$i.' days')->format('Y-m-d');
+    check(cds_json_rows_save(NOITRU_MEALS,(static function()use($dates){foreach($dates as$date)for($i=0;$i<400;$i++)yield ['date'=>$date,'student_id'=>sprintf('s%04d',$i),'sang'=>'yes','trua'=>'no','toi'=>'yes','custom'=>['text'=>'Giữ nguyên']];})()),'Create full-year recovery source');
+    check(cds_json_field_save(NOITRU_MEAL_REPORTS,'reports',static function($old)use($dates){foreach($dates as$date)for($c=0;$c<14;$c++)foreach(['sang','toi','trua']as$meal){
+        $snapshot=[];for($i=0;$i<($c<8?29:28);$i++)$snapshot[]=['id'=>'s'.$c.'-'.$i,'name'=>'Học sinh giả lập '.$i,'class_name'=>sprintf('L%02d',$c),'meal_group'=>'Nội trú','admission_date'=>'2026-08-01','departure_date'=>''];
+        yield ['id'=>$date.'-'.$c.'-'.$meal,'date'=>$date,'class_name'=>sprintf('L%02d',$c),'meal'=>$meal,'student_count'=>count($snapshot),'student_snapshot'=>$snapshot,'unknown'=>true];
+    }}),'Create full-year report recovery source');
+    check(noitru_meal_write(static fn()=>cds_meal_shadow_sync('full_year_fixture')),'Full-year bounded recovery');
+    check(cds_meal_pending_status()===null,'Recovery marker cleared');
+    // Compare every raw record with bounded SELECT pages; no full-table PDO buffer.
+    foreach(['daily'=>['cds_meal_daily','meal_date,student_id',cds_json_rows(NOITRU_MEALS)],
+             'reports'=>['cds_meal_reports','meal_date,class_name,meal_code',cds_json_field_rows(NOITRU_MEAL_REPORTS,'reports')]]as$type=>[$table,$order,$rows]){
+        $page=[];$offset=0;$index=0;
+        foreach($rows as$row){
+            if(!$page){$page=$pdo->query('SELECT raw_json FROM '.$table.' ORDER BY '.$order.' LIMIT 250 OFFSET '.$offset)->fetchAll(PDO::FETCH_COLUMN);$index=0;}
+            check(isset($page[$index])&&json_decode($page[$index],true)===$row,'Full-year exact raw record parity: '.$type.' '.$offset);
+            $index++;$offset++;if($index===count($page))$page=[];
+        }
+        check($offset===($type==='daily'?133600:14028),'Expected source record count');
+        check((int)$pdo->query('SELECT COUNT(*) FROM '.$table)->fetchColumn()===$offset,'No extra SQL rows');
+    }
+    echo 'PASS bounded SQL recovery: 133600 daily records, 14028 reports, 400800 student snapshots; peak '.round(memory_get_peak_usage(true)/1048576,1).' MiB'.PHP_EOL;
     echo 'PASS real SQL: migrations, read on/off, locks, injected SQL failure, cross-request fallback, recovery, 4 concurrent writers, exact history. Server: ' . $pdo->query('SELECT VERSION()')->fetchColumn() . "\n";
 } finally {
     if ($renamed) $pdo->exec('RENAME TABLE cds_meal_daily_unavailable TO cds_meal_daily');

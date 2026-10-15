@@ -3,6 +3,7 @@
 require_once __DIR__ . '/csdl_store.php';
 require_once __DIR__ . '/database_meals.php';
 require_once __DIR__ . '/database_meal_read.php';
+require_once __DIR__ . '/noitru_report_stream.php';
 
 /* Toàn bộ mốc báo ăn dùng giờ Việt Nam, không phụ thuộc múi giờ PHP của hosting. */
 date_default_timezone_set('Asia/Ho_Chi_Minh');
@@ -326,7 +327,7 @@ function noitru_meal_write(callable $write, $failure = false) {
     try {
         // Refuse to overwrite either source when an existing file cannot be read.
         foreach (cds_json_rows(NOITRU_MEALS) as $validatedRow) { /* validate without retaining history */ }
-        cds_json_load_for_update(NOITRU_MEAL_REPORTS, []);
+        cds_json_fields(NOITRU_MEAL_REPORTS);
         if ($inflight !== '' && cds_meal_shadow_enabled()) {
             if (is_file($inflight) && !cds_meal_pending_mark('interrupted_write')) return $failure;
             if (!cds_json_save($inflight, ['at'=>date('c')])) return $failure;
@@ -335,6 +336,7 @@ function noitru_meal_write(callable $write, $failure = false) {
         $GLOBALS['cds_force_json_meal_read'] = true;
         noitru_meal_read_cache_clear();
         $depth++;
+        $GLOBALS['noitru_meal_write_active'] = true;
         $result = $write();
         $finished = $result !== false;
         return $result;
@@ -343,6 +345,7 @@ function noitru_meal_write(callable $write, $failure = false) {
         return $failure;
     } finally {
         $depth = 0;
+        unset($GLOBALS['noitru_meal_write_active']);
         if ($markerStarted && $finished) @unlink($inflight);
         // A failed mirror deliberately sets this flag: preserve its fallback.
         if (!is_array(cds_meal_pending_status()) && ($inflight === '' || !is_file($inflight))) {
@@ -356,7 +359,7 @@ function noitru_meal_write(callable $write, $failure = false) {
 }
 
 function noitru_meal_read_cache_clear($date = null) {
-    unset($GLOBALS['noitru_meals_all_cache'], $GLOBALS['noitru_meal_reports_cache']);
+    unset($GLOBALS['noitru_meals_all_cache'], $GLOBALS['noitru_meal_reports_cache'], $GLOBALS['noitru_meal_meta_cache']);
     if ($date === null) unset($GLOBALS['noitru_meals_date_cache']);
     else unset($GLOBALS['noitru_meals_date_cache'][(string)$date]);
 }
@@ -385,34 +388,9 @@ function noitru_meal_deleted_targets_save_unlocked(array $keys) {
     return save_json(NOITRU_DIR . '/meal_history_deleted_targets.json', array_keys($keys));
 }
 function noitru_meal_reports_data() {
-    noitru_ensure_dir();
-    if (isset($GLOBALS['noitru_meal_reports_cache'])) return $GLOBALS['noitru_meal_reports_cache'];
-    if (cds_meal_sql_read_effective()) {
-        try { $data = cds_meal_sql_reports_data(); }
-        catch (Throwable $e) { cds_meal_sql_fallback('reports', $e); $data = load_json(NOITRU_MEAL_REPORTS, ['reports'=>[], 'states'=>[], 'settings'=>[]]); }
-    } else {
-        $data = load_json(NOITRU_MEAL_REPORTS, ['reports'=>[], 'states'=>[], 'settings'=>[]]);
-    }
-    $data['reports'] = $data['reports'] ?? [];
-    /* Các lượt đã xóa khỏi lịch sử không được tiếp tục tham gia tổng hợp. */
-    $deletedReportIds = load_json(NOITRU_DIR . '/meal_history_deleted.json', []);
-    if (is_array($deletedReportIds) && $deletedReportIds) {
-        $deletedReportIds = array_fill_keys(array_map('strval', $deletedReportIds), true);
-        $data['reports'] = array_values(array_filter($data['reports'], fn($row) => !isset($deletedReportIds[(string)($row['id'] ?? '')])));
-    }
-    $deletedTargets = noitru_meal_deleted_targets();
-    if ($deletedTargets) {
-        $data['reports'] = array_values(array_filter($data['reports'], function ($row) use ($deletedTargets) {
-            return !isset($deletedTargets[noitru_meal_target_key($row['date'] ?? '', $row['class_name'] ?? '', $row['meal'] ?? '')]);
-        }));
-    }
-    $data['states'] = $data['states'] ?? [];
-    $data['settings'] = array_merge([
-        'sang_lock_time'=>'20:00',
-        'trua_lock_time'=>'09:00',
-        'toi_lock_time'=>'15:00',
-    ], $data['settings'] ?? []);
-    return $GLOBALS['noitru_meal_reports_cache'] = $data;
+    $data = noitru_meal_report_meta();
+    $data['reports'] = iterator_to_array(noitru_meal_report_rows(), false);
+    return $data;
 }
 function noitru_meal_reports_save(array $data) {
     return noitru_meal_write(static function () use ($data) {
@@ -430,7 +408,7 @@ function noitru_meal_reports_save_unlocked(array $data) {
     return true;
 }
 function noitru_meal_settings() {
-    return noitru_meal_reports_data()['settings'];
+    return noitru_meal_report_meta()['settings'];
 }
 function noitru_meal_settings_save(array $settings) {
     return noitru_meal_write(static function () use ($settings) {
@@ -438,15 +416,15 @@ function noitru_meal_settings_save(array $settings) {
     }, false);
 }
 function noitru_meal_settings_save_unlocked(array $settings) {
-    $data = noitru_meal_reports_data();
+    $data = noitru_meal_report_meta();
     foreach (['sang','trua','toi'] as $meal) {
         $value = trim($settings[$meal . '_lock_time'] ?? '');
         if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $value)) $data['settings'][$meal . '_lock_time'] = $value;
     }
-    return noitru_meal_reports_save($data);
+    return noitru_meal_reports_mutate(null, $data);
 }
 function noitru_meal_report_for($date, $class, $meal) {
-    foreach (noitru_meal_reports_data()['reports'] ?? [] as $row) {
+    foreach (noitru_meal_report_rows() as $row) {
         if (($row['date'] ?? '') === $date && ($row['class_name'] ?? '') === $class && ($row['meal'] ?? '') === $meal) return $row;
     }
     return null;
@@ -457,6 +435,9 @@ function noitru_meal_report_upsert(array $row) {
     }, false);
 }
 function noitru_meal_report_upsert_unlocked(array $row) {
+    return noitru_meal_report_upsert_many([$row]);
+}
+function noitru_meal_report_snapshot(array $row): array {
     if (empty($row['student_snapshot']) && !empty($row['date']) && !empty($row['class_name'])) {
         $snapshot = [];
         foreach (noitru_boarders_on_date((string)$row['date']) as $student) {
@@ -472,29 +453,11 @@ function noitru_meal_report_upsert_unlocked(array $row) {
         $row['student_snapshot'] = $snapshot;
         $row['student_ids'] = array_values(array_filter(array_map(fn($student) => $student['id'], $snapshot)));
     }
-    $data = noitru_meal_reports_data();
-    /* Báo lại sau khi đã xóa là một phiếu mới hợp lệ, nên mở lại đúng khóa này. */
-    $deletedTargets = noitru_meal_deleted_targets();
-    $targetKey = noitru_meal_target_key($row['date'] ?? '', $row['class_name'] ?? '', $row['meal'] ?? '');
-    if (isset($deletedTargets[$targetKey])) {
-        unset($deletedTargets[$targetKey]);
-        if (!noitru_meal_deleted_targets_save($deletedTargets)) return false;
-    }
-    $found = false;
-    foreach ($data['reports'] as &$saved) {
-        if (($saved['date'] ?? '') === ($row['date'] ?? '') && ($saved['class_name'] ?? '') === ($row['class_name'] ?? '') && ($saved['meal'] ?? '') === ($row['meal'] ?? '')) {
-            $saved = array_merge($saved, $row, ['updated_at'=>noitru_now()]);
-            $found = true;
-            break;
-        }
-    }
-    unset($saved);
-    if (!$found) $data['reports'][] = array_merge(['id'=>noitru_uid('mr'), 'created_at'=>noitru_now()], $row);
-    return noitru_meal_reports_save($data);
+    return $row;
 }
 function noitru_meal_state($date, $meal) {
     $saved = null;
-    foreach (noitru_meal_reports_data()['states'] ?? [] as $row) {
+    foreach (noitru_meal_report_meta()['states'] ?? [] as $row) {
         if (($row['date'] ?? '') === $date && ($row['meal'] ?? '') === $meal) { $saved = $row; break; }
     }
     if ($saved && in_array($saved['status'] ?? '', ['locked','off'], true)) return $saved;
@@ -524,7 +487,7 @@ function noitru_meal_state_set($date, $meal, $status, $by = '') {
 function noitru_meal_state_set_unlocked($date, $meal, $status, $by = '') {
     if (!in_array($status, ['open','locked','off'], true)) $status = 'open';
     if ($status === 'open') $status = 'open_override';
-    $data = noitru_meal_reports_data();
+    $data = noitru_meal_report_meta();
     $found = false;
     foreach ($data['states'] as &$row) {
         if (($row['date'] ?? '') === $date && ($row['meal'] ?? '') === $meal) {
@@ -535,10 +498,10 @@ function noitru_meal_state_set_unlocked($date, $meal, $status, $by = '') {
     }
     unset($row);
     if (!$found) $data['states'][] = ['date'=>$date, 'meal'=>$meal, 'status'=>$status, 'by'=>$by, 'updated_at'=>noitru_now()];
-    return noitru_meal_reports_save($data);
+    return noitru_meal_reports_mutate(null, $data);
 }
 function noitru_meal_reports_for_date($date) {
-    return array_values(array_filter(noitru_meal_reports_data()['reports'] ?? [], fn($row) => ($row['date'] ?? '') === $date));
+    return iterator_to_array(noitru_meal_report_rows($date), false);
 }
 function noitru_meals_for_date($date) {
     if (isset($GLOBALS['noitru_meals_date_cache'][(string)$date])) return $GLOBALS['noitru_meals_date_cache'][(string)$date];
@@ -553,6 +516,7 @@ function noitru_meals_for_date($date) {
         if (($m['date'] ?? '') === $date) $out[$m['student_id'] ?? ''] = $m;
     }
     $GLOBALS['noitru_meals_date_cache'][(string)$date] = $out;
+    if (count($GLOBALS['noitru_meals_date_cache']) > 40) array_shift($GLOBALS['noitru_meals_date_cache']);
     return $out;
 }
 function noitru_meals_for_range($from, $to) {
@@ -768,12 +732,12 @@ function noitru_meals_summary($from, $to) {
         $students[$student['id']] = $student;
     }
     $reported = [];
-    foreach (noitru_meal_reports_data()['reports'] ?? [] as $report) {
+    foreach (noitru_meal_report_rows() as $report) {
         $reported[(string)($report['date'] ?? '') . '|' . (string)($report['class_name'] ?? '') . '|' . (string)($report['meal'] ?? '')] = true;
     }
     $out = ['classes'=>[], 'groups'=>[], 'days'=>[], 'total'=>['sang'=>0,'trua'=>0,'toi'=>0]];
     $mealStates = [];
-    foreach (noitru_meals_for_range($from, $to) as $m) {
+    foreach (cds_json_rows(NOITRU_MEALS) as $m) {
         $date = $m['date'] ?? '';
         if ($date < $from || $date > $to) continue;
         $student = $students[$m['student_id'] ?? ''] ?? [];
@@ -807,20 +771,15 @@ function noitru_meal_period_summary($from, $to, array $students) {
     ksort($classes, SORT_NATURAL);
 
     $reports = [];
-    foreach (noitru_meal_reports_data()['reports'] ?? [] as $report) {
+    foreach (noitru_meal_report_rows() as $report) {
         $date = (string)($report['date'] ?? '');
         $class = trim((string)($report['class_name'] ?? '')) ?: '(Chưa lớp)';
         $meal = (string)($report['meal'] ?? '');
         if ($date >= $from && $date <= $to && isset($classes[$class]) && in_array($meal, ['sang', 'trua', 'toi'], true)) {
-            $reports[$date][$meal][$class] = $report;
+            $state = noitru_meal_state($date, $meal)['status'] ?? 'open';
+            $counts = $state === 'off' ? ['eat'=>0] : noitru_meal_report_effective_counts($report, $date, $meal, noitru_meals_for_date($date));
+            $reports[$date][$meal][$class] = $counts['eat'];
         }
-    }
-
-    $meals = [];
-    foreach (cds_json_rows(NOITRU_MEALS) as $row) {
-        $date = (string)($row['date'] ?? '');
-        $studentId = (string)($row['student_id'] ?? '');
-        if ($date >= $from && $date <= $to && $studentId !== '') $meals[$date][$studentId] = $row;
     }
 
     $out = [
@@ -838,9 +797,7 @@ function noitru_meal_period_summary($from, $to, array $students) {
             if ($state === 'off') continue;
 
             foreach ($reportedClasses as $class => $_) {
-                $report = $reportedClasses[$class];
-                $counts = noitru_meal_report_effective_counts($report, $date, $meal, $meals[$date] ?? []);
-                $day[$meal] += $counts['eat'];
+                $day[$meal] += (int)$reportedClasses[$class];
             }
             $out['total'][$meal] += $day[$meal];
         }
@@ -876,7 +833,7 @@ function noitru_rice_balance(array $data = null) {
 function noitru_rice_usage_summary($from, $to, array $riceData = null) {
     $riceData = $riceData ?? noitru_rice_data();
     $settings = array_merge(['sang_grams'=>0,'trua_grams'=>180,'toi_grams'=>180], $riceData['settings'] ?? []);
-    $reports = noitru_meal_reports_data()['reports'] ?? [];
+    $reports = noitru_meal_report_rows();
     $stateCache = [];
     $mealDayCache = [];
     $out = [
@@ -896,7 +853,10 @@ function noitru_rice_usage_summary($from, $to, array $riceData = null) {
         $stateKey = $date . '|' . $meal;
         if (!isset($stateCache[$stateKey])) $stateCache[$stateKey] = noitru_meal_state($date, $meal)['status'] ?? 'open';
         if ($stateCache[$stateKey] !== 'locked') continue;
-        if (!isset($mealDayCache[$date])) $mealDayCache[$date] = noitru_meals_for_date($date);
+        if (!isset($mealDayCache[$date])) {
+            if (count($mealDayCache) >= 7) array_shift($mealDayCache);
+            $mealDayCache[$date] = noitru_meals_for_date($date);
+        }
         $counts = noitru_meal_report_effective_counts($report, $date, $meal, $mealDayCache[$date]);
         $students = $counts['eat'];
         $kg = round($students * (float)($settings[$meal . '_grams'] ?? 0) / 1000, 3);

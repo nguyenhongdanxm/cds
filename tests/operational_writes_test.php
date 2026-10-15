@@ -6,6 +6,7 @@ function check($condition, $message) {
     if (!$condition) throw new RuntimeException($message);
 }
 require __DIR__ . '/support/load_functions.php';
+require __DIR__ . '/../includes/noitru_report_stream.php';
 
 $dir = $argv[2] ?? (sys_get_temp_dir() . '/cds-operational-test-' . bin2hex(random_bytes(6)));
 if (!is_dir($dir)) mkdir($dir, 0700, true);
@@ -46,7 +47,7 @@ $mealFunctions = ['noitru_meal_write','noitru_meal_read_cache_clear','noitru_mea
     'noitru_meals_generate_day_unlocked','noitru_meals_lock_day','noitru_meals_lock_day_unlocked',
     'noitru_meal_target_key','noitru_meal_deleted_targets','noitru_meal_deleted_targets_save',
     'noitru_meal_deleted_targets_save_unlocked','noitru_meal_reports_data','noitru_meal_reports_save',
-    'noitru_meal_reports_save_unlocked','noitru_meal_report_upsert','noitru_meal_report_upsert_unlocked',
+    'noitru_meal_reports_save_unlocked','noitru_meal_report_snapshot','noitru_meal_report_upsert','noitru_meal_report_upsert_unlocked',
     'noitru_meal_state_set','noitru_meal_state_set_unlocked'];
 load_functions(__DIR__ . '/../includes/noitru_store.php', $mealFunctions);
 load_functions(__DIR__ . '/../includes/noitru_meal_history.php', ['nt_meal_history_delete_related_data', 'nt_meal_history_delete_related_data_unlocked']);
@@ -134,9 +135,8 @@ try {
     check(count($rows) === 49 && $rows[0] === $old, 'All 48 concurrent inserts and historical row retained');
     check(count(cds_json_load(NOITRU_MEAL_REPORTS)['reports']) === 48, 'Concurrent class reports retained');
 
-    $GLOBALS['fail_write_path'] = NOITRU_MEAL_REPORTS;
     $beforeReports = file_get_contents(NOITRU_MEAL_REPORTS);
-    check(noitru_meal_report_upsert(['date'=>'2026-10-15','class_name'=>'failure','meal'=>'sang','student_snapshot'=>[['id'=>'fixture']]]) === false, 'Report failure propagated');
+    check(noitru_meal_report_upsert(['date'=>'2026-10-15','class_name'=>'failure','meal'=>'sang','note'=>"\xB1",'student_snapshot'=>[['id'=>'fixture']]]) === false, 'Report failure propagated');
     check(file_get_contents(NOITRU_MEAL_REPORTS) === $beforeReports, 'Failed report retains existing source');
     unset($GLOBALS['fail_write_path']);
 

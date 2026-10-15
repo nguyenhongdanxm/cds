@@ -192,11 +192,24 @@ function cds_meal_delete_missing(PDO $pdo, $table, array $keys, array $columns, 
     $pdo->exec('DROP TEMPORARY TABLE IF EXISTS cds_meal_sync_keys');
 }
 
-function cds_meal_import_snapshot($actor = array(), $sourceData = null)
+function cds_meal_import_snapshot($actor = array(), $sourceData = null, $streaming = false)
 {
-    $data = is_array($sourceData) ? $sourceData : cds_meal_source_snapshot();
-    $errors = cds_meal_validate_snapshot($data);
-    if ($errors) throw new RuntimeException(implode(' ', array_slice($errors, 0, 3)));
+    if ($streaming) {
+        // Recovery runs under the meal domain lock. Keep historical snapshots on disk.
+        $dir = DATA_PATH . '/noitru';
+        $reportFile = $dir . '/meal_reports.json';
+        $fields = cds_json_fields($reportFile);
+        $data = array('daily'=>cds_json_rows($dir . '/meals_daily.json'),
+            'reports'=>cds_json_field_rows($reportFile, 'reports'), 'states'=>array(), 'settings'=>array());
+        foreach (array('states','settings') as $key) {
+            if (isset($fields[$key])) $data[$key] = json_decode(file_get_contents($reportFile, false, null, $fields[$key][0], $fields[$key][1]), true) ?? array();
+        }
+    } else {
+        $data = is_array($sourceData) ? $sourceData : cds_meal_source_snapshot();
+        $errors = cds_meal_validate_snapshot($data);
+        if ($errors) throw new RuntimeException(implode(' ', array_slice($errors, 0, 3)));
+    }
+    $counts = array('daily'=>0, 'reports'=>0, 'states'=>0);
     $pdo = cds_db();
     $pdo->beginTransaction();
     try {
@@ -207,7 +220,13 @@ function cds_meal_import_snapshot($actor = array(), $sourceData = null)
             source_updated_at=VALUES(source_updated_at),imported_at=NOW()";
         $stmt = $pdo->prepare($dailySql); $dailyKeys = array();
         foreach ($data['daily'] as $row) {
-            $date = (string)$row['date']; $sid = (string)$row['student_id']; $dailyKeys[] = $date . '|' . $sid;
+            $date = (string)($row['date'] ?? ''); $sid = (string)($row['student_id'] ?? '');
+            $key = $date . '|' . $sid;
+            if ($streaming && (cds_meal_date($date) === '' || trim($sid) === '' || isset($dailyKeys[$key]))) {
+                throw new RuntimeException('Nguồn báo ăn thiếu khóa hoặc trùng khóa; giữ bản sao hiện có.');
+            }
+            if ($streaming) $dailyKeys[$key] = $key; else $dailyKeys[] = $key;
+            $counts['daily']++;
             $stmt->execute(array($date,$sid,(string)($row['sang']??''),(string)($row['trua']??''),(string)($row['toi']??''),
                 !empty($row['locked'])?1:0,cds_meal_json($row),cds_meal_datetime($row['updated_at']??$row['created_at']??'')));
         }
@@ -218,10 +237,17 @@ function cds_meal_import_snapshot($actor = array(), $sourceData = null)
             VALUES (?,?,?,?,?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE meal_date=VALUES(meal_date),class_name=VALUES(class_name),
             meal_code=VALUES(meal_code),student_count=VALUES(student_count),absent_count=VALUES(absent_count),
             raw_json=VALUES(raw_json),source_updated_at=VALUES(source_updated_at),imported_at=NOW()";
-        $stmt = $pdo->prepare($reportSql); $reportIds = array();
+        $stmt = $pdo->prepare($reportSql); $reportIds = array(); $reportTargets = array();
         foreach ($data['reports'] as $row) {
             $id = cds_meal_report_id($row);
-            $reportIds[] = $id;
+            if ($streaming) {
+                $key = (string)($row['date']??'') . '|' . trim((string)($row['class_name']??'')) . '|' . (string)($row['meal']??'');
+                if (cds_meal_date($row['date']??'') === '' || trim((string)($row['class_name']??'')) === '' || !in_array($row['meal']??'', array('sang','trua','toi'), true) || isset($reportTargets[$key]) || isset($reportIds[$id])) {
+                    throw new RuntimeException('Nguồn phiếu báo ăn thiếu khóa hoặc trùng khóa; giữ bản sao hiện có.');
+                }
+                $reportTargets[$key] = true; $reportIds[$id] = $id;
+            } else $reportIds[] = $id;
+            $counts['reports']++;
             $stmt->execute(array($id,(string)$row['date'],(string)$row['class_name'],(string)$row['meal'],
                 max(0,(int)($row['student_count']??0)),max(0,(int)($row['absent_count']??0)),cds_meal_json($row),
                 cds_meal_datetime($row['updated_at']??$row['created_at']??'')));
@@ -235,7 +261,7 @@ function cds_meal_import_snapshot($actor = array(), $sourceData = null)
         $stmt = $pdo->prepare($stateSql); $stateKeys = array();
         foreach ($data['states'] as $row) {
             $date = cds_meal_date($row['date']??''); $meal = trim((string)($row['meal']??''));
-            if ($date === '' || $meal === '') continue; $stateKeys[] = $date . '|' . $meal;
+            if ($date === '' || $meal === '') continue; $stateKeys[] = $date . '|' . $meal; $counts['states']++;
             $stmt->execute(array($date,$meal,(string)($row['status']??'open'),cds_meal_json($row),cds_meal_datetime($row['updated_at']??'')));
         }
         cds_meal_delete_missing($pdo, 'cds_meal_states', $stateKeys, array('meal_date','meal_code'), true);
@@ -246,15 +272,15 @@ function cds_meal_import_snapshot($actor = array(), $sourceData = null)
             (actor_user_id,actor_name,module_key,action_key,entity_type,entity_id,after_json,request_ip,created_at)
             VALUES (?,?,'noitru','import_meal_snapshot','meal_snapshot','3A',?,?,NOW())");
         $audit->execute(array((string)($actor['id']??''),(string)($actor['name']??''),cds_meal_json(array(
-            'daily'=>count($data['daily']),'reports'=>count($data['reports']),'states'=>count($data['states'])
+            'daily'=>$counts['daily'],'reports'=>$counts['reports'],'states'=>$counts['states']
         )),(string)($_SERVER['REMOTE_ADDR']??'')));
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         throw $e;
     }
-    cds_meal_pending_clear();
-    return cds_meal_compare_snapshot($data);
+    $cleared = cds_meal_pending_clear();
+    return $streaming ? array('is_match'=>$cleared, 'counts'=>$counts) : cds_meal_compare_snapshot($data);
 }
 
 function cds_meal_sql_snapshot()
@@ -293,7 +319,7 @@ function cds_meal_shadow_sync($scope = 'all')
 {
     if (!cds_meal_shadow_enabled()) return true;
     if (!cds_meal_pending_mark($scope)) return false;
-    try { cds_meal_import_snapshot(function_exists('current_user')?(array)current_user():array()); return true; }
+    try { $result = cds_meal_import_snapshot(function_exists('current_user')?(array)current_user():array(), null, true); return !empty($result['is_match']); }
     catch(Throwable $e){error_log('[CDS meal shadow] '.$e->getMessage());return false;}
 }
 
@@ -382,7 +408,7 @@ function cds_meal_shadow_reports_data(array $data)
             VALUES (?,?,?,?,?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE meal_date=VALUES(meal_date),class_name=VALUES(class_name),
             meal_code=VALUES(meal_code),student_count=VALUES(student_count),absent_count=VALUES(absent_count),
             raw_json=VALUES(raw_json),source_updated_at=VALUES(source_updated_at),imported_at=NOW()");
-        $ids=array();foreach(array_values((array)($data['reports']??array()))as$row){
+        $ids=array();foreach(($data['reports']??array())as$row){
             $id=cds_meal_report_id($row);$ids[]=$id;
             $stmt->execute(array($id,(string)($row['date']??''),(string)($row['class_name']??''),(string)($row['meal']??''),
                 max(0,(int)($row['student_count']??0)),max(0,(int)($row['absent_count']??0)),cds_meal_json($row),

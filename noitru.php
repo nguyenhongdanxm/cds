@@ -323,17 +323,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         noitru_meal_require_saved(noitru_meal_upsert_many($mealUpdates, true));
+        $reportUpdates = [];
         foreach ($targetDates as $targetDate) {
             foreach ($targetMeals as $targetMeal) {
                 $eatCount = count(array_filter($validStudents, fn($row) => $row['value'] === 'yes'));
-                noitru_meal_require_saved(noitru_meal_report_upsert([
+                $reportUpdates[] = [
                     'date'=>$targetDate, 'class_name'=>$className, 'meal'=>$targetMeal,
                     'student_count'=>count($validStudents), 'eat_count'=>$eatCount,
                     'absent_count'=>max(0, count($validStudents)-$eatCount),
                     'reported_by'=>$user['name'] ?? '', 'status'=>'submitted',
-                ]));
+                ];
             }
         }
+        noitru_meal_require_saved(noitru_meal_report_upsert_many($reportUpdates));
         flash('Đã cập nhật báo ăn mới nhất của ' . $className . ($submissionMode==='long'?' từ '.date('d/m/Y',strtotime($longFrom)).' đến '.date('d/m/Y',strtotime($longUntil)):'') . '.');
         header('Location: ' . BASE_URL . 'noitru.php?tab=meals&date=' . urlencode($date) . '&class=' . urlencode($className) . '&meal=' . urlencode($meal));
         exit;
