@@ -1,0 +1,31 @@
+name: Progress loading regressions
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/baocao.php'
+      - 'chuyenmon/includes/progress_runtime.php'
+      - 'chuyenmon/includes/lesson_book_store.php'
+      - 'tests/progress_*'
+      - 'tests/support/progress_metrics_reference.php'
+      - '.github/workflows/progress-loading.yml'
+  workflow_dispatch:
+jobs:
+  progress:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom
+      - run: |
+          php -l chuyenmon/baocao.php
+          php -l chuyenmon/includes/lesson_book_store.php
+          php -l chuyenmon/includes/progress_runtime.php
+          php tests/progress_loading_test.php
+          php tests/progress_slots_test.php
+          php tests/lesson_book_manual_test.php
+          php tests/periodic_report_test.php
