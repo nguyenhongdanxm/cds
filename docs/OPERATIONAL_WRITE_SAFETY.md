@@ -63,6 +63,41 @@ bộ nhớ đã tồn tại từ mã cũ. Đợt tiếp theo cần giảm lượ
 kiểm thử SQL thật trên CSDL thử riêng và xác nhận cấu hình hosting trước
 khi kết luận vận hành an toàn đến hết năm học.
 
+## Kiểm thử bổ sung ngày 15/10/2026: SQL thật và gián đoạn tiến trình
+
+Các dịch vụ GitHub Actions dùng CSDL `cds_disposable_test` mới tạo, dữ liệu
+giả lập và tài khoản chỉ dành cho kiểm thử. Mã kiểm thử từ chối chạy khi
+thiếu dấu môi trường CI, chỉ kết nối loopback tới cổng dịch vụ thử, không
+đọc `instance.json` của trường và yêu cầu CSDL rỗng trước khi khởi tạo.
+
+Lần đầu kiểm thử đã tái hiện lỗi 1267 trên cả MySQL/MariaDB: bảng tạm đối
+chiếu khóa kế thừa collation mặc định của máy chủ, khác bảng báo ăn dùng
+`utf8mb4_unicode_ci`. Bản sửa chỉ định charset/collation cho bảng tạm và
+biểu thức khóa; không ALTER bảng vận hành hoặc thay đổi dữ liệu nguồn.
+
+| Kiểm tra | Kết quả |
+| --- | --- |
+| MySQL 8.0.46, PHP 8.3 | Đạt |
+| MariaDB 10.11.19, PHP 8.3 | Đạt |
+| Chạy migration thật trên CSDL rỗng, chạy lại lần hai | Đạt; lần hai không còn migration cần chạy |
+| Bật/tắt đường đọc SQL, ghi và khóa/mở ngày | Đạt; JSON và SQL đối chiếu hash trùng nhau |
+| Cố ý làm bảng SQL không khả dụng trong CSDL thử | JSON giữ lần lưu; có dấu đồng bộ chờ; yêu cầu mới đọc JSON thay vì SQL cũ |
+| Khôi phục bảng và đồng bộ lại | Đạt; dấu chờ được xóa sau khi đối chiếu khớp |
+| 4 tiến trình ghi 32 bản ghi và 32 báo cáo lớp | Đủ 35 bản ghi nguồn gồm 3 bản ghi trước đó, đủ 32 báo cáo; JSON và SQL khớp |
+| Bản ghi lịch sử có trường tùy chỉnh và chữ tiếng Việt | Giữ nguyên cả ở JSON và SQL |
+| Ngắt tiến trình đang giữ khóa trước khi ghi | SHA-256 nguồn không đổi; khóa được giải phóng; lần cập nhật sau thực hiện được |
+| Ngắt tiến trình trong lúc ghi tệp JSON tạm | Nguồn là bản cũ nguyên vẹn hoặc toàn bộ bản mới; không công bố JSON dở dang |
+
+Kiểm thử ngắt tiến trình chạy trên PHP 8.2 và 8.3. Cả 6 job ở commit
+`f53d6f41e130536f4d37fcfd6b139e54c79ca5f8` đều đạt, gồm hai job SQL thật.
+Lệnh kiểm thử tệp gián đoạn: `php tests/json_interruption_test.php`.
+Kiểm thử SQL chỉ chạy qua workflow với dịch vụ dùng một lần.
+
+**Giới hạn còn lại:** chưa thử cấu hình hosting và bản sao CSDL thực tế của
+trường. Thử ngắt tiến trình ở đây kiểm chứng tính nguyên tử của tệp JSON,
+không chứng minh toàn bộ thao tác qua nhiều tệp và SQL là một transaction.
+Giới hạn 128 MB khi đọc cả năm JSON ở mục trước chưa được giải quyết.
+
 ## Phạm vi chưa hoàn thành
 
 - Chưa chuyển báo ăn sang ghi SQL chính hoặc lưu cả lớp trong một lần.
@@ -72,7 +107,7 @@ khi kết luận vận hành an toàn đến hết năm học.
   tiếp để tránh gửi lại các bữa không được chủ động sửa.
 - Không tự suy đoán hoặc chuyển đổi các nhận xét rất cũ thiếu năm học;
   chúng giữ cơ chế tương thích xác định năm hiện hành của mã cũ.
-- Kiểm thử bản sao MySQL dùng mô phỏng; chưa kiểm thử MySQL/hosting thật.
+- Đã kiểm thử MySQL/MariaDB dùng một lần; chưa kiểm thử hosting của trường.
 - Các phân hệ khác vẫn cần rà soát đường ghi và kiểm thử chịu tải riêng.
 
 ## Trước khi áp dụng lên hosting
