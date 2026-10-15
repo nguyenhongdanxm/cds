@@ -10,7 +10,32 @@ function ttb_workspaces():array{$rows=ttb_store_load('workspaces',CDS_TTB_WORKSP
 function ttb_workspace(string$id=''):?array{foreach(ttb_workspaces()as$row)if((string)($row['id']??'')===$id)return$row;return null;}
 function ttb_workspace_id():string{$requested=trim((string)($_REQUEST['workspace']??''));if($requested!==''&&ttb_workspace($requested))$_SESSION['ttb_workspace_id']=$requested;$id=(string)($_SESSION['ttb_workspace_id']??'legacy');return ttb_workspace($id)?$id:'legacy';}
 function ttb_workspace_file(string$id):string{return$id==='legacy'?CDS_TTB_FILE:DATA_PATH.'/timetable_builder_'.preg_replace('/[^a-zA-Z0-9_-]/','',$id).'.json';}
-function ttb_workspace_create(string$name,string$weekKey='',string$copyFrom=''):array{$id='week_'.date('YmdHis').'_'.bin2hex(random_bytes(2));$source=$copyFrom!==''&&ttb_workspace($copyFrom)?ttb_store_load('workspace:'.$copyFrom,ttb_workspace_file($copyFrom),[]):[];$data=is_array($source)&&$source?array_merge(ttb_default(),$source):ttb_default();$data['plans']=[];$data['active_plan']='';$data['updated_at']=date('c');if(!ttb_store_save('workspace:'.$id,ttb_workspace_file($id),$data))throw new RuntimeException('Không tạo được kho dữ liệu cho phiên bản TKB mới.');$rows=ttb_workspaces();$row=['id'=>$id,'name'=>$name!==''?$name:'Tuần làm việc '.date('d/m/Y'),'week_key'=>$weekKey,'copied_from'=>$copyFrom,'created_at'=>date('c'),'updated_at'=>date('c')];$rows[]=$row;if(!ttb_store_save('workspaces',CDS_TTB_WORKSPACES_FILE,$rows)){ttb_store_delete('workspace:'.$id);throw new RuntimeException('Không lưu được danh sách phiên bản TKB.');}$_SESSION['ttb_workspace_id']=$id;return$row;}
+function ttb_workspace_create(string$name,string$weekKey='',string$copyFrom='',bool$copyPlans=true):array{
+    $data=ttb_default();
+    if($copyFrom!==''){
+        if(!ttb_workspace($copyFrom))throw new RuntimeException('Không tìm thấy tuần nguồn để sao chép.');
+        $source=ttb_store_load('workspace:'.$copyFrom,ttb_workspace_file($copyFrom),[]);
+        if(!$source)throw new RuntimeException('Không đọc được dữ liệu tuần nguồn; chưa tạo bản sao.');
+        // Giữ nguyên toàn bộ ràng buộc, liên kết phòng/nhóm và phương án.
+        // ID phương án thuộc phạm vi từng workspace, không phải ID toàn hệ thống.
+        $data=array_merge($data,$source);
+    }
+    if(!$copyPlans){$data['plans']=[];$data['active_plan']='';}
+    unset($data['_workspace_id'],$data['_workspace']);
+    $id='week_'.date('YmdHis').'_'.bin2hex(random_bytes(8));
+    $data['updated_at']=date('c');
+    if(!ttb_store_save('workspace:'.$id,ttb_workspace_file($id),$data))throw new RuntimeException('Không tạo được kho dữ liệu cho phiên bản TKB mới.');
+    $rows=ttb_workspaces();
+    $row=['id'=>$id,'name'=>$name!==''?$name:'Tuần làm việc '.date('d/m/Y'),'week_key'=>$weekKey,'copied_from'=>$copyFrom,'created_at'=>date('c'),'updated_at'=>date('c')];
+    $rows[]=$row;
+    if(!ttb_store_save('workspaces',CDS_TTB_WORKSPACES_FILE,$rows)){
+        ttb_store_delete('workspace:'.$id);
+        @unlink(ttb_workspace_file($id));
+        throw new RuntimeException('Không lưu được danh sách phiên bản TKB.');
+    }
+    $_SESSION['ttb_workspace_id']=$id;
+    return$row;
+}
 function ttb_workspace_update_meta(string$id,array$patch):void{$rows=ttb_workspaces();foreach($rows as&$row)if(($row['id']??'')===$id){$row=array_merge($row,$patch,['updated_at'=>date('c')]);break;}unset($row);ttb_store_save('workspaces',CDS_TTB_WORKSPACES_FILE,$rows);}
 function ttb_workspace_delete(string$id):array{if($id===''||$id==='legacy')return['ok'=>false,'message'=>'Phiên bản mặc định không thể xóa.'];$rows=ttb_workspaces();$found=null;$remaining=[];foreach($rows as$row){if((string)($row['id']??'')===$id){$found=$row;continue;}$remaining[]=$row;}if(!$found)return['ok'=>false,'message'=>'Không tìm thấy phiên bản làm việc cần xóa.'];if(!$remaining)return['ok'=>false,'message'=>'Phải giữ lại ít nhất một phiên bản làm việc.'];$file=ttb_workspace_file($id);$trash='';if(is_file($file)){$trash=$file.'.deleting_'.bin2hex(random_bytes(3));if(!@rename($file,$trash))return['ok'=>false,'message'=>'Không thể khóa tệp dữ liệu để xóa an toàn.'];}if(!ttb_store_save('workspaces',CDS_TTB_WORKSPACES_FILE,array_values($remaining))){if($trash!=='')@rename($trash,$file);return['ok'=>false,'message'=>'Không thể cập nhật danh sách phiên bản; dữ liệu chưa bị xóa.'];}if(!ttb_store_delete('workspace:'.$id)){ttb_store_save('workspaces',CDS_TTB_WORKSPACES_FILE,$rows);if($trash!=='')@rename($trash,$file);return['ok'=>false,'message'=>'Chưa xóa được dữ liệu MySQL; phiên bản được giữ lại để tránh mất dữ liệu.'];}if((string)($_SESSION['ttb_workspace_id']??'')===$id)$_SESSION['ttb_workspace_id']=(string)($remaining[0]['id']??'legacy');if($trash!=='')@unlink($trash);return['ok'=>true,'message'=>'Đã xóa phiên bản “'.(string)($found['name']??'Phiên bản tuần').'”. TKB đã công bố không bị ảnh hưởng.'];}
 function ttb_canonicalize_subject_data(array$data):array{

@@ -1,0 +1,24 @@
+name: Timetable workspace cloning
+on:
+  pull_request:
+    paths:
+      - 'includes/timetable_builder.php'
+      - 'tkb_xep.php'
+      - 'tests/timetable_workspace_copy_test.php'
+      - '.github/workflows/timetable-workspace.yml'
+  workflow_dispatch:
+jobs:
+  clone:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+      - run: |
+          php -l includes/timetable_builder.php
+          php -l tkb_xep.php
+          php tests/timetable_workspace_copy_test.php
