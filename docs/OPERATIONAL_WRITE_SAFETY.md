@@ -109,6 +109,9 @@ bản tối ưu streaming, không phải kết quả của phiên bản hiện t
 - Các biểu mẫu báo ăn chỉ gửi bữa được sửa, tránh ghi đè bữa khác từ biểu
   mẫu đã cũ. Báo thường, báo dài ngày, nghỉ cả lớp và xác nhận đủ suất lưu
   theo lô thay vì ghi lại cả năm cho từng học sinh.
+- Tổng hợp tháng/năm trên JSON quét trạng thái ăn một lần thành bảng tra
+  cứu tạm chỉ chứa các trạng thái "yes" cần cho phép tính. Không sửa dữ liệu
+  nguồn hoặc công thức; bản ghi trùng vẫn dùng dòng cuối như mã gốc.
 - Báo cáo dùng luồng JSON hoặc trang SQL 250 dòng. Khóa đọc dùng chung
   khóa miền báo ăn để một báo cáo không trộn hai phiên bản khi có người ghi.
 - Đồng bộ SQL theo lô tối đa 100 dòng, với mục tiêu 256 KiB JSON/lô; một
@@ -129,7 +132,7 @@ Kết quả cục bộ trên PHP 8.3, dữ liệu hoàn toàn giả lập:
 | 40 fixture tổng hợp suất ăn và gạo so với nguyên mã main cũ | Đạt; gồm khóa/nghỉ bữa, nhập/rời trường, bản ghi trùng và làm tròn |
 | 400 học sinh × 334 ngày, 60 thay đổi theo lô, PHP 128 MB | 133.600 bản ghi giữ nguyên ngoài trường được sửa |
 | 14 lớp × 334 ngày × 3 bữa, giữ danh sách học sinh trong mỗi phiếu | 14.028 phiếu và 400.800 lượt snapshot được đối chiếu toàn bộ |
-| Chạy chung cả báo ăn và báo cáo cả năm, PHP 128 MB | Đạt; đỉnh bộ nhớ quan sát 6 MiB |
+| Chạy báo ăn, báo cáo và tổng hợp suất ăn/gạo cả năm, PHP 128 MB | Đạt; đủ 334 ngày, đỉnh bộ nhớ quan sát 20 MiB |
 
 Lệnh kiểm thử mới: `php tests/json_fields_test.php`,
 `php tests/report_stream_parity_test.php`,

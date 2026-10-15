@@ -7,6 +7,9 @@ require __DIR__ . '/../includes/noitru_report_stream.php';
 $root=sys_get_temp_dir().'/cds-year-memory-'.bin2hex(random_bytes(8));mkdir($root,0700);
 define('NOITRU_DIR',$root);define('NOITRU_MEALS',$root.'/meals.json');define('NOITRU_MEAL_REPORTS',$root.'/reports.json');
 function noitru_ensure_dir(){}
+function noitru_meal_state($date,$meal){return ['status'=>'locked'];}
+function noitru_meal_effective_student_context(){return ['students'=>[],'classes'=>[]];}
+function noitru_student_is_active($student){return true;}
 function noitru_now(){return '2027-06-30T10:00:00+07:00';}
 function noitru_uid($prefix){return $prefix.'_'.bin2hex(random_bytes(8));}
 function cds_meal_pending_status(){return null;}
@@ -16,7 +19,7 @@ function cds_meal_sql_read_effective(){return false;}
 function load_json($file,$default=[]){return cds_json_load($file,$default);}
 function save_json($file,$data){return cds_json_save($file,$data);}
 function cds_meal_shadow_notify_failure(){throw new RuntimeException('Unexpected mirror failure');}
-load_functions(__DIR__.'/../includes/noitru_store.php',['noitru_meal_write','noitru_meal_read_cache_clear','noitru_meals_replace_rows','noitru_meal_upsert_many','noitru_meal_upsert_many_unlocked','noitru_meal_target_key','noitru_meal_deleted_targets','noitru_meal_deleted_targets_save','noitru_meal_deleted_targets_save_unlocked','noitru_meal_report_snapshot']);
+load_functions(__DIR__.'/../includes/noitru_store.php',['noitru_meal_write','noitru_meal_read_cache_clear','noitru_meals_replace_rows','noitru_meal_upsert_many','noitru_meal_upsert_many_unlocked','noitru_meal_target_key','noitru_meal_deleted_targets','noitru_meal_deleted_targets_save','noitru_meal_deleted_targets_save_unlocked','noitru_meal_report_snapshot','noitru_meal_status_index','noitru_meal_status_day','noitru_meal_period_summary','noitru_rice_usage_summary','noitru_meal_report_effective_counts','noitru_student_is_active_on_date']);
 $dates=[];$first=new DateTimeImmutable('2026-08-01');for($d=0;$d<334;$d++)$dates[]=$first->modify('+'.$d.' days')->format('Y-m-d');
 function fixture_row($date,$student){return ['id'=>$date.'-'.$student,'date'=>$date,'student_id'=>'s'.$student,'sang'=>'yes','trua'=>'yes','toi'=>'yes','locked'=>false,'note'=>'Giữ nguyên tiếng Việt 😀','custom'=>['value'=>$student,'bool'=>true]];}
 try{
@@ -51,6 +54,13 @@ try{
     check($reportCount===14028&&$snapshotCount===400800,'All year reports and student snapshots retained');
     check(cds_json_field_value(NOITRU_MEAL_REPORTS,'states')===[['date'=>'2027-06-30','meal'=>'toi','status'=>'off']],'State unchanged by report update');
     echo 'PASS full-year reports: '.$reportCount.' reports, '.$snapshotCount.' historical student snapshots retained'.PHP_EOL;
+    $classes=[];for($c=0;$c<14;$c++)$classes[]=['id'=>'fixture-'.$c,'class_name'=>'L'.$c];
+    $summaryStart=microtime(true);
+    $summary=noitru_meal_period_summary('2026-08-01','2027-06-30',$classes);
+    check(count($summary['days'])===334&&$summary['total']['reported']===14028,'Full-year period summary at bounded memory');
+    $rice=noitru_rice_usage_summary('2026-08-01','2027-06-30',['settings'=>['trua_grams'=>180,'toi_grams'=>180]]);
+    check(count($rice['days'])===334,'Full-year rice summary at bounded memory');
+    echo 'PASS full-year period and rice summaries: 334 days; '.round(microtime(true)-$summaryStart,3).' seconds (CI fixture only)'.PHP_EOL;
     $peak=memory_get_peak_usage(true)/1048576;check($peak<64,'Memory must remain bounded under 64 MiB');
     echo 'PASS full year: '.$count.' rows, 60 updates in one batch; peak '.round($peak,1).' MiB; '.round($seconds,3)." seconds (CI fixture only)\n";
 }finally{foreach(glob($root.'/*')as$p)if(is_file($p))unlink($p);@unlink($root.'/.meal-write.lock');rmdir($root);}

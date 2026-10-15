@@ -762,6 +762,29 @@ function noitru_meals_summary($from, $to) {
     return $out;
 }
 
+/** Read-only index for effective_counts: it tests only the exact string "yes".
+ * Keep scalar flags rather than every historical row; last duplicate still wins.
+ */
+function noitru_meal_status_index(string $from, string $to): array {
+    $index = [];
+    foreach (cds_json_rows(NOITRU_MEALS) as $row) {
+        $date = (string)($row['date'] ?? '');
+        $studentId = (string)($row['student_id'] ?? '');
+        if ($date < $from || $date > $to || $studentId === '') continue;
+        $flags = 0;
+        foreach (['sang'=>1, 'trua'=>2, 'toi'=>4] as $meal=>$bit) if (($row[$meal] ?? '') === 'yes') $flags |= $bit;
+        $index[$date][$studentId] = $flags;
+    }
+    return $index;
+}
+function noitru_meal_status_day(array $index, string $date): array {
+    $out = [];
+    foreach ($index[$date] ?? [] as $id=>$flags) {
+        foreach (['sang'=>1, 'trua'=>2, 'toi'=>4] as $meal=>$bit) $out[$id][$meal] = ($flags & $bit) ? 'yes' : 'no';
+    }
+    return $out;
+}
+
 function noitru_meal_period_summary($from, $to, array $students) {
     $classes = [];
     foreach ($students as $student) {
@@ -771,13 +794,19 @@ function noitru_meal_period_summary($from, $to, array $students) {
     ksort($classes, SORT_NATURAL);
 
     $reports = [];
+    $statusIndex = cds_meal_sql_read_effective() ? null : noitru_meal_status_index((string)$from, (string)$to);
+    $dayMaps = [];
     foreach (noitru_meal_report_rows() as $report) {
         $date = (string)($report['date'] ?? '');
         $class = trim((string)($report['class_name'] ?? '')) ?: '(Chưa lớp)';
         $meal = (string)($report['meal'] ?? '');
         if ($date >= $from && $date <= $to && isset($classes[$class]) && in_array($meal, ['sang', 'trua', 'toi'], true)) {
             $state = noitru_meal_state($date, $meal)['status'] ?? 'open';
-            $counts = $state === 'off' ? ['eat'=>0] : noitru_meal_report_effective_counts($report, $date, $meal, noitru_meals_for_date($date));
+            if (!isset($dayMaps[$date])) {
+                $dayMaps[$date] = $statusIndex === null ? noitru_meals_for_date($date) : noitru_meal_status_day($statusIndex, $date);
+                if (count($dayMaps) > 7) array_shift($dayMaps);
+            }
+            $counts = $state === 'off' ? ['eat'=>0] : noitru_meal_report_effective_counts($report, $date, $meal, $dayMaps[$date]);
             $reports[$date][$meal][$class] = $counts['eat'];
         }
     }
@@ -836,6 +865,7 @@ function noitru_rice_usage_summary($from, $to, array $riceData = null) {
     $reports = noitru_meal_report_rows();
     $stateCache = [];
     $mealDayCache = [];
+    $statusIndex = cds_meal_sql_read_effective() ? null : noitru_meal_status_index((string)$from, (string)$to);
     $out = [
         'days'=>[],
         'meals'=>[
@@ -855,7 +885,7 @@ function noitru_rice_usage_summary($from, $to, array $riceData = null) {
         if ($stateCache[$stateKey] !== 'locked') continue;
         if (!isset($mealDayCache[$date])) {
             if (count($mealDayCache) >= 7) array_shift($mealDayCache);
-            $mealDayCache[$date] = noitru_meals_for_date($date);
+            $mealDayCache[$date] = $statusIndex === null ? noitru_meals_for_date($date) : noitru_meal_status_day($statusIndex, $date);
         }
         $counts = noitru_meal_report_effective_counts($report, $date, $meal, $mealDayCache[$date]);
         $students = $counts['eat'];

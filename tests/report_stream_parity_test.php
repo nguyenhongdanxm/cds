@@ -21,7 +21,7 @@ function noitru_meal_state($date,$meal){return ['status'=>(($date==='2026-10-16'
 function noitru_meal_effective_student_context(){return $GLOBALS['fixture_context'];}
 function noitru_student_is_active($student){return ($student['status']??'active')==='active';}
 require __DIR__.'/support/meal_summary_reference.php';
-load_functions(__DIR__.'/../includes/noitru_store.php',['noitru_meals_all','noitru_meals_for_date','noitru_meal_reports_data','noitru_meal_period_summary','noitru_rice_usage_summary','noitru_meal_report_effective_counts','noitru_student_is_active_on_date']);
+load_functions(__DIR__.'/../includes/noitru_store.php',['noitru_meals_all','noitru_meals_for_date','noitru_meal_reports_data','noitru_meal_period_summary','noitru_meal_status_index','noitru_meal_status_day','noitru_rice_usage_summary','noitru_meal_report_effective_counts','noitru_student_is_active_on_date']);
 try{
     $expected=[['id'=>'first','date'=>'2026-10-15','class_name'=>'6A','meal'=>'sang','eat_count'=>2,'custom'=>['keep'=>true]],
         ['id'=>'duplicate','date'=>'2026-10-15','class_name'=>'6A','meal'=>'sang','eat_count'=>9],
