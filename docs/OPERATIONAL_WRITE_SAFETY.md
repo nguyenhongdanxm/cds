@@ -96,7 +96,7 @@ Kiểm thử SQL chỉ chạy qua workflow với dịch vụ dùng một lần.
 **Giới hạn còn lại:** chưa thử cấu hình hosting và bản sao CSDL thực tế của
 trường. Thử ngắt tiến trình ở đây kiểm chứng tính nguyên tử của tệp JSON,
 không chứng minh toàn bộ thao tác qua nhiều tệp và SQL là một transaction.
-Giới hạn 128 MB khi đọc cả năm JSON ở mục trước chưa được giải quyết.
+Giới hạn 128 MB ở lần kiểm thử này đã được xử lý tiếp trong mục cập nhật dưới đây.
 
 ## Cập nhật bộ nhớ và ghi theo lô ngày 15/10/2026
 
@@ -122,6 +122,7 @@ Kết quả cục bộ trên PHP 8.3, dữ liệu hoàn toàn giả lập:
 | --- | --- |
 | 100 fixture danh sách JSON và 100 fixture đối tượng JSON | Đạt; gồm UTF-8, escape, ranh giới chunk, nguồn hỏng, lỗi giữa luồng |
 | 60 lô báo cáo so với quy tắc tuần tự cũ | Đạt; giữ first-match, snapshot, tombstone và metadata |
+| 40 fixture tổng hợp suất ăn và gạo so với nguyên mã main cũ | Đạt; gồm khóa/nghỉ bữa, nhập/rời trường, bản ghi trùng và làm tròn |
 | 400 học sinh × 334 ngày, 60 thay đổi theo lô, PHP 128 MB | 133.600 bản ghi giữ nguyên ngoài trường được sửa |
 | 14 lớp × 334 ngày × 3 bữa, giữ danh sách học sinh trong mỗi phiếu | 14.028 phiếu và 400.800 lượt snapshot được đối chiếu toàn bộ |
 | Chạy chung cả báo ăn và báo cáo cả năm, PHP 128 MB | Đạt; đỉnh bộ nhớ quan sát 6 MiB |
@@ -129,9 +130,11 @@ Kết quả cục bộ trên PHP 8.3, dữ liệu hoàn toàn giả lập:
 Lệnh kiểm thử mới: `php tests/json_fields_test.php`,
 `php tests/report_stream_parity_test.php`,
 `php -d memory_limit=128M tests/year_meal_memory_test.php`.
-Workflow SQL riêng kiểm thử khôi phục và đối chiếu từng dòng của fixture
-cả năm trên MySQL/MariaDB; kết quả phải được xác nhận trên đúng commit
-cuối trước khi merge. Số liệu bộ nhớ/thời gian trên fixture không bảo đảm
+Workflow SQL đã đạt trên MySQL 8.0.46 và MariaDB 10.11.19 ở commit
+`b428f104e6ff3ea7932b6ea2b3def81c3048ab9d`: khôi phục 133.600 dòng báo ăn,
+14.028 phiếu và 400.800 lượt snapshot; đối chiếu từng dòng, đỉnh bộ nhớ
+47 MiB trong giới hạn 128 MB. Kết quả phải được xác nhận lại trên đúng
+commit cuối trước khi merge. Số liệu bộ nhớ/thời gian trên fixture không bảo đảm
 hiệu năng hosting hoặc mọi dữ liệu thực tế.
 
 ## Phạm vi chưa hoàn thành

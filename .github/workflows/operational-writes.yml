@@ -22,6 +22,7 @@ on:
       - 'tests/report_stream_parity_test.php'
       - 'tests/year_meal_memory_test.php'
       - 'tests/support/load_functions.php'
+      - 'tests/support/meal_summary_reference.php'
       - '.github/workflows/operational-writes.yml'
   workflow_dispatch:
 jobs:
@@ -54,6 +55,9 @@ jobs:
           php tests/operational_writes_test.php
           php tests/weekly_review_year_test.php
           php tests/lesson_book_manual_test.php
+          php tests/dashboard_attendance_public_test.php
+          php tests/substitution_permissions_test.php
+          php tests/ai-school-data.test.php
           php tests/json_interruption_test.php
           php tests/json_rows_test.php
           php tests/json_fields_test.php
