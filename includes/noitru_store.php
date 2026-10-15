@@ -623,7 +623,7 @@ function noitru_meals_generate_day_unlocked($date) {
             $next['id'] = noitru_uid('ml');
             $next['created_at'] = noitru_now();
             $rows[] = $next;
-            $positions[$sid] = count($rows) - 1;
+            $positions[$sid] = array_key_last($rows);
         }
         $n++;
     }

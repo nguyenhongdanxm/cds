@@ -38,7 +38,7 @@ function cds_meal_shadow_daily_rows($rows, $date) { $GLOBALS['mirrored_days'][] 
 function cds_meal_shadow_reports_data($data) { return true; }
 function cds_meal_shadow_sync($scope) { return true; }
 function cds_meal_shadow_notify_failure() { $GLOBALS['warning'] = true; }
-function noitru_boarders_on_date($date) { return [['id'=>'s1'], ['id'=>'s2'], ['id'=>'s3']]; }
+function noitru_boarders_on_date($date) { return $GLOBALS['fixture_boarders'] ?? [['id'=>'s1'], ['id'=>'s2'], ['id'=>'s3']]; }
 function noitru_student_away_on_date($id, $date) { return $id === 's2' ? ['reason'=>'Nghỉ phép'] : null; }
 function noitru_boarders_live() { return [['id'=>'s1','class_name'=>'6A']]; }
 
@@ -83,6 +83,16 @@ try {
     $rows = cds_json_load(NOITRU_MEALS);
     check($rows[1]['student_id'] === 's2' && $rows[1]['sang'] === 'no' && $rows[1]['source'] === 'auto_exit', 'Approved exit rule retained');
     check($rows[2]['student_id'] === 's3' && $rows[2]['trua'] === 'yes', 'Normal generation retained');
+    $originalSparse=cds_json_load(NOITRU_MEALS);
+    $beforeSparse=array_merge([['id'=>'unrelated','date'=>'2026-08-01','student_id'=>'other','sang'=>'yes']],$originalSparse);
+    cds_json_save(NOITRU_MEALS,$beforeSparse);
+    $GLOBALS['fixture_boarders']=[['id'=>'new-duplicate'],['id'=>'new-duplicate']];
+    // Source positions belong to the full history; the selected day is a sparse subset.
+    check(noitru_meals_generate_day('2026-10-14')===2,'Duplicate boarder retains original sequential generation count');
+    $sparseRows=cds_json_load(NOITRU_MEALS);check(count($sparseRows)===count($beforeSparse)+1,'Duplicate new boarder creates exactly one row');
+    check(array_slice($sparseRows,0,count($beforeSparse))===$beforeSparse,'Sparse generation cannot overwrite another date');
+    check(end($sparseRows)['student_id']==='new-duplicate'&&isset(end($sparseRows)['updated_at']),'Second duplicate updates the appended row');
+    unset($GLOBALS['fixture_boarders']);cds_json_save(NOITRU_MEALS,$originalSparse);
     check(noitru_meals_lock_day('2026-10-14', false), 'Unlock supported');
     check(!cds_json_load(NOITRU_MEALS)[0]['locked'], 'Unlock preserved');
 
