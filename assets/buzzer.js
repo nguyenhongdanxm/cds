@@ -77,6 +77,7 @@
     if (!state) return;
     const enabled = online && !pending, status = state.status;
     if (cfg.view === 'host') {
+      document.querySelectorAll('[data-audio-upload],[data-audio-reset]').forEach(input => { input.disabled = !enabled || ['running','answering','closed'].includes(status); });
       $('newQuestion').disabled = !enabled || status === 'closed';
       $('start').disabled = !enabled || status !== 'reading' || !state.players.length;
       $('correct').disabled = $('wrong').disabled = !enabled || status !== 'answering';
