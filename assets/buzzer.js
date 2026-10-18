@@ -7,6 +7,7 @@
   const fragment = new URLSearchParams(location.hash.slice(1));
   let code = cfg.code || fragment.get('code') || '', screenKey = fragment.get('screen') || '';
   let identity = null, state = null, received = 0, online = false, pending = false, pollTimer, polling = false;
+  let uploading = false;
   let soundReady = false, audio, seenSound = null, noticeTimer, lastRender = '';
   const clips = {}; let musicSource = null, musicGain = null, musicOffset = 0, musicStarted = 0, musicQuestion = -1;
   const volume = kind => Number($(kind === 'background' ? 'musicVolume' : 'bellVolume')?.value ?? (kind === 'background' ? 20 : 80)) / 100;
@@ -77,7 +78,7 @@
     if (!state) return;
     const enabled = online && !pending, status = state.status;
     if (cfg.view === 'host') {
-      document.querySelectorAll('[data-audio-upload],[data-audio-reset]').forEach(input => { input.disabled = !enabled || ['running','answering','closed'].includes(status); });
+      audioButtons();
       $('newQuestion').disabled = !enabled || status === 'closed';
       $('start').disabled = !enabled || status !== 'reading' || !state.players.length;
       $('correct').disabled = $('wrong').disabled = !enabled || status !== 'answering';
@@ -126,7 +127,7 @@
     } else setText('winner', winner ? '🔔 ' + winner.name + ' giành quyền trả lời' : '');
     setText('lastResult', next.last_result ? next.last_result.name + (next.last_result.result === 'wrong' ? ' trả lời sai · mở lại chuông cho các bạn còn lại' : ' trả lời đúng!') : '');
     if (cfg.view === 'host') {
-      for (const kind of ['background','bell']) { setText('audio-name-' + kind, next.audio?.[kind]?.name || (kind === 'background' ? 'Chưa chọn nhạc nền' : 'Chuông mặc định')); $('audio-' + kind).disabled = pending || ['running','answering','closed'].includes(next.status); }
+      audioLabels(next.audio || {});
       $('setup').hidden = true; $('hostRoom').hidden = false; setText('playerCount', next.players.length + ' thí sinh');
       $('playerLink').href = base + 'hoclieu_game_buzzer.php?view=play&code=' + code;
       $('screenLink').href = base + 'hoclieu_game_buzzer.php?view=screen#' + new URLSearchParams({code, screen:next.screen_key});
@@ -149,23 +150,49 @@
     finally { polling = false; pollTimer = setTimeout(poll, !online ? 4000 : document.hidden ? 5000 : state?.status === 'running' || state?.status === 'answering' ? (cfg.view === 'play' ? 1000 : 300) : 1500); }
   }
   async function command(action, payload = {}) {
-    if (pending || !state || !online) return;
+    if (pending || uploading || !state || !online) return;
     pending = true; updateButtons();
     try { const data = await request(action, {version:state.version, question:state.question, race:state.race, ...payload}); accept(data.state); }
     catch (e) { tell(e.message); if (!e.status || e.status >= 500) connection(false); }
     finally { pending = false; lastRender = ''; if (state) renderPlayers(); updateButtons(); poll(); }
   }
+  function audioButtons() { document.querySelectorAll('[data-audio-upload],[data-audio-save],[data-audio-reset]').forEach(input => {input.disabled = uploading || !cfg.canConfigureAudio;}); }
+  function audioLabels(settings) { for (const kind of ['background','bell']) setText('audio-name-' + kind, settings[kind]?.name || (kind === 'background' ? 'Không có nhạc nền chung' : 'Chuông mặc định')); }
+  async function uploadAudio(kind) {
+    const input = $('audio-' + kind), file = input.files[0];
+    if (uploading || !cfg.canConfigureAudio) return;
+    if (!file) {tell('Chọn file âm thanh trước khi bấm tải lên.');return;}
+    if (file.size < 1 || file.size > 10485760) {tell('File phải từ 1 byte đến 10 MB.');return;}
+    uploading = true; audioButtons(); let uploadId;
+    const progress = text => setText('audio-progress-' + kind,text);
+    async function retry(action,data) {let error;for(let n=0;n<3;n++){try{return await request(action,data);}catch(e){error=e;if(e.status && e.status<500)throw e;}}throw error;}
+    try {
+      progress('Đang bắt đầu tải lên…');
+      const started = await request('audio_begin',{kind,name:file.name,size:file.size});uploadId=started.upload_id;
+      let offset = 0;
+      while(offset < file.size) {
+        const bytes = new Uint8Array(await file.slice(offset,offset+131072).arrayBuffer());let binary='';for(let n=0;n<bytes.length;n+=8192)binary+=String.fromCharCode(...bytes.subarray(n,n+8192));
+        const result = await retry('audio_chunk',{upload_id:uploadId,offset,data:btoa(binary)});offset=result.offset;
+        progress('Đã tải ' + Math.floor(offset/file.size*100) + '% · đang kiểm tra/lưu…');
+      }
+      const result = await retry('audio_finish',{upload_id:uploadId});audioLabels(result.audio);input.value='';progress('Đã lưu và áp dụng cho tất cả các phòng.');tell('Đã áp dụng âm thanh chung.');if(code)poll();
+    } catch(error) {
+      progress('Chưa lưu: '+error.message);tell(error.message);
+      if(uploadId)request('audio_cancel',{upload_id:uploadId}).catch(()=>{});
+    } finally {uploading=false;audioButtons();updateButtons();}
+  }
   function startRoom(value) { code = value; state = null; lastRender = ''; seenSound = null; history.replaceState(null, '', base + 'hoclieu_game_buzzer.php?code=' + code); poll(); }
   if (cfg.view === 'host') {
-    document.querySelectorAll('[data-audio-upload]').forEach(input => input.addEventListener('change', async () => {
-      const file = input.files[0]; if (!file || !state || pending) return;
-      if (file.size > 10 * 1024 * 1024) { tell('Mỗi file tối đa 10 MB.'); input.value = ''; return; }
-      pending = true; updateButtons(); tell('Đang tải và kiểm tra âm thanh…');
-      const form = new FormData(); for (const [key,value] of Object.entries({action:'audio_upload',role:'host',code,csrf:cfg.csrf,kind:input.dataset.audioUpload})) form.append(key,value); form.append('audio',file);
-      try { const response = await fetch(endpoint,{method:'POST',body:form,credentials:'same-origin'}); const result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.message || 'Không tải được âm thanh.'); accept(result.state); tell('Đã lưu âm thanh cho phòng. Mở trình chiếu và bật âm thanh để nghe.'); }
-      catch (error) { tell(error.message); } finally { pending = false; input.value = ''; updateButtons(); poll(); }
+    audioButtons();
+    request('audio_settings',{},true).then(result => audioLabels(result.audio)).catch(error => tell(error.message));
+    document.querySelectorAll('[data-audio-upload]').forEach(input => input.addEventListener('change', () => {
+      const file = input.files[0];setText('audio-progress-' + input.dataset.audioUpload,file ? 'Đã chọn: ' + file.name + '. Bấm Tải lên & áp dụng.' : '');
     }));
-    document.querySelectorAll('[data-audio-reset]').forEach(button => button.addEventListener('click', () => command('audio_reset',{kind:button.dataset.audioReset})));
+    document.querySelectorAll('[data-audio-save]').forEach(button => button.addEventListener('click', () => uploadAudio(button.dataset.audioSave)));
+    document.querySelectorAll('[data-audio-reset]').forEach(button => button.addEventListener('click', async () => {
+      if (uploading || !cfg.canConfigureAudio || !confirm('Áp dụng thay đổi âm thanh cho tất cả các phòng?')) return;
+      try { const result = await request('audio_reset',{kind:button.dataset.audioReset});audioLabels(result.audio);tell('Đã áp dụng cho tất cả các phòng.');if(code)poll(); } catch(error) {tell(error.message);}
+    }));
     $('createForm').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true;
       try { const data = await request('create',{title:$('roomTitle').value}); startRoom(data.code); }
       catch (e) { tell(e.message); } finally { button.disabled = false; }

@@ -40,7 +40,7 @@ function bz_audio_upload(PDO $db,string $code,array $actor,string $kind,array $f
 }
 function bz_audio_file(PDO $db,string $code,array $actor,string $kind): array {
     bz_audio_kind($kind);if(!in_array($actor['role']??'',['host','screen'],true))bz_fail('Không có quyền đọc âm thanh.',403);
-    $row=bz_room($db,$code);bz_authorize($row,$actor);$meta=$row['state']['audio'][$kind]??null;
+    $row=bz_room($db,$code);bz_authorize($row,$actor);$s=bz_audio_effective($db,$row['state']);$meta=$s['audio'][$kind]??null;
     if(!$meta||!is_file($path=bz_audio_path($meta['id'])))bz_fail('Không tìm thấy âm thanh.',404);
     return ['path'=>$path,'mime'=>$meta['mime']];
 }
