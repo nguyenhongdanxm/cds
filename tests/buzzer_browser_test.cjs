@@ -4,7 +4,7 @@ const fs = require('node:fs'), http = require('node:http'), cp = require('node:c
 const root = require('node:path').resolve(__dirname,'..'), php = process.env.PHP_BINARY || 'php';
 const rendered = Object.fromEntries(['host','screen','play'].map(view => [view,cp.execFileSync(php,[root+'/tests/support/buzzer_browser_fixture.php',view],{encoding:'utf8'})]));
 function engine(action, params={}) { return JSON.parse(cp.execFileSync(php,[root+'/tests/support/buzzer_browser_state.php'],{input:JSON.stringify({action,...params,now:Date.now()}),encoding:'utf8'})); }
-const code='12345678', screenKey='a'.repeat(48);let world=null;let globalAudio={},uploads={};
+const code='12345678', screenKey='a'.repeat(48);let world=null;let globalAudio={},uploads={};let pressRequests=0;
 function snapshot(role,id) { const s=engine('view',{state:{...world,audio:{...(world.audio||{}),...globalAudio}},role,id}).result;s.code=code;if(role==='host'){s.screen_key=screenKey;s.shared_audio=globalAudio;}return s; }
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://fixture');
@@ -24,7 +24,7 @@ const server=http.createServer(async(req,res)=>{
     else if(args.action==='create'){world=engine('initial',{title:args.title}).result;reply={ok:true,code,screen_key:screenKey};}
     else if(args.action==='state')reply={ok:true,state:snapshot(args.role,args.player_id)};
     else {
-      const input={...args};if(args.action==='press')input.token=req.headers['x-buzzer-token'];
+      const input={...args};if(args.action==='press'){pressRequests++;input.token=req.headers['x-buzzer-token'];}
       const result=engine(args.action,{state:world,input});
       if(!result.ok){res.statusCode=result.status||409;reply=result;}
       else {world=result.result;let id=args.player_id;if(args.action==='join'){const hash=require('node:crypto').createHash('sha256').update(args.join_token).digest('hex');id=Object.values(world.players).find(p=>p.key_hash===hash).id;}
@@ -59,7 +59,7 @@ const server=http.createServer(async(req,res)=>{
     await students[0].locator('#bell').click();await screen.waitForFunction(()=>window.rings===6);await screen.waitForFunction(()=>document.querySelectorAll('#players .winner').length===1);assert.equal(await screen.locator('#ringingBell').isVisible(),true);assert.equal(await screen.locator('.stage.buzzer-active').count(),1);
     await students[1].locator('#bell').click();await students[1].waitForFunction(()=>document.getElementById('myRank').textContent.includes('thứ 2'));
     await students[2].locator('#bell').click();await host.waitForFunction(()=>Array.from(document.querySelectorAll('#players .rank')).some(e=>e.textContent.includes('#3')));
-    assert.equal(await screen.evaluate(()=>window.rings),6,'Second/third never ring');assert.equal(await screen.locator('#players img').count(),0,'Names rendered as text, never HTML');
+    assert.equal(pressRequests,3,'Pointer contact and synthetic click send exactly one press per player');assert.equal(await screen.evaluate(()=>window.rings),6,'Second/third never ring');assert.equal(await screen.locator('#players img').count(),0,'Names rendered as text, never HTML');
     await screen.screenshot({path:'/tmp/buzzer-screenshots/projector-winner.png',fullPage:true});
     await host.locator('#wrong').click();await students[0].waitForFunction(()=>document.getElementById('myRank').textContent.includes('hết quyền'));
     await students[1].waitForFunction(()=>!document.getElementById('bell').disabled);await students[1].locator('#bell').click();await screen.waitForFunction(()=>window.rings===9);

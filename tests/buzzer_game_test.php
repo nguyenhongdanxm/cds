@@ -58,3 +58,11 @@ $t=hostMove($t,'release',['player_id'=>$tid[0]],3);
 reject(fn()=>bz_player($t,$tid[0],str_repeat('d',64)),'Released token revoked');
 check(count($t['players'])===2&&$t['players'][$tid[0]]['name']==='Đội A','Release retains roster');
 echo "PASS managed teams: fixed names, exclusive device, idempotence, release/revocation\n";
+
+foreach(['player','screen']as$role)foreach(['state','audio','open_rooms','join_options']as$action){
+    check(bz_token_read_request(['REQUEST_METHOD'=>'GET'],['role'=>$role,'action'=>$action]),'Token-only read skips account bootstrap');
+    check(!bz_token_read_request(['REQUEST_METHOD'=>'POST'],['role'=>$role,'action'=>$action]),'POST retains session and CSRF');
+}
+foreach(['host','', 'admin']as$role)check(!bz_token_read_request(['REQUEST_METHOD'=>'GET'],['role'=>$role,'action'=>'state']),'Host and unknown roles retain account checks');
+foreach(['create','wrong','press','audio_settings','audio_begin','list']as$action)check(!bz_token_read_request(['REQUEST_METHOD'=>'GET'],['role'=>'player','action'=>$action]),'No privileged action bypasses account bootstrap');
+echo "PASS read bootstrap: only token reads bypass session, all mutations retain CSRF/account path\n";

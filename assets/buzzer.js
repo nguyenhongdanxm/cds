@@ -147,7 +147,7 @@
     polling = true;
     try { const data = await request('state', {}, true); accept(data.state); }
     catch (e) { connection(false); if ([403,404].includes(e.status)) tell(e.message); }
-    finally { polling = false; pollTimer = setTimeout(poll, !online ? 4000 : document.hidden ? 5000 : state?.status === 'running' || state?.status === 'answering' ? (cfg.view === 'play' ? 1000 : 300) : 1500); }
+    finally { polling = false; pollTimer = setTimeout(poll, !online ? 4000 : document.hidden ? 5000 : state?.status === 'running' || state?.status === 'answering' ? (cfg.view === 'play' ? 1000 : 150) : cfg.view === 'play' ? 1500 : 300); }
   }
   async function command(action, payload = {}) {
     if (pending || !state || !online) return;
@@ -236,7 +236,13 @@
         history.replaceState(null, '', base + 'hoclieu_game_buzzer.php?view=play&code=' + code);
       } catch (e) { tell(e.message); } finally { button.disabled = false; }
     });
-    $('bell').addEventListener('click', () => command('press'));
+    // Send on contact rather than waiting for finger release; retain keyboard activation.
+    if (window.PointerEvent) $('bell').addEventListener('pointerdown', event => {
+      if (event.isPrimary && event.button === 0 && !$('bell').disabled) command('press');
+    });
+    $('bell').addEventListener('click', event => {
+      if (!window.PointerEvent || event.detail === 0) command('press');
+    });
     $('leave').addEventListener('click', () => { clearTimeout(pollTimer); code = ''; state = null; identity = null; $('playerPanel').hidden = true; $('joinPanel').hidden = false; $('playerName').value = ''; history.replaceState(null, '', base + 'hoclieu_game_buzzer.php?view=play'); });
   }
   setInterval(() => { setText('clock',(currentRemaining()/1000).toFixed(1)); syncMusic(); updateButtons(); }, 50);

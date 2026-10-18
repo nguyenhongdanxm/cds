@@ -131,3 +131,6 @@ Quản trị tạo tên phòng, mã tùy chọn 3–8 ký tự (A–Z, số, `_`
 Thí sinh mở màn hình tham gia, chọn phòng đang mở rồi chọn đúng đội. Đội đã có thiết bị sẽ bị khóa chọn trên máy khác. Khi thay máy, giáo viên bấm **Giải phóng thiết bị** lúc câu chưa chạy hoặc đã kết thúc; đội và tên vẫn giữ nguyên. Thiết bị cũ mất quyền điều khiển. Tên đội không thay đổi theo thông tin thí sinh gửi lên. Danh sách công khai chỉ gồm tên/mã phòng, tên đội và trạng thái đã nhận thiết bị; không có khóa trình chiếu hoặc mã xác thực.
 
 Phòng cũ vẫn vào bằng liên kết/mã và tên như trước. Chỉ phòng có danh sách đội khai báo sẵn xuất hiện trong danh sách chọn công khai. Phòng hết hạn/đã đóng bị ẩn; hiệu lực phòng vẫn là 24 giờ.
+
+## Độ trễ bấm chuông
+Màn hình chiếu/giáo viên đọc trạng thái mỗi 150 ms khi câu đang chạy hoặc chờ trả lời, 300 ms lúc chuẩn bị. Thí sinh giữ nhịp đọc cũ để tránh tăng tải theo số lượng thiết bị. Yêu cầu đọc của thí sinh/trình chiếu xác thực bằng khóa phòng, không khởi động phiên hay đọc lại toàn bộ tài khoản; yêu cầu điều khiển và bấm vẫn giữ kiểm tra phiên/CSRF. Chuông gửi ngay khi chạm nút, vẫn hỗ trợ bàn phím; âm thanh chỉ phát sau khi máy chủ xác nhận người đầu tiên. Độ trễ thực tế còn phụ thuộc mạng và hosting.
