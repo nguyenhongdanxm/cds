@@ -47,3 +47,14 @@ check(bz_can_host(['id'=>'1','role'=>'admin']),'Admin allowed');
 foreach(['student','hs','parent','phhs']as$role)check(!bz_can_host(['id'=>'1','role'=>$role]),'Student/parent cannot host');
 $GLOBALS['allowed']=false;check(!bz_can_host(['id'=>'gv','role'=>'gv']),'Permission enforced');$GLOBALS['allowed']=true;$GLOBALS['visible']=false;check(!bz_can_host(['id'=>'gv','role'=>'gv']),'Visibility enforced');
 echo "PASS Bấm chuông: 100 contestants, authoritative order, one sound, duplicate/stale presses, wrong lock/reopen, timer/deadline, new question, privacy and host permissions\n";
+
+$t=bz_teams(bz_initial('Đội khai báo'),['Đội A','Đội B']);$tid=array_keys($t['players']);
+reject(fn()=>bz_transition($t,'join',['name'=>'Giả','join_token'=>str_repeat('d',64)],1),'Cannot invent team');
+$t=bz_transition($t,'join',['team_id'=>$tid[0],'name'=>'Giả','join_token'=>str_repeat('d',64)],1);
+check($t['players'][$tid[0]]['name']==='Đội A','Server retains configured name');
+check(bz_transition($t,'join',['team_id'=>$tid[1],'join_token'=>str_repeat('d',64)],2)===$t,'Same device cannot claim second team');
+reject(fn()=>bz_transition($t,'join',['team_id'=>$tid[0],'join_token'=>str_repeat('e',64)],2),'Second device cannot claim team');
+$t=hostMove($t,'release',['player_id'=>$tid[0]],3);
+reject(fn()=>bz_player($t,$tid[0],str_repeat('d',64)),'Released token revoked');
+check(count($t['players'])===2&&$t['players'][$tid[0]]['name']==='Đội A','Release retains roster');
+echo "PASS managed teams: fixed names, exclusive device, idempotence, release/revocation\n";

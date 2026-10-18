@@ -14,6 +14,12 @@ function bz_text($value,int $max): string {
 function bz_initial(string $title): array {
     return ['title'=>bz_text($title,80),'version'=>1,'status'=>'lobby','question'=>0,'race'=>0,'duration_ms'=>30000,'remaining_ms'=>30000,'started_at'=>0,'winner_id'=>'','winner_event'=>0,'players'=>[],'queue'=>[],'last_result'=>null];
 }
+function bz_teams(array $s,array $names): array {
+    if(!$names||count($names)>100)bz_fail('Khai báo từ 1 đến 100 đội.',422);
+    $seen=[];$s['team_mode']=true;
+    foreach($names as$name){$name=bz_text($name,60);$key=mb_strtolower($name,'UTF-8');if(isset($seen[$key]))bz_fail('Tên đội bị trùng.',422);$seen[$key]=true;$id=bin2hex(random_bytes(12));$s['players'][$id]=['id'=>$id,'name'=>$name,'key_hash'=>'','blocked'=>false];}
+    return $s;
+}
 function bz_remaining(array $s,int $now): int {
     return max(0,(int)$s['remaining_ms']-($s['status']==='running'?max(0,$now-(int)$s['started_at']):0));
 }
@@ -30,6 +36,11 @@ function bz_transition(array $s,string $action,array $input,int $now): array {
         if(!preg_match('/^[a-f0-9]{64}$/D',$token))bz_fail('Mã thiết bị không hợp lệ.',422);
         foreach($s['players']as$p)if(hash_equals($p['key_hash'],hash('sha256',$token)))return $s;
         if(!in_array($s['status'],['lobby','reading','finished'],true))bz_fail('Câu đang diễn ra. Hãy chờ giáo viên sang câu mới.');
+        if(!empty($s['team_mode'])){
+            $id=(string)($input['team_id']??'');if(!isset($s['players'][$id]))bz_fail('Hãy chọn đội đã được quản trị khai báo.',422);
+            if($s['players'][$id]['key_hash']!=='')bz_fail('Đội đã có thiết bị tham gia. Nhờ giáo viên giải phóng thiết bị nếu cần.');
+            $s['players'][$id]['key_hash']=hash('sha256',$token);$s['version']++;return $s;
+        }
         if(count($s['players'])>=100)bz_fail('Phòng đã đủ 100 thí sinh.');
         $name=bz_text($input['name']??'',60);$key=mb_strtolower($name,'UTF-8');
         foreach($s['players']as$p)if(mb_strtolower($p['name'],'UTF-8')===$key)bz_fail('Tên đã có trong phòng. Hãy thêm lớp hoặc số thứ tự.');
@@ -53,7 +64,7 @@ function bz_transition(array $s,string $action,array $input,int $now): array {
             $s['question']++;$s['race']++;$s['status']='reading';$s['duration_ms']=$seconds*1000;$s['remaining_ms']=$seconds*1000;$s['started_at']=0;$s['queue']=[];$s['winner_id']='';$s['last_result']=null;
             foreach($s['players']as&$p)$p['blocked']=false;unset($p);
         }elseif($action==='start'){
-            if($s['status']!=='reading'||!$s['players'])bz_fail('Chuẩn bị câu mới và chờ thí sinh vào trước khi bắt đầu.');
+            if($s['status']!=='reading'||!array_filter($s['players'],fn($p)=>$p['key_hash']!==''))bz_fail('Chuẩn bị câu mới và chờ thí sinh vào trước khi bắt đầu.');
             $s['status']='running';$s['started_at']=$now;
         }elseif(in_array($action,['wrong','correct'],true)){
             if($s['status']!=='answering'||$s['winner_id']==='')bz_fail('Chưa có thí sinh giành quyền trả lời.');
@@ -61,15 +72,17 @@ function bz_transition(array $s,string $action,array $input,int $now): array {
             if($action==='correct'){$s['status']='finished';}
             else{
                 $s['players'][$id]['blocked']=true;$s['queue']=[];$s['winner_id']='';$s['race']++;
-                $available=array_filter($s['players'],fn($p)=>!$p['blocked']);
+                $available=array_filter($s['players'],fn($p)=>!$p['blocked']&&$p['key_hash']!=='');
                 $s['status']=$available&&$s['remaining_ms']>0?'running':'finished';$s['started_at']=$now;
             }
         }elseif($action==='stop'){
             if(!in_array($s['status'],['running','answering'],true))bz_fail('Câu đã dừng.');
             $s['remaining_ms']=bz_remaining($s,$now);$s['status']='finished';
-        }elseif($action==='remove'){
+        }elseif($action==='remove'||$action==='release'){
             if(!in_array($s['status'],['lobby','reading','finished'],true))bz_fail('Chỉ bỏ thí sinh khi câu chưa bắt đầu hoặc đã kết thúc.');
-            $id=(string)($input['player_id']??'');unset($s['players'][$id]);
+            $id=(string)($input['player_id']??'');
+            if(!empty($s['team_mode'])){if(!isset($s['players'][$id]))bz_fail('Đội không tồn tại.',404);$s['players'][$id]['key_hash']='';}
+            else unset($s['players'][$id]);
             $s['queue']=array_values(array_filter($s['queue'],fn($r)=>$r['id']!==$id));
             if($s['winner_id']===$id)$s['winner_id']='';
         }elseif($action==='close')$s['status']='closed';
@@ -80,7 +93,7 @@ function bz_transition(array $s,string $action,array $input,int $now): array {
 function bz_view(array $s,int $now,string $role,string $id=''): array {
     $remaining=bz_remaining($s,$now);$status=$s['status']==='running'&&$remaining===0?'finished':$s['status'];
     $rank=array_column($s['queue'],null,'id');$players=[];
-    foreach($s['players']as$p){if($role==='player'&&$p['id']!==$id)continue;$players[]=['id'=>$p['id'],'name'=>$p['name'],'blocked'=>$p['blocked'],'rank'=>$rank[$p['id']]['rank']??null,'elapsed_ms'=>$rank[$p['id']]['elapsed_ms']??null];}
-    $view=['title'=>$s['title'],'version'=>$s['version'],'status'=>$status,'question'=>$s['question'],'race'=>$s['race'],'duration_ms'=>$s['duration_ms'],'remaining_ms'=>$remaining,'server_ms'=>$now,'winner_id'=>$s['winner_id'],'winner_event'=>$s['winner_event'],'players'=>$players,'audio'=>$role==='player'?[]:($s['audio']??[]),'last_result'=>$role==='player'?null:$s['last_result']];
+    foreach($s['players']as$p){if($role==='player'&&$p['id']!==$id)continue;$players[]=['id'=>$p['id'],'name'=>$p['name'],'blocked'=>$p['blocked'],'occupied'=>$p['key_hash']!=='','rank'=>$rank[$p['id']]['rank']??null,'elapsed_ms'=>$rank[$p['id']]['elapsed_ms']??null];}
+    $view=['team_mode'=>!empty($s['team_mode']),'title'=>$s['title'],'version'=>$s['version'],'status'=>$status,'question'=>$s['question'],'race'=>$s['race'],'duration_ms'=>$s['duration_ms'],'remaining_ms'=>$remaining,'server_ms'=>$now,'winner_id'=>$s['winner_id'],'winner_event'=>$s['winner_event'],'players'=>$players,'audio'=>$role==='player'?[]:($s['audio']??[]),'last_result'=>$role==='player'?null:$s['last_result']];
     if($role==='host'&&isset($s['_shared_audio']))$view['shared_audio']=$s['_shared_audio'];return $view;
 }

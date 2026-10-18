@@ -5,6 +5,9 @@ check(getenv('GITHUB_ACTIONS')==='true'&&getenv('CDS_TEST_MYSQL')==='disposable-
 $port=(string)getenv('CDS_TEST_MYSQL_PORT');check(ctype_digit($port)&&(int)$port>0,'Fixture port required');
 function fixture_db():PDO{return new PDO('mysql:host=127.0.0.1;port='.getenv('CDS_TEST_MYSQL_PORT').';dbname=cds_disposable_test;charset=utf8mb4','cds_fixture','fixture-only-password',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);}
 require __DIR__.'/../includes/buzzer_store.php';
+if(($argv[1]??'')==='claim'){
+    try{bz_write(fixture_db(),$argv[2],['role'=>'player'],'join',['team_id'=>$argv[3],'join_token'=>$argv[4]]);echo 'claimed';}catch(BuzzerError $e){echo 'rejected';}exit;
+}
 if(($argv[1]??'')==='worker'){
     [,,$code,$id,$token,$question,$race,$at]=$argv;
     while(bz_now()<(int)$at)usleep(1000);
@@ -49,3 +52,17 @@ control($db,$code,$host,'stop');bz_audio_set($db,$code,$host,'bell',null);check(
 control($db,$code,$host,'close');try{bz_write($db,$code,$actors[1],'press',['question'=>$state['question'],'race'=>$state['race']]);throw new LogicException('Closed press');}catch(BuzzerError $e){}
 check($db->query('SELECT value FROM fixture_existing_school_data')->fetchColumn()==='must-not-change','Other school data untouched');
 echo "PASS SQL: 32+31 simultaneous players, 12 duplicate requests, one winner per race, wrong exclusion, isolation and permissions\n";
+
+$managed=bz_create($db,'admin','Đội đã khai báo',['room_code'=>'OLYMPIA6','teams'=>['Đội A','Đội B']]);
+check($managed['code']==='OLYMPIA6','Custom code retained in existing CHAR(8) schema');
+$opts=bz_join_options($db,'olympia6');$tid=$opts['teams'][0]['id'];$workers=[];
+for($i=0;$i<12;$i++){$pipes=[];$proc=proc_open([PHP_BINARY,__FILE__,'claim','OLYMPIA6',$tid,hash('sha256','claim-'.$i)],[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes);fclose($pipes[0]);$workers[]=[$proc,$pipes];}
+$claims=0;foreach($workers as[$proc,$pipes]){$out=stream_get_contents($pipes[1]);$err=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);check(proc_close($proc)===0,'Claim worker '.$err);$claims+=($out==='claimed');}
+check($claims===1,'Exactly one of twelve devices claims team');
+check(!str_contains(json_encode(bz_join_options($db,'OLYMPIA6')),'key_hash'),'Public picker no secrets');
+try{bz_create($db,'admin','Trùng',['room_code'=>'olympia6','teams'=>['A']]);throw new LogicException('Duplicate accepted');}catch(BuzzerError $e){}
+check(in_array('OLYMPIA6',array_column(bz_open_rooms($db),'code'),true),'Open managed room discoverable');
+control($db,'OLYMPIA6',['role'=>'host','owner'=>'admin'],'close');
+check(!in_array('OLYMPIA6',array_column(bz_open_rooms($db),'code'),true),'Closed room hidden');
+check($db->query('SELECT value FROM fixture_existing_school_data WHERE id=1')->fetchColumn()==='must-not-change','Existing school data unchanged after team tests');
+echo "PASS custom room codes, public privacy, 12 concurrent team claims and closed room discovery\n";

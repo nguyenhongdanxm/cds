@@ -20,7 +20,7 @@ try{
     }elseif($method!=='GET')bz_fail('Phương thức không hợp lệ.',405);
     $action=(string)($method==='POST'?($input['action']??''):($_GET['action']??'state'));
     if($action==='audio_upload')bz_fail('Trang đang dùng bản upload cũ. Hãy tải lại trang rồi dùng nút Tải lên & áp dụng mọi phòng.',409);
-    if($method==='GET'&&!in_array($action,['state','list','audio','audio_settings'],true))bz_fail('Thao tác này cần POST.',405);
+    if($method==='GET'&&!in_array($action,['state','list','audio','audio_settings','open_rooms','join_options'],true))bz_fail('Thao tác này cần POST.',405);
     $role=(string)($method==='POST'?($input['role']??''):($_GET['role']??''));
     $actor=['role'=>$role,'id'=>(string)($method==='POST'?($input['player_id']??''):($_GET['player_id']??'')),'token'=>(string)($_SERVER['HTTP_X_BUZZER_TOKEN']??'')];
     if($role==='host'){
@@ -34,8 +34,10 @@ try{
     $db=cds_db();
     if($action==='create'){
         if($method!=='POST'||$role!=='host')bz_fail('Chỉ giáo viên được tạo phòng.',403);
-        bz_reply(200,['ok'=>true]+bz_create($db,$actor['owner'],(string)($input['title']??'Bấm chuông')));
+        $options=[];if(isset($input['teams'])||!empty($input['room_code'])){if(empty($actor['audio_admin']))bz_fail('Chỉ quản trị viên được khai báo mã phòng và đội chơi.',403);if(!is_array($input['teams']??null))bz_fail('Danh sách đội không hợp lệ.',422);$options=['teams'=>$input['teams'],'room_code'=>$input['room_code']??''];}
+        bz_reply(200,['ok'=>true]+bz_create($db,$actor['owner'],(string)($input['title']??'Bấm chuông'),$options));
     }
+    if($action==='open_rooms')bz_reply(200,['ok'=>true,'rooms'=>bz_open_rooms($db)]);
     if($action==='list'){
         if($role!=='host')bz_fail('Không có quyền xem danh sách phòng.',403);
         bz_reply(200,['ok'=>true,'rooms'=>bz_list($db,$actor['owner'])]);
@@ -49,6 +51,7 @@ try{
         bz_reply(200,['ok'=>true]+$result);
     }
     $code=bz_code($method==='POST'?($input['code']??''):($_GET['code']??''));
+    if($action==='join_options')bz_reply(200,['ok'=>true]+bz_join_options($db,$code));
     if($action==='audio'){
         require_once __DIR__.'/includes/buzzer_audio.php';$kind=bz_audio_kind($input['kind']??$_GET['kind']??'');
         if($action==='audio'){
