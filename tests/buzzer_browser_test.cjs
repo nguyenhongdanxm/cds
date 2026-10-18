@@ -11,7 +11,11 @@ const server=http.createServer(async(req,res)=>{
   if(url.pathname==='/hoclieu_game_buzzer.php'){res.setHeader('Content-Type','text/html; charset=utf-8');const view=url.searchParams.get('view')||'host';res.end(rendered[view].replace('"code":""','"code":'+JSON.stringify(url.searchParams.get('code')||'')));return;}
   if(['/assets/buzzer.js','/assets/buzzer.css'].includes(url.pathname)){res.setHeader('Content-Type',url.pathname.endsWith('.js')?'text/javascript':'text/css');res.end(fs.readFileSync(root+url.pathname));return;}
   if(url.pathname==='/hoclieu_game_buzzer_api.php'){
-    let body='';for await(const chunk of req)body+=chunk;const args=req.method==='POST'?JSON.parse(body):Object.fromEntries(url.searchParams);let reply;
+    let body='';for await(const chunk of req)body+=chunk;
+    let args;if(req.headers['content-type']?.startsWith('multipart/form-data')){args={action:'audio_upload',role:'host'};for(const key of ['kind','code'])args[key]=body.split('name="'+key+'"')[1]?.split('\r\n\r\n')[1]?.split('\r\n')[0];}else args=req.method==='POST'?JSON.parse(body):Object.fromEntries(url.searchParams);let reply;
+    if(args.action==='audio'){res.setHeader('Content-Type','audio/wav');res.end(Buffer.from('fixture audio'));return;}
+    if(args.action==='audio_upload'){world.audio=world.audio||{};world.audio[args.kind]={id:args.kind==='background'?'b'.repeat(48):'c'.repeat(48),name:'custom.wav',mime:'audio/wav'};world.version++;res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,state:snapshot('host')}));return;}
+
     if(args.action==='list')reply={ok:true,rooms:[]};
     else if(args.action==='create'){world=engine('initial',{title:args.title}).result;reply={ok:true,code,screen_key:screenKey};}
     else if(args.action==='state')reply={ok:true,state:snapshot(args.role,args.player_id)};
@@ -32,7 +36,7 @@ const server=http.createServer(async(req,res)=>{
   const browser=await chromium.launch({headless:true});const context=await browser.newContext({viewport:{width:1440,height:1000}});
   const errors=[];const pages=[];const watch=page=>{pages.push(page);page.on('pageerror',e=>errors.push(e.message));};
   const host=await context.newPage();watch(host);const screen=await context.newPage();watch(screen);
-  await screen.addInitScript(()=>{window.rings=0;window.AudioContext=class {constructor(){this.currentTime=0;this.destination={};}async resume(){}createOscillator(){return {frequency:{},connect(){},start(){window.rings++;},stop(){}};}createGain(){return {gain:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}};}};});
+  await screen.addInitScript(()=>{window.rings=0;window.customRings=0;window.musicStarts=0;window.musicStops=0;window.decodes=0;window.AudioContext=class {constructor(){this.currentTime=0;this.destination={};}async resume(){}async decodeAudioData(){window.decodes++;return {duration:1};}createBufferSource(){return {loop:false,connect(){},start(){if(this.loop)window.musicStarts++;else window.customRings++;},stop(){if(this.loop)window.musicStops++;}};}createOscillator(){return {frequency:{},connect(){},start(){window.rings++;},stop(){}};}createGain(){return {gain:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}};}};});
   const students=[];
   fs.mkdirSync('/tmp/buzzer-screenshots',{recursive:true});
   try{
@@ -48,7 +52,7 @@ const server=http.createServer(async(req,res)=>{
     await host.waitForFunction(()=>document.querySelectorAll('#players .player-card').length===3);
     await host.locator('#newQuestion').click();await host.waitForFunction(()=>document.getElementById('start').disabled===false);await host.locator('#start').click();
     for(const p of students)await p.waitForFunction(()=>document.getElementById('bell').disabled===false);
-    await students[0].locator('#bell').click();await screen.waitForFunction(()=>window.rings===6);await screen.waitForFunction(()=>document.querySelectorAll('#players .winner').length===1);
+    await students[0].locator('#bell').click();await screen.waitForFunction(()=>window.rings===6);await screen.waitForFunction(()=>document.querySelectorAll('#players .winner').length===1);assert.equal(await screen.locator('#ringingBell').isVisible(),true);assert.equal(await screen.locator('.stage.buzzer-active').count(),1);
     await students[1].locator('#bell').click();await students[1].waitForFunction(()=>document.getElementById('myRank').textContent.includes('thứ 2'));
     await students[2].locator('#bell').click();await host.waitForFunction(()=>Array.from(document.querySelectorAll('#players .rank')).some(e=>e.textContent.includes('#3')));
     assert.equal(await screen.evaluate(()=>window.rings),6,'Second/third never ring');assert.equal(await screen.locator('#players img').count(),0,'Names rendered as text, never HTML');
@@ -56,14 +60,23 @@ const server=http.createServer(async(req,res)=>{
     await host.locator('#wrong').click();await students[0].waitForFunction(()=>document.getElementById('myRank').textContent.includes('hết quyền'));
     await students[1].waitForFunction(()=>!document.getElementById('bell').disabled);await students[1].locator('#bell').click();await screen.waitForFunction(()=>window.rings===9);
     await host.waitForFunction(()=>document.getElementById('winner').textContent.includes('Đội Tiên Phong'));await host.locator('#correct').click();
-    await students[2].waitForFunction(()=>document.getElementById('phase').textContent==='Câu đã kết thúc');assert.equal(await students[2].locator('#bell').isDisabled(),true);
+    await students[2].waitForFunction(()=>document.getElementById('phase').textContent==='Câu đã kết thúc');assert.equal(await students[2].locator('#bell').isDisabled(),true);await screen.waitForFunction(()=>document.getElementById('ringingBell').hidden);
+    await host.locator('.audio-settings summary').click();
+    for(const kind of ['background','bell']){await host.locator('#audio-'+kind).setInputFiles({name:'custom.wav',mimeType:'audio/wav',buffer:Buffer.from('fixture audio')});await host.waitForFunction(kind=>document.getElementById('audio-name-'+kind).textContent==='custom.wav',kind);}
+    await screen.waitForFunction(()=>window.decodes===2);
     await host.locator('#newQuestion').click();await host.waitForFunction(()=>!document.getElementById('start').disabled);await host.locator('#start').click();
+    await screen.waitForFunction(()=>window.musicStarts===1);
+
     await students[0].waitForFunction(()=>!document.getElementById('bell').disabled);
     // Reload restores the original contestant token rather than adding another player.
     await students[0].reload();await students[0].locator('#playerPanel').waitFor({state:'visible'});assert.equal(Object.keys(world.players).length,3);
     await students[2].route('**/hoclieu_game_buzzer_api.php*',route=>route.abort());
     await students[2].waitForFunction(()=>document.getElementById('connection').classList.contains('offline'));assert.equal(await students[2].locator('#bell').isDisabled(),true,'Disconnected contestant cannot claim a local win');
     await students[2].unroute('**/hoclieu_game_buzzer_api.php*');await students[2].waitForFunction(()=>!document.getElementById('bell').disabled);
+    await students[0].locator('#bell').click();await screen.waitForFunction(()=>window.customRings===1&&window.musicStops===1);
+    await host.waitForFunction(()=>document.getElementById('winner').textContent.includes('Đội Khám Phá'));await host.locator('#wrong').click();await screen.waitForFunction(()=>window.musicStarts===2);
+    await students[1].waitForFunction(()=>!document.getElementById('bell').disabled);await students[1].locator('#bell').click();await screen.waitForFunction(()=>window.customRings===2&&window.musicStops===2);
+    assert.equal(await screen.evaluate(()=>window.rings),9,'Custom bell replaces default; no extra beep');
     for(const [p,name]of [[host,'teacher'],[screen,'projector'],[students[0],'contestant-mobile']]){
       assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'No horizontal overflow: '+name);
       await p.screenshot({path:'/tmp/buzzer-screenshots/'+name+'.png',fullPage:true});

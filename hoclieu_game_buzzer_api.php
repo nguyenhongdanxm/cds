@@ -9,13 +9,17 @@ function bz_reply(int $status,array $data): void {http_response_code($status);ec
 try{
     $method=$_SERVER['REQUEST_METHOD']??'GET';$input=[];
     if($method==='POST'){
-        if(stripos($_SERVER['CONTENT_TYPE']??'','application/json')!==0)bz_fail('Chỉ nhận dữ liệu JSON.',415);
-        $raw=file_get_contents('php://input',false,null,0,4097);if(strlen($raw)>4096)bz_fail('Yêu cầu quá lớn.',413);
-        $input=json_decode($raw,true,16,JSON_THROW_ON_ERROR);if(!is_array($input))bz_fail('Dữ liệu không hợp lệ.',422);
+        if(stripos($_SERVER['CONTENT_TYPE']??'','multipart/form-data')===0){
+            $input=$_POST;if(($input['action']??'')!=='audio_upload')bz_fail('Thao tác upload không hợp lệ.',422);
+        }else{
+            if(stripos($_SERVER['CONTENT_TYPE']??'','application/json')!==0)bz_fail('Chỉ nhận dữ liệu JSON hoặc file âm thanh.',415);
+            $raw=file_get_contents('php://input',false,null,0,4097);if(strlen($raw)>4096)bz_fail('Yêu cầu quá lớn.',413);
+            $input=json_decode($raw,true,16,JSON_THROW_ON_ERROR);if(!is_array($input))bz_fail('Dữ liệu không hợp lệ.',422);
+        }
         $csrf=(string)($_SESSION['buzzer_csrf']??'');if($csrf===''||!hash_equals($csrf,(string)($input['csrf']??'')))bz_fail('Phiên đã hết hạn. Hãy tải lại trang.',403);
     }elseif($method!=='GET')bz_fail('Phương thức không hợp lệ.',405);
     $action=(string)($method==='POST'?($input['action']??''):($_GET['action']??'state'));
-    if($method==='GET'&&!in_array($action,['state','list'],true))bz_fail('Thao tác này cần POST.',405);
+    if($method==='GET'&&!in_array($action,['state','list','audio'],true))bz_fail('Thao tác này cần POST.',405);
     $role=(string)($method==='POST'?($input['role']??''):($_GET['role']??''));
     $actor=['role'=>$role,'id'=>(string)($method==='POST'?($input['player_id']??''):($_GET['player_id']??'')),'token'=>(string)($_SERVER['HTTP_X_BUZZER_TOKEN']??'')];
     if($role==='host'){
@@ -36,6 +40,15 @@ try{
         bz_reply(200,['ok'=>true,'rooms'=>bz_list($db,$actor['owner'])]);
     }
     $code=bz_code($method==='POST'?($input['code']??''):($_GET['code']??''));
+    if(in_array($action,['audio','audio_upload','audio_reset'],true)){
+        require_once __DIR__.'/includes/buzzer_audio.php';$kind=bz_audio_kind($input['kind']??$_GET['kind']??'');
+        if($action==='audio'){
+            $file=bz_audio_file($db,$code,$actor,$kind);header('Content-Type: '.$file['mime']);header('Content-Length: '.filesize($file['path']));readfile($file['path']);exit;
+        }
+        if($method!=='POST')bz_fail('Cần POST.',405);
+        $result=$action==='audio_upload'?bz_audio_upload($db,$code,$actor,$kind,$_FILES['audio']??[]):bz_audio_set($db,$code,$actor,$kind,null);
+        bz_reply(200,['ok'=>true]+$result);
+    }
     if($action==='state')bz_reply(200,['ok'=>true,'state'=>bz_read($db,$code,$actor)]);
     if($method!=='POST')bz_fail('Thao tác này cần POST.',405);
     bz_reply(200,['ok'=>true]+bz_write($db,$code,$actor,$action,$input));

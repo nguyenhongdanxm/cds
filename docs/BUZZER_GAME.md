@@ -70,3 +70,30 @@ mở/tải lại trình chiếu.
 Deploy toàn bộ main qua cPanel như hiện tại. Manifest đã bổ sung hai file
 root, assets/includes được sao chép theo cơ chế có sẵn. Không nạp lại CSDL
 đang chạy hoặc thực hiện lệnh xóa dữ liệu.
+
+## Nhạc nền và chuông riêng
+
+Trong bảng điều khiển, mở **Cài nhạc nền & tiếng chuông**. Chọn riêng file
+nhạc nền và file chuông (MP3/WAV/OGG/M4A, tối đa 10 MB/file, còn phụ thuộc
+PHP upload_max_filesize/post_max_size của hosting). Chỉ cài khi câu chưa
+bắt đầu hoặc đã kết thúc. Âm thanh lưu theo phòng, không chỉ trên thiết bị
+chọn file. Trình chiếu trên máy khác có cùng liên kết vẫn nhận cấu hình.
+
+Trên trình chiếu chọn **Bật âm thanh**, điều chỉnh âm lượng Nhạc nền và
+Chuông riêng. Nhạc nền lặp khi đồng hồ chạy, dừng khi có người giành quyền
+trả lời/hết giờ/dừng câu/mất kết nối. Chọn Sai thì nhạc chạy tiếp khi mở
+lại chuông; câu mới phát lại từ đầu. Chỉ người đầu tiên của mỗi lượt phát
+chuông riêng, người thứ 2/3 vẫn không phát thêm âm thanh. Khi chưa chọn
+chuông hoặc không giải mã được file, dùng chuông mặc định. Có nút bỏ nhạc
+nền và trở về chuông mặc định.
+
+File được kiểm tra nội dung bằng fileinfo, lưu tên ngẫu nhiên đuôi .bin
+trong data/buzzer_audio được bảo vệ; API đọc kiểm tra quyền host hoặc token
+trình chiếu và phòng còn hạn. Thí sinh không tải được âm thanh. Thay file
+thì dọn file cũ; upload mới dọn tối đa 100 file riêng quá 48 giờ. Không
+nhận URL ngoài, không thực thi file và không thay state xếp thứ tự chuông.
+
+Khi có đội giành chuông, tên/ô đội nhấp nháy đổi màu liên tục và hiện biểu
+tượng chuông rung. Hiệu ứng dừng khi giáo viên quyết định Đúng/Sai/Dừng
+câu; người đứng sau không kích hoạt thêm chuông. Tôn trọng cài đặt giảm
+chuyển động của thiết bị trình chiếu.
