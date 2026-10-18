@@ -10,7 +10,7 @@ $cfg=['canConfigureAudio'=>$view==='host'&&(current_user()['role']??'')==='admin
 header('Cache-Control: no-store, private');header('Referrer-Policy: no-referrer');
 if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
 ?>
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bấm chuông · <?=e(defined('SCHOOL_NAME')?SCHOOL_NAME:'CDS')?></title><link rel="stylesheet" href="<?=e(BASE_URL)?>assets/buzzer.css?v=managed-teams-1"></head>
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bấm chuông · <?=e(defined('SCHOOL_NAME')?SCHOOL_NAME:'CDS')?></title><link rel="stylesheet" href="<?=e(BASE_URL)?>assets/buzzer.css?v=fast-buzzer-1"></head>
 <body class="buzzer-<?=e($view)?>"><main id="buzzerApp">
 <?php if($view==='host'):?>
 <header class="topbar"><a href="<?=e(BASE_URL)?>hoclieu.php?tab=games">← Trò chơi</a><span class="eyebrow">TIỆN ÍCH LỚP HỌC</span><strong>Bấm chuông</strong></header>
@@ -25,4 +25,4 @@ if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
 <section id="playerPanel" class="player-panel" hidden><span class="eyebrow">BẠN ĐÃ SẴN SÀNG</span><h1 id="myName"></h1><div id="clock" class="clock">30.0</div><p id="phase" class="phase">Chờ giáo viên bắt đầu</p><button id="bell" class="bell" disabled aria-label="Bấm chuông"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M23 68h54l-8-12V39a19 19 0 0 0-38 0v17z"/><path d="M40 77a10 10 0 0 0 20 0M47 17v-5h6v5"/></svg><span>BẤM CHUÔNG</span></button><p id="myRank" class="result" aria-live="polite"></p><button id="leave" class="plain">Đổi phòng / đội</button></section>
 <?php endif;?>
 <div id="notice" class="notice" role="status" aria-live="polite"></div><div id="connection" class="connection" role="status">Đang kết nối…</div>
-</main><script id="buzzerConfig" type="application/json"><?=json_encode($cfg,JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_UNICODE)?></script><script src="<?=e(BASE_URL)?>assets/buzzer.js?v=managed-teams-1"></script></body></html>
+</main><script id="buzzerConfig" type="application/json"><?=json_encode($cfg,JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_UNICODE)?></script><script src="<?=e(BASE_URL)?>assets/buzzer.js?v=fast-buzzer-1"></script></body></html>

@@ -1,7 +1,12 @@
 <?php
 declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store, private');header('X-Content-Type-Options: nosniff');
-require_once __DIR__.'/includes/auth.php';
+require_once __DIR__.'/includes/buzzer_access.php';
+if(bz_token_read_request($_SERVER,$_GET)){
+    require_once __DIR__.'/includes/config.php';
+}else{
+    require_once __DIR__.'/includes/auth.php';
+}
 require_once __DIR__.'/includes/database.php';
 require_once __DIR__.'/includes/buzzer_store.php';
 require_once __DIR__.'/includes/buzzer_access.php';
