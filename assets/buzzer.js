@@ -98,10 +98,10 @@
     if (!list.length) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'Chưa có thí sinh. Chia sẻ mã phòng để bắt đầu.'; $('players').append(p); }
     list.forEach(p => {
       const card = document.createElement('article'); card.className = 'player-card' + (p.blocked ? ' blocked' : '') + (p.id === state.winner_id ? (state.status === 'answering' ? ' winner' : ' winner-decided') : '');
-      if (cfg.view === 'host' && ['lobby','reading','finished'].includes(state.status)) { const remove = document.createElement('button'); remove.className = 'plain remove'; remove.textContent = state.team_mode ? 'Giải phóng thiết bị' : 'Bỏ'; remove.disabled = !online || pending; remove.addEventListener('click', () => { if (confirm('Bỏ ' + p.name + ' khỏi phòng?')) command(state.team_mode ? 'release' : 'remove', {player_id:p.id}); }); card.append(remove); }
+      if (cfg.view === 'host' && ['lobby','reading','finished'].includes(state.status)) { const remove = document.createElement('button'); remove.className = 'plain remove'; remove.textContent = state.team_mode ? 'Giải phóng thiết bị' : 'Bỏ'; remove.disabled = !online || pending || (state.team_mode && !p.occupied); remove.addEventListener('click', () => { if (confirm(state.team_mode ? 'Giải phóng thiết bị của ' + p.name + '?' : 'Bỏ ' + p.name + ' khỏi phòng?')) command(state.team_mode ? 'release' : 'remove', {player_id:p.id}); }); card.append(remove); }
       const rank = document.createElement('div'); rank.className = 'rank'; rank.textContent = p.blocked ? 'ĐÃ TRẢ LỜI SAI · KHÓA CÂU NÀY' : p.rank ? 'THỨ TỰ #' + p.rank : 'ĐANG CHỜ';
       const name = document.createElement('h3'); name.textContent = p.name;
-      const timing = document.createElement('div'); timing.className = 'timing'; timing.textContent = p.elapsed_ms === null ? 'Sẵn sàng giành quyền trả lời' : (p.elapsed_ms / 1000).toFixed(3) + ' giây từ khi mở lượt';
+      const timing = document.createElement('div'); timing.className = 'timing'; timing.textContent = p.elapsed_ms === null ? (state.team_mode && !p.occupied ? 'Chưa có thiết bị tham gia' : 'Sẵn sàng giành quyền trả lời') : (p.elapsed_ms / 1000).toFixed(3) + ' giây từ khi mở lượt';
       card.append(rank, name, timing); $('players').append(card);
     });
   }
