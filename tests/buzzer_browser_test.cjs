@@ -4,8 +4,8 @@ const fs = require('node:fs'), http = require('node:http'), cp = require('node:c
 const root = require('node:path').resolve(__dirname,'..'), php = process.env.PHP_BINARY || 'php';
 const rendered = Object.fromEntries(['host','screen','play'].map(view => [view,cp.execFileSync(php,[root+'/tests/support/buzzer_browser_fixture.php',view],{encoding:'utf8'})]));
 function engine(action, params={}) { return JSON.parse(cp.execFileSync(php,[root+'/tests/support/buzzer_browser_state.php'],{input:JSON.stringify({action,...params,now:Date.now()}),encoding:'utf8'})); }
-const code='12345678', screenKey='a'.repeat(48);let world=null;
-function snapshot(role,id) { const s=engine('view',{state:world,role,id}).result;s.code=code;if(role==='host')s.screen_key=screenKey;return s; }
+const code='12345678', screenKey='a'.repeat(48);let world=null;let globalAudio={},uploads={};
+function snapshot(role,id) { const s=engine('view',{state:{...world,audio:{...(world.audio||{}),...globalAudio}},role,id}).result;s.code=code;if(role==='host'){s.screen_key=screenKey;s.shared_audio=globalAudio;}return s; }
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://fixture');
   if(url.pathname==='/hoclieu_game_buzzer.php'){res.setHeader('Content-Type','text/html; charset=utf-8');const view=url.searchParams.get('view')||'host';res.end(rendered[view].replace('"code":""','"code":'+JSON.stringify(url.searchParams.get('code')||'')));return;}
@@ -14,8 +14,10 @@ const server=http.createServer(async(req,res)=>{
     let body='';for await(const chunk of req)body+=chunk;
     let args;if(req.headers['content-type']?.startsWith('multipart/form-data')){args={action:'audio_upload',role:'host'};for(const key of ['kind','code'])args[key]=body.split('name="'+key+'"')[1]?.split('\r\n\r\n')[1]?.split('\r\n')[0];}else args=req.method==='POST'?JSON.parse(body):Object.fromEntries(url.searchParams);let reply;
     if(args.action==='audio'){res.setHeader('Content-Type','audio/wav');res.end(Buffer.from('fixture audio'));return;}
-    if(args.action==='audio_upload'){world.audio=world.audio||{};world.audio[args.kind]={id:args.kind==='background'?'b'.repeat(48):'c'.repeat(48),name:'custom.wav',mime:'audio/wav'};world.version++;res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,state:snapshot('host')}));return;}
-
+    if(args.action==='audio_settings'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,audio:globalAudio}));return;}
+    if(args.action==='audio_begin'){const id=args.kind==='background'?'b'.repeat(48):'c'.repeat(48);uploads[id]={kind:args.kind,name:args.name,offset:0};res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,upload_id:id}));return;}
+    if(args.action==='audio_chunk'){uploads[args.upload_id].offset=args.offset+Buffer.from(args.data,'base64').length;res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,offset:uploads[args.upload_id].offset}));return;}
+    if(args.action==='audio_finish'){const u=uploads[args.upload_id];globalAudio[u.kind]={id:args.upload_id,name:u.name,mime:'audio/wav'};res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,audio:globalAudio}));return;}
     if(args.action==='list')reply={ok:true,rooms:[]};
     else if(args.action==='create'){world=engine('initial',{title:args.title}).result;reply={ok:true,code,screen_key:screenKey};}
     else if(args.action==='state')reply={ok:true,state:snapshot(args.role,args.player_id)};
@@ -61,8 +63,8 @@ const server=http.createServer(async(req,res)=>{
     await students[1].waitForFunction(()=>!document.getElementById('bell').disabled);await students[1].locator('#bell').click();await screen.waitForFunction(()=>window.rings===9);
     await host.waitForFunction(()=>document.getElementById('winner').textContent.includes('Đội Tiên Phong'));await host.locator('#correct').click();
     await students[2].waitForFunction(()=>document.getElementById('phase').textContent==='Câu đã kết thúc');assert.equal(await students[2].locator('#bell').isDisabled(),true);await screen.waitForFunction(()=>document.getElementById('ringingBell').hidden);
-    await host.locator('.audio-settings summary').click();
-    for(const kind of ['background','bell']){await host.locator('#audio-'+kind).setInputFiles({name:'custom.wav',mimeType:'audio/wav',buffer:Buffer.from('fixture audio')});await host.waitForFunction(kind=>document.getElementById('audio-name-'+kind).textContent==='custom.wav',kind);}
+    assert.equal(await host.locator('.global-audio').isVisible(),true);
+    for(const kind of ['background','bell']){await host.locator('#audio-'+kind).setInputFiles({name:'custom.wav',mimeType:'audio/wav',buffer:Buffer.from('fixture audio')});await host.locator('[data-audio-save="'+kind+'"]').click();await host.waitForFunction(kind=>document.getElementById('audio-name-'+kind).textContent==='custom.wav',kind);}
     await screen.waitForFunction(()=>window.decodes===2);
     await host.locator('#newQuestion').click();await host.waitForFunction(()=>!document.getElementById('start').disabled);await host.locator('#start').click();
     await screen.waitForFunction(()=>window.musicStarts===1);

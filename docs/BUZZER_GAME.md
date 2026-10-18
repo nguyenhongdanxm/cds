@@ -97,3 +97,30 @@ Khi có đội giành chuông, tên/ô đội nhấp nháy đổi màu liên t�
 tượng chuông rung. Hiệu ứng dừng khi giáo viên quyết định Đúng/Sai/Dừng
 câu; người đứng sau không kích hoạt thêm chuông. Tôn trọng cài đặt giảm
 chuyển động của thiết bị trình chiếu.
+
+## Cập nhật: âm thanh dùng chung và upload từng phần
+
+Mục **Âm thanh dùng chung cho tất cả các phòng** luôn có trên trang điều
+khiển, kể cả trước khi tạo phòng hoặc khi câu đang chạy. Quản trị viên
+chọn file, bấm **Tải lên & áp dụng mọi phòng**, chờ tiến trình báo **Đã
+lưu và áp dụng cho tất cả các phòng**. Giáo viên khác dùng cấu hình chung
+và không tự thay âm thanh toàn trường. Sau deploy tải lại trang để nhận
+script mới.
+
+Upload nay dùng JSON từng phần 128KB, có retry idempotent và kiểm tra đủ
+file/MIME trước khi áp dụng. Không phụ thuộc upload_max_filesize của PHP
+cho multipart. Mỗi request vẫn cần được hosting chấp nhận khoảng 180KB;
+file tối đa 10MB. Thử nghiệm HTTP thực tế với upload_max_filesize=1KB và
+post_max_size=256KB chứng minh file WAV 300KB vẫn tải/đọc lại đúng byte.
+
+Cấu hình ở bảng riêng cds_buzzer_audio_settings, được áp dụng khi đọc
+trạng thái/âm thanh cho mọi phòng cũ và mới, kể cả phòng của giáo viên
+khác. Không ghi lại JSON phòng, không đổi thứ tự/người thắng/thời gian.
+Các khóa cài chung (kể cả null khi bỏ nhạc/trả chuông mặc định) ưu tiên hơn
+cấu hình riêng cũ; khi chưa có khóa chung vẫn đọc cấu hình phòng cũ.
+Cài chung có hiệu lực khi trình chiếu nhận cập nhật, kể cả câu đang chạy.
+
+File đang được cài chung được giữ lâu dài, không bị xóa theo tuổi 48 giờ
+của phòng. File đã thay và upload dở được dọn có giới hạn; file chung
+hiện hành luôn được loại khỏi danh sách dọn. Phần mô tả cài riêng theo
+phòng/multipart ở trên chỉ áp dụng phiên bản cũ.

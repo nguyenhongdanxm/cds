@@ -31,6 +31,7 @@ jobs:
           php -l includes/buzzer_store.php
           php -l includes/buzzer_access.php
           php -l includes/buzzer_audio.php
+          php -l includes/buzzer_audio_global.php
           php -l tools/deploy_cds.php
           php tests/buzzer_game_test.php
           php tests/buzzer_audio_test.php
@@ -62,7 +63,9 @@ jobs:
         with:
           php-version: '8.3'
           extensions: mbstring, pdo_mysql, fileinfo
-      - run: php tests/buzzer_mysql_test.php
+      - run: |
+          php tests/buzzer_mysql_test.php
+          php tests/buzzer_audio_http_test.php
         env:
           CDS_TEST_MYSQL: disposable-ci
           CDS_TEST_MYSQL_PORT: ${{ job.services.mysql.ports['3306'] }}
