@@ -8,13 +8,46 @@
   let code = cfg.code || fragment.get('code') || '', screenKey = fragment.get('screen') || '';
   let identity = null, state = null, received = 0, online = false, pending = false, pollTimer, polling = false;
   let soundReady = false, audio, seenSound = null, noticeTimer, lastRender = '';
+  const clips = {}; let musicSource = null, musicGain = null, musicOffset = 0, musicStarted = 0, musicQuestion = -1;
+  const volume = kind => Number($(kind === 'background' ? 'musicVolume' : 'bellVolume')?.value ?? (kind === 'background' ? 20 : 80)) / 100;
+  function stopMusic() {
+    if (!musicSource) return;
+    musicOffset += Math.max(0, audio.currentTime - musicStarted);
+    try { musicSource.stop(); } catch (_) {} musicSource = null;
+  }
+  function syncMusic() {
+    if (cfg.view !== 'screen' || !audio) return;
+    if (state?.question !== musicQuestion) { stopMusic(); musicOffset = 0; musicQuestion = state?.question; }
+    if (!soundReady || !online || state?.status !== 'running' || currentRemaining() <= 0 || !clips.background?.buffer) { stopMusic(); return; }
+    if (musicGain) musicGain.gain.value = volume('background');
+    if (musicSource) return;
+    musicSource = audio.createBufferSource(); musicSource.buffer = clips.background.buffer; musicSource.loop = true;
+    musicGain = audio.createGain(); musicGain.gain.value = volume('background'); musicSource.connect(musicGain); musicGain.connect(audio.destination);
+    musicStarted = audio.currentTime; musicSource.start(0, musicOffset % musicSource.buffer.duration);
+  }
+  async function loadClips() {
+    if (cfg.view !== 'screen' || !audio || !state) return;
+    for (const kind of ['background','bell']) {
+      const meta = state.audio?.[kind];
+      if (!meta) { if (kind === 'background') stopMusic(); delete clips[kind]; continue; }
+      if (clips[kind]?.id === meta.id) continue;
+      if (kind === 'background') { stopMusic(); musicOffset = 0; }
+      clips[kind] = {id:meta.id, buffer:null};
+      try {
+        const response = await fetch(endpoint + '?' + new URLSearchParams({action:'audio',role:'screen',code,kind}), {headers:{'X-Buzzer-Token':screenKey},cache:'no-store'});
+        if (!response.ok) throw new Error('audio');
+        const buffer = await audio.decodeAudioData(await response.arrayBuffer());
+        if (state.audio?.[kind]?.id === meta.id) { clips[kind] = {id:meta.id,buffer}; syncMusic(); }
+      } catch (_) { tell('Chưa phát được ' + (kind === 'background' ? 'nhạc nền' : 'chuông riêng') + '. Kiểm tra file hoặc tải lại trình chiếu; chuông mặc định vẫn dùng được.'); }
+    }
+  }
   const phases = {lobby:'Chờ thí sinh vào phòng', reading:'Giáo viên đang đọc câu hỏi', running:'Chuông đã mở · hãy bấm ngay!', answering:'Đã có người giành quyền trả lời', finished:'Câu đã kết thúc', closed:'Phòng đã đóng'};
   const setText = (id, text) => { if ($(id)) $(id).textContent = text; };
   const storageKey = () => 'cds-buzzer-player:' + code;
   function remember(value) { try { localStorage.setItem(storageKey(), JSON.stringify(value)); } catch (_) {} }
   function recall() { try { return JSON.parse(localStorage.getItem(storageKey()) || 'null'); } catch (_) { return null; } }
   function tell(text) { clearTimeout(noticeTimer); setText('notice', text); $('notice').classList.add('visible'); noticeTimer = setTimeout(() => $('notice').classList.remove('visible'), 7000); }
-  function connection(ok) { online = ok; setText('connection', ok ? 'Đã kết nối · thứ tự bấm được ghi nhận tại máy chủ' : 'Mất kết nối · đang thử lại, chưa thể xác nhận thao tác'); $('connection').classList.toggle('offline', !ok); updateButtons(); }
+  function connection(ok) { online = ok; setText('connection', ok ? 'Đã kết nối · thứ tự bấm được ghi nhận tại máy chủ' : 'Mất kết nối · đang thử lại, chưa thể xác nhận thao tác'); $('connection').classList.toggle('offline', !ok); syncMusic(); updateButtons(); }
   async function request(action, payload = {}, get = false) {
     const role = cfg.view === 'play' ? 'player' : cfg.view === 'screen' ? 'screen' : 'host';
     const args = {action, role, code, ...payload};
@@ -35,14 +68,16 @@
   }
   function sound() {
     if (!soundReady || !audio) return;
+    if (clips.bell?.buffer) { const source = audio.createBufferSource(), gain = audio.createGain(); source.buffer = clips.bell.buffer; gain.gain.value = volume('bell'); source.connect(gain); gain.connect(audio.destination); source.start(); return; }
     const start = audio.currentTime;
-    [880,1320,1760].forEach((hz, i) => { const oscillator = audio.createOscillator(), gain = audio.createGain(); oscillator.type = 'sine'; oscillator.frequency.value = hz; gain.gain.setValueAtTime(0.0001, start); gain.gain.exponentialRampToValueAtTime(0.2 / (i + 1), start + 0.008); gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.3); oscillator.connect(gain); gain.connect(audio.destination); oscillator.start(start); oscillator.stop(start + 1.4); });
+    [880,1320,1760].forEach((hz, i) => { const oscillator = audio.createOscillator(), gain = audio.createGain(); oscillator.type = 'sine'; oscillator.frequency.value = hz; gain.gain.setValueAtTime(0.0001, start); gain.gain.exponentialRampToValueAtTime(Math.max(0.0001,0.2 * volume('bell') / (i + 1)), start + 0.008); gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.3); oscillator.connect(gain); gain.connect(audio.destination); oscillator.start(start); oscillator.stop(start + 1.4); });
   }
   function currentRemaining() { return state ? Math.max(0, state.remaining_ms - (state.status === 'running' ? Math.max(0, performance.now() - received) : 0)) : 30000; }
   function updateButtons() {
     if (!state) return;
     const enabled = online && !pending, status = state.status;
     if (cfg.view === 'host') {
+      document.querySelectorAll('[data-audio-upload],[data-audio-reset]').forEach(input => { input.disabled = !enabled || ['running','answering','closed'].includes(status); });
       $('newQuestion').disabled = !enabled || status === 'closed';
       $('start').disabled = !enabled || status !== 'reading' || !state.players.length;
       $('correct').disabled = $('wrong').disabled = !enabled || status !== 'answering';
@@ -61,7 +96,7 @@
     $('players').replaceChildren();
     if (!list.length) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'Chưa có thí sinh. Chia sẻ mã phòng để bắt đầu.'; $('players').append(p); }
     list.forEach(p => {
-      const card = document.createElement('article'); card.className = 'player-card' + (p.blocked ? ' blocked' : '') + (p.id === state.winner_id ? ' winner' : '');
+      const card = document.createElement('article'); card.className = 'player-card' + (p.blocked ? ' blocked' : '') + (p.id === state.winner_id ? (state.status === 'answering' ? ' winner' : ' winner-decided') : '');
       if (cfg.view === 'host' && ['lobby','reading','finished'].includes(state.status)) { const remove = document.createElement('button'); remove.className = 'plain remove'; remove.textContent = 'Bỏ'; remove.disabled = !online || pending; remove.addEventListener('click', () => { if (confirm('Bỏ ' + p.name + ' khỏi phòng?')) command('remove', {player_id:p.id}); }); card.append(remove); }
       const rank = document.createElement('div'); rank.className = 'rank'; rank.textContent = p.blocked ? 'ĐÃ TRẢ LỜI SAI · KHÓA CÂU NÀY' : p.rank ? 'THỨ TỰ #' + p.rank : 'ĐANG CHỜ';
       const name = document.createElement('h3'); name.textContent = p.name;
@@ -74,6 +109,7 @@
     if (state && (next.version < state.version || (next.version === state.version && next.server_ms < state.server_ms))) return;
     state = next; received = performance.now(); connection(true);
     if (cfg.view === 'screen') {
+      loadClips(); syncMusic();
       if (seenSound !== null && next.winner_event > seenSound && next.status === 'answering') sound();
       seenSound = next.winner_event;
     }
@@ -81,9 +117,16 @@
     setText('questionLabel', next.question ? 'CÂU ' + next.question + ' · LƯỢT ' + next.race : 'CHUẨN BỊ');
     setText('phase', phases[next.status] || 'Đang chờ');
     const winner = next.players.find(p => p.id === next.winner_id);
-    setText('winner', winner ? '🔔 ' + winner.name + ' giành quyền trả lời' : '');
+    if (cfg.view === 'screen') {
+      const ringing = Boolean(winner && next.status === 'answering');
+      $('ringingBell').hidden = !ringing;
+      $('winner').classList.toggle('ringing', ringing);
+      document.querySelector('.stage').classList.toggle('buzzer-active', ringing);
+      setText('winnerText', winner ? winner.name + ' giành quyền trả lời' : '');
+    } else setText('winner', winner ? '🔔 ' + winner.name + ' giành quyền trả lời' : '');
     setText('lastResult', next.last_result ? next.last_result.name + (next.last_result.result === 'wrong' ? ' trả lời sai · mở lại chuông cho các bạn còn lại' : ' trả lời đúng!') : '');
     if (cfg.view === 'host') {
+      for (const kind of ['background','bell']) { setText('audio-name-' + kind, next.audio?.[kind]?.name || (kind === 'background' ? 'Chưa chọn nhạc nền' : 'Chuông mặc định')); $('audio-' + kind).disabled = pending || ['running','answering','closed'].includes(next.status); }
       $('setup').hidden = true; $('hostRoom').hidden = false; setText('playerCount', next.players.length + ' thí sinh');
       $('playerLink').href = base + 'hoclieu_game_buzzer.php?view=play&code=' + code;
       $('screenLink').href = base + 'hoclieu_game_buzzer.php?view=screen#' + new URLSearchParams({code, screen:next.screen_key});
@@ -114,6 +157,15 @@
   }
   function startRoom(value) { code = value; state = null; lastRender = ''; seenSound = null; history.replaceState(null, '', base + 'hoclieu_game_buzzer.php?code=' + code); poll(); }
   if (cfg.view === 'host') {
+    document.querySelectorAll('[data-audio-upload]').forEach(input => input.addEventListener('change', async () => {
+      const file = input.files[0]; if (!file || !state || pending) return;
+      if (file.size > 10 * 1024 * 1024) { tell('Mỗi file tối đa 10 MB.'); input.value = ''; return; }
+      pending = true; updateButtons(); tell('Đang tải và kiểm tra âm thanh…');
+      const form = new FormData(); for (const [key,value] of Object.entries({action:'audio_upload',role:'host',code,csrf:cfg.csrf,kind:input.dataset.audioUpload})) form.append(key,value); form.append('audio',file);
+      try { const response = await fetch(endpoint,{method:'POST',body:form,credentials:'same-origin'}); const result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.message || 'Không tải được âm thanh.'); accept(result.state); tell('Đã lưu âm thanh cho phòng. Mở trình chiếu và bật âm thanh để nghe.'); }
+      catch (error) { tell(error.message); } finally { pending = false; input.value = ''; updateButtons(); poll(); }
+    }));
+    document.querySelectorAll('[data-audio-reset]').forEach(button => button.addEventListener('click', () => command('audio_reset',{kind:button.dataset.audioReset})));
     $('createForm').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true;
       try { const data = await request('create',{title:$('roomTitle').value}); startRoom(data.code); }
       catch (e) { tell(e.message); } finally { button.disabled = false; }
@@ -124,7 +176,8 @@
     $('closeRoom').addEventListener('click', () => { if (confirm('Đóng phòng và dừng nhận chuông?')) command('close'); });
     if (code) poll(); else { setText('connection','Tạo phòng hoặc mở lại phòng gần đây'); }
   } else if (cfg.view === 'screen') {
-    $('sound').addEventListener('click', async () => { try { const Audio = window.AudioContext || window.webkitAudioContext; audio = audio || new Audio(); await audio.resume(); soundReady = true; sound(); setText('sound','✓ Âm thanh đã bật'); } catch (_) { tell('Trình duyệt chưa cho phát âm thanh. Hãy kiểm tra loa và thử lại.'); } });
+    $('sound').addEventListener('click', async () => { try { const Audio = window.AudioContext || window.webkitAudioContext; audio = audio || new Audio(); await audio.resume(); soundReady = true; await loadClips(); sound(); syncMusic(); setText('sound','✓ Âm thanh đã bật'); } catch (_) { tell('Trình duyệt chưa cho phát âm thanh. Hãy kiểm tra loa và thử lại.'); } });
+    $('musicVolume').addEventListener('input', syncMusic);
     $('fullscreen').addEventListener('click', () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {}); else document.exitFullscreen?.(); });
     if (code && screenKey) poll(); else tell('Mở màn hình trình chiếu từ bảng điều khiển giáo viên.');
   } else {
@@ -142,6 +195,6 @@
     $('bell').addEventListener('click', () => command('press'));
     $('leave').addEventListener('click', () => { clearTimeout(pollTimer); code = ''; state = null; identity = null; $('playerPanel').hidden = true; $('joinPanel').hidden = false; $('playerName').value = ''; history.replaceState(null, '', base + 'hoclieu_game_buzzer.php?view=play'); });
   }
-  setInterval(() => { setText('clock',(currentRemaining()/1000).toFixed(1)); updateButtons(); }, 50);
+  setInterval(() => { setText('clock',(currentRemaining()/1000).toFixed(1)); syncMusic(); updateButtons(); }, 50);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 })();

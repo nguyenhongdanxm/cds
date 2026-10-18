@@ -36,6 +36,16 @@ foreach([['role'=>'screen','token'=>$room['screen_key']],['role'=>'player','id'=
 check($db->query('SELECT state_json FROM cds_buzzer_rooms')->fetchColumn()===$before,'Unauthorized controls never mutate');
 $screen=bz_read($db,$code,['role'=>'screen','token'=>$room['screen_key']]);$student=bz_read($db,$code,$actors[0]);check(count($screen['players'])===32&&count($student['players'])===1&&!isset($screen['screen_key']),'Role-specific privacy');
 check(!str_contains(json_encode($screen),'key_hash')&&!str_contains(json_encode($student),'screen_key'),'No token leakage');
+require __DIR__.'/../includes/buzzer_audio.php';
+$audioRoot=sys_get_temp_dir().'/buzzer-sql-audio-'.bin2hex(random_bytes(8));mkdir($audioRoot,0700);define('DATA_PATH',$audioRoot);
+control($db,$code,$host,'stop');
+$beforeState=bz_room($db,$code)['state'];
+$meta=['id'=>str_repeat('a',48),'name'=>'Chuông giả.wav','mime'=>'audio/wav'];
+bz_audio_set($db,$code,$host,'bell',$meta);$afterState=bz_room($db,$code)['state'];
+check($afterState['queue']===$beforeState['queue']&&$afterState['winner_event']===$beforeState['winner_event']&&$afterState['audio']['bell']===$meta,'Audio settings cannot alter ordering or winner');
+foreach([['role'=>'player'],['role'=>'screen'],['role'=>'host','owner'=>'other']]as$bad){try{bz_audio_set($db,$code,$bad,'bell',null);throw new LogicException('Unauthorized audio');}catch(BuzzerError $e){check($e->getCode()===403,'Audio owner enforced');}}
+control($db,$code,$host,'question');control($db,$code,$host,'start');try{bz_audio_set($db,$code,$host,'bell',null);throw new LogicException('Audio changed during race');}catch(BuzzerError $e){check($e->getCode()===409,'No mid-question audio replacement');}
+control($db,$code,$host,'stop');bz_audio_set($db,$code,$host,'bell',null);check(bz_room($db,$code)['state']['audio']['bell']===null,'Reset to default');rmdir($audioRoot);
 control($db,$code,$host,'close');try{bz_write($db,$code,$actors[1],'press',['question'=>$state['question'],'race'=>$state['race']]);throw new LogicException('Closed press');}catch(BuzzerError $e){}
 check($db->query('SELECT value FROM fixture_existing_school_data')->fetchColumn()==='must-not-change','Other school data untouched');
 echo "PASS SQL: 32+31 simultaneous players, 12 duplicate requests, one winner per race, wrong exclusion, isolation and permissions\n";

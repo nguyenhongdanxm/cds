@@ -81,5 +81,5 @@ function bz_view(array $s,int $now,string $role,string $id=''): array {
     $remaining=bz_remaining($s,$now);$status=$s['status']==='running'&&$remaining===0?'finished':$s['status'];
     $rank=array_column($s['queue'],null,'id');$players=[];
     foreach($s['players']as$p){if($role==='player'&&$p['id']!==$id)continue;$players[]=['id'=>$p['id'],'name'=>$p['name'],'blocked'=>$p['blocked'],'rank'=>$rank[$p['id']]['rank']??null,'elapsed_ms'=>$rank[$p['id']]['elapsed_ms']??null];}
-    return ['title'=>$s['title'],'version'=>$s['version'],'status'=>$status,'question'=>$s['question'],'race'=>$s['race'],'duration_ms'=>$s['duration_ms'],'remaining_ms'=>$remaining,'server_ms'=>$now,'winner_id'=>$s['winner_id'],'winner_event'=>$s['winner_event'],'players'=>$players,'last_result'=>$role==='player'?null:$s['last_result']];
+    return ['title'=>$s['title'],'version'=>$s['version'],'status'=>$status,'question'=>$s['question'],'race'=>$s['race'],'duration_ms'=>$s['duration_ms'],'remaining_ms'=>$remaining,'server_ms'=>$now,'winner_id'=>$s['winner_id'],'winner_event'=>$s['winner_event'],'players'=>$players,'audio'=>$role==='player'?[]:($s['audio']??[]),'last_result'=>$role==='player'?null:$s['last_result']];
 }

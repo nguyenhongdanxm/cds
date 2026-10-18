@@ -22,7 +22,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring
+          extensions: mbstring, fileinfo
       - run: |
           php -l hoclieu.php
           php -l hoclieu_game_buzzer.php
@@ -30,8 +30,10 @@ jobs:
           php -l includes/buzzer_game.php
           php -l includes/buzzer_store.php
           php -l includes/buzzer_access.php
+          php -l includes/buzzer_audio.php
           php -l tools/deploy_cds.php
           php tests/buzzer_game_test.php
+          php tests/buzzer_audio_test.php
           node --check assets/buzzer.js
   sql:
     runs-on: ubuntu-latest
@@ -59,7 +61,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, pdo_mysql
+          extensions: mbstring, pdo_mysql, fileinfo
       - run: php tests/buzzer_mysql_test.php
         env:
           CDS_TEST_MYSQL: disposable-ci
@@ -72,7 +74,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring
+          extensions: mbstring, fileinfo
       - run: npm install --prefix "$RUNNER_TEMP/buzzer-browser" --no-package-lock playwright@1.58.2
       - run: "$RUNNER_TEMP/buzzer-browser/node_modules/.bin/playwright install --with-deps chromium"
       - run: node tests/buzzer_browser_test.cjs
