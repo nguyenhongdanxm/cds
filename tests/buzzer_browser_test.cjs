@@ -74,7 +74,9 @@ const server=http.createServer(async(req,res)=>{
     await students[2].waitForFunction(()=>document.getElementById('connection').classList.contains('offline'));assert.equal(await students[2].locator('#bell').isDisabled(),true,'Disconnected contestant cannot claim a local win');
     await students[2].unroute('**/hoclieu_game_buzzer_api.php*');await students[2].waitForFunction(()=>!document.getElementById('bell').disabled);
     await students[0].locator('#bell').click();await screen.waitForFunction(()=>window.customRings===1&&window.musicStops===1);
+    await students[1].waitForFunction(()=>document.getElementById('phase').textContent==='Đã có người giành quyền trả lời');
     await host.waitForFunction(()=>document.getElementById('winner').textContent.includes('Đội Khám Phá'));await host.locator('#wrong').click();await screen.waitForFunction(()=>window.musicStarts===2);
+    await students[1].waitForFunction(()=>document.getElementById('phase').textContent==='Chuông đã mở · hãy bấm ngay!');
     await students[1].waitForFunction(()=>!document.getElementById('bell').disabled);await students[1].locator('#bell').click();await screen.waitForFunction(()=>window.customRings===2&&window.musicStops===2);
     assert.equal(await screen.evaluate(()=>window.rings),9,'Custom bell replaces default; no extra beep');
     for(const [p,name]of [[host,'teacher'],[screen,'projector'],[students[0],'contestant-mobile']]){
