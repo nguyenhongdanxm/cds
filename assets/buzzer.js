@@ -98,10 +98,10 @@
     if (!list.length) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'Chưa có thí sinh. Chia sẻ mã phòng để bắt đầu.'; $('players').append(p); }
     list.forEach(p => {
       const card = document.createElement('article'); card.className = 'player-card' + (p.blocked ? ' blocked' : '') + (p.id === state.winner_id ? (state.status === 'answering' ? ' winner' : ' winner-decided') : '');
-      if (cfg.view === 'host' && ['lobby','reading','finished'].includes(state.status)) { const remove = document.createElement('button'); remove.className = 'plain remove'; remove.textContent = 'Bỏ'; remove.disabled = !online || pending; remove.addEventListener('click', () => { if (confirm('Bỏ ' + p.name + ' khỏi phòng?')) command('remove', {player_id:p.id}); }); card.append(remove); }
+      if (cfg.view === 'host' && ['lobby','reading','finished'].includes(state.status)) { const remove = document.createElement('button'); remove.className = 'plain remove'; remove.textContent = state.team_mode ? 'Giải phóng thiết bị' : 'Bỏ'; remove.disabled = !online || pending || (state.team_mode && !p.occupied); remove.addEventListener('click', () => { if (confirm(state.team_mode ? 'Giải phóng thiết bị của ' + p.name + '?' : 'Bỏ ' + p.name + ' khỏi phòng?')) command(state.team_mode ? 'release' : 'remove', {player_id:p.id}); }); card.append(remove); }
       const rank = document.createElement('div'); rank.className = 'rank'; rank.textContent = p.blocked ? 'ĐÃ TRẢ LỜI SAI · KHÓA CÂU NÀY' : p.rank ? 'THỨ TỰ #' + p.rank : 'ĐANG CHỜ';
       const name = document.createElement('h3'); name.textContent = p.name;
-      const timing = document.createElement('div'); timing.className = 'timing'; timing.textContent = p.elapsed_ms === null ? 'Sẵn sàng giành quyền trả lời' : (p.elapsed_ms / 1000).toFixed(3) + ' giây từ khi mở lượt';
+      const timing = document.createElement('div'); timing.className = 'timing'; timing.textContent = p.elapsed_ms === null ? (state.team_mode && !p.occupied ? 'Chưa có thiết bị tham gia' : 'Sẵn sàng giành quyền trả lời') : (p.elapsed_ms / 1000).toFixed(3) + ' giây từ khi mở lượt';
       card.append(rank, name, timing); $('players').append(card);
     });
   }
@@ -194,7 +194,7 @@
       try { const result = await request('audio_reset',{kind:button.dataset.audioReset});audioLabels(result.audio);tell('Đã áp dụng cho tất cả các phòng.');if(code)poll(); } catch(error) {tell(error.message);}
     }));
     $('createForm').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true;
-      try { const data = await request('create',{title:$('roomTitle').value}); startRoom(data.code); }
+      try { const data = await request('create',{title:$('roomTitle').value,...($('teamNames') ? {room_code:$('customCode').value,teams:$('teamNames').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)} : {})}); startRoom(data.code); }
       catch (e) { tell(e.message); } finally { button.disabled = false; }
     });
     request('list',{},true).then(data => { $('recentRooms').replaceChildren(); if (!data.rooms.length) setText('recentRooms','Chưa có phòng. Tạo phòng đầu tiên ở trên.'); data.rooms.forEach(r => { const b = document.createElement('button'); b.textContent = r.code + ' · ' + r.title + (r.status === 'closed' ? ' (đã đóng)' : ''); b.addEventListener('click', () => startRoom(r.code)); $('recentRooms').append(b); }); }).catch(e => tell(e.message));
@@ -208,14 +208,31 @@
     $('fullscreen').addEventListener('click', () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {}); else document.exitFullscreen?.(); });
     if (code && screenKey) poll(); else tell('Mở màn hình trình chiếu từ bảng điều khiển giáo viên.');
   } else {
+    let managed = false, optionsRequest = 0;
+    async function loadOptions() {
+      const selected = $('joinCode').value.trim().toUpperCase(), ticket = ++optionsRequest;
+      if (!selected) return;
+      try { const response = await fetch(endpoint + '?' + new URLSearchParams({action:'join_options',code:selected}),{cache:'no-store'}); const data = await response.json();
+        if (ticket !== optionsRequest) return; if (!data.ok) throw new Error(data.message);
+        managed = data.team_mode; $('teamSelect').hidden = $('teamLabel').hidden = !managed;
+        $('playerName').hidden = managed; $('playerName').required = !managed; document.querySelector('label[for="playerName"]').hidden = managed;
+        const old = $('teamSelect').value; $('teamSelect').replaceChildren(new Option('Chọn đội…',''));
+        const saved = (()=>{try{return JSON.parse(localStorage.getItem('cds-buzzer-player:'+selected)||'null');}catch(_){return null;}})();
+        data.teams.forEach(t => {const o=new Option(t.name+(t.occupied?' · đã có thiết bị':''),t.id);o.disabled=t.occupied&&saved?.player_id!==t.id;$('teamSelect').add(o);});
+        $('teamSelect').value = old || saved?.player_id || ''; $('teamSelect').required = managed;
+      } catch(e) { tell(e.message); }
+    }
+    async function loadRooms() { try {const r=await request('open_rooms',{},true);const previous=$('roomSelect').value;$('roomSelect').replaceChildren(new Option('Chọn phòng…',''));r.rooms.forEach(x=>$('roomSelect').add(new Option(x.title+' · '+x.code,x.code)));$('roomSelect').value=previous;await loadOptions();}catch(e){tell(e.message);} }
+    $('roomSelect').addEventListener('change',()=>{$('joinCode').value=$('roomSelect').value;loadOptions();});
+    $('joinCode').addEventListener('change',loadOptions);$('refreshRooms').addEventListener('click',loadRooms);loadRooms();
     identity = code ? recall() : null;
     if (identity?.player_id) poll();
     $('joinForm').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true;
       try {
-        const nextCode = $('joinCode').value.trim(), name = $('playerName').value.trim();
+        const nextCode = $('joinCode').value.trim().toUpperCase(), name = managed ? $('teamSelect').selectedOptions[0]?.textContent : $('playerName').value.trim();
         if (nextCode !== code) { code = nextCode; identity = recall(); state = null; lastRender = ''; }
-        if (!identity || identity.name !== name) { const bytes = crypto.getRandomValues(new Uint8Array(32)); identity = {name, token:Array.from(bytes,x => x.toString(16).padStart(2,'0')).join('')}; remember(identity); }
-        const data = await request('join',{name,join_token:identity.token}); identity.player_id = data.player_id; remember(identity); accept(data.state); poll();
+        if (!identity || (!managed && identity.name !== name)) { const bytes = crypto.getRandomValues(new Uint8Array(32)); identity = {name, token:Array.from(bytes,x => x.toString(16).padStart(2,'0')).join('')}; remember(identity); }
+        const data = await request('join',{name,team_id:managed ? $('teamSelect').value : undefined,join_token:identity.token}); identity.player_id = data.player_id; remember(identity); accept(data.state); poll();
         history.replaceState(null, '', base + 'hoclieu_game_buzzer.php?view=play&code=' + code);
       } catch (e) { tell(e.message); } finally { button.disabled = false; }
     });

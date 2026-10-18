@@ -18,22 +18,23 @@ function bz_global_audio(PDO $db): array {
 }
 function bz_audio_effective(PDO $db,array $s): array {$s['_shared_audio']=bz_global_audio($db);$s['audio']=array_replace($s['audio']??[],$s['_shared_audio']);return $s;}
 function bz_code($code): string {
-    if(!is_string($code)||!preg_match('/^[0-9]{8}$/D',$code))bz_fail('Mã phòng gồm 8 chữ số.',422);return $code;
+    if(!is_string($code))bz_fail('Mã phòng không hợp lệ.',422);$code=strtoupper(trim($code));
+    if(!preg_match('/^[A-Z0-9_-]{3,8}$/D',$code))bz_fail('Mã phòng gồm 3–8 chữ cái không dấu, số, gạch ngang hoặc gạch dưới.',422);return $code;
 }
-function bz_create(PDO $db,string $owner,string $title): array {
-    if($owner==='')bz_fail('Chưa đăng nhập giáo viên.',403);$state=bz_initial($title);bz_schema($db);
+function bz_create(PDO $db,string $owner,string $title,array $options=[]): array {
+    if($owner==='')bz_fail('Chưa đăng nhập giáo viên.',403);$state=bz_initial($title);if(isset($options['teams']))$state=bz_teams($state,$options['teams']);$custom=empty($options['room_code'])?'':bz_code($options['room_code']);bz_schema($db);
     $db->exec('DELETE FROM cds_buzzer_rooms WHERE expires_at<'.time().' LIMIT 100');
     $st=$db->prepare('SELECT COUNT(*) FROM cds_buzzer_rooms WHERE owner_id=? AND expires_at>?');$st->execute([$owner,time()]);
     if((int)$st->fetchColumn()>=10)bz_fail('Bạn đã có 10 phòng trong 24 giờ. Hãy dùng lại phòng đã tạo.');
     for($n=0;$n<5;$n++){
-        $code=(string)random_int(10000000,99999999);$screen=bin2hex(random_bytes(24));
+        $code=$custom!==''?$custom:(string)random_int(10000000,99999999);$screen=bin2hex(random_bytes(24));
         try{$st=$db->prepare('INSERT INTO cds_buzzer_rooms(code,owner_id,screen_key,state_json,expires_at) VALUES(?,?,?,?,?)');$st->execute([$code,$owner,$screen,json_encode($state,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),time()+86400]);return ['code'=>$code,'screen_key'=>$screen];}
-        catch(PDOException $e){if(($e->errorInfo[1]??0)!==1062)throw $e;}
+        catch(PDOException $e){if(($e->errorInfo[1]??0)!==1062)throw $e;if($custom!=='')bz_fail('Mã phòng đã được sử dụng. Hãy chọn mã khác.');}
     }
     bz_fail('Chưa tạo được mã phòng mới. Hãy thử lại.',503);
 }
 function bz_room(PDO $db,string $code,bool $lock=false): array {
-    bz_code($code);$q=$db->prepare('SELECT * FROM cds_buzzer_rooms WHERE code=?'.($lock?' FOR UPDATE':''));$q->execute([$code]);$row=$q->fetch(PDO::FETCH_ASSOC);
+    $code=bz_code($code);$q=$db->prepare('SELECT * FROM cds_buzzer_rooms WHERE code=?'.($lock?' FOR UPDATE':''));$q->execute([$code]);$row=$q->fetch(PDO::FETCH_ASSOC);
     if(!$row||(int)$row['expires_at']<=time())bz_fail('Phòng không tồn tại hoặc đã hết hạn 24 giờ.',404);
     $row['state']=json_decode($row['state_json'],true,64,JSON_THROW_ON_ERROR);return $row;
 }
@@ -52,7 +53,7 @@ function bz_read(PDO $db,string $code,array $actor): array {
     if($actor['role']==='host')$view['screen_key']=$row['screen_key'];return $view;
 }
 function bz_write(PDO $db,string $code,array $actor,string $action,array $input): array {
-    if(!in_array($action,['join','press','question','start','wrong','correct','stop','remove','close'],true))bz_fail('Thao tác không hợp lệ.',422);
+    if(!in_array($action,['join','press','question','start','wrong','correct','stop','remove','release','close'],true))bz_fail('Thao tác không hợp lệ.',422);
     if($action!=='join'&&($actor['role']??'')!==($action==='press'?'player':'host'))bz_fail('Không có quyền điều khiển.',403);
     $db->beginTransaction();
     try{
@@ -73,4 +74,16 @@ function bz_write(PDO $db,string $code,array $actor,string $action,array $input)
 function bz_list(PDO $db,string $owner): array {
     bz_schema($db);$q=$db->prepare('SELECT code,state_json FROM cds_buzzer_rooms WHERE owner_id=? AND expires_at>? ORDER BY expires_at DESC LIMIT 10');$q->execute([$owner,time()]);$out=[];
     foreach($q->fetchAll(PDO::FETCH_ASSOC)as$r){$s=json_decode($r['state_json'],true,64,JSON_THROW_ON_ERROR);$out[]=['code'=>$r['code'],'title'=>$s['title'],'status'=>$s['status']];}return $out;
+}
+
+// Public discovery exposes only managed rooms and team names, never credentials.
+function bz_open_rooms(PDO $db): array {
+    try{$q=$db->prepare('SELECT code,state_json FROM cds_buzzer_rooms WHERE expires_at>? ORDER BY expires_at DESC LIMIT 100');$q->execute([time()]);}
+    catch(PDOException $e){if(($e->errorInfo[1]??0)===1146)return [];throw $e;}
+    $out=[];foreach($q->fetchAll(PDO::FETCH_ASSOC)as$r){$s=json_decode($r['state_json'],true,64,JSON_THROW_ON_ERROR);if(empty($s['team_mode'])||$s['status']==='closed')continue;$out[]=['code'=>$r['code'],'title'=>$s['title']];}return $out;
+}
+function bz_join_options(PDO $db,string $code): array {
+    $s=bz_room($db,$code)['state'];if($s['status']==='closed')bz_fail('Phòng đã đóng.');
+    $teams=[];if(!empty($s['team_mode']))foreach($s['players']as$p)$teams[]=['id'=>$p['id'],'name'=>$p['name'],'occupied'=>$p['key_hash']!==''];
+    return ['team_mode'=>!empty($s['team_mode']),'teams'=>$teams];
 }

@@ -26,5 +26,14 @@ try{
  [$status,,$newRoom]=call_api('create',['title'=>'New room after upload']);check($status===200,'Future room created');[$status,,$view]=call_api('state',['code'=>$newRoom['code']],[],true);check($view['state']['audio']['bell']['id']===$id,'Future rooms inherit');
  [$status]=call_api('audio_reset',['kind'=>'bell']);check($status===200,'Global reset');
  [$status,,$view]=call_api('state',['code'=>$room2['code']],[1=>'X-Test-User: other-teacher',2=>'X-Test-Role: gv'],true);check($view['state']['audio']['bell']===null,'Reset applies across rooms');
+ [$status]=call_api('create',['title'=>'Denied','room_code'=>'DENIED','teams'=>['A']],[1=>'X-Test-Role: gv']);check($status===403,'Teacher cannot declare managed rooms');
+ [$status,,$managed]=call_api('create',['title'=>'Phòng quản trị','room_code'=>'TEAMS26','teams'=>['Đội A','Đội B']]);check($status===200&&$managed['code']==='TEAMS26','Actual API custom code');
+ [$status,,$public]=call_api('open_rooms',['role'=>'player'],[],true);check($status===200&&in_array('TEAMS26',array_column($public['rooms'],'code'),true),'Public room selector');
+ [$status,,$options]=call_api('join_options',['role'=>'player','code'=>'teams26'],[],true);check($status===200&&count($options['teams'])===2&&!str_contains(json_encode($options),'key_hash'),'Public teams without secrets');$team=$options['teams'][0]['id'];$token=str_repeat('f',64);
+ [$status,,$join]=call_api('join',['role'=>'player','code'=>'TEAMS26','team_id'=>$team,'name'=>'Forged name','join_token'=>$token]);check($status===200&&$join['state']['players'][0]['name']==='Đội A','API retains admin team name');
+ [$status]=call_api('join',['role'=>'player','code'=>'TEAMS26','team_id'=>$team,'join_token'=>str_repeat('e',64)]);check($status===409,'Second device rejected by API');
+ [$status,,$state]=call_api('state',['code'=>'TEAMS26'],[],true);
+ [$status]=call_api('release',['code'=>'TEAMS26','player_id'=>$team,'version'=>$state['state']['version']]);check($status===200,'Host release API');
+ [$status]=call_api('state',['role'=>'player','code'=>'TEAMS26','player_id'=>$team],[1=>'X-Buzzer-Token: '.$token],true);check($status===403,'Released credential revoked in actual API');
  echo "PASS real HTTP: 300KB WAV upload with upload_max_filesize=1KB, chunk/finish retry, actual MIME/storage, byte-exact authorized download, old/new cross-owner rooms, reset and CSRF/admin checks\n";
 }finally{proc_terminate($process);proc_close($process);foreach(glob($dir.'/buzzer_audio/*')as$f)unlink($f);if(is_file($dir.'/buzzer_audio/.htaccess'))unlink($dir.'/buzzer_audio/.htaccess');@rmdir($dir.'/buzzer_audio');foreach(glob($dir.'/*')as$f)unlink($f);rmdir($dir);}

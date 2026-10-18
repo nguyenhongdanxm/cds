@@ -18,7 +18,9 @@ const server=http.createServer(async(req,res)=>{
     if(args.action==='audio_begin'){const id=args.kind==='background'?'b'.repeat(48):'c'.repeat(48);uploads[id]={kind:args.kind,name:args.name,offset:0};res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,upload_id:id}));return;}
     if(args.action==='audio_chunk'){uploads[args.upload_id].offset=args.offset+Buffer.from(args.data,'base64').length;res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,offset:uploads[args.upload_id].offset}));return;}
     if(args.action==='audio_finish'){const u=uploads[args.upload_id];globalAudio[u.kind]={id:args.upload_id,name:u.name,mime:'audio/wav'};res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,audio:globalAudio}));return;}
-    if(args.action==='list')reply={ok:true,rooms:[]};
+    if(args.action==='open_rooms')reply={ok:true,rooms:world?.team_mode?[{code,title:world.title}]:[]};
+    else if(args.action==='join_options')reply={ok:true,team_mode:!!world?.team_mode,teams:world?.team_mode?Object.values(world.players).map(p=>({id:p.id,name:p.name,occupied:!!p.key_hash})):[]};
+    else if(args.action==='list')reply={ok:true,rooms:[]};
     else if(args.action==='create'){world=engine('initial',{title:args.title}).result;reply={ok:true,code,screen_key:screenKey};}
     else if(args.action==='state')reply={ok:true,state:snapshot(args.role,args.player_id)};
     else {
@@ -42,13 +44,13 @@ const server=http.createServer(async(req,res)=>{
   const students=[];
   fs.mkdirSync('/tmp/buzzer-screenshots',{recursive:true});
   try{
-    await host.goto(origin+'/hoclieu_game_buzzer.php');await host.locator('#roomTitle').fill('Đấu trường tri thức');await host.locator('#createForm button').click();
+    await host.goto(origin+'/hoclieu_game_buzzer.php');await host.locator('#roomTitle').fill('Đấu trường tri thức');await host.locator('#teamNames').fill('Đội A\nĐội B');await host.locator('#createForm button').click();
     await host.locator('#roomCode').waitFor();await host.waitForFunction(()=>document.getElementById('roomCode').textContent==='12345678');
     const screenHref=await host.locator('#screenLink').getAttribute('href');assert.ok(screenHref.includes('#code='));
     await screen.goto(origin+screenHref);await screen.locator('#sound').click();assert.equal(await screen.evaluate(()=>window.rings),3,'Audio opt-in test tone');
     for(const name of ['Đội Khám Phá','Đội Tiên Phong','<img src=x onerror=alert(1)>']){
       const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const p=await ctx.newPage();watch(p);students.push(p);
-      await p.goto(origin+'/hoclieu_game_buzzer.php?view=play&code='+code);await p.locator('#joinCode').fill(code);await p.locator('#playerName').fill(name);await p.locator('#joinForm button').click();
+      await p.goto(origin+'/hoclieu_game_buzzer.php?view=play&code='+code);await p.locator('#joinCode').fill(code);await p.locator('#playerName').fill(name);await p.locator('#joinForm button.primary').click();
       await p.locator('#playerPanel').waitFor({state:'visible'});assert.equal(await p.locator('#bell').isDisabled(),true,'No early buzz');
     }
     await host.waitForFunction(()=>document.querySelectorAll('#players .player-card').length===3);
@@ -85,6 +87,15 @@ const server=http.createServer(async(req,res)=>{
       assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'No horizontal overflow: '+name);
       await p.screenshot({path:'/tmp/buzzer-screenshots/'+name+'.png',fullPage:true});
     }
+    world=engine('teams',{state:engine('initial',{title:'Phòng đội khai báo'}).result,teams:['Đội Sao','Đội Trăng']}).result;
+    const teamContext=await browser.newContext({viewport:{width:390,height:844}});const teamPage=await teamContext.newPage();watch(teamPage);
+    await teamPage.goto(origin+'/hoclieu_game_buzzer.php?view=play');await teamPage.locator('#roomSelect').selectOption(code);
+    await teamPage.locator('#teamSelect').waitFor({state:'visible'});assert.equal(await teamPage.locator('#playerName').isVisible(),false);
+    const first=Object.keys(world.players)[0];await teamPage.locator('#teamSelect').selectOption(first);await teamPage.locator('#joinForm button.primary').click();
+    await teamPage.locator('#playerPanel').waitFor({state:'visible'});assert.equal(await teamPage.locator('#myName').textContent(),'Đội Sao');
+    const otherContext=await browser.newContext();const other=await otherContext.newPage();watch(other);await other.goto(origin+'/hoclieu_game_buzzer.php?view=play');await other.locator('#roomSelect').selectOption(code);await other.locator('#teamSelect').waitFor({state:'visible'});
+    assert.equal(await other.locator('#teamSelect option[value="'+first+'"]').isDisabled(),true,'Claimed team cannot be selected by another device');
+    await other.screenshot({path:'/tmp/buzzer-screenshots/team-picker.png',fullPage:true});
     assert.deepEqual(errors,[],'No page errors');
     console.log('PASS browser: 3 real UI modes, join/rejoin, no early press, one sound, ranks 2/3 silent, wrong lock/reopen, correct/new question, offline protection, mobile layout and text escaping');
   }finally{

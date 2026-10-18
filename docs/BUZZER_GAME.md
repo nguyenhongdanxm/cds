@@ -124,3 +124,10 @@ File đang được cài chung được giữ lâu dài, không bị xóa theo t
 của phòng. File đã thay và upload dở được dọn có giới hạn; file chung
 hiện hành luôn được loại khỏi danh sách dọn. Phần mô tả cài riêng theo
 phòng/multipart ở trên chỉ áp dụng phiên bản cũ.
+
+## Phòng và đội do quản trị khai báo
+Quản trị tạo tên phòng, mã tùy chọn 3–8 ký tự (A–Z, số, `_`, `-`; ví dụ OLYMPIA6) và danh sách đội, mỗi dòng một tên. Mã không phân biệt hoa thường, không được trùng. Bỏ trống mã để tạo tự động. Giữ nguyên bảng CHAR(8), không chuyển đổi dữ liệu phòng cũ.
+
+Thí sinh mở màn hình tham gia, chọn phòng đang mở rồi chọn đúng đội. Đội đã có thiết bị sẽ bị khóa chọn trên máy khác. Khi thay máy, giáo viên bấm **Giải phóng thiết bị** lúc câu chưa chạy hoặc đã kết thúc; đội và tên vẫn giữ nguyên. Thiết bị cũ mất quyền điều khiển. Tên đội không thay đổi theo thông tin thí sinh gửi lên. Danh sách công khai chỉ gồm tên/mã phòng, tên đội và trạng thái đã nhận thiết bị; không có khóa trình chiếu hoặc mã xác thực.
+
+Phòng cũ vẫn vào bằng liên kết/mã và tên như trước. Chỉ phòng có danh sách đội khai báo sẵn xuất hiện trong danh sách chọn công khai. Phòng hết hạn/đã đóng bị ẩn; hiệu lực phòng vẫn là 24 giờ.
