@@ -16,7 +16,7 @@ function bz_global_audio(PDO $db): array {
     catch(PDOException $e){if(($e->errorInfo[1]??0)===1146)return [];throw $e;}
     $out=[];foreach($rows as$r)if(in_array($r['kind'],['background','bell'],true))$out[$r['kind']]=json_decode($r['metadata_json'],true,16,JSON_THROW_ON_ERROR);return $out;
 }
-function bz_audio_effective(PDO $db,array $s): array {$s['audio']=array_replace($s['audio']??[],bz_global_audio($db));return $s;}
+function bz_audio_effective(PDO $db,array $s): array {$s['_shared_audio']=bz_global_audio($db);$s['audio']=array_replace($s['audio']??[],$s['_shared_audio']);return $s;}
 function bz_code($code): string {
     if(!is_string($code)||!preg_match('/^[0-9]{8}$/D',$code))bz_fail('Mã phòng gồm 8 chữ số.',422);return $code;
 }

@@ -127,7 +127,7 @@
     } else setText('winner', winner ? '🔔 ' + winner.name + ' giành quyền trả lời' : '');
     setText('lastResult', next.last_result ? next.last_result.name + (next.last_result.result === 'wrong' ? ' trả lời sai · mở lại chuông cho các bạn còn lại' : ' trả lời đúng!') : '');
     if (cfg.view === 'host') {
-      audioLabels(next.audio || {});
+      audioLabels(next.shared_audio || {});
       $('setup').hidden = true; $('hostRoom').hidden = false; setText('playerCount', next.players.length + ' thí sinh');
       $('playerLink').href = base + 'hoclieu_game_buzzer.php?view=play&code=' + code;
       $('screenLink').href = base + 'hoclieu_game_buzzer.php?view=screen#' + new URLSearchParams({code, screen:next.screen_key});
@@ -150,7 +150,7 @@
     finally { polling = false; pollTimer = setTimeout(poll, !online ? 4000 : document.hidden ? 5000 : state?.status === 'running' || state?.status === 'answering' ? (cfg.view === 'play' ? 1000 : 300) : 1500); }
   }
   async function command(action, payload = {}) {
-    if (pending || uploading || !state || !online) return;
+    if (pending || !state || !online) return;
     pending = true; updateButtons();
     try { const data = await request(action, {version:state.version, question:state.question, race:state.race, ...payload}); accept(data.state); }
     catch (e) { tell(e.message); if (!e.status || e.status >= 500) connection(false); }

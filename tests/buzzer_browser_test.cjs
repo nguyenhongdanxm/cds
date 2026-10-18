@@ -5,7 +5,7 @@ const root = require('node:path').resolve(__dirname,'..'), php = process.env.PHP
 const rendered = Object.fromEntries(['host','screen','play'].map(view => [view,cp.execFileSync(php,[root+'/tests/support/buzzer_browser_fixture.php',view],{encoding:'utf8'})]));
 function engine(action, params={}) { return JSON.parse(cp.execFileSync(php,[root+'/tests/support/buzzer_browser_state.php'],{input:JSON.stringify({action,...params,now:Date.now()}),encoding:'utf8'})); }
 const code='12345678', screenKey='a'.repeat(48);let world=null;let globalAudio={},uploads={};
-function snapshot(role,id) { const s=engine('view',{state:{...world,audio:{...(world.audio||{}),...globalAudio}},role,id}).result;s.code=code;if(role==='host')s.screen_key=screenKey;return s; }
+function snapshot(role,id) { const s=engine('view',{state:{...world,audio:{...(world.audio||{}),...globalAudio}},role,id}).result;s.code=code;if(role==='host'){s.screen_key=screenKey;s.shared_audio=globalAudio;}return s; }
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://fixture');
   if(url.pathname==='/hoclieu_game_buzzer.php'){res.setHeader('Content-Type','text/html; charset=utf-8');const view=url.searchParams.get('view')||'host';res.end(rendered[view].replace('"code":""','"code":'+JSON.stringify(url.searchParams.get('code')||'')));return;}
