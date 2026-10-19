@@ -1,0 +1,28 @@
+name: Lesson book print homeroom
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/sodaubai.php'
+      - 'chuyenmon/sodaubai_print.php'
+      - 'chuyenmon/includes/lesson_book_print_homeroom.php'
+      - 'tests/lesson_book_print_homeroom_test.php'
+      - 'tests/support/lesson_book_print_fixture.php'
+      - '.github/workflows/lesson-book-print.yml'
+  workflow_dispatch:
+jobs:
+  print:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l chuyenmon/sodaubai.php
+          php -l chuyenmon/sodaubai_print.php
+          php -l chuyenmon/includes/lesson_book_print_homeroom.php
+          php tests/lesson_book_print_homeroom_test.php
