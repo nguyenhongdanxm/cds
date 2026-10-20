@@ -1,0 +1,42 @@
+name: Equipment loan print
+on:
+  pull_request:
+    paths:
+      - 'thietbi_phieu.php'
+      - 'tests/equipment_print_test.php'
+      - 'tests/equipment_print_browser.cjs'
+      - '.github/workflows/equipment-print.yml'
+  workflow_dispatch:
+jobs:
+  print:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+      - run: |
+          php -l thietbi_phieu.php
+          php tests/equipment_print_test.php
+
+  layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - run: php tests/equipment_print_test.php --html
+      - run: npm install --prefix "$RUNNER_TEMP/equipment-browser" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/equipment-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/equipment_print_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/equipment-browser/node_modules
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: equipment-print-preview
+          path: /tmp/equipment-print-preview
