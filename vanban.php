@@ -9,7 +9,8 @@ $user = current_user();
 $isAdmin = ($user['role'] ?? '') === 'admin';
 $canManage = can_perm_level('vb.quanly', 'edit') || can_module('vanban', 'edit');
 $canNumber = can_perm_level('vb.layso', 'edit') || $canManage;
-$exportNumbers=($_SERVER['REQUEST_METHOD']??'GET')==='GET'&&($_GET['export_numbers']??'')==='csv';
+$exportNumbers=($_SERVER['REQUEST_METHOD']??'GET')==='GET'&&in_array($_GET['export_numbers']??'',['csv','xlsx'],true);
+$exportXlsx=$exportNumbers&&($_GET['export_numbers']??'')==='xlsx';
 if($exportNumbers&&!$canNumber){http_response_code(403);exit('Không có quyền tải danh mục số văn bản.');}
 $canArchive = can_perm_level('vb.hosoluutru', 'edit') || $canManage;
 $canEngagementManage = $isAdmin;
@@ -293,8 +294,8 @@ $filteredArchives = array_values(array_filter($archives, fn($row)=>$qArchive==='
 $numberQuery = vb_norm((string)($_GET['number_q'] ?? ''));
 $numberBook = (string)($_GET['number_book'] ?? 'all');
 if (!in_array($numberBook, ['all','decision','other','stats'], true)) $numberBook = 'all';
-$filteredNumbers = array_values(array_filter($numbers, function($row) use ($numberQuery, $numberBook) {
-    if ($numberBook !== 'all' && ($row['book'] ?? '') !== $numberBook) return false;
+$filteredNumbers = array_values(array_filter($numbers, function($row) use ($numberQuery, $numberBook, $exportXlsx) {
+    if (!$exportXlsx && $numberBook !== 'all' && ($row['book'] ?? '') !== $numberBook) return false;
     if ($numberQuery === '') return true;
     return str_contains(vb_norm(implode(' ', [
         $row['symbol'] ?? '', $row['title'] ?? '', $row['issuer'] ?? '',
@@ -315,12 +316,18 @@ usort($filteredNumbers, function($a, $b) use ($numberSort, $numberDir) {
 });
 if($exportNumbers){
     require_once __DIR__.'/includes/vanban_number_export.php';
+    if($exportXlsx){
+        $bytes=vb_number_xlsx($filteredNumbers,(string)SCHOOL_NAME,(string)($_GET['number_q']??''));
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="danh-muc-van-ban-'.date('Ymd').'.xlsx"');
+        header('Content-Length: '.strlen($bytes));header('Cache-Control: no-store, private');header('X-Content-Type-Options: nosniff');echo $bytes;exit;
+    }
     header('Content-Type: text/csv; charset=UTF-8');
     header('Content-Disposition: attachment; filename="danh-muc-van-ban-'.$numberBook.'-'.date('Ymd').'.csv"');
     header('Cache-Control: no-store, private');header('X-Content-Type-Options: nosniff');
     $stream=fopen('php://output','wb');vb_number_csv_write($stream,$filteredNumbers);fclose($stream);exit;
 }
-$numberExportUrl='?'.http_build_query(['tab'=>'numbers','export_numbers'=>'csv','number_book'=>$numberBook==='stats'?'all':$numberBook,'number_q'=>(string)($_GET['number_q']??''),'number_sort'=>$numberSort,'number_dir'=>$numberDir]);
+$numberExportUrl='?'.http_build_query(['tab'=>'numbers','export_numbers'=>'xlsx','number_book'=>$numberBook==='stats'?'all':$numberBook,'number_q'=>(string)($_GET['number_q']??''),'number_sort'=>$numberSort,'number_dir'=>$numberDir]);
 $numberSortUrl = function($field) use ($numberSort, $numberDir, $numberBook) {
     $nextDir = $numberSort === $field && $numberDir === 'asc' ? 'desc' : 'asc';
     return '?' . http_build_query([
@@ -393,7 +400,7 @@ function vb_status(array $row): array { return match($row['status']??'reserved')
   <?php foreach(['all'=>'Tất cả','decision'=>'Quyết định','other'=>'Văn bản khác'] as $bookKey=>$bookLabel):$bookCount=$bookKey==='all'?count($numbers):count(array_filter($numbers,fn($r)=>($r['book']??'')===$bookKey));?>
   <a class="number-book-tab <?=e($bookKey)?> <?=$numberBook===$bookKey?'active':''?>" href="?<?=e(http_build_query(['tab'=>'numbers','number_book'=>$bookKey,'number_q'=>(string)($_GET['number_q']??''),'number_sort'=>$numberSort,'number_dir'=>$numberDir]))?>"><?=e($bookLabel)?> <b><?=$bookCount?></b></a>
   <?php endforeach;?><a class="number-book-tab stats <?=$numberBook==='stats'?'active':''?>" href="?tab=numbers&number_book=stats"><i class="bi bi-bar-chart-line"></i> Thống kê</a>
-</div><?php if($canNumber):?><div class="quick-actions"><a class="btn btn-outline" href="<?=e($numberExportUrl)?>" title="Tải danh mục CSV theo sổ, bộ lọc và thứ tự đang chọn; mở bằng Excel"><i class="bi bi-download"></i> Tải danh mục (CSV)</a><button class="btn btn-primary" onclick="document.getElementById('numberDialog').showModal()"><i class="bi bi-plus-lg"></i> Lấy số mới</button></div><?php endif;?></div>
+</div><?php if($canNumber):?><div class="quick-actions"><a class="btn btn-outline" href="<?=e($numberExportUrl)?>" title="Tải Excel gồm hai sheet Quyết định và Văn bản khác; giữ tìm kiếm và thứ tự đang chọn"><i class="bi bi-download"></i> Tải danh mục Excel</a><button class="btn btn-primary" onclick="document.getElementById('numberDialog').showModal()"><i class="bi bi-plus-lg"></i> Lấy số mới</button></div><?php endif;?></div>
 <?php if($numberBook==='stats'):?>
 <section class="number-stat-grid">
   <?php foreach([['total','Tổng số đã lấy'],['published','Đã đưa ra cập nhật'],['with_file','Đã có tệp'],['without_file','Chưa có tệp'],['reserved_without_file','Đang giữ, chưa tệp'],['cancelled','Số đã hủy']] as [$key,$label]):?><article class="card number-stat"><strong><?=number_format((int)$numberStats[$key])?></strong><span><?=e($label)?></span></article><?php endforeach;?>

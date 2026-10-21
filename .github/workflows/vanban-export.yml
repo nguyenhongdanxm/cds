@@ -5,6 +5,7 @@ on:
       - 'vanban.php'
       - 'includes/vanban_number_export.php'
       - 'tests/vanban_number_export_test.php'
+      - 'tests/vanban_number_xlsx_test.py'
       - 'tests/support/vanban_number_export_fixture.php'
       - '.github/workflows/vanban-export.yml'
   workflow_dispatch:
@@ -19,7 +20,9 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
+          extensions: mbstring
       - run: |
           php -l vanban.php
           php -l includes/vanban_number_export.php
           php tests/vanban_number_export_test.php
+          python3 tests/vanban_number_xlsx_test.py
