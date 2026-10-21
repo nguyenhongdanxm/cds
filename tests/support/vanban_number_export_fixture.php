@@ -1,6 +1,6 @@
 <?php
-$_SERVER['REQUEST_METHOD']='GET';$_SESSION=[];
-$_GET=['tab'=>'numbers','export_numbers'=>'csv','number_book'=>'decision','number_q'=>'match','number_sort'=>'issued_date','number_dir'=>$argv[2]??'desc'];
+$_SERVER['REQUEST_METHOD']='GET';$_SESSION=[];define('SCHOOL_NAME','TRƯỜNG THỬ NGHIỆM');
+$_GET=['tab'=>'numbers','export_numbers'=>$argv[3]??'csv','number_book'=>'decision','number_q'=>$argv[4]??'match','number_sort'=>'issued_date','number_dir'=>$argv[2]??'desc'];
 $GLOBALS['fixture_allowed']=($argv[1]??'allowed')==='allowed';
 function require_login(){}
 function current_user(){return ['role'=>'teacher','name'=>'GV thử nghiệm'];}
