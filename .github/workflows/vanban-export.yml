@@ -1,0 +1,25 @@
+name: Document register export
+on:
+  pull_request:
+    paths:
+      - 'vanban.php'
+      - 'includes/vanban_number_export.php'
+      - 'tests/vanban_number_export_test.php'
+      - 'tests/support/vanban_number_export_fixture.php'
+      - '.github/workflows/vanban-export.yml'
+  workflow_dispatch:
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+      - run: |
+          php -l vanban.php
+          php -l includes/vanban_number_export.php
+          php tests/vanban_number_export_test.php
