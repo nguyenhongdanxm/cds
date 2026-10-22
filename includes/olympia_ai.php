@@ -15,7 +15,7 @@ function olympia_ai_signature(string $text): string {
     return trim(preg_replace('/[^\pL\pN]+/u', ' ', mb_strtolower($text, 'UTF-8')));
 }
 function olympia_ai_validate(string $json, array $existing = [], int $limit = 25): array {
-    if (strlen($json) > 200000) throw new InvalidArgumentException('Bản nháp quá lớn.');
+    if (strlen($json) > ($limit > 25 ? 1500000 : 200000)) throw new InvalidArgumentException('Bản nháp quá lớn.');
     $data = json_decode($json, true);
     $rows = $data['questions'] ?? null;
     if (!is_array($data) || !is_array($rows) || !array_is_list($rows) || !$rows || count($rows) > $limit) {
@@ -72,6 +72,7 @@ function olympia_ai_generate(array $request, array $existing): array {
     }
     $prompt = 'Biên soạn đúng ' . $count . ' câu hỏi Olympia bằng tiếng Việt, khối ' . $grade
         . ', vòng ' . $stage . ', mức ' . ['easy'=>'dễ','medium'=>'vừa','hard'=>'khó'][$difficulty] . '. '
+        . ($grade === 'all' ? 'Dùng kiến thức nền tảng chung, không đòi hỏi kiến thức chuyên sâu của lớp trên. ' : 'Chỉ dùng kiến thức học sinh đã học đến khối ' . $grade . ' theo chương trình phổ thông Việt Nam; không yêu cầu kiến thức của khối cao hơn. Mức khó là vận dụng trong phạm vi khối này, không phải nâng cấp kiến thức lên lớp trên. Ưu tiên kiến thức nền tảng đã học; khi không chắc nội dung thuộc khối này thì bỏ chi tiết đó. ')
         . 'Câu hỏi tự luận ngắn, một đáp án rõ ràng; kèm giải thích để người biên soạn kiểm chứng. '
         . 'Không lặp kiến thức cụ thể trong danh sách tránh trùng, kể cả đổi cách diễn đạt hoặc số liệu. '
         . 'Không bịa nguồn, sự kiện, số liệu; ưu tiên kiến thức ổn định. Nếu tài liệu thiếu căn cứ thì không dùng chi tiết đó. '
@@ -100,7 +101,7 @@ function olympia_ai_request(array $request, string $csrf): array {
     if (!olympia_week($weekId)) throw new InvalidArgumentException('Tuần không còn tồn tại.');
     if (($request['action'] ?? '') === 'generate_olympia_ai') {
         $prior = [];
-        if (($request['prior'] ?? '') !== '') $prior = olympia_ai_validate((string)$request['prior']);
+        if (($request['prior'] ?? '') !== '') $prior = olympia_ai_validate((string)$request['prior'], [], 175);
         if (time() - (int)($_SESSION['olympia_ai_last_call'] ?? 0) < 2) throw new DomainException('Vui lòng chờ hai giây trước lượt tạo tiếp theo.', 429);
         $_SESSION['olympia_ai_last_call'] = time();
         $existing = array_merge($prior, olympia_ai_existing());
@@ -115,7 +116,7 @@ function olympia_ai_request(array $request, string $csrf): array {
     try {
         $lock = $db->prepare('SELECT id FROM cds_olympia_weeks WHERE id=? FOR UPDATE'); $lock->execute([$weekId]);
         if (!$lock->fetchColumn()) throw new InvalidArgumentException('Tuần không còn tồn tại.');
-        $rows = olympia_ai_validate((string)($request['questions'] ?? ''), olympia_ai_existing());
+        $rows = olympia_ai_validate((string)($request['questions'] ?? ''), olympia_ai_existing(), 175);
         $next = $db->prepare('SELECT COALESCE(MAX(sort_order),0)+1 FROM cds_olympia_questions WHERE week_id=? AND set_id=?'); $next->execute([$weekId,'']);
         $order = (int)$next->fetchColumn();
         $insert = $db->prepare('INSERT INTO cds_olympia_questions(id,week_id,set_id,grade_scope,stage_name,question_text,answer_text,points,sort_order) VALUES(?,?,?,?,?,?,?,?,?)');

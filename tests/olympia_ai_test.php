@@ -48,3 +48,10 @@ $_SESSION['olympia_ai_last_call']=time();
 reject(fn()=>olympia_ai_request(['action'=>'generate_olympia_ai','csrf'=>'csrf','week_id'=>'week-fixture'],'csrf'),'Rate limit');
 check(count($GLOBALS['calls'])===$before,'Authorization/CSRF/review/rate checks never call provider');
 echo "PASS Olympia AI: schema, Vietnamese duplicates, classification, provider errors, admin-only, CSRF, review, token and rate checks\n";
+
+$many=[];for($i=0;$i<175;$i++){ $copy=$row;$copy['question_text']='Câu riêng số '.$i; $many[]=$copy; }
+check(count(olympia_ai_validate($encode($many),[],175))===175,'Full seven-grade draft');
+$many[] = array_merge($row,['question_text'=>'Câu thứ 176']);
+reject(fn()=>olympia_ai_validate($encode($many),[],175),'Batch cap');
+check(str_contains($GLOBALS['calls'][0][2], 'khối 7') && str_contains($GLOBALS['calls'][0][2], 'khối cao hơn'),'Grade curriculum boundary in provider instruction');
+echo "PASS batch: 175 questions, cap and grade curriculum instruction\n";
