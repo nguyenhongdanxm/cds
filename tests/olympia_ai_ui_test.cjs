@@ -21,8 +21,11 @@ class Element {
 }
 function boot(responder) {
   const ids = {};
-  for (const name of ['topic','reference','grade','stage','difficulty','count','points','status','generate','save','stop','drafts','save-area','reviewed']) ids[`oly-ai-${name}`] = new Element();
+  for (const name of ['batch','batch-options','topic','reference','grade','stage','difficulty','count','points','status','generate','save','stop','drafts','save-area','reviewed']) ids[`oly-ai-${name}`] = new Element();
   const panel = new Element(); panel.dataset = { csrf: 'csrf', week: 'fixture-week', token: 'one-use-token' }; ids['olympia-ai-panel'] = panel;
+  const gradeOptions = ['6','9','12'].map(value => Object.assign(new Element(), {value, checked:true}));
+  const stageRows = ['Khởi động','Tăng tốc'].map(value => { const row = new Element(); for (const [key,val] of Object.entries({stage:value,count:'3',points:'20',difficulty:'hard'})) { const el = Object.assign(new Element(), {value:val,checked:true}); el.dataset['ai-'+key]=''; row.append(el); } return row; });
+  panel.querySelectorAll = selector => selector === '[data-ai-grade]:checked' ? gradeOptions.filter(el=>el.checked) : selector === '[data-ai-stage-row]' ? stageRows : [];
   const get = name => ids[`oly-ai-${name}`];
   for (const [name,value] of Object.entries({topic:'Kiến thức thử',grade:'6',stage:'Khởi động',difficulty:'medium',count:'3',points:'10'})) get(name).value = value;
   const calls = [], location = { pathname: '/hoclieu_game_olympia.php', reload() { location.reloads = (location.reloads || 0) + 1; } };
@@ -59,6 +62,13 @@ const ok = data => ({ok:true,json:async()=>({ok:true,...data})});
   const cancelled=boot((fields,n,options)=>new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>{const error=new Error('Abort');error.name='AbortError';reject(error);}))); 
   const generating=cancelled.get('generate').events.click();cancelled.get('stop').events.click();await generating;
   assert.strictEqual(cancelled.calls.length,1);assert(cancelled.get('status').textContent.includes('Đã dừng'));
+  const batch=boot((fields,n)=>ok({questions:Array.from({length:Number(fields.count)},(_,i)=>({...question(n*2+i),grade_scope:fields.grade,stage_name:fields.stage,points:Number(fields.points)}))}));
+  batch.get('batch').checked=true; await batch.get('generate').events.click();
+  assert.strictEqual(batch.get('drafts').children.length,18);
+  assert.deepStrictEqual(batch.calls.map(x=>[x.grade,x.stage,x.count]),['6','9','12'].flatMap(g=>['Khởi động','Tăng tốc'].flatMap(s=>[[g,s,'2'],[g,s,'1']])));
+  assert.strictEqual(JSON.parse(batch.calls.at(-1).prior).questions.length,17);
+  batch.get('reviewed').checked=true; await batch.get('save').events.click();
+  assert.strictEqual(JSON.parse(batch.calls.at(-1).questions).questions.length,18);
   const invalid=boot(()=>{throw new Error('Must not request');});invalid.get('count').value='0';await invalid.get('generate').events.click();assert.strictEqual(invalid.calls.length,0);
   console.log('PASS Olympia AI UI: chunked generation, partial errors, text-only rendering, review, selection, edited save, double-click and cancellation');
 })().catch(error=>{console.error(error);process.exitCode=1;});

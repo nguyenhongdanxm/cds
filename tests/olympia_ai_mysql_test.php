@@ -46,3 +46,12 @@ try{olympia_ai_request($base+['action'=>'import_olympia_ai','import_token'=>'rol
 check((int)$pdo->query('SELECT COUNT(*) FROM cds_olympia_questions')->fetchColumn()===4,'SQL failure rolls back entire batch');
 check(isset($_SESSION['olympia_ai_imports']['rollback-token'])&&!$pdo->inTransaction(),'Rollback releases transaction and retains draft token');
 echo 'PASS real Olympia SQL: preview-only generation, reviewed append, exact history/scores, official scope, cross-week duplicates, replay and full rollback. Server: '.$pdo->query('SELECT VERSION()')->fetchColumn().PHP_EOL;
+
+$batch=[];foreach(range(6,12) as $grade)foreach(olympia_ai_stages() as $index=>$stage)for($i=0;$i<($index===0?10:5);$i++)$batch[]=array_merge($row,['question_text'=>"Câu giả lập khối $grade phần $index số $i",'grade_scope'=>(string)$grade,'stage_name'=>$stage]);
+$_SESSION['olympia_ai_imports']['batch-token']='week-one';$GLOBALS['collision']=false;
+$result=olympia_ai_request($base+['action'=>'import_olympia_ai','import_token'=>'batch-token','reviewed'=>'1','questions'=>json_encode(['questions'=>$batch])],'fixture-csrf');
+check($result['saved']===175,'Full seven-grade draft saves atomically');
+check((int)$pdo->query('SELECT COUNT(*) FROM cds_olympia_questions')->fetchColumn()===179,'All batch rows appended');
+check($pdo->query("SELECT * FROM cds_olympia_questions WHERE id IN ('old','other','personal') ORDER BY id")->fetchAll()===$before,'Batch preserves all historical rows');
+check((int)$pdo->query('SELECT points FROM cds_olympia_scores WHERE id=1')->fetchColumn()===123,'Batch preserves scores');
+echo "PASS 175-question multi-grade reviewed import preserves history and scores\n";
