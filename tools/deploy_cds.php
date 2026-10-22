@@ -70,7 +70,7 @@ $directories = ['assets', 'includes', 'chuyenmon'];
 $rootFiles = [
     'activity.php','admin.php','admin_operation_settings.php','notices.php','drive_viewer.php','public_notice.php',
     'public_drive_viewer.php','public_ktx_exit_file.php','drive_file.php','drive_settings.php',
-    'hoclieu_game_buzzer.php','hoclieu_game_buzzer_api.php','hoclieu.php','hoclieu_game_thabong.php','hoclieu_game_rocket.php','hoclieu_clock.php','hoclieu_file.php','hoclieu_game.php','hoclieu_game_keoco.php','hoclieu_game_chopnot.php','hoclieu_game_duavit.php','hoclieu_game_loto.php','hoclieu_game_qr_trial.php','hoclieu_game_quiz.php','hoclieu_game_quiz_media.php','hoclieu_game_quiz_join.php','hoclieu_game_quiz_screen.php','vaochoi.php','chieu.php','quet.php','hoclieu_quiz_cards.php','hoclieu_game_olympia.php','hoclieu_game_olympia_sets.php','hoclieu_game_olympia_play.php','hoclieu_game_olympia_screen.php','hoclieu_game_olympia_live.php','hoclieu_game_olympia_rankings.php','olympia_stage.php','olympia_stage_api.php','olympia_san_khau_preview.html',
+    'hoclieu.php','hoclieu_game_thabong.php','hoclieu_game_rocket.php','hoclieu_clock.php','hoclieu_file.php','hoclieu_game.php','hoclieu_game_keoco.php','hoclieu_game_chopnot.php','hoclieu_game_duavit.php','hoclieu_game_loto.php','hoclieu_game_qr_trial.php','hoclieu_game_quiz.php','hoclieu_game_quiz_media.php','hoclieu_game_quiz_join.php','hoclieu_game_quiz_screen.php','vaochoi.php','chieu.php','quet.php','hoclieu_quiz_cards.php','hoclieu_game_olympia.php','hoclieu_game_olympia_sets.php','hoclieu_game_olympia_play.php','hoclieu_game_olympia_screen.php','hoclieu_game_olympia_live.php','hoclieu_game_olympia_rankings.php','olympia_stage.php','olympia_stage_api.php','olympia_san_khau_preview.html',
     'chuyenmon.php','csdl.php','csdl_preweeks.php','csdl_export.php','csdl_export_filtered_excel.php',
     'csdl_statistics_export_xlsx.php','csdl_student_cards.php','csdl_staff_cards.php','staff_card_teachers.php','staff_photo.php','staff_verify.php','danhgia.php','dashboard_settings.php',
     'database_admin.php','instance_settings.php','initial_setup.php','index.php','login.php','logout.php','manifest.php','manifest.webmanifest','sw.js',
@@ -80,7 +80,7 @@ $rootFiles = [
     'noitru_room_template.php','noitru_room_roles.php','noitru_room_roles_data.php','noitru_room_quick_save.php',
     'noitru_meal_quantity_data.php','noitru_medicine_excel.php','push_api.php','student_card_students.php',
     'student_photo.php','student_verify.php','thoikhoabieu.php','tkb_xep.php','tkb_editor.php','tkb_constraints.php','tkb_publish.php','trolyai.php','ai_api.php','ai_document_download.php','thuvien.php','thuvien_book_supplement.php',
-    'thuvien_bienban.php','thietbi_phieu.php','thidua.php','thidua_baiviet.php','thidua_phongnoitru.php','tienich_chunhiem.php',
+    'thuvien_bienban.php','thietbi_phieu.php','thietbi_mau.php','thidua.php','thidua_baiviet.php','thidua_phongnoitru.php','tienich_chunhiem.php',
     'thidua_phongnoitru_delete.php','thidua_phongnoitru_history_api.php','users.php','vanban.php','vanban_open.php',
     'vanban_preview.php','vanban_preview_file.php','voice-commands-help.php'
 ];
