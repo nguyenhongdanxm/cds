@@ -14,6 +14,7 @@ function lib_equipment_template_file(array $equipment): string {
         $setText=static function(DOMElement $cell,string $value)use($dom,$ns){while($cell->firstChild)$cell->removeChild($cell->firstChild);$cell->setAttribute('t','inlineStr');$is=$dom->createElementNS($ns,'is');$t=$dom->createElementNS($ns,'t');$t->setAttribute('xml:space','preserve');$t->appendChild($dom->createTextNode(preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/','',$value)));$is->appendChild($t);$cell->appendChild($is);};
         $setText($xp->query('//s:c[@r="A1"]')->item(0),'MẪU NHẬP DANH MỤC THIẾT BỊ – CÓ DỮ LIỆU');
         $setText($xp->query('//s:c[@r="A2"]')->item(0),'Dữ liệu số tồn hiện tại. Khi nhập lại, thiết bị trùng sẽ được CỘNG THÊM số lượng. Chỉ giữ các dòng cần nhập và sửa số lượng thành số BỔ SUNG, tránh cộng trùng.');
+        foreach(['J3'=>'Số lượng tốt','K3'=>'Số lượng xuống cấp','L3'=>'Số lượng hỏng']as$ref=>$label)$setText($xp->query('//s:c[@r="'.$ref.'"]')->item(0),$label);
         $equipment=array_values(array_filter($equipment,'is_array'));
         foreach($equipment as$i=>$eq){$n=$i+4;$status=lib_equipment_status_quantities($eq);$values=[$i+1,$eq['grade']??'',$eq['subject']??'',$eq['name']??'',$eq['code']??'',$status['total'],$eq['unit']??'',$eq['production_year']??'',$eq['provider']??$eq['source']??'',$status['good'],$status['degraded'],$status['broken'],$eq['note']??''];
             $row=$dom->createElementNS($ns,'row');$row->setAttribute('r',(string)$n);$row->setAttribute('ht','30');$row->setAttribute('customHeight','1');
