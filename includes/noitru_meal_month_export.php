@@ -103,23 +103,33 @@ function nt_xlsx_write_zip(array $files, $target) {
     if (file_put_contents($target, $body . $central . $end) === false) throw new RuntimeException('Không thể ghi tệp Excel tạm.');
 }
 
-function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYear, $homeroomTeacherName = '') {
+/** One bounded month read, shared by the school summary and all class sheets. */
+function nt_xlsx_month_context(string $month): array {
+    $days=(int)date('t',strtotime($month.'-01'));$from=$month.'-01';$to=sprintf('%s-%02d',$month,$days);
+    $maps=[];foreach(noitru_meals_for_range($from,$to)as$row){$date=(string)($row['date']??'');if($date>=$from&&$date<=$to)$maps[$date][$row['student_id']??'']=$row;}
+    $reported=[];foreach(noitru_meal_report_rows()as$report){$date=(string)($report['date']??'');if(substr($date,0,7)===$month)$reported[$date.'|'.(string)($report['class_name']??'').'|'.(string)($report['meal']??'')]=true;}
+    $off=[];for($day=1;$day<=$days;$day++){$date=sprintf('%s-%02d',$month,$day);foreach(['sang','trua','toi']as$meal)$off[$date.'|'.$meal]=(noitru_meal_state($date,$meal)['status']??'open')==='off';}
+    return ['maps'=>$maps,'reported'=>$reported,'off'=>$off];
+}
+
+function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYear, $homeroomTeacherName = '', ?array $monthContext = null) {
     $start = $month . '-01';
     $daysInMonth = (int)date('t', strtotime($start));
     $monthNumber = (int)date('m', strtotime($start));
     $yearNumber = (int)date('Y', strtotime($start));
+    $monthContext=$monthContext??nt_xlsx_month_context($month);
     $dayData = [];
     for ($day = 1; $day <= $daysInMonth; $day++) {
         $date = sprintf('%s-%02d', $month, $day);
-        $sangActive = (noitru_meal_state($date, 'sang')['status'] ?? 'open') !== 'off';
-        $truaActive = (noitru_meal_state($date, 'trua')['status'] ?? 'open') !== 'off';
-        $toiActive = (noitru_meal_state($date, 'toi')['status'] ?? 'open') !== 'off';
+        $sangActive = empty($monthContext['off'][$date.'|sang']);
+        $truaActive = empty($monthContext['off'][$date.'|trua']);
+        $toiActive = empty($monthContext['off'][$date.'|toi']);
         $dayData[$day] = [
             'date' => $date,
-            'map' => noitru_meals_for_date($date),
-            'sang_report' => $sangActive && noitru_meal_report_for($date, $className, 'sang') !== null,
-            'trua_report' => $truaActive && noitru_meal_report_for($date, $className, 'trua') !== null,
-            'toi_report' => $toiActive && noitru_meal_report_for($date, $className, 'toi') !== null,
+            'map' => $monthContext['maps'][$date]??[],
+            'sang_report' => $sangActive && isset($monthContext['reported'][$date.'|'.$className.'|sang']),
+            'trua_report' => $truaActive && isset($monthContext['reported'][$date.'|'.$className.'|trua']),
+            'toi_report' => $toiActive && isset($monthContext['reported'][$date.'|'.$className.'|toi']),
         ];
     }
     $lastDayCol = nt_xlsx_col(2 + 31);
@@ -223,22 +233,14 @@ function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYe
         . '</worksheet>';
 }
 
-function nt_xlsx_school_summary_xml(array $classes, $month, $type, $schoolYear) {
+function nt_xlsx_school_summary_xml(array $classes, $month, $type, $schoolYear, ?array $monthContext = null) {
     $start = $month . '-01';
     $daysInMonth = (int)date('t', strtotime($start));
     $monthNumber = (int)date('m', strtotime($start));
     $yearNumber = (int)date('Y', strtotime($start));
     $mealKeys = $type === 'breakfast' ? ['sang'=>'Sáng'] : ['trua'=>'Trưa','toi'=>'Tối'];
-    $dayMaps = [];$reportedMap = [];$offMap = [];
-    foreach (noitru_meal_report_rows() as $report) {
-        $reportDate=(string)($report['date']??'');
-        if (substr($reportDate,0,7)!==$month) continue;
-        $reportedMap[$reportDate.'|'.(string)($report['class_name']??'').'|'.(string)($report['meal']??'')]=true;
-    }
-    for($day=1;$day<=$daysInMonth;$day++) {
-        $date=sprintf('%s-%02d',$month,$day);$dayMaps[$date]=noitru_meals_for_date($date);
-        foreach(array_keys($mealKeys) as $mealKey)$offMap[$date.'|'.$mealKey]=(noitru_meal_state($date,$mealKey)['status']??'open')==='off';
-    }
+    $monthContext=$monthContext??nt_xlsx_month_context($month);
+    $dayMaps=$monthContext['maps'];$reportedMap=$monthContext['reported'];$offMap=$monthContext['off'];
     $lastDayCol = nt_xlsx_col(2 + 31);
     $totalCol = nt_xlsx_col(34);
     $rows = [];
@@ -326,14 +328,15 @@ function nt_export_meal_month_xlsx(array $students, $month, $type, $exportedBy =
         $homeroomTeachers[$className] = $teacherName;
     }
     $schoolYear = defined('SCHOOL_YEAR') ? str_replace('–', '-', SCHOOL_YEAR) : (date('Y') . '-' . (date('Y') + 1));
+    $monthContext=nt_xlsx_month_context($month);
     $tmp = tempnam(sys_get_temp_dir(), 'ntmeal_');
     $sheetNames = ['Toàn trường'];
     $usedNames = [];
     $usedNames[mb_strtolower('Toàn trường','UTF-8')] = true;
-    $sheetXml = [nt_xlsx_school_summary_xml($classes, $month, $type, $schoolYear)];
+    $sheetXml = [nt_xlsx_school_summary_xml($classes, $month, $type, $schoolYear, $monthContext)];
     foreach ($classes as $className => $classStudents) {
         $sheetNames[] = nt_xlsx_safe_sheet_name($className, $usedNames);
-        $sheetXml[] = nt_xlsx_sheet_xml($className, $classStudents, $month, $type, $schoolYear, $homeroomTeachers[$className] ?? '');
+        $sheetXml[] = nt_xlsx_sheet_xml($className, $classStudents, $month, $type, $schoolYear, $homeroomTeachers[$className] ?? '', $monthContext);
     }
     $contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
         . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'

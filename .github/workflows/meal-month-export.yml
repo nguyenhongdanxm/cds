@@ -1,0 +1,24 @@
+name: Monthly meal export regressions
+on:
+  pull_request:
+    paths:
+      - 'includes/noitru_meal_month_export.php'
+      - 'tests/meal_month_export_test.php'
+      - 'tests/support/meal_month_sheet_reference.php'
+      - '.github/workflows/meal-month-export.yml'
+  workflow_dispatch:
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l includes/noitru_meal_month_export.php
+          php tests/meal_month_export_test.php
