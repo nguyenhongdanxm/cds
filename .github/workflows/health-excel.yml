@@ -1,0 +1,24 @@
+name: Health Excel export
+on:
+  pull_request:
+    paths:
+      - 'includes/noitru_health_excel_export.php'
+      - 'noitru_health_excel.php'
+      - 'tests/health_excel_test.php'
+      - '.github/workflows/health-excel.yml'
+  workflow_dispatch:
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, mbstring, zip
+      - run: |
+          php -l includes/noitru_health_excel_export.php
+          php tests/health_excel_test.php

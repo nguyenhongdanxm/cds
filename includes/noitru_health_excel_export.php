@@ -1,5 +1,5 @@
 <?php
-/** Báo cáo khám chữa bệnh XLSX, bảy cột theo mẫu, A4 ngang. */
+/** Báo cáo khám chữa bệnh XLSX, tám cột theo mẫu, A4 ngang. */
 require_once dirname(__DIR__).'/chuyenmon/includes/lesson_book_excel.php';
 function nt_health_excel_text(string $ref,$value,int $style): string {
     $value=preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u','',(string)$value)??'';
@@ -11,29 +11,29 @@ function nt_health_excel_styles(): string {
 function nt_health_excel_files(array $records,string $from,string $to): array {
     usort($records,static fn($a,$b)=>strcmp(($a['date']??'').'|'.($a['created_at']??''),($b['date']??'').'|'.($b['created_at']??'')));
     $rows='<row r="1" ht="22" customHeight="1">'.nt_health_excel_text('A1','Từ ngày '.date('d/m/Y',strtotime($from)).' đến ngày '.date('d/m/Y',strtotime($to)),0).'</row>';
-    $heads=['STT','NGÀY THÁNG NĂM','HỌ VÀ TÊN NGƯỜI BỆNH','CHẨN ĐOÁN','TÊN THUỐC, SỐ LƯỢNG','KÝ NHẬN HS','GHI CHÚ'];
+    $heads=['STT','NGÀY THÁNG NĂM','HỌ VÀ TÊN NGƯỜI BỆNH','LỚP','CHẨN ĐOÁN','TÊN THUỐC, SỐ LƯỢNG','KÝ NHẬN HS','GHI CHÚ'];
     $cells='';foreach($heads as $j=>$h)$cells.=nt_health_excel_text(lb_xlsx_col($j+1) .'2',$h,2);
     $rows.='<row r="2" ht="36" customHeight="1">'.$cells.'</row>';
     foreach($records as $i=>$record) {
         $n=$i+3;$meds=[];
         foreach((array)($record['medicines']??[]) as $m)$meds[]=trim((string)($m['name']??'').' · '.(string)($m['quantity']??0).' '.(string)($m['unit']??''));
-        $values=[$i+1,(string)($record['date']??''),(string)($record['student_name']??''),(string)($record['diagnosis']??''),implode("\n",$meds),'',(string)($record['note']??'')];
-        $treatment=trim((string)($record['treatment']??''));if($treatment!=='')$values[6]=trim($values[6]."\n".$treatment);
-        $lines=1;foreach([2=>26,3=>28,4=>34,6=>22] as $j=>$width) { $count=0;foreach(explode("\n",$values[$j]) as $line)$count+=max(1,(int)ceil((function_exists('mb_strlen')?mb_strlen($line,'UTF-8'):strlen($line))/$width));$lines=max($lines,$count); }
+        $values=[$i+1,(string)($record['date']??''),(string)($record['student_name']??''),(string)($record['class_name']??''),(string)($record['diagnosis']??''),implode("\n",$meds),'',(string)($record['note']??'')];
+        $treatment=trim((string)($record['treatment']??''));if($treatment!=='')$values[7]=trim($values[7]."\n".$treatment);
+        $lines=1;foreach([2=>26,3=>8,4=>28,5=>34,7=>22] as $j=>$width) { $count=0;foreach(explode("\n",$values[$j]) as $line)$count+=max(1,(int)ceil((function_exists('mb_strlen')?mb_strlen($line,'UTF-8'):strlen($line))/$width));$lines=max($lines,$count); }
         $height=max(32,16*$lines+8);$cells='';
         foreach($values as $j=>$value) {
             $ref=lb_xlsx_col($j+1).$n;
             if($j===0)$cells.=lb_xlsx_number($ref,$value,4);
             elseif($j===1 && preg_match('/^\d{4}-\d{2}-\d{2}$/',$value) && strtotime($value)!==false)$cells.=lb_xlsx_number($ref,(strtotime($value.' UTC')-strtotime('1899-12-30 UTC'))/86400,5);
-            else $cells.=nt_health_excel_text($ref,$value,$j===5?4:3);
+            else $cells.=nt_health_excel_text($ref,$value,in_array($j,[3,6],true)?4:3);
         }
         $rows.='<row r="'.$n.'" ht="'.$height.'" customHeight="1">'.$cells.'</row>';
     }
-    if(!$records){$cells='';for($j=1;$j<=7;$j++)$cells.=nt_health_excel_text(lb_xlsx_col($j).'3','',3);$rows.='<row r="3" ht="32" customHeight="1">'.$cells.'</row>';}
+    if(!$records){$cells='';for($j=1;$j<=8;$j++)$cells.=nt_health_excel_text(lb_xlsx_col($j).'3','',3);$rows.='<row r="3" ht="32" customHeight="1">'.$cells.'</row>';}
     $last=max(3,count($records)+2);
-    $sheet='<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:G'.$last.'"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="6" customWidth="1"/><col min="2" max="2" width="17" customWidth="1"/><col min="3" max="3" width="28" customWidth="1"/><col min="4" max="4" width="30" customWidth="1"/><col min="5" max="5" width="36" customWidth="1"/><col min="6" max="6" width="15" customWidth="1"/><col min="7" max="7" width="24" customWidth="1"/></cols><sheetData>'.$rows.'</sheetData><mergeCells count="1"><mergeCell ref="A1:G1"/></mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.35" bottom="0.35" header="0.15" footer="0.15"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/><headerFooter><oddFooter>&amp;CTrang &amp;P / &amp;N</oddFooter></headerFooter></worksheet>';
+    $sheet='<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:H'.$last.'"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="5" customWidth="1"/><col min="2" max="2" width="14" customWidth="1"/><col min="3" max="3" width="27" customWidth="1"/><col min="4" max="4" width="9" customWidth="1"/><col min="5" max="5" width="25" customWidth="1"/><col min="6" max="6" width="34" customWidth="1"/><col min="7" max="7" width="13" customWidth="1"/><col min="8" max="8" width="21" customWidth="1"/></cols><sheetData>'.$rows.'</sheetData><mergeCells count="1"><mergeCell ref="A1:H1"/></mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.35" bottom="0.35" header="0.15" footer="0.15"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/><headerFooter><oddFooter>&amp;CTrang &amp;P / &amp;N</oddFooter></headerFooter></worksheet>';
     $files=lb_xlsx_base_files('Sổ khám chữa bệnh','Khám chữa bệnh',$sheet,nt_health_excel_styles());
-    $names='<definedNames><definedName name="_xlnm.Print_Area" localSheetId="0">\'Khám chữa bệnh\'!$A$1:$G$'.$last.'</definedName><definedName name="_xlnm.Print_Titles" localSheetId="0">\'Khám chữa bệnh\'!$2:$2</definedName></definedNames>';
+    $names='<definedNames><definedName name="_xlnm.Print_Area" localSheetId="0">\'Khám chữa bệnh\'!$A$1:$H$'.$last.'</definedName><definedName name="_xlnm.Print_Titles" localSheetId="0">\'Khám chữa bệnh\'!$2:$2</definedName></definedNames>';
     $files['xl/workbook.xml']=str_replace('</workbook>',$names.'</workbook>',$files['xl/workbook.xml']);
     return $files;
 }
