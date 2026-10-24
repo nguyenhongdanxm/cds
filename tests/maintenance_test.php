@@ -1,0 +1,30 @@
+<?php
+require __DIR__.'/../includes/library_maintenance.php';
+function check($ok,$message){if(!$ok)throw new RuntimeException($message);}
+function reject(callable $fn){try{$fn();}catch(InvalidArgumentException $e){return;}throw new RuntimeException('Invalid request accepted');}
+$equipment=[['id'=>'e1','name'=>'PRIVATE DEVICE A','subject'=>'Dùng chung'],['id'=>'e2','name'=>'PRIVATE DEVICE B','subject'=>'Toán'],['id'=>'e3','name'=>'PRIVATE DEVICE C','category'=>'Toán'],['id'=>'e4','name'=>'PRIVATE DEVICE D','subject'=>'']];$copy=$equipment;
+$groups=lib_mt_groups($equipment);check(count($groups)===3&&count($groups['subject:toán']['equipment_ids'])===2,'Group by subject with legacy category fallback');
+$request=['equipment_groups'=>['common','subject:toán','subject:toán'],'maintenance_type'=>'Kiểm tra','maintenance_status'=>'Đã lên lịch','scheduled_at'=>'2026-10-24','cost'=>'0'];
+$row=lib_mt_build($request,$equipment,[],'Người lập','2026–2027');check(count($row['groups'])===2&&$row['equipment_ids']===['e1','e2','e3'],'Multiple groups deduplicated');
+$all=lib_mt_build($request+['all_equipment'=>'1'],$equipment,[],'Người lập','2026–2027');check(count($all['equipment_ids'])===4&&count($all['groups'])===3,'All includes unclassified');
+$changed=$equipment;$changed[0]['subject']='Vật lí';$changed[]=['id'=>'e5','subject'=>'Toán'];$update=lib_mt_build($request,$changed,$all,'Người cập nhật','2027–2028');check($update['groups']===$all['groups']&&$update['equipment_ids']===$all['equipment_ids']&&$update['school_year']==='2026–2027','Update preserves historical scope/year');
+$legacy=['id'=>'old','equipment_id'=>'e2','equipment_name'=>'PRIVATE DEVICE B','created_at'=>'old','custom'=>'keep'];$old=lib_mt_build($request,$equipment,$legacy,'A','B');check($old['equipment_id']==='e2'&&$old['custom']==='keep'&&$old['created_at']==='old','Legacy scope and unknown fields preserved');check(lib_mt_labels($legacy,$equipment)===['Thiết bị bộ môn – Toán'],'Legacy displayed by group');
+foreach([['equipment_groups'=>[]],['equipment_groups'=>['fake']],['equipment_groups'=>'common'],['scheduled_at'=>'2026-02-30'],['cost'=>'-1'],['maintenance_status'=>'fake'],['maintenance_status'=>'Hoàn thành'],['started_at'=>'2026-10-24T12:00','ended_at'=>'2026-10-24T11:00']] as $bad)reject(fn()=>lib_mt_build(array_replace($request,$bad),$equipment,[],'A','B'));
+$record=lib_mt_build(array_replace($request,['maintenance_status'=>'Hoàn thành','completed_at'=>'2026-10-24','inspector'=>'Nguyễn Văn A','secretary'=>'Trần Thị B','keeper'=>'Lê Văn C','result'=>'Kết quả thử <script>alert(1)</script>','conclusion'=>'Kết luận thử','recommendation'=>'Kiến nghị thử','place'=>'Phòng thiết bị','started_at'=>'2026-10-24T08:00','ended_at'=>'2026-10-24T09:00']),$equipment,[],'Người lập','2026–2027');
+check($equipment===$copy,'Input catalogue unchanged');
+define('BASE_URL','/');define('SCHOOL_NAME','TRƯỜNG KIỂM THỬ');define('SCHOOL_SO','CƠ QUAN CHỦ QUẢN');
+$labels=lib_mt_labels($record,$equipment);ob_start();require __DIR__.'/../includes/library_maintenance_report.php';$report=ob_get_clean();
+check(!str_contains($report,'PRIVATE DEVICE')&&!str_contains($report,'<script>')&&str_contains($report,'&lt;script&gt;'),'Group-only report and escaped result');check(str_contains($report,'A4 portrait')&&str_contains($report,'NGƯỜI GHI BIÊN BẢN')&&str_contains($report,'Nguyễn Văn A'),'Print format and signatures');
+function e($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}function lib_index($rows,$id){foreach($rows as $i=>$r)if(($r['id']??'')===$id)return $i;return -1;}function lib_date($v){return $v?:'—';}
+$data=['equipment'=>$equipment,'maintenance'=>[$record]];$canMaintenanceEdit=true;$canMaintenanceDelete=false;$maintenanceWarnings=[];$csrf='fixture-csrf';$teachers=[['name'=>'Nguyễn Văn A']];
+ob_start();require __DIR__.'/../includes/library_maintenance_view.php';$view=ob_get_clean();check(!str_contains($view,'PRIVATE DEVICE')&&str_contains($view,'equipment_groups[]'),'Group-only table/form');
+$_GET['maintenance_edit']=$record['id'];ob_start();require __DIR__.'/../includes/library_maintenance_view.php';$edit=ob_get_clean();check(str_contains($edit,'id="mtChangeScope"')&&str_contains($edit,'disabled'),'Scope change requires explicit edit');
+if(in_array('--html',$argv,true)){file_put_contents('/tmp/maintenance-report.html',$report);file_put_contents('/tmp/maintenance-view.html',$view);file_put_contents('/tmp/maintenance-edit.html',$edit);}
+// Exercise the actual export endpoint in an isolated directory with an auth/data stub.
+$tmp=sys_get_temp_dir().'/mt_endpoint_'.bin2hex(random_bytes(5));mkdir($tmp.'/includes',0700,true);
+try{copy(__DIR__.'/../thietbi_bienban.php',$tmp.'/endpoint.php');foreach(['library_maintenance.php','library_maintenance_report.php'] as $file)copy(__DIR__.'/../includes/'.$file,$tmp.'/includes/'.$file);
+$auth='<?php define("DATA_PATH",__DIR__);define("BASE_URL","/");define("SCHOOL_NAME","TEST");function require_login(){} function current_user(){return ["role"=>"teacher"];}function can_perm_level($p,$l){return getenv("MT_ALLOWED")==="1"&&$p==="tb.baoduong"&&$l==="view";}function load_json($p,$d){return '.var_export(['maintenance'=>[$record],'equipment'=>$equipment],true).';}';file_put_contents($tmp.'/includes/auth.php',$auth);
+$runner='<?php $_GET["id"]='.var_export($record['id'],true).';require __DIR__."/endpoint.php";';file_put_contents($tmp.'/runner.php',$runner);
+$cmd=escapeshellarg(PHP_BINARY).' '.escapeshellarg($tmp.'/runner.php');putenv('MT_ALLOWED=0');$denied=shell_exec($cmd);check(str_contains($denied,'Không có quyền')&&!str_contains($denied,'Nguyễn Văn A'),'Export permission blocks private data');putenv('MT_ALLOWED=1');$allowed=shell_exec($cmd);check(str_contains($allowed,'BIÊN BẢN')&&!str_contains($allowed,'PRIVATE DEVICE'),'Authorized route returns grouped report');
+}finally{putenv('MT_ALLOWED');foreach(glob($tmp.'/includes/*') as $f)unlink($f);foreach(glob($tmp.'/*.php') as $f)unlink($f);rmdir($tmp.'/includes');rmdir($tmp);}
+echo "PASS maintenance: groups/all, snapshots, legacy preservation, validation, escaped report, print format and real endpoint permissions\n";

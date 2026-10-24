@@ -1,0 +1,48 @@
+name: Equipment maintenance safety
+on:
+  pull_request:
+    paths:
+      - 'thuvien.php'
+      - 'thietbi_bienban.php'
+      - 'includes/library_maintenance*.php'
+      - 'tests/maintenance*'
+      - '.github/workflows/maintenance.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l thuvien.php
+          php -l thietbi_bienban.php
+          php -l includes/library_maintenance.php
+          php -l includes/library_maintenance_view.php
+          php -l includes/library_maintenance_report.php
+          php tests/maintenance_test.php
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: php tests/maintenance_test.php --html
+      - run: npm install --prefix "$RUNNER_TEMP/maintenance-browser" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/maintenance-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/maintenance_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/maintenance-browser/node_modules
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: maintenance-preview
+          path: /tmp/maintenance-preview
