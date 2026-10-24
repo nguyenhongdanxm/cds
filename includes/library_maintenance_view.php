@@ -1,0 +1,38 @@
+<?php
+$mtGroups=lib_mt_groups($data['equipment']);$mtEdit=[];
+if($canMaintenanceEdit&&isset($_GET['maintenance_edit'])){$mi=lib_index($data['maintenance'],(string)$_GET['maintenance_edit']);if($mi>=0)$mtEdit=$data['maintenance'][$mi];}
+$mtValue=fn($key,$default='')=>e((string)($mtEdit[$key]??$default));
+?>
+<div class="d-flex justify-content-between flex-wrap gap-2 mb-3"><div><h2>Kiểm tra – bảo dưỡng – sửa chữa thiết bị</h2><p class="text-muted">Theo dõi theo nhóm thiết bị; ghi nhận kết quả và xuất biên bản kiểm tra.</p></div><?php if($canMaintenanceEdit):?><a href="#maintenanceForm" class="btn btn-primary align-self-start">Lập lịch / kiểm tra</a><?php endif;?></div>
+<?php if($maintenanceWarnings):?><div class="alert alert-warning">Có <?=count($maintenanceWarnings)?> lịch đến hạn trong 30 ngày hoặc đã quá hạn.</div><?php endif;?>
+<div class="card table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Nhóm thiết bị</th><th>Nội dung</th><th>Dự kiến / hoàn thành</th><th>Trạng thái</th><th>Người kiểm tra</th><th>Kết quả kiểm tra</th><th>Đơn vị / chi phí</th><th>Thao tác</th></tr></thead><tbody>
+<?php foreach(array_reverse($data['maintenance']) as $row):?><tr><td><?=e(implode('; ',lib_mt_labels($row,$data['equipment'])))?><?php if(!empty($row['all_equipment'])):?><small class="d-block text-muted">Toàn bộ thiết bị tại thời điểm lập</small><?php endif;?></td><td><?=e($row['type']??'')?><small class="d-block" style="white-space:pre-wrap"><?=e($row['note']??'')?></small></td><td><?=lib_date((string)($row['scheduled_at']??''))?><br><?=lib_date((string)($row['completed_at']??''))?></td><td><?=e($row['status']??'')?></td><td><?=e($row['inspector']??'')?></td><td style="white-space:pre-wrap"><?=e($row['result']??'')?></td><td><?=e($row['provider']??'')?><br><?=number_format((float)($row['cost']??0),0,',','.')?> đ</td><td>
+<a class="btn btn-sm btn-outline-secondary mb-1" href="<?=BASE_URL?>thietbi_bienban.php?id=<?=urlencode((string)$row['id'])?>" target="_blank" rel="noopener">Biên bản / PDF</a>
+<?php if($canMaintenanceEdit):?><a class="btn btn-sm btn-outline-primary mb-1" href="?tab=maintenance&amp;maintenance_edit=<?=urlencode((string)$row['id'])?>#maintenanceForm">Cập nhật kết quả</a><?php endif;?>
+<?php if($canMaintenanceDelete):?><form method="post" onsubmit="return confirm('Xóa lịch này?')"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="delete_maintenance"><input type="hidden" name="id" value="<?=e($row['id'])?>"><button class="btn btn-sm btn-outline-danger">Xóa</button></form><?php endif;?></td></tr><?php endforeach;?>
+<?php if(!$data['maintenance']):?><tr><td colspan="8" class="text-center py-4">Chưa có lịch kiểm tra / bảo dưỡng.</td></tr><?php endif;?></tbody></table></div>
+<?php if($canMaintenanceEdit):?>
+<form method="post" id="maintenanceForm" class="card p-3 mt-4">
+<h3 class="h5"><?=$mtEdit?'Cập nhật lịch và kết quả kiểm tra':'Lập lịch / ghi nhận kiểm tra thiết bị'?></h3>
+<input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="save_maintenance"><input type="hidden" name="maintenance_id" value="<?=$mtValue('id')?>">
+<?php if($mtEdit):?><p>Phạm vi đã lưu: <?=e(implode('; ',lib_mt_labels($mtEdit,$data['equipment'])))?></p><label class="mb-2"><input type="checkbox" name="change_scope" value="1" id="mtChangeScope"> Thay đổi phạm vi thiết bị (nếu không chọn, giữ nguyên phạm vi đã lưu)</label><?php endif;?>
+<fieldset id="mtScope" class="border rounded p-3 mb-3" <?=$mtEdit?'disabled':''?>><legend class="float-none w-auto fs-6">Nhóm thiết bị</legend>
+<label class="d-block mb-2 fw-bold"><input type="checkbox" name="all_equipment" value="1" id="mtAll"> Tất cả thiết bị trong danh mục</label>
+<?php foreach($mtGroups as $key=>$group):?><label class="d-block mb-2"><input type="checkbox" name="equipment_groups[]" value="<?=e($key)?>" class="mtGroup"> <?=e($group['label'])?></label><?php endforeach;?>
+<?php if(!$mtGroups):?><p class="text-muted">Danh mục chưa có thiết bị.</p><?php endif;?><small class="text-muted">Chọn nhiều nhóm cùng lúc. Thiết bị chưa khai báo môn được tách riêng để không bỏ sót.</small></fieldset>
+<div class="row g-3">
+<div class="col-md-4"><label class="form-label">Loại công việc</label><select class="form-select" name="maintenance_type"><?php foreach(['Kiểm tra','Bảo dưỡng','Sửa chữa','Kiểm định','Thay thế linh kiện'] as $v):?><option <?=$v===($mtEdit['type']??'Kiểm tra')?'selected':''?>><?=e($v)?></option><?php endforeach;?></select></div>
+<div class="col-md-4"><label class="form-label">Trạng thái</label><select class="form-select" name="maintenance_status"><?php foreach(['Đã lên lịch','Đang thực hiện','Hoàn thành','Tạm hoãn'] as $v):?><option <?=$v===($mtEdit['status']??'Đã lên lịch')?'selected':''?>><?=e($v)?></option><?php endforeach;?></select></div>
+<?php foreach(['scheduled_at'=>['Ngày dự kiến','date',date('Y-m-d')],'completed_at'=>['Ngày hoàn thành','date',''],'started_at'=>['Thời điểm bắt đầu','datetime-local',''],'ended_at'=>['Thời điểm kết thúc','datetime-local',''],'inspector'=>['Người kiểm tra / chủ trì','text',''],'secretary'=>['Người ghi biên bản','text',''],'keeper'=>['Người phụ trách thiết bị','text',''],'provider'=>['Đơn vị thực hiện','text',''],'place'=>['Địa điểm kiểm tra','text',''],'report_number'=>['Số biên bản (nếu có)','text',''],'cost'=>['Chi phí (đồng)','number','0']] as $key=>[$label,$type,$default]):?>
+<div class="col-md-4"><label class="form-label" for="mt-<?=$key?>"><?=$label?></label><input id="mt-<?=$key?>" class="form-control" type="<?=$type?>" name="<?=$key?>" value="<?=$mtValue($key,$default)?>" <?=$key==='scheduled_at'?'required':''?> <?=$type==='number'?'min="0" step="any"':''?> <?=in_array($key,['inspector','secretary','keeper'],true)?'list="mtTeachers"':''?>></div>
+<?php endforeach;?>
+<datalist id="mtTeachers"><?php foreach($teachers as $teacher):?><option value="<?=e($teacher['name']??'')?>"><?php endforeach;?></datalist>
+<?php foreach(['basis'=>'Căn cứ kiểm tra (kế hoạch / quyết định, số và ngày)','participants'=>'Thành phần tham gia (mỗi người một dòng, ghi chức vụ / vai trò)','result'=>'Kết quả kiểm tra (tình trạng, tồn tại, số liệu thực tế nếu có)','conclusion'=>'Kết luận','recommendation'=>'Kiến nghị / biện pháp xử lý, người phụ trách và thời hạn','maintenance_note'=>'Ghi chú'] as $key=>$label):?><div class="col-md-6"><label class="form-label" for="mt-<?=$key?>"><?=$label?></label><textarea id="mt-<?=$key?>" class="form-control" rows="3" maxlength="4000" name="<?=$key?>"><?=$mtValue($key==='maintenance_note'?'note':$key)?></textarea></div><?php endforeach;?>
+</div><p class="small text-muted mt-3">Khi hoàn thành, cần nhập ngày hoàn thành, người kiểm tra và kết quả. Biên bản dùng cho kiểm tra nội bộ; kiểm định chuyên ngành hoặc nghiệm thu sửa chữa theo hợp đồng cần bổ sung hồ sơ tương ứng.</p>
+<div><button class="btn btn-primary">Lưu lịch và kết quả</button><?php if($mtEdit):?> <a class="btn btn-outline-secondary" href="?tab=maintenance#maintenanceForm">Lập lịch mới</a><?php endif;?></div>
+</form>
+<script>
+(()=>{const all=document.getElementById('mtAll'),groups=[...document.querySelectorAll('.mtGroup')],scope=document.getElementById('mtScope'),change=document.getElementById('mtChangeScope');
+all.addEventListener('change',()=>{groups.forEach(el=>{el.checked=all.checked;});all.indeterminate=false;});groups.forEach(el=>el.addEventListener('change',()=>{all.checked=groups.length>0&&groups.every(el=>el.checked);all.indeterminate=groups.some(el=>el.checked)&&!all.checked;}));if(change)change.addEventListener('change',()=>{scope.disabled=!change.checked;});})();
+</script>
+<?php endif;?>

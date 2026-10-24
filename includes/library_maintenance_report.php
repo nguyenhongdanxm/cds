@@ -1,0 +1,24 @@
+<?php
+$mtEsc=fn($v)=>htmlspecialchars((string)$v,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
+$mtPrint=fn($key)=>nl2br($mtEsc(trim((string)($record[$key]??''))?:'................................................................................'));
+$mtDate=static function($value){$value=(string)$value;if($value==='')return '........................';$time=strtotime($value);return $time?date(str_contains($value,'T')?'H:i, d/m/Y':'d/m/Y',$time):'........................';};
+$mtDraft=($record['status']??'')!=='Hoàn thành'||trim((string)($record['result']??''))===''||trim((string)($record['inspector']??''))==='';
+?>
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Biên bản kiểm tra thiết bị</title><style>
+@page{size:A4 portrait;margin:20mm 15mm 20mm 30mm}*{box-sizing:border-box}body{font-family:"Times New Roman",serif;font-size:13pt;line-height:1.45;color:#000;margin:0}.toolbar{background:#eee;padding:12px;text-align:right;font-family:Arial,sans-serif;font-size:12pt}.toolbar a,.toolbar button{padding:8px;margin-left:8px}.sheet{max-width:165mm;margin:20px auto;overflow-wrap:anywhere}.heading{display:flex;gap:6mm;text-align:center;font-size:12pt}.agency{width:43%;text-transform:uppercase}.nation{width:57%;font-weight:bold}.underline{border-bottom:1px solid #000;width:50%;margin:2mm auto}.motto{font-size:13pt}.document-title{text-align:center;margin:8mm 0 5mm}.document-title h1{font-size:14pt;margin:0}.document-title p{margin:0;font-weight:bold}p{margin:2.5mm 0;text-align:justify}h2{font-size:13pt;margin:4mm 0 2mm}table{border-collapse:collapse;width:100%;margin:3mm 0}th,td{border:1px solid #000;padding:2mm;text-align:left}thead{display:table-header-group}tr{break-inside:avoid}.signatures{display:flex;gap:5mm;text-align:center;margin-top:6mm;break-inside:avoid}.signatures>div{width:33.33%}.signatures strong{display:block}.signatures .name{padding-top:22mm}.draft{border:1px solid #777;padding:2mm;text-align:center;font-weight:bold}@media print{.toolbar{display:none}.sheet{max-width:none;margin:0}}
+</style></head><body><div class="toolbar"><a href="<?=BASE_URL?>thuvien.php?tab=maintenance">Quay lại</a><button onclick="window.print()">In / Xuất PDF</button></div>
+<main class="sheet"><div class="heading"><div class="agency"><?=$mtEsc(defined('SCHOOL_SO')?SCHOOL_SO:'')?><br><strong><?=$mtEsc(SCHOOL_NAME)?></strong><div class="underline"></div><div style="text-transform:none">Số: <?=$mtPrint('report_number')?></div></div><div class="nation">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<div class="motto">Độc lập - Tự do - Hạnh phúc</div><div class="underline"></div></div></div>
+<div class="document-title"><h1>BIÊN BẢN</h1><p>Kiểm tra, bảo dưỡng, sửa chữa thiết bị</p></div>
+<?php if($mtDraft):?><p class="draft">DỰ THẢO – CHƯA HOÀN TẤT KẾT QUẢ KIỂM TRA</p><?php endif;?>
+<?php if(!empty($record['school_year'])):?><p>Năm học: <?=$mtEsc($record['school_year'])?></p><?php endif;?>
+<p>Căn cứ: <?=$mtPrint('basis')?></p><p>Thời gian bắt đầu: <?=$mtEsc($mtDate($record['started_at']??''))?>.</p><p>Địa điểm: <?=$mtPrint('place')?>.</p>
+<h2>I. Thành phần tham gia</h2><p>1. Người kiểm tra / chủ trì: <?=$mtPrint('inspector')?>.</p><p>2. Người ghi biên bản: <?=$mtPrint('secretary')?>.</p><p>3. Người phụ trách thiết bị: <?=$mtPrint('keeper')?>.</p><p>Thành phần khác (họ tên, chức vụ / vai trò):<br><?=$mtPrint('participants')?></p>
+<h2>II. Phạm vi và nội dung kiểm tra</h2><p>Công việc: <?=$mtPrint('type')?>. Đơn vị thực hiện: <?=$mtPrint('provider')?>.</p>
+<?php if(!empty($record['all_equipment'])):?><p>Phạm vi: Tất cả thiết bị thuộc danh mục tại thời điểm lập hồ sơ.</p><?php endif;?>
+<table><thead><tr><th style="width:12%">STT</th><th>Nhóm thiết bị được kiểm tra</th></tr></thead><tbody><?php foreach($labels as $i=>$label):?><tr><td><?=$i+1?></td><td><?=$mtEsc($label)?></td></tr><?php endforeach;?></tbody></table>
+<p>Nội dung / ghi chú: <?=$mtPrint('note')?></p><p>Ngày dự kiến: <?=$mtEsc($mtDate($record['scheduled_at']??''))?>; ngày hoàn thành: <?=$mtEsc($mtDate($record['completed_at']??''))?>.</p>
+<h2>III. Kết quả kiểm tra</h2><p><?=$mtPrint('result')?></p>
+<h2>IV. Kết luận và kiến nghị</h2><p><strong>Kết luận:</strong> <?=$mtPrint('conclusion')?></p><p><strong>Kiến nghị, biện pháp xử lý:</strong> <?=$mtPrint('recommendation')?></p><p>Chi phí ghi nhận: <?=number_format((float)($record['cost']??0),0,',','.')?> đồng.</p>
+<p>Thời gian kết thúc: <?=$mtEsc($mtDate($record['ended_at']??''))?>.</p><p>Biên bản được lập để các thành phần tham gia kiểm tra nội dung và ký xác nhận.</p>
+<div class="signatures"><?php foreach(['keeper'=>'NGƯỜI PHỤ TRÁCH THIẾT BỊ','secretary'=>'NGƯỜI GHI BIÊN BẢN','inspector'=>'NGƯỜI KIỂM TRA / CHỦ TRÌ'] as $key=>$label):?><div><strong><?=$label?></strong><em>(Ký, ghi rõ họ tên)</em><div class="name"><?=$mtEsc($record[$key]??'')?></div></div><?php endforeach;?></div>
+</main></body></html>
