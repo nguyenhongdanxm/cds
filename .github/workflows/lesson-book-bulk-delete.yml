@@ -59,6 +59,7 @@ jobs:
           CDS_TEST_MYSQL_PORT: ${{ job.services.mysql.ports[3306] }}
   browser:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
