@@ -36,7 +36,7 @@
     var text=input.value.trim();if(isData&&!text&&task.value==='overview')text='Đánh giá số liệu trong phạm vi và thời gian đã chọn; nêu dữ liệu thiếu và việc cần xử lý.';if(!text&&!(sourceFile&&sourceFile.files.length)){input.focus();status.textContent='Vui lòng nhập nội dung hoặc chọn văn bản chính.';return}
     submit.disabled=true;status.textContent=isData?'Đang tổng hợp dữ liệu CDS và phân tích…':'Đang xử lý yêu cầu…';result.className='result empty';result.textContent=isData?'Đang lấy số liệu theo quyền tài khoản…':'AI đang xử lý…';
     try{
-      var form=new FormData();form.append('csrf',window.CDS_AI.csrf);form.append('assistant',window.CDS_AI.assistant);form.append('task',task.value);form.append('input',text);form.append('reference',reference.value.trim());form.append('template_id',template?template.value:'');
+      var form=new FormData();var provider=document.getElementById('aiRequestProvider');form.append('provider',provider?provider.value:'');form.append('csrf',window.CDS_AI.csrf);form.append('assistant',window.CDS_AI.assistant);form.append('task',task.value);form.append('input',text);form.append('reference',reference.value.trim());form.append('template_id',template?template.value:'');
       if(isData){[['data_source','aiDataSource'],['data_from','aiDataFrom'],['data_to','aiDataTo'],['data_class','aiDataClass']].forEach(function(pair){var el=document.getElementById(pair[1]);if(el)form.append(pair[0],el.value)});}
       if(sourceFile&&sourceFile.files[0])form.append('source_document',sourceFile.files[0]);
       if(files)Array.from(files.files).forEach(function(file){form.append('references[]',file)});

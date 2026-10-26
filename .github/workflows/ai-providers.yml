@@ -1,0 +1,49 @@
+name: Multi-platform AI safety
+on:
+  pull_request:
+    paths:
+      - 'includes/ai_service.php'
+      - 'includes/ai_provider_settings_view.php'
+      - 'trolyai.php'
+      - 'ai_api.php'
+      - 'assets/ai-assistant.js'
+      - 'tests/ai_providers*'
+      - '.github/workflows/ai-providers.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l includes/ai_service.php
+          php -l includes/ai_provider_settings_view.php
+          php -l trolyai.php
+          php -l ai_api.php
+          node --check assets/ai-assistant.js
+          php tests/ai_providers_test.php
+          php tests/olympia_ai_test.php
+          php tests/quiz_ai_test.php
+          php tests/timetable_editor_ai_test.php
+          php tests/ai-school-data.test.php
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: php tests/ai_providers_test.php --html
+      - run: npm install --prefix "$RUNNER_TEMP/ai-providers-browser" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/ai-providers-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/ai_providers_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/ai-providers-browser/node_modules
