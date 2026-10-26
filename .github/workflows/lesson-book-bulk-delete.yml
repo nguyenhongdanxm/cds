@@ -1,0 +1,71 @@
+name: Lesson book signed bulk deletion
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/sodaubai.php'
+      - 'chuyenmon/includes/lesson_book_bulk_delete*.php'
+      - 'assets/lesson-book-bulk-delete.js'
+      - 'tests/lesson_book_bulk_delete*'
+      - '.github/workflows/lesson-book-bulk-delete.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l chuyenmon/sodaubai.php
+          php -l chuyenmon/includes/lesson_book_bulk_delete.php
+          php -l chuyenmon/includes/lesson_book_bulk_delete_view.php
+          node --check assets/lesson-book-bulk-delete.js
+          php tests/lesson_book_bulk_delete_test.php
+  sql:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: ['mysql:8.0', 'mariadb:10.11']
+    services:
+      mysql:
+        image: ${{ matrix.database }}
+        env:
+          MYSQL_ROOT_PASSWORD: fixture-root-only-password
+          MYSQL_DATABASE: cds_disposable_test
+          MYSQL_USER: cds_fixture
+          MYSQL_PASSWORD: fixture-only-password
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring
+      - run: php tests/lesson_book_bulk_delete_mysql.php
+        env:
+          CDS_TEST_MYSQL: disposable-ci
+          CDS_TEST_MYSQL_PORT: ${{ job.services.mysql.ports[3306] }}
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - run: php tests/lesson_book_bulk_delete_fixture.php
+      - run: npm install --prefix "$RUNNER_TEMP/lb-bulk-browser" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/lb-bulk-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/lesson_book_bulk_delete_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/lb-bulk-browser/node_modules
