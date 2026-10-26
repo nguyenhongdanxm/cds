@@ -45,7 +45,8 @@ if($assistant==='dulieu'){
     catch(InvalidArgumentException $e){http_response_code(400);echo json_encode(['ok'=>false,'message'=>$e->getMessage()],JSON_UNESCAPED_UNICODE);exit;}
     catch(Throwable $e){error_log('[CDS AI data] '.$e->getMessage());http_response_code(503);echo json_encode(['ok'=>false,'message'=>'Không lấy được số liệu CDS. Vui lòng thử lại.'],JSON_UNESCAPED_UNICODE);exit;}
 }
-$result = cds_ai_call($assistant, $task, $input, $reference);
+$provider=is_string($request['provider']??null)?$request['provider']:'';
+$result = cds_ai_call($assistant, $task, $input, $reference, $provider);
 if($schoolContext){$result['sources']=$schoolContext['sources'];$result['retrieved_at']=$schoolContext['retrieved_at'];$result['period']=['from'=>$schoolContext['filters']['from'],'to'=>$schoolContext['filters']['to']];}
 
 if (empty($result['ok'])) http_response_code(502);

@@ -40,37 +40,52 @@ function cds_ai_settings(): array {
     $saved = is_array($saved) ? $saved : [];
     $settings = array_replace_recursive(cds_ai_defaults(), $saved);
     // Tự chuyển cấu hình CodeCraft bản đầu sang cấu trúc nhiều nhà cung cấp.
-    if (!empty($saved['api_key'])) $settings['providers']['codecraft']['api_key'] = (string)$saved['api_key'];
-    if (!empty($saved['model'])) $settings['providers']['codecraft']['model'] = (string)$saved['model'];
+    if (empty($saved['providers']['codecraft']['api_key']) && !empty($saved['api_key'])) $settings['providers']['codecraft']['api_key'] = (string)$saved['api_key'];
+    if (empty($saved['providers']['codecraft']['model']) && !empty($saved['model'])) $settings['providers']['codecraft']['model'] = (string)$saved['model'];
+    foreach(cds_ai_provider_catalog() as $key=>$meta){
+        $settings['providers'][$key]['enabled']=array_key_exists('enabled',(array)($saved['providers'][$key]??[]))
+            ? !empty($saved['providers'][$key]['enabled']) : $key===($settings['provider']??'codecraft');
+    }
     return $settings;
 }
 
+function cds_ai_active_providers(array $settings): array {
+    return array_filter(cds_ai_provider_catalog(),fn($meta,$key)=>!empty($settings['providers'][$key]['enabled']),ARRAY_FILTER_USE_BOTH);
+}
+function cds_ai_config_text(array $values,string $key,int $limit): string {
+    $value=$values[$key]??'';
+    if(!is_string($value)||strlen($value)>$limit||preg_match('/[\r\n\x00]/',$value))throw new InvalidArgumentException('API key hoặc Model ID không hợp lệ.');
+    return trim($value);
+}
 function cds_ai_save_settings(array $values): bool {
     if (!function_exists('cds_instance_config') || !function_exists('cds_instance_save')) return false;
-    $instance = cds_instance_config();
-    if (!is_array($instance)) $instance = [];
-    $old = cds_ai_settings(); $catalog = cds_ai_provider_catalog();
-    $provider = trim((string)($values['provider'] ?? 'codecraft'));
-    if (!isset($catalog[$provider])) $provider = 'codecraft';
-    $providers = [];
-    foreach ($catalog as $key=>$meta) {
-        $newKey = trim((string)($values['api_key_'.$key] ?? ''));
-        $model = trim((string)($values['model_'.$key] ?? ''));
-        $providers[$key] = [
-            'api_key'=>$newKey !== '' ? $newKey : (string)($old['providers'][$key]['api_key'] ?? ''),
-            'model'=>$model !== '' ? $model : (string)($old['providers'][$key]['model'] ?? $meta['models'][0]),
-        ];
+    $instance=cds_instance_config();if(!is_array($instance))$instance=[];
+    $old=cds_ai_settings();$catalog=cds_ai_provider_catalog();
+    $provider=cds_ai_config_text($values,'provider',40);
+    if(!isset($catalog[$provider]))$provider=(string)($old['provider']??'codecraft');
+    $providers=(array)$old['providers'];
+    foreach($catalog as $key=>$meta){
+        $newKey=cds_ai_config_text($values,'api_key_'.$key,8192);
+        $model=cds_ai_config_text($values,'model_'.$key,200);
+        $clear=($values['clear_key_'.$key]??'')==='1';
+        if($clear&&$newKey!=='')throw new InvalidArgumentException('Chỉ chọn xóa khóa hoặc nhập khóa thay thế, không dùng cả hai.');
+        $providers[$key]=array_replace((array)($providers[$key]??[]),[
+            'api_key'=>$clear?'':($newKey!==''?$newKey:(string)($old['providers'][$key]['api_key']??'')),
+            'model'=>$model!==''?$model:(string)($old['providers'][$key]['model']??$meta['models'][0]),
+            'enabled'=>($values['provider_selection_present']??'')==='1'?($values['use_provider_'.$key]??'')==='1':!empty($old['providers'][$key]['enabled']),
+        ]);
+        if($providers[$key]['enabled']&&(!empty($values['enabled']))&&($providers[$key]['api_key']===''||$providers[$key]['model']===''))throw new InvalidArgumentException('Nhập API key và Model ID cho '.$meta['label'].' hoặc bỏ tích sử dụng nền tảng này.');
     }
-    $instance['ai'] = [
-        'enabled' => !empty($values['enabled']),
-        'provider' => $provider,
-        'providers' => $providers,
-        'max_input_chars' => max(1000, min(50000, (int)($values['max_input_chars'] ?? 20000))),
-        'max_tokens' => max(500, min(8000, (int)($values['max_tokens'] ?? 3000))),
-        'document_profile' => (array)($old['document_profile'] ?? []),
-    ];
-    $instance['updated_at'] = date('c');
-    return cds_instance_save($instance);
+    $ai=array_replace($old,[
+        'enabled'=>!empty($values['enabled']),'provider'=>$provider,'providers'=>$providers,
+        'max_input_chars'=>max(1000,min(50000,(int)($values['max_input_chars']??$old['max_input_chars']))),
+        'max_tokens'=>max(500,min(8000,(int)($values['max_tokens']??$old['max_tokens']))),
+    ]);
+    unset($ai['api_key'],$ai['model']); // Legacy secrets must not revive after an explicit removal.
+    $active=cds_ai_active_providers($ai);
+    if(!isset($active[$provider]))$ai['provider']=array_key_first($active)??$provider;
+    if($ai['enabled']&&!$active)throw new InvalidArgumentException('Chọn ít nhất một nền tảng để bật Trợ lý AI.');
+    $instance['ai']=$ai;$instance['updated_at']=date('c');return cds_instance_save($instance);
 }
 
 function cds_ai_save_document_profile(array $values): bool {
@@ -159,10 +174,13 @@ function cds_ai_assistants(): array {
     ];
 }
 
-function cds_ai_call(string $assistantKey, string $taskKey, string $input, string $reference = ''): array {
+function cds_ai_call(string $assistantKey, string $taskKey, string $input, string $reference = '', string $providerOverride = ''): array {
     $settings = cds_ai_settings();
     if (empty($settings['enabled'])) return ['ok'=>false, 'message'=>'Trợ lý AI chưa được quản trị viên bật.'];
-    $catalog=cds_ai_provider_catalog();$provider=(string)($settings['provider']??'codecraft');if(!isset($catalog[$provider]))$provider='codecraft';
+    $catalog=cds_ai_provider_catalog();$active=cds_ai_active_providers($settings);
+    $provider=$providerOverride!==''?$providerOverride:(string)($settings['provider']??'codecraft');
+    if($providerOverride===''&&!isset($active[$provider]))$provider=array_key_first($active)??'';
+    if(!isset($active[$provider]))return ['ok'=>false,'message'=>'Nền tảng AI đã tắt hoặc chưa được phép sử dụng.'];
     $providerSettings=(array)($settings['providers'][$provider]??[]);$apiKey=trim((string)($providerSettings['api_key']??''));$model=trim((string)($providerSettings['model']??''));
     if ($apiKey === '') return ['ok'=>false, 'message'=>'Chưa cấu hình API key cho '.$catalog[$provider]['label'].'.'];
     if ($model === '') return ['ok'=>false, 'message'=>'Chưa chọn mô hình AI.'];
