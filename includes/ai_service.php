@@ -6,6 +6,7 @@ function cds_ai_defaults(): array {
         'enabled' => false,
         'provider' => 'codecraft',
         'providers' => [
+            'oxion'=>['api_key'=>'','model'=>'gemma-2-2b'],
             'codecraft'=>['api_key'=>'','model'=>'gpt-5.6-luna'],
             'openai'=>['api_key'=>'','model'=>'gpt-5-mini'],
             'gemini'=>['api_key'=>'','model'=>'gemini-3.8-flash'],
@@ -28,6 +29,7 @@ function cds_ai_defaults(): array {
 
 function cds_ai_provider_catalog(): array {
     return [
+        'oxion'=>['label'=>'OxionAI','icon'=>'bi-stars','endpoint'=>'https://oxionai.com/v1','models'=>['gemma-2-2b']],
         'codecraft'=>['label'=>'CodeCraft API','icon'=>'bi-code-square','endpoint'=>'https://codecraftapi.com/v1','models'=>['gpt-5.6-luna','gemma-2-2b','claude-opus-4.8']],
         'openai'=>['label'=>'OpenAI API','icon'=>'bi-openai','endpoint'=>'https://api.openai.com/v1','models'=>['gpt-5-mini','gpt-5','gpt-4.1']],
         'gemini'=>['label'=>'Google Gemini','icon'=>'bi-google','endpoint'=>'https://generativelanguage.googleapis.com/v1beta','models'=>['gemini-3.8-flash','gemini-3.8-pro']],
@@ -207,8 +209,8 @@ function cds_ai_call(string $assistantKey, string $taskKey, string $input, strin
     $user = $assistants[$assistantKey]['tasks'][$taskKey]."\n\nNỘI DUNG/YÊU CẦU:\n".$input;
     if ($reference !== '') $user .= "\n\nTÀI LIỆU THAM CHIẾU:\n".$reference;
     $temperature=$assistantKey==='dayhoc'?0.35:0.15;$maxTokens=(int)$settings['max_tokens'];$response=[];$content='';$usage=[];
-    if($provider==='codecraft'){
-        $response=cds_ai_http('https://codecraftapi.com/v1/chat/completions',['Authorization: Bearer '.$apiKey,'Content-Type: application/json'],['model'=>$model,'messages'=>[['role'=>'system','content'=>$system],['role'=>'user','content'=>$user]],'temperature'=>$temperature,'max_tokens'=>$maxTokens]);
+    if(in_array($provider,['codecraft','oxion'],true)){
+        $response=cds_ai_http($catalog[$provider]['endpoint'].'/chat/completions',['Authorization: Bearer '.$apiKey,'Content-Type: application/json'],['model'=>$model,'messages'=>[['role'=>'system','content'=>$system],['role'=>'user','content'=>$user]],'temperature'=>$temperature,'max_tokens'=>$maxTokens]);
         if(!empty($response['ok'])){$content=trim((string)($response['json']['choices'][0]['message']['content']??''));$usage=(array)($response['json']['usage']??[]);}
     }elseif($provider==='openai'){
         // GPT-5 và các model suy luận dùng Responses API. Không gửi temperature/max_tokens
