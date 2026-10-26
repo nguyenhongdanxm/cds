@@ -29,6 +29,7 @@ jobs:
   sql:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         database: ['mysql:8.0', 'mariadb:10.11']
     services:
