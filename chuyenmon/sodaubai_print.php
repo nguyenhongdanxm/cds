@@ -6,7 +6,7 @@ require_login();
 $scope=in_array((string)($_GET['scope']??''),['class','teacher'],true)?(string)$_GET['scope']:'class';
 $target=trim((string)($_GET[$scope]??''));
 if($target===''){http_response_code(422);exit($scope==='class'?'Chưa chọn lớp cần xuất.':'Chưa chọn giáo viên cần xuất.');}
-$paper=in_array((string)($_GET['paper']??''),['a4_pair','a3'],true)?(string)$_GET['paper']:'a4_pair';
+$paper=in_array((string)($_GET['paper']??''),['a4_pair','a3'],true)?(string)$_GET['paper']:'a3';
 $session=(string)($_GET['session']??'all');$onlyFilled=!empty($_GET['only_filled']);$includeCover=!empty($_GET['include_cover']);
 $weeks=lb_weeks();$from=(string)($_GET['from_week']??'');$to=(string)($_GET['to_week']??$from);$selected=[];$active=false;
 foreach($weeks as$w){if((string)$w['key']===$from)$active=true;if($active)$selected[]=$w;if((string)$w['key']===$to&&$active)break;}
