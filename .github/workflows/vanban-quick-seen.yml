@@ -1,0 +1,46 @@
+name: Document quick seen safety
+on:
+  pull_request:
+    paths:
+      - 'vanban.php'
+      - 'includes/vanban_views.php'
+      - 'includes/vanban_table.php'
+      - 'includes/vanban_quick_seen_view.php'
+      - 'assets/vanban-quick-seen.js'
+      - 'tests/vanban_quick_seen*'
+      - '.github/workflows/vanban-quick-seen.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l vanban.php
+          php -l includes/vanban_views.php
+          php -l includes/vanban_table.php
+          php -l includes/vanban_quick_seen_view.php
+          node --check assets/vanban-quick-seen.js
+          php tests/vanban_quick_seen_test.php
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: php tests/vanban_quick_seen_test.php --html
+      - run: npm install --prefix "$RUNNER_TEMP/vb-seen-browser" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/vb-seen-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/vanban_quick_seen_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/vb-seen-browser/node_modules
