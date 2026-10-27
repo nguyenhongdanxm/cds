@@ -31,6 +31,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = (string)($_POST['action'] ?? '');
         if (in_array($action, vb_engagement_actions(), true)) {
             vb_engagement_process($action, $user, $canEngagementManage);
+        } elseif ($action === 'mark_documents_seen') {
+            require_once __DIR__.'/includes/vanban_views.php';
+            $returnTab='documents';$ids=$_POST['document_ids']??[];
+            if(!is_array($ids))throw new RuntimeException('Danh sách văn bản không hợp lệ.');
+            $result=vb_mark_documents_seen($ids,$user,vb_rows(VANBAN_DOCUMENTS_FILE));
+            flash('Đã ghi nhận đã xem '.$result['updated'].' văn bản cho tài khoản của bạn.'.($result['already_seen']?' Có '.$result['already_seen'].' văn bản đã được ghi nhận trước đó.':''),'success');
         } elseif ($action === 'create_document') {
             if (!$canManage) throw new RuntimeException('Bạn không có quyền cập nhật văn bản.');
             $editId = vb_clean((string)($_POST['id'] ?? ''), 80);
@@ -267,6 +273,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $engagementReturn = (string)($_POST['engagement_tab'] ?? 'polls');
         if (in_array($engagementReturn, ['polls','surveys','statistics'], true)) $redirect .= '&engagement_tab=' . urlencode($engagementReturn);
     }
+    if(($action??'')==='mark_documents_seen'){$keep=[];foreach(['q','type','issuer_level','field'] as $key)if(is_string($_GET[$key]??null)&&$_GET[$key]!=='')$keep[$key]=$_GET[$key];if($keep)$redirect.='&'.http_build_query($keep);}
     header('Location: ' . $redirect); exit;
 }
 
