@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/vanban_store.php';
-require_once __DIR__.'/includes/vanban_views.php';
 require_once __DIR__ . '/includes/vanban_engagement.php';
 require_once __DIR__ . '/includes/push_notifications.php';
 require_login();
@@ -33,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (in_array($action, vb_engagement_actions(), true)) {
             vb_engagement_process($action, $user, $canEngagementManage);
         } elseif ($action === 'mark_documents_seen') {
+            require_once __DIR__.'/includes/vanban_views.php';
             $returnTab='documents';$ids=$_POST['document_ids']??[];
             if(!is_array($ids))throw new RuntimeException('Danh sách văn bản không hợp lệ.');
             $result=vb_mark_documents_seen($ids,$user,vb_rows(VANBAN_DOCUMENTS_FILE));
