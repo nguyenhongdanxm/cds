@@ -19,6 +19,7 @@ function csdl_teachers_all(){return $GLOBALS['teachers']??[
  ['id'=>'t1','name'=>'Giáo viên A','active'=>1],['id'=>'t2','name'=>'Giáo viên B','active'=>1],['id'=>'t3','name'=>'Giáo viên C','active'=>1],
 ];}
 function can_edit_perm($perm){return !empty($GLOBALS['actor']['global_edit'])||($GLOBALS['actor']['role']??'')==='admin';}
+function can_module($module,$level){return $module==='noitru'&&$level==='admin'&&!empty($GLOBALS['actor']['module_admin']);}
 function allowed_classes(){return $GLOBALS['actor']['scope']??null;}
 function e($s){return htmlspecialchars((string)$s,ENT_QUOTES,'UTF-8');}
 load_functions(__DIR__.'/../includes/noitru_store.php',['noitru_duty_all','noitru_duty_managers_all','noitru_duty_swap_requests_all','noitru_duty_swap_request_decide']);
@@ -71,6 +72,7 @@ try{
  $GLOBALS['actor']=['id'=>'legacy','role'=>'gv','teacher_name'=>'Nguyễn Quản Lý'];$GLOBALS['teachers']=array_merge(csdl_teachers_all(),[['id'=>'duplicate','name'=>'Nguyễn Quản Lý','active'=>1]]);check(noitru_duty_swap_teacher_id()==='','Ambiguous names denied');unset($GLOBALS['teachers']);
  $GLOBALS['actor']=actor('mA');$GLOBALS['teachers']=csdl_teachers_all();$GLOBALS['teachers'][0]['active']=0;check(!noitru_duty_swap_can_decide($request),'Inactive teacher denied');unset($GLOBALS['teachers']);
  $GLOBALS['actor']=actor('outside','custom')+['global_edit'=>true];check(noitru_duty_swap_can_decide($request),'Existing global duty editor preserved');$GLOBALS['actor']['scope']=['6A'];check(!noitru_duty_swap_can_decide($request),'Existing restricted editor cannot bypass global scope');
+ $GLOBALS['actor']=actor('outside','custom')+['module_admin'=>true];check(noitru_duty_swap_can_decide($request),'Legacy module administrator override is preserved');$GLOBALS['actor']['scope']=['6A'];check(!noitru_duty_swap_can_decide($request),'Legacy module admin still requires global scope');
  $GLOBALS['actor']=actor('outside','admin');check(noitru_duty_swap_can_decide($request),'Administrator authority preserved');
  $GLOBALS['actor']=actor('mA');$cachedDates=noitru_duty_swap_manager_dates();save_json(NOITRU_DUTY_MANAGERS,[]);$before=hashes();check(!noitru_duty_swap_request_decide('r1','approved','manager')[0],'Assignment removed after rendering is rechecked under lock');check(hashes()===$before,'Removed assignment leaves files unchanged');
  save_json(NOITRU_DUTY_MANAGERS,[['date'=>'2030-01-02','teacher_ids'=>['mB']],['date'=>'2030-01-02','teacher_ids'=>['mA']]]);check(!noitru_duty_swap_can_decide($request),'A stale duplicate manager row cannot override the effective first assignment');

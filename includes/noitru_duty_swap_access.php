@@ -43,8 +43,9 @@ function noitru_duty_swap_can_manage_all(): bool {
     $user = noitru_duty_swap_actor();
     if (!$user || ($user['role'] ?? '') === 'viewer') return false;
     if (($user['role'] ?? '') === 'admin') return true;
-    return function_exists('can_edit_perm') && can_edit_perm('nt.lichtruc')
-        && function_exists('allowed_classes') && allowed_classes() === null;
+    $edit = function_exists('can_edit_perm') && can_edit_perm('nt.lichtruc');
+    $moduleAdmin = function_exists('can_module') && can_module('noitru', 'admin');
+    return ($edit || $moduleAdmin) && function_exists('allowed_classes') && allowed_classes() === null;
 }
 function noitru_duty_swap_can_decide(array $request, ?array $dates = null): bool {
     $user = noitru_duty_swap_actor();
