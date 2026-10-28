@@ -4,6 +4,7 @@ require_once __DIR__ . '/csdl_store.php';
 require_once __DIR__ . '/database_meals.php';
 require_once __DIR__ . '/database_meal_read.php';
 require_once __DIR__ . '/noitru_report_stream.php';
+require_once __DIR__ . '/noitru_duty_swap_access.php';
 
 /* Toàn bộ mốc báo ăn dùng giờ Việt Nam, không phụ thuộc múi giờ PHP của hosting. */
 date_default_timezone_set('Asia/Ho_Chi_Minh');
@@ -1219,6 +1220,7 @@ function noitru_duty_swap_request_decide(string $id, string $decision, string $b
         $requests=noitru_duty_swap_requests_all();$requestIndex=null;
         foreach($requests as $i=>$request)if(($request['id']??'')===$id){$requestIndex=$i;break;}
         if($requestIndex===null || ($requests[$requestIndex]['status']??'')!=='pending') return [false,'Yêu cầu không còn ở trạng thái chờ duyệt.'];
+        if(!noitru_duty_swap_can_decide($requests[$requestIndex])) return [false,'Bạn không được phân công quản lý trực của ngày nguồn hoặc ngày đích của yêu cầu này.'];
         if($decision==='approved'){
             $duties=noitru_duty_all();$sourceIndex=$targetIndex=null;
             foreach($duties as $i=>$row){if(($row['id']??'')===($requests[$requestIndex]['source_duty_id']??''))$sourceIndex=$i;if(($row['id']??'')===($requests[$requestIndex]['target_duty_id']??''))$targetIndex=$i;}
