@@ -34,6 +34,7 @@ function cds_cm_load_array_file(string $file): array {
 }
 
 function cds_cm_feature_access_for_user(array $user, string $code, string $rootDataPath): string {
+    if (($user['role'] ?? '') === 'viewer') return in_array($code, array_merge(cds_cm_permission_codes(), ['cm.baocao','cm.tkb']), true) ? 'view' : 'none';
     if (($user['role'] ?? '') === 'admin') return 'delete';
     $reports = ['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
     if ($code === 'cm.baocao') {

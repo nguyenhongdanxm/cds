@@ -57,7 +57,15 @@ function cds_db_read_config()
 function cds_db()
 {
     static $pdo = null;
-    if ($pdo instanceof PDO) return $pdo;
+    static $readOnly = false;
+    if ($pdo instanceof PDO) {
+        if (!$readOnly && function_exists('cds_is_viewer') && cds_is_viewer()) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            $pdo->exec('SET SESSION TRANSACTION READ ONLY');
+            $readOnly = true;
+        }
+        return $pdo;
+    }
     if (!extension_loaded('pdo_mysql')) throw new RuntimeException('PHP chưa bật extension pdo_mysql.');
 
     $config = cds_db_read_config();
@@ -66,7 +74,7 @@ function cds_db()
         . ';dbname=' . $config['database']
         . ';charset=' . $config['charset'];
 
-    $pdo = new PDO(
+    $connection = new PDO(
         $dsn,
         $config['username'],
         $config['password'],
@@ -79,6 +87,12 @@ function cds_db()
             PDO::ATTR_TIMEOUT => 5,
         )
     );
+    if (function_exists('cds_is_viewer') && cds_is_viewer()) {
+        // MySQL/MariaDB enforce read-only even for SQL issued by legacy readers.
+        $connection->exec('SET SESSION TRANSACTION READ ONLY');
+        $readOnly = true;
+    }
+    $pdo = $connection;
     return $pdo;
 }
 

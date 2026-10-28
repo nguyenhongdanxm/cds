@@ -1,7 +1,7 @@
 <?php
 $reviews=lb_weekly_reviews($weekKey);$reviewMap=[];foreach($reviews as $x)$reviewMap[lb_norm((string)$x['class']).'|'.(string)$x['type']]=$x;
 $allReviewClasses=[];foreach($slots as $reviewSlot){$reviewClass=trim((string)($reviewSlot['class']??''));if($reviewClass!=='')$allReviewClasses[$reviewClass]=true;}$allReviewClasses=array_keys($allReviewClasses);sort($allReviewClasses,SORT_NATURAL);
-$reviewClasses=lb_is_management()?$allReviewClasses:array_values(array_filter($classes,fn($class)=>lb_can_review_class($class,'homeroom')));
+$reviewClasses=(lb_is_management()||(function_exists('cds_is_viewer')&&cds_is_viewer(lb_user())))?$allReviewClasses:array_values(array_filter($classes,fn($class)=>lb_can_review_class($class,'homeroom')));
 ?>
 <section class="lb-card" id="weekly-review">
 <div class="d-flex flex-wrap justify-content-between gap-3"><div><h2 class="h5">Nhận xét tuần</h2><p class="lb-note">GVCN nhận xét lớp chủ nhiệm; Ban giám hiệu và quản trị nhận xét BGH cho các lớp được phép. Nội dung được đưa vào bản in cuối tuần.</p></div>

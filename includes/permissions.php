@@ -386,6 +386,7 @@ function permission_legacy_access_for_user(array $user) {
 }
 
 function permission_effective_access_for_user(array $user) {
+    if (($user['role'] ?? '') === 'viewer') return array_fill_keys(array_keys(permission_features_catalog()), 'view');
     if (($user['role'] ?? '') === 'admin') {
         return array_fill_keys(array_keys(permission_features_catalog()), 'delete');
     }
@@ -441,6 +442,7 @@ function permission_role_presets() {
     $allCs = ['csdl.overview','csdl.statistics','csdl.teachers','csdl.classes','csdl.students','csdl.export','csdl.year'];
 
     return [
+        'viewer' => ['label'=>'Trải nghiệm – chỉ xem dữ liệu thật', 'modules'=>array_fill_keys(array_keys(permission_modules_catalog()), 'view'), 'perms'=>array_keys(permission_features_catalog()), 'classes'=>[]],
         'admin' => [
             'label' => 'Quản trị hệ thống',
             'modules' => ['chuyenmon'=>'admin','csdl'=>'admin','noitru'=>'admin','vanban'=>'admin','thidua'=>'admin'],
@@ -495,6 +497,7 @@ function level_rank($level) {
 function can_module($module, $level = 'view') {
     $u = current_user();
     if (!$u) return false;
+    if (($u['role'] ?? '') === 'viewer') return isset(permission_modules_catalog()[$module]) && $level === 'view';
     if (($u['role'] ?? '') === 'admin') return true;
     $usesGroupModel = (int)($u['permission_model_version'] ?? 1) >= 2
         || !empty($u['groups']);
@@ -539,7 +542,7 @@ function can($permOrModule, $level = null) {
 function allowed_classes() {
     $u = current_user();
     if (!$u) return [];
-    if (($u['role'] ?? '') === 'admin') return null;
+    if (in_array($u['role'] ?? '', ['admin','viewer'], true)) return null;
     $cls = is_array($u['classes'] ?? null) ? $u['classes'] : [];
     $homeroom = is_array($u['homeroom_classes'] ?? null) ? $u['homeroom_classes'] : [];
     if (in_array('gvcn', $u['groups'] ?? [], true)) {

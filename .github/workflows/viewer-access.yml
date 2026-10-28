@@ -1,0 +1,91 @@
+name: Read-only experience account
+on:
+  pull_request:
+    paths:
+      - 'includes/auth.php'
+      - 'includes/permissions.php'
+      - 'includes/session_user.php'
+      - 'includes/json_store.php'
+      - 'includes/database.php'
+      - 'includes/chuyenmon_permission_runtime.php'
+      - 'includes/global_ui.php'
+      - 'includes/viewer_access.php'
+      - 'chuyenmon/includes/functions.php'
+      - 'chuyenmon/includes/lesson_book_store.php'
+      - 'chuyenmon/sodaubai.php'
+      - 'chuyenmon/baocao.php'
+      - 'chuyenmon/includes/lesson_book_review_view.php'
+      - 'tkb*.php'
+      - 'hoclieu.php'
+      - 'hoclieu_file.php'
+      - 'users.php'
+      - 'assets/viewer-read-only.js'
+      - 'tests/viewer*'
+      - '.github/workflows/viewer-access.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, zip
+      - run: |
+          php -l includes/viewer_access.php
+          php -l includes/auth.php
+          php -l includes/permissions.php
+          php -l includes/session_user.php
+          php -l includes/database.php
+          php -l includes/json_store.php
+          php -l includes/chuyenmon_permission_runtime.php
+          php -l includes/global_ui.php
+          php -l chuyenmon/includes/functions.php
+          php -l chuyenmon/includes/lesson_book_store.php
+          php -l chuyenmon/sodaubai.php
+          php -l chuyenmon/baocao.php
+          php -l chuyenmon/includes/lesson_book_review_view.php
+          php -l tkb_xep.php
+          php -l tkb_editor.php
+          php -l tkb_constraints.php
+          php -l hoclieu.php
+          php -l hoclieu_file.php
+          php -l users.php
+          php tests/viewer_access_test.php
+          node --check assets/viewer-read-only.js
+  sql:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: ['mysql:8.0', 'mariadb:10.11']
+    services:
+      db:
+        image: ${{ matrix.database }}
+        env:
+          MYSQL_ROOT_PASSWORD: fixture-only-password
+          MYSQL_DATABASE: cds_viewer_test
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pfixture-only-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql
+      - run: php tests/viewer_sql_test.php
+        env:
+          CDS_VIEWER_TEST_DB_HOST: 127.0.0.1
+          CDS_VIEWER_TEST_DB_PORT: ${{ job.services.db.ports[3306] }}
+          CDS_VIEWER_TEST_DB_NAME: cds_viewer_test
+          CDS_VIEWER_TEST_DB_USER: root
+          CDS_VIEWER_TEST_DB_PASSWORD: fixture-only-password

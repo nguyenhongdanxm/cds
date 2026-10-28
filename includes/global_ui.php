@@ -6,6 +6,10 @@ define('CDS_GLOBAL_UI_BUFFERED', true);
 function cds_global_ui_filter(string $html): string {
     if (stripos($html, '</head>') === false || stripos($html, '<html') === false) return $html;
 
+    if (function_exists('cds_is_viewer') && cds_is_viewer()) {
+        $viewerUi = '<div role="status" style="padding:10px;background:#fff3cd;color:#664d03;text-align:center">Tài khoản trải nghiệm · Chỉ xem dữ liệu thật</div><script defer src="/assets/viewer-read-only.js?v=20261028-1"></script>';
+        $html = preg_replace('/(<body\\b[^>]*>)/i', '$1'.$viewerUi, $html, 1) ?? $html;
+    }
     $baseUrl = defined('BASE_URL') ? BASE_URL : '/';
     $asset = $baseUrl . 'assets/cds-global-ui.css?v=20260912-1';
     $actionAsset = $baseUrl . 'assets/cds-action-progress.js?v=20260912-1';

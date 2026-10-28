@@ -14,7 +14,7 @@ if (!$row) { http_response_code(404); exit('Không tìm thấy học liệu.'); 
 $user = current_user() ?? [];
 $isAdmin = ($user['role'] ?? '') === 'admin';
 $userId = (string)($user['id'] ?? $user['username'] ?? '');
-if (empty($row['approved']) && !$isAdmin && ($row['author_id'] ?? '') !== $userId) {
+if (empty($row['approved']) && !$isAdmin && !cds_is_viewer($user) && ($row['author_id'] ?? '') !== $userId) {
     http_response_code(403); exit('Học liệu chưa được duyệt.');
 }
 

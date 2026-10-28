@@ -35,6 +35,7 @@ if (!function_exists('cds_json_load_for_update')) {
 
 if (!function_exists('cds_json_save')) {
     function cds_json_save(string $file, $data): bool {
+        if (function_exists('cds_is_viewer') && cds_is_viewer()) return false;
         $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
         if ($json === false) return false;
 
@@ -60,6 +61,7 @@ if (!function_exists('cds_json_save')) {
 
 if (!function_exists('cds_json_update')) {
     function cds_json_update(string $file, callable $update, $default = []): bool {
+        if (function_exists('cds_is_viewer') && cds_is_viewer()) return false;
         $dir = dirname($file);
         if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) return false;
         $lock = @fopen($file . '.lock', 'c');
