@@ -1,0 +1,26 @@
+name: Public library catalogue
+on:
+  pull_request:
+    paths:
+      - 'thuvien.php'
+      - 'includes/library_public_catalog*.php'
+      - 'tests/library_public_catalog_test.php'
+      - '.github/workflows/library-public-catalog.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom
+      - run: |
+          php -l thuvien.php
+          php -l includes/library_public_catalog.php
+          php -l includes/library_public_catalog_view.php
+          php tests/library_public_catalog_test.php
