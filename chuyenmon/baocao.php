@@ -190,8 +190,10 @@ $progressCanEdit = cds_can_feature('cm.baocao.tiendo', 'edit');
 $progressIsAdmin = (($_SESSION['cds_user']['role'] ?? '') === 'admin')
     || cds_can_feature('cm.baocao.tiendo', 'delete');
 $sessionTeacherName = trim($_SESSION['cds_user']['teacher_name'] ?? $_SESSION['cds_user']['name'] ?? '');
-$progressTeacher = $progressIsAdmin ? trim($_GET['teacher'] ?? $sessionTeacherName) : $sessionTeacherName;
-$progressView = ($progressIsAdmin && ($_GET['view'] ?? '') === 'thongke') ? 'thongke' : 'nhaplieu';
+$progressIsViewer = function_exists('cds_is_viewer') && cds_is_viewer();
+$progressReadAll = $progressIsAdmin || $progressIsViewer;
+$progressTeacher = $progressReadAll ? trim($_GET['teacher'] ?? ($progressIsViewer ? '' : $sessionTeacherName)) : $sessionTeacherName;
+$progressView = ($progressReadAll && ($_GET['view'] ?? ($progressIsViewer ? 'thongke' : '')) === 'thongke') ? 'thongke' : 'nhaplieu';
 $progressStatusFilter = in_array($_GET['status'] ?? 'all', ['all','fast','slow','ontime','missing'], true) ? ($_GET['status'] ?? 'all') : 'all';
 $progressGradeFilter = in_array((string)($_GET['grade'] ?? ''), array_map('strval', range(6,12)), true) ? (string)$_GET['grade'] : '';
 $progressSubjectFilter = trim($_GET['subject'] ?? '');
@@ -428,7 +430,7 @@ function cm_view_btns($it) {
     <h4 class="mb-1"><i class="bi bi-graph-up-arrow"></i> Tiến độ chương trình</h4>
     <div class="text-muted">Năm học <?= e($progressYear['label'] ?? '') ?> · Tự động đối chiếu PCCM, TKB, PPCT và Sổ đầu bài đã ký</div>
   </div>
-  <?php if ($progressIsAdmin): ?>
+  <?php if ($progressReadAll): ?>
   <div class="btn-group">
     <a class="btn <?= $progressView==='nhaplieu'?'btn-primary':'btn-outline-primary' ?>" href="<?= BASE_URL ?>baocao.php?tab=tiendo&view=nhaplieu&week=<?= $progressWeekNumber ?>&teacher=<?= urlencode($progressTeacher) ?>"><i class="bi bi-pencil-square"></i> Nhập tiến độ</a>
     <a class="btn <?= $progressView==='thongke'?'btn-primary':'btn-outline-primary' ?>" href="<?= BASE_URL ?>baocao.php?tab=tiendo&view=thongke&week=<?= $progressWeekNumber ?>"><i class="bi bi-bar-chart-line"></i> Thống kê</a>
@@ -444,7 +446,7 @@ function cm_view_btns($it) {
       <?php foreach ($progressWeeks as $week): ?><option value="<?= (int)$week['number'] ?>" <?= (int)$week['number']===$progressWeekNumber?'selected':'' ?>>Tuần <?= (int)$week['number'] ?> (<?= e(date('d/m',strtotime($week['start']))) ?> - <?= e(date('d/m',strtotime($week['end']))) ?>)</option><?php endforeach; ?>
     </select>
   </div>
-  <?php if ($progressIsAdmin && $progressView === 'nhaplieu'): ?>
+  <?php if ($progressReadAll && $progressView === 'nhaplieu'): ?>
   <div><label class="form-label fw-semibold">Giáo viên</label>
     <select class="form-select" name="teacher" onchange="this.form.submit()">
       <option value="">— Chọn giáo viên —</option>

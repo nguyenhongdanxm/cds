@@ -2,6 +2,10 @@
 require_once __DIR__ . '/config.php';
 require_once dirname(__DIR__, 2) . '/includes/json_store.php';
 require_once dirname(__DIR__, 2) . '/includes/session_user.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
+require_once dirname(__DIR__, 2) . '/includes/viewer_access.php';
+cds_viewer_guard(dirname(__DIR__, 2));
+
 require_once dirname(__DIR__, 2) . '/includes/chuyenmon_permission_runtime.php';
 require_once dirname(__DIR__, 2) . '/includes/drive_action_registry.php';
 require_once dirname(__DIR__, 2) . '/includes/school_week_calendar.php';

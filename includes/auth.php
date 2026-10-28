@@ -92,6 +92,9 @@ if (session_status() === PHP_SESSION_NONE) {
     }
 }
 
+require_once __DIR__ . '/viewer_access.php';
+cds_viewer_guard(dirname(__DIR__));
+
 function cds_drive_csrf_token(): string {
     if (empty($_SESSION['cds_drive_csrf'])) $_SESSION['cds_drive_csrf'] = bin2hex(random_bytes(24));
     return (string)$_SESSION['cds_drive_csrf'];
@@ -158,7 +161,7 @@ function refresh_current_user_session() {
     $effective=function_exists('permission_effective_access_for_user')?permission_effective_access_for_user($record):[];
     $hasChuyenMon=($record['role']??'')==='admin';
     foreach(permission_features_catalog() as $code=>$meta){if(($meta['module']??'')!=='chuyenmon')continue;if(level_rank($effective[$code]??'none')>=level_rank('view')){$hasChuyenMon=true;break;}}
-    $_SESSION['pccm_admin']=$hasChuyenMon;
+    $_SESSION['pccm_admin']=cds_is_viewer($record)?false:$hasChuyenMon;
 }
 
 function attempt_login($username,$password){

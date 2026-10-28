@@ -3,6 +3,11 @@
 if (!function_exists('cds_session_user_from_record')) {
     function cds_session_user_from_record(array $record): array {
         $role = (string)($record['role'] ?? 'gv');
+        if ($role === 'viewer') {
+            foreach (['groups','modules','perms','permission_overrides','classes','homeroom_classes'] as $key) $record[$key] = [];
+            $record['permission_model_version'] = 2;
+            $record['teacher_name'] = $record['teacher_id'] = '';
+        }
         $groups = is_array($record['groups'] ?? null) ? $record['groups'] : [];
         if ((int)($record['permission_model_version'] ?? 1) < 2 && !$groups && $role === 'gvcn') {
             $groups[] = 'gvcn';
@@ -40,6 +45,7 @@ if (!function_exists('cds_session_user_from_record')) {
  */
 if (!function_exists('cds_user_has_group')) {
     function cds_user_has_group(array $user, string $group): bool {
+        if (($user['role'] ?? '') === 'viewer') return false;
         $groups = is_array($user['groups'] ?? null) ? $user['groups'] : [];
         if ((int)($user['permission_model_version'] ?? 1) >= 2 || array_key_exists('groups', $user)) {
             return in_array($group, $groups, true);

@@ -34,6 +34,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $users = get_users();
 
+    if ($action === 'create_viewer_account') {
+        try {
+            if (!cds_account_csrf_valid((string)($_POST['csrf'] ?? ''))) throw new RuntimeException('Phiên làm việc không hợp lệ.');
+            $_SESSION['viewer_created_credentials'] = cds_viewer_create_account(current_user(), (string)($_POST['viewer_username'] ?? 'khach'), (string)($_POST['viewer_password'] ?? ''), (string)($_POST['viewer_expiry'] ?? ''), USERS_FILE);
+            flash('Đã tạo tài khoản trải nghiệm chỉ xem. Mật khẩu hiển thị một lần bên dưới.');
+        } catch (Throwable $e) { flash($e->getMessage(), 'danger'); }
+        header('Location: users.php'); exit;
+    }
+
     if ($action === 'admin_reset_password') {
         if (!cds_account_csrf_valid((string)($_POST['csrf'] ?? ''))) {
             flash('Phiên làm việc không hợp lệ, vui lòng thử lại.', 'danger');
@@ -266,6 +275,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $role = trim($_POST['role'] ?? 'custom');
         $active = !empty($_POST['active']);
         $password = $_POST['password'] ?? '';
+        if ($role === 'viewer' && ((!$id && $password === '') || ($password !== '' && (strlen($password) < 12 || strlen($password) > 200)))) {
+            flash('Tài khoản trải nghiệm cần mật khẩu từ 12 đến 200 ký tự. Dùng mục tạo tài khoản trải nghiệm để sinh mật khẩu ngẫu nhiên.', 'danger');
+            header('Location: users.php'); exit;
+        }
 
         if ($username === '') {
             flash('Thiếu tên đăng nhập.', 'danger');
@@ -470,6 +483,17 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
 
 <div class="container pb-5">
   <?php show_flash(); ?>
+  <?php if (!empty($_SESSION['viewer_created_credentials'])): $viewerCredentials=$_SESSION['viewer_created_credentials'];unset($_SESSION['viewer_created_credentials']); ?>
+  <div class="alert alert-success">Tài khoản: <strong><?=e($viewerCredentials['username'])?></strong> · Mật khẩu (chỉ hiện một lần): <code><?=e($viewerCredentials['password'])?></code></div>
+  <?php endif; ?>
+  <details class="card p-3 mb-3"><summary class="fw-bold">Tạo tài khoản trải nghiệm – chỉ xem dữ liệu thật</summary>
+  <form method="post" class="row g-3 mt-1" autocomplete="off">
+  <input type="hidden" name="action" value="create_viewer_account"><input type="hidden" name="csrf" value="<?=e(cds_account_csrf_token())?>">
+  <div class="col-md-3"><label class="form-label">Tên đăng nhập</label><input class="form-control" name="viewer_username" value="khach" required pattern="[a-zA-Z0-9_.-]{3,50}"></div>
+  <div class="col-md-5"><label class="form-label">Mật khẩu (để trống để tạo ngẫu nhiên)</label><input class="form-control" type="password" name="viewer_password" minlength="12" maxlength="200" autocomplete="new-password"></div>
+  <div class="col-md-4"><label class="form-label">Hết hạn cuối ngày (không bắt buộc)</label><input class="form-control" type="date" name="viewer_expiry"></div>
+  <div class="col-12"><p class="small text-muted">Xem dữ liệu thật, gồm hồ sơ cá nhân và sức khỏe; không được lưu, xóa, ký, duyệt hay gọi AI. Cấu hình chứa mật khẩu/khóa bí mật bị chặn. Có thể khóa ở danh sách tài khoản. Không ghi đè tài khoản trùng tên.</p><button class="btn btn-outline-primary">Tạo tài khoản chỉ xem</button></div>
+  </form></details>
 
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>

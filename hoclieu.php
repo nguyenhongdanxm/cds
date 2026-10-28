@@ -179,7 +179,7 @@ if ($tab === 'exams' && !$canExamView) $tab = 'dashboard';
 if ($tab === 'links' && !$canLinkView) $tab = 'dashboard';
 $q = trim((string)($_GET['q'] ?? ''));
 $gradeFilter = trim((string)($_GET['grade'] ?? ''));
-$visibleItems = array_values(array_filter($data['items'], fn($row) => !empty($row['approved']) || $isAdmin || ($row['author_id'] ?? '') === $userId));
+$visibleItems = array_values(array_filter($data['items'], fn($row) => !empty($row['approved']) || $isAdmin || cds_is_viewer($user) || ($row['author_id'] ?? '') === $userId));
 $approved = array_values(array_filter($data['items'], fn($row) => !empty($row['approved'])));
 $resourceCount = count(array_filter($approved, fn($row) => ($row['section'] ?? '') === 'resource'));
 $examCount = count(array_filter($approved, fn($row) => ($row['section'] ?? '') === 'exam'));

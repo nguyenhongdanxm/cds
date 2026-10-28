@@ -66,7 +66,7 @@ function cds_db()
         . ';dbname=' . $config['database']
         . ';charset=' . $config['charset'];
 
-    $pdo = new PDO(
+    $connection = new PDO(
         $dsn,
         $config['username'],
         $config['password'],
@@ -79,6 +79,11 @@ function cds_db()
             PDO::ATTR_TIMEOUT => 5,
         )
     );
+    if (function_exists('cds_is_viewer') && cds_is_viewer()) {
+        // MySQL/MariaDB enforce read-only even for SQL issued by legacy readers.
+        $connection->exec('SET SESSION TRANSACTION READ ONLY');
+    }
+    $pdo = $connection;
     return $pdo;
 }
 
