@@ -1,5 +1,10 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/library_public_catalog.php';
+if (!current_user() && lib_public_catalog_request($_SERVER['REQUEST_METHOD'] ?? '', $_GET)) {
+    require __DIR__ . '/includes/library_public_catalog_view.php';
+    exit;
+}
 require_once __DIR__ . '/includes/csdl_store.php';
 if (!isset($_GET['library_qr'])) {
     require_once __DIR__ . '/includes/library_book_excel.php';
