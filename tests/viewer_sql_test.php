@@ -3,9 +3,15 @@
 require_once __DIR__.'/../includes/viewer_access.php';
 if (($argv[1] ?? '') === 'worker') {
     if (!isset($argv[2]) || !str_starts_with($argv[2], sys_get_temp_dir().'/cds_viewer_sql_')) exit(2);
-    $_SESSION=['cds_user'=>['role'=>'viewer']];
+    $_SESSION=['cds_user'=>['role'=>($argv[3]??'')==='cached'?'admin':'viewer']];
     require $argv[2].'/database.php';
     $pdo=cds_db();
+    if (($argv[3]??'')==='cached') {
+        $pdo->beginTransaction();
+        $pdo->exec('UPDATE viewer_fixture SET name="uncommitted" WHERE id=1');
+        $_SESSION['cds_user']['role']='viewer';
+        if (cds_db()!==$pdo || $pdo->inTransaction()) throw new RuntimeException('Cached writer connection was not made read-only');
+    }
     if ((int)$pdo->query('SELECT COUNT(*) FROM viewer_fixture')->fetchColumn()!==1) throw new RuntimeException('Viewer cannot read');
     foreach (['INSERT INTO viewer_fixture VALUES (2, "changed")','UPDATE viewer_fixture SET name="changed"','DELETE FROM viewer_fixture','DROP TABLE viewer_fixture'] as $sql) {
         try { $pdo->exec($sql); throw new LogicException('Write unexpectedly admitted'); }
@@ -26,7 +32,10 @@ try {
     copy(__DIR__.'/../includes/database.php',$tmp.'/database.php');
     file_put_contents($tmp.'/database.conf',"host=$host\nport=$port\ndatabase=cds_viewer_test\nusername=$user\npassword=$pass\ncharset=utf8mb4\n");
     $env=getenv();$env['CDS_DB_CONFIG']=$tmp.'/database.conf';
-    $p=proc_open([PHP_BINARY,__FILE__,'worker',$tmp],[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,null,$env);fclose($pipes[0]);$out=stream_get_contents($pipes[1]);$err=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);if(proc_close($p)!==0)throw new RuntimeException($out.$err);
+    $out='';
+    foreach(['fresh','cached']as$mode){
+        $p=proc_open([PHP_BINARY,__FILE__,'worker',$tmp,$mode],[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,null,$env);fclose($pipes[0]);$chunk=stream_get_contents($pipes[1]);$err=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);if(proc_close($p)!==0)throw new RuntimeException($chunk.$err);$out.=$mode.': '.$chunk;
+    }
     if ((string)$pdo->query('SELECT name FROM viewer_fixture WHERE id=1')->fetchColumn()!=='unchanged') throw new RuntimeException('Original row changed');
     $pdo->exec('UPDATE viewer_fixture SET name="admin still writes" WHERE id=1');
     if ((string)$pdo->query('SELECT name FROM viewer_fixture WHERE id=1')->fetchColumn()!=='admin still writes')throw new RuntimeException('Admin affected');
