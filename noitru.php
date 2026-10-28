@@ -3,8 +3,9 @@ require_once 'includes/auth.php';
 require_once 'includes/noitru_store.php';
 require_once 'includes/noitru_assignment_store.php';
 require_login();
-require_module('noitru', 'view');
 $user = current_user();
+$dutyAssignedManager = (($_GET['tab'] ?? '') === 'duty') && noitru_duty_swap_manager_dates() !== [];
+if (!$dutyAssignedManager) require_module('noitru', 'view');
 
 /** Stop before a success notice or derived report when the source write failed. */
 function noitru_meal_require_saved($result) {
@@ -43,7 +44,7 @@ if ($requestedTab === '' && !can_perm($tabPerms[$tab])) {
         if (can_perm($candidatePermission)) { $tab = $candidateTab; break; }
     }
 }
-require_perm($tabPerms[$tab] ?? 'nt.tongquan');
+if (!($tab === 'duty' && $dutyAssignedManager)) require_perm($tabPerms[$tab] ?? 'nt.tongquan');
 if ($tab === 'duty' && ($_GET['export'] ?? '') === 'word') {
     $month = trim((string)($_GET['month'] ?? date('Y-m')));
     if (!preg_match('/^\\d{4}-(0[1-9]|1[0-2])$/', $month)) { http_response_code(400); exit('Tháng không hợp lệ.'); }
@@ -134,6 +135,11 @@ if ($tab === 'boarders') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    $dutySwapDecisionAction = $action === 'duty_swap_request_decide';
+    if ($dutySwapDecisionAction) {
+        if (!noitru_duty_swap_csrf_valid($_POST['duty_swap_csrf'] ?? null)) { http_response_code(403); exit('Phiên duyệt đổi lịch không hợp lệ. Vui lòng tải lại trang.'); }
+        noitru_duty_swap_require_decision_access(trim((string)($_POST['request_id'] ?? '')));
+    }
     $actionPerms = [
         'sync_from_csdl'=>'nt.danhsach',
         'exit_save'=>'nt.ravao', 'exit_status'=>'nt.ravao', 'exit_delete'=>'nt.ravao',
@@ -154,11 +160,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'menu_template_save'=>'nt.thucdon', 'menu_apply_template'=>'nt.thucdon', 'menu_copy_week'=>'nt.thucdon',
         'rice_settings'=>'nt.gao', 'rice_in'=>'nt.gao', 'rice_issue'=>'nt.gao', 'rice_delete'=>'nt.gao',
     ];
-    if (isset($actionPerms[$action]) && !($action === 'duty_report_save' && noitru_can_edit_duty_report((string)($_POST['date'] ?? '')))) {
+    if (isset($actionPerms[$action]) && !$dutySwapDecisionAction && !($action === 'duty_report_save' && noitru_can_edit_duty_report((string)($_POST['date'] ?? '')))) {
         $requiredLevel = substr($action, -7) === '_delete' || $action === 'duty_month_clear' ? 'delete' : 'edit';
         require_perm_level($actionPerms[$action], $requiredLevel);
     }
-    if (in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_state_bulk','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_swap_request_decide','duty_swap_request_delete','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','duty_report_lock','duty_report_lock_settings','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
+    if (!$dutySwapDecisionAction && in_array($action, ['sync_from_csdl','meals_generate','meals_lock','meals_unlock','meal_state','meal_state_bulk','meal_settings','meal_fill_missing','duty_save','duty_delete','duty_toggle','duty_auto','duty_copy','duty_month_clear','duty_manager_save','duty_settings_save','duty_group_save','duty_group_delete','duty_swap','duty_swap_request_decide','duty_swap_request_delete','duty_assign_weekday','duty_manager_weekday','duty_roster_save','duty_roster_delete','duty_report_lock','duty_report_lock_settings','menu_save','menu_dish_add','menu_dish_delete','menu_template_save','menu_apply_template','menu_copy_week'], true)) {
         noitru_require_global_scope();
     }
     if (in_array($action, ['rice_settings','rice_in','rice_issue','rice_delete'], true)) {
@@ -1025,7 +1031,7 @@ $tabs = [
     'menu' => ['Thực đơn', 'bi-journal-text', BASE_URL . 'noitru.php?tab=menu'],
     'stats' => ['Thống kê', 'bi-bar-chart', BASE_URL . 'noitru.php?tab=stats'],
 ];
-$tabs = array_filter($tabs, fn($info, $key) => can_perm($tabPerms[$key] ?? ''), ARRAY_FILTER_USE_BOTH);
+$tabs = array_filter($tabs, fn($info, $key) => ($key === 'duty' && $dutyAssignedManager) || can_perm($tabPerms[$key] ?? ''), ARRAY_FILTER_USE_BOTH);
 $canEditCurrent = $tab === 'duty_report'
     ? (noitru_can_edit_duty_report((string)($_GET['date'] ?? date('Y-m-d')))
         && empty(noitru_duty_report_lock_status((string)($_GET['date'] ?? date('Y-m-d')))['locked']))

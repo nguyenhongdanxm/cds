@@ -1,0 +1,31 @@
+name: Duty swap assigned manager approval
+on:
+  pull_request:
+    paths:
+      - 'noitru.php'
+      - 'includes/noitru_store.php'
+      - 'includes/noitru_duty_view.php'
+      - 'includes/noitru_duty_swap_access.php'
+      - 'includes/noitru_duty_swap_requests_view.php'
+      - 'tests/duty_swap_manager_test.php'
+      - '.github/workflows/duty-swap-manager.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l noitru.php
+          php -l includes/noitru_store.php
+          php -l includes/noitru_duty_view.php
+          php -l includes/noitru_duty_swap_access.php
+          php -l includes/noitru_duty_swap_requests_view.php
+          php tests/duty_swap_manager_test.php
