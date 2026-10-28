@@ -1,7 +1,8 @@
 <?php
 require_once __DIR__.'/chuyenmon/includes/functions.php';require_once __DIR__.'/chuyenmon/includes/timetable_store.php';require_once __DIR__.'/includes/timetable_builder.php';
-$user=cds_user()??[];if(!$user){header('Location: /login.php?next='.urlencode('/tkb_xep.php'));exit;}if(cds_is_viewer($user)&&!in_array((string)($_SERVER['REQUEST_METHOD']??''),['GET','HEAD'],true)){http_response_code(403);exit('Tài khoản trải nghiệm không được thay đổi thời khóa biểu.');}
-$canManage=(($user['role']??'')==='admin')||cds_can_feature('cm.tkb','edit');if(!$canManage&&!cds_is_viewer($user)){http_response_code(403);exit('Bạn chưa được cấp quyền xếp thời khóa biểu.');}
+$user=cds_user()??[];if(!$user){header('Location: /login.php?next='.urlencode('/tkb_xep.php'));exit;}$isReadOnlyViewer=(($user['role']??'')==='viewer');
+if($isReadOnlyViewer&&!in_array((string)($_SERVER['REQUEST_METHOD']??''),['GET','HEAD'],true)){http_response_code(403);exit('Tài khoản trải nghiệm không được thay đổi thời khóa biểu.');}
+$canManage=(($user['role']??'')==='admin')||cds_can_feature('cm.tkb','edit');if(!$canManage&&!$isReadOnlyViewer){http_response_code(403);exit('Bạn chưa được cấp quyền xếp thời khóa biểu.');}
 if(empty($_SESSION['ttb_csrf']))$_SESSION['ttb_csrf']=bin2hex(random_bytes(24));$csrf=(string)$_SESSION['ttb_csrf'];$data=ttb_data();$assignments=ttb_assignments();
 function ttb_go(string$tab='data'):never{header('Location: /tkb_xep.php?tab='.$tab);exit;}
 function ttb_editor_go():never{$mode=(string)($_POST['return_mode']??'class');if(!in_array($mode,['class','classes','teacher','teachers','unplaced','diagnostics'],true))$mode='class';$query=['mode'=>$mode];$class=trim((string)($_POST['return_class']??''));$teacher=trim((string)($_POST['return_teacher']??''));if($class!=='')$query['class']=$class;if($teacher!=='')$query['teacher']=$teacher;header('Location: /tkb_editor.php?'.http_build_query($query));exit;}

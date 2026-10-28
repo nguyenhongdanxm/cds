@@ -4,9 +4,10 @@ require_once __DIR__.'/chuyenmon/includes/timetable_store.php';
 require_once __DIR__.'/includes/timetable_builder.php';
 $user=cds_user()??[];
 if(!$user){header('Location: /login.php?next='.urlencode('/tkb_editor.php'));exit;}
-if(cds_is_viewer($user)&&!in_array((string)($_SERVER['REQUEST_METHOD']??''),['GET','HEAD'],true)){http_response_code(403);exit('Tài khoản trải nghiệm không được thay đổi thời khóa biểu.');}
+$isReadOnlyViewer=(($user['role']??'')==='viewer');
+if($isReadOnlyViewer&&!in_array((string)($_SERVER['REQUEST_METHOD']??''),['GET','HEAD'],true)){http_response_code(403);exit('Tài khoản trải nghiệm không được thay đổi thời khóa biểu.');}
 $canManage=(($user['role']??'')==='admin')||cds_can_feature('cm.tkb','edit');
-if(!$canManage&&!cds_is_viewer($user)){http_response_code(403);exit('Bạn chưa được cấp quyền xếp thời khóa biểu.');}
+if(!$canManage&&!$isReadOnlyViewer){http_response_code(403);exit('Bạn chưa được cấp quyền xếp thời khóa biểu.');}
 $data=ttb_data();$assignments=ttb_assignments();$plan=ttb_plan($data,(string)($data['active_plan']??''));
 $classes=array_values(array_unique(array_column($assignments,'class')));sort($classes,SORT_NATURAL|SORT_FLAG_CASE);
 $teachers=array_values(array_unique(array_column($assignments,'teacher')));natcasesort($teachers);$teachers=array_values($teachers);
