@@ -29,6 +29,12 @@ function lb_write(string $file,array $rows): bool {
 }
 function lb_class_student_names(string $class): array {
  $class=trim($class);if($class==='')return[];
+ // Load the shared roster before building (and caching) the class map.
+ if(!function_exists('csdl_students_all')&&!function_exists('csdl_get_students')){
+  $store=dirname(__DIR__,2).'/includes/csdl_store.php';
+  if(!is_file($store))return[];
+  require_once $store;
+ }
  if(!isset($GLOBALS['lb_class_students'])||!is_array($GLOBALS['lb_class_students'])){
   $map=[];
   try{
@@ -42,7 +48,7 @@ function lb_class_student_names(string $class): array {
   $GLOBALS['lb_class_students']=$map;
  }
  $key=lb_norm($class);$alt=lb_norm(preg_replace('/^lớp\s+/iu','',$class));
- return $GLOBALS['lb_class_students'][$key]??$GLOBALS['lb_class_students'][$alt]??[];
+ return $GLOBALS['lb_class_students'][$alt]??$GLOBALS['lb_class_students'][$key]??[];
 }
 function lb_visible_class_students(array $rows): array {
  $out=[];foreach($rows as$r){$cls=trim((string)($r['class']??''));if($cls===''||isset($out[$cls]))continue;$out[$cls]=lb_class_student_names($cls);}return $out;

@@ -22,11 +22,11 @@ if($auditLoad&&$auditError===''){
 <p class="lb-note">Chỉ tải nhật ký khi bấm Tra cứu. Giáo viên xem nhật ký của mình; quản trị xem toàn trường. Ngày lọc là ngày thực hiện ký, theo giờ Việt Nam.</p>
 <form method="get" action="<?=e(BASE_URL.'sodaubai.php')?>#sign-audit" class="row g-2 align-items-end">
 <input type="hidden" name="tab" value="<?=e($tab)?>"><input type="hidden" name="week" value="<?=e($weekKey)?>"><input type="hidden" name="audit_load" value="1">
-<?php if($tab==='progress'):foreach(['stats_range','stats_week','stats_from','stats_to','stats_teacher','stats_subject','stats_class','stats_completion']as$filter):if(!isset($_GET[$filter]))continue;?><input type="hidden" name="<?=e($filter)?>" value="<?=e((string)$_GET[$filter])?>"><?php endforeach;endif;?>
+<?php if($tab==='progress'):foreach(['stats_section','stats_range','stats_week','stats_from','stats_to','stats_teacher','stats_subject','stats_class','stats_completion']as$filter):if(!isset($_GET[$filter]))continue;?><input type="hidden" name="<?=e($filter)?>" value="<?=e((string)$_GET[$filter])?>"><?php endforeach;endif;?>
 <div class="col-md-3"><label class="form-label">Ngày ký từ</label><input type="date" class="form-control" name="audit_from" value="<?=e($auditFrom)?>"></div>
 <div class="col-md-3"><label class="form-label">Đến ngày</label><input type="date" class="form-control" name="audit_to" value="<?=e($auditTo)?>"></div>
 <div class="col-md-4"><label class="form-label">Giáo viên, lớp, môn hoặc ngày dạy</label><input class="form-control" name="audit_q" value="<?=e($auditQuery)?>" placeholder="Ví dụ: 7B hoặc 2026-10-09"></div>
-<div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-search"></i> Tra cứu</button></div>
+<div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-search"></i> Xem nhật ký</button></div>
 </form>
 <?php if($auditLoad):?>
 <?php if($auditError!==''):?><div class="alert alert-danger mt-3"><?=e($auditError)?></div><?php else:?>

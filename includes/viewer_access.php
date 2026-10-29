@@ -40,7 +40,7 @@ function cds_viewer_read_routes(): array {
     foreach (['index','tracuu','ketqua','tongquan','danhsach','rasoat','giaovien','monhoc','lop','kiemnhiem','thongke','kehoach','baocao','dugio','danhgia','phieudugio','kiemtrahoso','boiduong','activities','sodaubai','sodaubai_print','classroom_home','student_support'] as $page) {
         $routes['chuyenmon/'.$page.'.php'] = $filters.' version vid group khoi lop teacher_filter filter_teacher class_filter search baocao_view tiendo_view report_type semester limit offset';
     }
-    $routes['chuyenmon/sodaubai.php'] .= ' ppct_load ppct_subject ppct_grade ppct_scope_type ppct_scope_target review_class';
+    $routes['chuyenmon/sodaubai.php'] .= ' ppct_load ppct_subject ppct_grade ppct_scope_type ppct_scope_target review_class stats_section stats_load stats_range stats_week stats_from stats_to stats_teacher stats_subject stats_class stats_completion audit_load audit_q audit_from audit_to';
     return $routes;
 }
 function cds_viewer_request_allowed(string $method, string $path, array $query): bool {
