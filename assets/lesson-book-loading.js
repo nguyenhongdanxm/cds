@@ -8,13 +8,14 @@ function pageUrl(value){try{const url=new URL(value||location.href,location.href
 document.addEventListener('submit',function(event){
  const form=event.target;if(!(form instanceof HTMLFormElement)||(form.method||'get').toLowerCase()!=='get'||(form.target&&form.target!=='_self')||!pageUrl(form.action))return;
  if(pendingForm===form){event.preventDefault();return;}
- queueMicrotask(()=>{if(event.defaultPrevented)return;pendingForm=form;clearTimeout(repeatTimer);repeatTimer=setTimeout(()=>{pendingForm=null;},1000);show('Đang tải nội dung đã chọn…');});
+ if(event.defaultPrevented)return;pendingForm=form;clearTimeout(repeatTimer);repeatTimer=setTimeout(()=>{pendingForm=null;},1000);show('Đang tải nội dung đã chọn…');
+ queueMicrotask(()=>{if(event.defaultPrevented)reset();});
 });
 document.addEventListener('click',function(event){
  if(event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
  const link=event.target.closest?.('a[href]');if(!link||link.hasAttribute('download')||(link.target&&link.target!=='_self'))return;
  const url=pageUrl(link.href);if(!url||(url.pathname===location.pathname&&url.search===location.search&&url.hash))return;
- queueMicrotask(()=>{if(!event.defaultPrevented)show('Đang mở mục đã chọn…');});
+ if(event.defaultPrevented)return;show('Đang mở mục đã chọn…');queueMicrotask(()=>{if(event.defaultPrevented)reset();});
 });
 window.addEventListener('pageshow',reset);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',reset,{once:true});else reset();
