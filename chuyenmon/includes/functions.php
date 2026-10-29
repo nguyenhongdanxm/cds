@@ -726,7 +726,7 @@ function require_login() {
             && in_array($action, ['save_plan', 'delete_plan'], true);
         $activityScript = basename($_SERVER['PHP_SELF'] ?? '');
         $clubRequestSelfService = $activityScript === 'activities.php'
-            && $action === 'submit_club_request';
+            && ($action === 'submit_club_request' || ($action === 'save_online' && ($_GET['tab'] ?? '') === 'online'));
         $lessonBookScript = basename($_SERVER['PHP_SELF'] ?? '');
         $lessonBookSelfService = ($lessonBookScript === 'sodaubai.php' && in_array($action, ['save_record','save_and_sign','sign_record','upload_signature','save_weekly_review'], true))
             || ($lessonBookScript === 'sodaubai_export.php' && $action === 'export_book')
@@ -754,3 +754,4 @@ if ($__vid) {
 }
 if (!defined('QUOTA_THCS')) define('QUOTA_THCS', get_quota_thcs());
 if (!defined('QUOTA_THPT')) define('QUOTA_THPT', get_quota_thpt());
+

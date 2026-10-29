@@ -1,0 +1,44 @@
+name: Online homeroom registration safety
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/activities.php'
+      - 'chuyenmon/includes/functions.php'
+      - 'chuyenmon/includes/online_homeroom_access.php'
+      - 'chuyenmon/includes/online_learning.php'
+      - 'chuyenmon/assets/activities.js'
+      - 'tests/online_homeroom*'
+      - '.github/workflows/online-homeroom.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l chuyenmon/activities.php
+          php -l chuyenmon/includes/functions.php
+          php -l chuyenmon/includes/online_homeroom_access.php
+          php tests/online_homeroom_test.php
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: php tests/online_homeroom_test.php --html
+      - run: npm install --prefix "$RUNNER_TEMP/online-home-browser" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/online-home-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/online_homeroom_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/online-home-browser/node_modules
