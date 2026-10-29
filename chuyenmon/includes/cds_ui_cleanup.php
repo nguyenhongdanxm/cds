@@ -46,5 +46,5 @@ body > .container > .nav-tabs + *,body > .container > .nav-pills + * {margin-top
 })();
 </script>
 <?php if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'sodaubai.php'): ?>
-<script src="<?= e(BASE_URL . 'assets/sodaubai_enhancements.js?v=20260828-1') ?>" defer></script>
+<script src="<?= e(BASE_URL . 'assets/sodaubai_enhancements.js?v=20261029-2') ?>" defer></script>
 <?php endif; ?>
