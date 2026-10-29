@@ -29,20 +29,14 @@ function lb_write(string $file,array $rows): bool {
 }
 function lb_class_student_names(string $class): array {
  $class=trim($class);if($class==='')return[];
- // Load the shared roster before building (and caching) the class map.
- if(!function_exists('csdl_students_all')&&!function_exists('csdl_get_students')){
-  $store=dirname(__DIR__,2).'/includes/csdl_store.php';
-  if(!is_file($store))return[];
-  require_once $store;
- }
+ require_once __DIR__.'/lesson_book_student_roster.php';
  if(!isset($GLOBALS['lb_class_students'])||!is_array($GLOBALS['lb_class_students'])){
   $map=[];
   try{
    $rows=[];
-   if(function_exists('csdl_students_all'))$rows=csdl_students_all();
-   elseif(function_exists('csdl_get_students'))$rows=csdl_get_students();
-   $classNames=[];if(function_exists('csdl_classes_all'))foreach(csdl_classes_all()as$c)$classNames[(string)($c['id']??'')]=trim((string)($c['name']??''));
-   foreach((array)$rows as$stu){if(!is_array($stu))continue;if(array_key_exists('active',$stu)&&empty($stu['active']))continue;$name=trim((string)($stu['name']??$stu['ho_ten']??''));if($name==='')continue;$cls=trim((string)($stu['class_name']??$stu['class']??$stu['lop']??''));if($cls===''&&!empty($stu['class_id']))$cls=$classNames[(string)$stu['class_id']]??'';if($cls==='')continue;$nk=lb_norm($cls);if($nk==='')continue;$map[$nk][$name]=true;$map[lb_norm(preg_replace('/^lớp\s+/iu','',$cls))][$name]=true;}
+   $rows=lb_student_roster_rows('students');
+   $classNames=[];foreach(lb_student_roster_rows('classes')as$c)$classNames[(string)($c['id']??'')]=trim((string)($c['name']??''));
+   foreach((array)$rows as$stu){if(!is_array($stu))continue;if(array_key_exists('active',$stu)&&empty($stu['active']))continue;$departure=trim((string)($stu['departure_date']??''));if($departure!==''&&date('Y-m-d')>=$departure)continue;$name=trim((string)($stu['name']??$stu['ho_ten']??''));if($name==='')continue;$cls=trim((string)($stu['class_name']??$stu['class']??$stu['lop']??''));if($cls===''&&!empty($stu['class_id']))$cls=$classNames[(string)$stu['class_id']]??'';if($cls==='')continue;$nk=lb_norm($cls);if($nk==='')continue;$map[$nk][$name]=true;$map[lb_norm(preg_replace('/^lớp\s+/iu','',$cls))][$name]=true;}
    foreach($map as$k=>$names){$list=array_keys($names);usort($list,fn($a,$b)=>strnatcasecmp($a,$b));$map[$k]=$list;}
   }catch(Throwable $e){error_log('[CDS lb students] '.$e->getMessage());$map=[];}
   $GLOBALS['lb_class_students']=$map;

@@ -4,6 +4,7 @@ on:
     paths:
       - 'chuyenmon/sodaubai.php'
       - 'chuyenmon/includes/lesson_book_store.php'
+      - 'chuyenmon/includes/lesson_book_student_roster.php'
       - 'chuyenmon/includes/lesson_book_stat*.php'
       - 'chuyenmon/includes/lesson_book_attendance*.php'
       - 'chuyenmon/includes/lesson_book_scores_view.php'
@@ -30,6 +31,7 @@ jobs:
       - run: |
           php -l chuyenmon/sodaubai.php
           php -l chuyenmon/includes/lesson_book_store.php
+          php -l chuyenmon/includes/lesson_book_student_roster.php
           php -l chuyenmon/includes/sodaubai_progress.php
           php -l chuyenmon/includes/sodaubai_sign_audit.php
           php -l chuyenmon/includes/lesson_book_statistics_view.php

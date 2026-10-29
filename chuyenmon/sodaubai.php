@@ -11,10 +11,6 @@ $page_title='Sổ đầu bài';
 $ajax=(string)($_GET['ajax']??'');
 if($ajax==='students'||$ajax==='ppct_titles'){
  header('Content-Type: application/json; charset=utf-8');
- if(!function_exists('csdl_students_all')){
-  $csdl=dirname(__DIR__).'/includes/csdl_store.php';
-  if(is_file($csdl)) require_once $csdl;
- }
  if($ajax==='students'){
   $class=trim((string)($_GET['class']??''));
   echo json_encode(['ok'=>true,'class'=>$class,'names'=>lb_class_student_names($class)],JSON_UNESCAPED_UNICODE);
