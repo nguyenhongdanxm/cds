@@ -1,6 +1,7 @@
 (function(){
 const roster=window.LB_CLASS_STUDENTS||{};
-function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase();}
+function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+function searchKey(s){return norm(s).replace(/đ/g,'d');}
 function splitNames(v){return String(v||'').split(/[,;\n]+/).map(x=>x.trim()).filter(Boolean);}
 function unique(list){const seen={};const out=[];list.forEach(n=>{const k=norm(n);if(!k||seen[k])return;seen[k]=1;out.push(n);});return out;}
 function boxOf(root){return root.querySelector('.lb-absent-chips');}
@@ -17,8 +18,8 @@ function closeSuggest(){document.querySelectorAll('.lb-absent-suggest').forEach(
 function showSuggest(root,input,list){
   closeSuggest();
   const chosen=unique(splitNames(hiddenOf(root).value)).map(norm);
-  const q=norm(input.value);
-  const hits=(list||[]).filter(n=>!chosen.includes(norm(n)) && (!q || norm(n).includes(q))).slice(0,12);
+  const q=searchKey(input.value);
+  const hits=(list||[]).filter(n=>!chosen.includes(norm(n)) && (!q || searchKey(n).includes(q))).slice(0,12);
   if(!hits.length)return;
   const menu=document.createElement('div');
   menu.className='lb-absent-suggest';
