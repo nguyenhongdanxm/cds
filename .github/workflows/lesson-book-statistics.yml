@@ -20,6 +20,7 @@ on:
       - 'tests/lesson_book_enhancements_browser.cjs'
       - 'tests/lesson_book_statistics*'
       - 'tests/lesson_book_roster_test.php'
+      - 'tests/lesson_book_team_statistics_test.php'
       - '.github/workflows/lesson-book-statistics.yml'
   workflow_dispatch:
 jobs:
@@ -37,6 +38,7 @@ jobs:
       - run: |
           php -l chuyenmon/sodaubai.php
           php -l chuyenmon/includes/lesson_book_store.php
+          php -l chuyenmon/includes/lesson_book_statistics_access.php
           php -l chuyenmon/includes/lesson_book_student_roster.php
           php -l chuyenmon/includes/sodaubai_progress.php
           php -l chuyenmon/includes/sodaubai_sign_audit.php
@@ -50,6 +52,7 @@ jobs:
           node --check chuyenmon/assets/sodaubai_enhancements.js
           php tests/lesson_book_roster_test.php
           php tests/lesson_book_statistics_test.php
+          php tests/lesson_book_team_statistics_test.php
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -65,3 +68,4 @@ jobs:
       - run: node tests/lesson_book_statistics_browser.cjs && node tests/lesson_book_enhancements_browser.cjs && node tests/lesson_book_loading_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/lb-stat-browser/node_modules
+
