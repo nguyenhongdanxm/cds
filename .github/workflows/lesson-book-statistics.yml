@@ -1,0 +1,56 @@
+name: Lesson book lazy statistics and roster
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/sodaubai.php'
+      - 'chuyenmon/includes/lesson_book_store.php'
+      - 'chuyenmon/includes/lesson_book_stat*.php'
+      - 'chuyenmon/includes/lesson_book_attendance*.php'
+      - 'chuyenmon/includes/lesson_book_scores_view.php'
+      - 'chuyenmon/includes/sodaubai_progress.php'
+      - 'chuyenmon/includes/sodaubai_sign_audit.php'
+      - 'includes/viewer_access.php'
+      - 'assets/lesson-book-absence.js'
+      - 'tests/lesson_book_statistics*'
+      - 'tests/lesson_book_roster_test.php'
+      - '.github/workflows/lesson-book-statistics.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l chuyenmon/sodaubai.php
+          php -l chuyenmon/includes/lesson_book_store.php
+          php -l chuyenmon/includes/sodaubai_progress.php
+          php -l chuyenmon/includes/sodaubai_sign_audit.php
+          php -l chuyenmon/includes/lesson_book_statistics_view.php
+          php -l chuyenmon/includes/lesson_book_attendance.php
+          php -l chuyenmon/includes/lesson_book_attendance_view.php
+          php -l chuyenmon/includes/lesson_book_scores_view.php
+          node --check assets/lesson-book-absence.js
+          php tests/lesson_book_roster_test.php
+          php tests/lesson_book_statistics_test.php
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: php tests/lesson_book_statistics_test.php --html
+      - run: npm install --prefix "$RUNNER_TEMP/lb-stat-browser" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/lb-stat-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/lesson_book_statistics_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/lb-stat-browser/node_modules

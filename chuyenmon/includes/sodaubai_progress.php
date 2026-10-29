@@ -10,13 +10,15 @@ if($statsTo<$statsFrom){[$statsFrom,$statsTo]=[$statsTo,$statsFrom];}
 $statsTeacher=trim((string)($_GET['stats_teacher']??''));$statsSubject=trim((string)($_GET['stats_subject']??''));$statsClass=trim((string)($_GET['stats_class']??''));
 $statsCompletionInput=(string)($_GET['stats_completion']??'all');
 $statsCompletion=in_array($statsCompletionInput,['all','completed','incomplete','saved_unsigned','not_saved'],true)?$statsCompletionInput:'all';
-$allAccessible=lb_stat_rows($statsFrom,$statsTo);$teachers=[];$subjects=[];$statClasses=[];
+$allAccessible=$statsLoad?lb_stat_rows($statsFrom,$statsTo):[];$teachers=[];$subjects=[];$statClasses=[];
 foreach($allAccessible as$r){$teacherName=trim((string)($r['actual_teacher']??$r['scheduled_teacher']??''));if($teacherName!=='')$teachers[$teacherName]=true;if(trim((string)($r['subject']??''))!=='')$subjects[(string)$r['subject']]=true;if(trim((string)($r['class']??''))!=='')$statClasses[(string)$r['class']]=true;}
+foreach([['value'=>$statsTeacher,'kind'=>'teacher'],['value'=>$statsSubject,'kind'=>'subject'],['value'=>$statsClass,'kind'=>'class']]as$selected){if($selected['value']==='')continue;if($selected['kind']==='teacher')$teachers[$selected['value']]=true;elseif($selected['kind']==='subject')$subjects[$selected['value']]=true;else$statClasses[$selected['value']]=true;}
 $teachers=array_keys($teachers);$subjects=array_keys($subjects);$statClasses=array_keys($statClasses);sort($teachers,SORT_NATURAL);sort($subjects,SORT_NATURAL);sort($statClasses,SORT_NATURAL);
 $statRows=lb_stat_filter_rows($allAccessible,$statsTeacher,$statsSubject,$statsClass,$statsCompletion);
+$exportQuery=array_filter(['stats_from'=>$statsFrom,'stats_to'=>$statsTo,'stats_teacher'=>$statsTeacher,'stats_subject'=>$statsSubject,'stats_class'=>$statsClass,'stats_completion'=>$statsCompletion,'stats_range'=>$statsRange,'stats_week'=>$statsWeekKey],'strlen');
+if($statsLoad&&$statsSection==='indicators'){
 $tot=lb_stat_totals($statRows);
 $teacherStats=lb_stat_group($statRows,'actual_teacher');$subjectStats=lb_stat_group($statRows,'subject');$classStats=lb_stat_group($statRows,'class');$groupStats=lb_stat_group($statRows,'teacher_group');$weekStats=lb_stat_group($statRows,'week_label');
-$exportQuery=array_filter(['stats_from'=>$statsFrom,'stats_to'=>$statsTo,'stats_teacher'=>$statsTeacher,'stats_subject'=>$statsSubject,'stats_class'=>$statsClass,'stats_completion'=>$statsCompletion,'stats_range'=>$statsRange,'stats_week'=>$statsWeekKey],'strlen');
 $rate=$tot['scheduled']?($tot['completed']*100/$tot['scheduled']):0;
 $statusCards=[
  ['Tổng tiết TKB',$tot['scheduled'],'#173f67'],
@@ -30,6 +32,7 @@ $statusCards=[
  ['Tỷ lệ hoàn thành',number_format($rate,1,',','.').'%',$rate>=80?'#166534':'#b45309'],
 ];
 $cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT','missing_ppct'=>'Thiếu PPCT','taught'=>'Đã dạy','substitute'=>'Thay','makeup'=>'Bù','online'=>'Trực tuyến','off'=>'Nghỉ/hoãn/hủy','holiday'=>'Nghỉ lễ','teacher_absent'=>'GV nghỉ','class_absent'=>'Lớp nghỉ','postponed'=>'Hoãn','cancelled'=>'Hủy','pending'=>'Chưa ghi'];
+}
 ?>
 <style>
 .lb-stat-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
@@ -44,7 +47,7 @@ $cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT
 .lb-stat-table th,.lb-stat-table td{white-space:nowrap;font-size:.86rem}
 </style>
 <form class="lb-filter" method="get">
- <input type="hidden" name="tab" value="progress"><input type="hidden" name="week" value="<?=e($weekKey)?>">
+ <input type="hidden" name="tab" value="progress"><input type="hidden" name="stats_section" value="<?=e($statsSection)?>"><input type="hidden" name="stats_load" value="1"><input type="hidden" name="week" value="<?=e($weekKey)?>">
  <div class="row g-2 align-items-end">
   <div class="col-lg-2"><label class="form-label fw-bold">Phạm vi thời gian</label>
    <select class="form-select" name="stats_range" id="lbStatsRange">
@@ -69,18 +72,19 @@ $cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT
   </div>
  </div>
  <div class="row g-2 align-items-end mt-1">
-  <div class="col-lg-3"><label class="form-label fw-bold">Giáo viên</label><select class="form-select" name="stats_teacher"><option value="">Tất cả</option><?php foreach($teachers as$x):?><option <?=$x===$statsTeacher?'selected':''?>><?=e($x)?></option><?php endforeach;?></select></div>
-  <div class="col-lg-3"><label class="form-label fw-bold">Môn</label><select class="form-select" name="stats_subject"><option value="">Tất cả</option><?php foreach($subjects as$x):?><option <?=$x===$statsSubject?'selected':''?>><?=e($x)?></option><?php endforeach;?></select></div>
-  <div class="col-lg-2"><label class="form-label fw-bold">Lớp</label><select class="form-select" name="stats_class"><option value="">Tất cả</option><?php foreach($statClasses as$x):?><option <?=$x===$statsClass?'selected':''?>><?=e($x)?></option><?php endforeach;?></select></div>
-  <div class="col-lg-2"><button class="btn btn-primary w-100"><i class="bi bi-funnel"></i> Lọc</button></div>
+  <div class="col-lg-3"><label class="form-label fw-bold">Giáo viên</label><input class="form-control" name="stats_teacher" value="<?=e($statsTeacher)?>" list="lbStats_teacher" placeholder="Tất cả"><datalist id="lbStats_teacher"><?php foreach($teachers as$x):?><option value="<?=e($x)?>"><?php endforeach;?></datalist></div>
+  <div class="col-lg-3"><label class="form-label fw-bold">Môn</label><input class="form-control" name="stats_subject" value="<?=e($statsSubject)?>" list="lbStats_subject" placeholder="Tất cả"><datalist id="lbStats_subject"><?php foreach($subjects as$x):?><option value="<?=e($x)?>"><?php endforeach;?></datalist></div>
+  <div class="col-lg-2"><label class="form-label fw-bold">Lớp</label><input class="form-control" name="stats_class" value="<?=e($statsClass)?>" list="lbStats_class" placeholder="Tất cả"><datalist id="lbStats_class"><?php foreach($statClasses as$x):?><option value="<?=e($x)?>"><?php endforeach;?></datalist></div>
+  <div class="col-lg-2"><button class="btn btn-primary w-100"><i class="bi bi-eye"></i> Xem</button></div>
   <div class="col-lg-2 d-flex gap-2">
-   <a class="btn btn-outline-secondary flex-fill" href="<?=BASE_URL?>sodaubai.php?tab=progress&week=<?=urlencode($weekKey)?>">Xóa lọc</a>
-   <a class="btn btn-success flex-fill" href="<?=BASE_URL?>sodaubai_stats_export.php?<?=e(http_build_query($exportQuery))?>"><i class="bi bi-download"></i> Excel</a>
+   <a class="btn btn-outline-secondary flex-fill" href="<?=BASE_URL?>sodaubai.php?tab=progress&stats_section=<?=e($statsSection)?>&week=<?=urlencode($weekKey)?>">Xóa lọc</a>
+   <?php if($statsLoad&&$statsSection==='indicators'):?><a class="btn btn-success flex-fill" href="<?=BASE_URL?>sodaubai_stats_export.php?<?=e(http_build_query($exportQuery))?>"><i class="bi bi-download"></i> Excel</a><?php endif;?>
   </div>
  </div>
  <div class="lb-note mt-2">Đang xem <?=date('d/m/Y',strtotime($statsFrom))?> – <?=date('d/m/Y',strtotime($statsTo))?>. Hoàn thành = tiết đã ký. Nghỉ/hoãn/hủy gồm nghỉ lễ, GV nghỉ, lớp nghỉ, hoãn, hủy.</div>
 </form>
 
+<?php if(!$statsLoad):?><section class="lb-card text-muted">Chưa tải nội dung. Chọn phạm vi rồi bấm <strong>Xem</strong> để tải riêng mục này.</section><?php elseif($statsSection==='scores'):require __DIR__.'/lesson_book_scores_view.php';elseif($statsSection==='attendance'):require __DIR__.'/lesson_book_attendance_view.php';else:?>
 <div class="lb-stat-kpis">
 <?php foreach($statusCards as[$label,$value,$color]):?>
  <div class="lb-stat-kpi"><span><?=e($label)?></span><b style="color:<?=$color?>"><?=is_numeric($value)?number_format((float)$value,0,',','.'):e((string)$value)?></b></div>
@@ -95,18 +99,19 @@ $cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT
  <?php foreach(['teacher'=>$teacherStats,'subject'=>$subjectStats,'class'=>$classStats,'group'=>$groupStats,'week'=>$weekStats]as$panel=>$groupRows):?>
  <div class="lb-stat-panel <?=$panel==='teacher'?'active':''?>" data-stat-content="<?=$panel?>">
   <div class="table-responsive"><table class="table table-sm table-hover lb-stat-table">
-   <thead><tr><th><?=e(['teacher'=>'Giáo viên','subject'=>'Môn','class'=>'Lớp','group'=>'Tổ','week'=>'Tuần'][$panel])?></th><?php foreach($cols as$c=>$lab):?><th class="text-center"><?=e($lab)?></th><?php endforeach;?><th class="text-center">Tỷ lệ</th></tr></thead>
+   <thead><tr><th><?=e(['teacher'=>'Giáo viên','subject'=>'Môn','class'=>'Lớp','group'=>'Tổ','week'=>'Tuần'][$panel])?></th><?php foreach($cols as$c=>$lab):?><th class="text-center"><?=e($lab)?></th><?php endforeach;?><th class="text-center">Đã ký / Cần ký</th><th class="text-center">Tỷ lệ</th></tr></thead>
    <tbody>
    <?php foreach($groupRows as$g):$gr=$g['scheduled']?($g['completed']*100/$g['scheduled']):0;?>
     <tr>
-     <td class="fw-bold"><?=e($g['name'])?></td>
+     <td class="fw-bold <?=in_array($panel,['teacher','subject'],true)&&$g['incomplete']>0?'text-danger':''?>"><?=e($g['name'])?></td>
      <?php foreach(array_keys($cols) as$c):?><td class="text-center"><?=isset($g[$c])?(is_float($g[$c])?number_format($g[$c],1,',','.'):(int)$g[$c]):0?></td><?php endforeach;?>
-     <td class="text-center"><span class="badge <?=$gr>=100?'text-bg-success':($gr>=80?'text-bg-warning':'text-bg-light')?>"><?=number_format($gr,1,',','.')?>%</span></td>
+     <td class="text-center <?=$g['incomplete']>0?'text-danger fw-bold':''?>"><?=$g['completed']?> / <?=$g['scheduled']?></td><td class="text-center"><span class="badge <?=$gr>=100?'text-bg-success':($gr>=80?'text-bg-warning':'text-bg-light')?>"><?=number_format($gr,1,',','.')?>%</span></td>
     </tr>
-   <?php endforeach;if(!$groupRows):?><tr><td colspan="<?=count($cols)+2?>" class="lb-empty">Không có dữ liệu trong phạm vi lọc.</td></tr><?php endif;?>
+   <?php endforeach;if(!$groupRows):?><tr><td colspan="<?=count($cols)+3?>" class="lb-empty">Không có dữ liệu trong phạm vi lọc.</td></tr><?php endif;?>
    </tbody>
   </table></div>
  </div>
  <?php endforeach;?>
 </section>
+<?php endif;?>
 <script>(function(){const range=document.getElementById('lbStatsRange');function sync(){document.querySelectorAll('.stats-range-week').forEach(x=>x.style.display=range.value==='week'?'':'none');document.querySelectorAll('.stats-range-custom').forEach(x=>x.style.display=range.value==='custom'?'':'none')}if(range){range.addEventListener('change',sync);sync()}document.querySelectorAll('[data-stat-panel]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-stat-panel]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('[data-stat-content]').forEach(x=>x.classList.toggle('active',x.dataset.statContent===b.dataset.statPanel))}))})()</script>
