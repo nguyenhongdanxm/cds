@@ -12,6 +12,9 @@ on:
       - 'chuyenmon/includes/sodaubai_sign_audit.php'
       - 'includes/viewer_access.php'
       - 'assets/lesson-book-absence.js'
+      - 'assets/lesson-book-loading.js'
+      - 'chuyenmon/includes/lesson_book_loading_view.php'
+      - 'tests/lesson_book_loading_browser.cjs'
       - 'chuyenmon/assets/sodaubai_enhancements.js'
       - 'chuyenmon/includes/cds_ui_cleanup.php'
       - 'tests/lesson_book_enhancements_browser.cjs'
@@ -42,6 +45,8 @@ jobs:
           php -l chuyenmon/includes/lesson_book_attendance_view.php
           php -l chuyenmon/includes/lesson_book_scores_view.php
           node --check assets/lesson-book-absence.js
+          node --check assets/lesson-book-loading.js
+          php -l chuyenmon/includes/lesson_book_loading_view.php
           node --check chuyenmon/assets/sodaubai_enhancements.js
           php tests/lesson_book_roster_test.php
           php tests/lesson_book_statistics_test.php
@@ -57,6 +62,6 @@ jobs:
       - run: php tests/lesson_book_statistics_test.php --html
       - run: npm install --prefix "$RUNNER_TEMP/lb-stat-browser" --no-package-lock playwright@1.58.2
       - run: "$RUNNER_TEMP/lb-stat-browser/node_modules/.bin/playwright install --with-deps chromium"
-      - run: node tests/lesson_book_statistics_browser.cjs && node tests/lesson_book_enhancements_browser.cjs
+      - run: node tests/lesson_book_statistics_browser.cjs && node tests/lesson_book_enhancements_browser.cjs && node tests/lesson_book_loading_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/lb-stat-browser/node_modules
