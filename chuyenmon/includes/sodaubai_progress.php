@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/lesson_book_statistics_access.php';
 $statsRangeInput=(string)($_GET['stats_range']??'week');
 $statsRange=in_array($statsRangeInput,['total','week','custom'],true)?$statsRangeInput:'week';
 $statsWeekKey=(string)($_GET['stats_week']??$weekKey);$statsWeek=lb_week($statsWeekKey)?:$week;
@@ -85,6 +86,7 @@ $cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT
 </form>
 
 <?php if(!$statsLoad):?><section class="lb-card text-muted">Chưa tải nội dung. Chọn phạm vi rồi bấm <strong>Xem</strong> để tải riêng mục này.</section><?php elseif($statsSection==='scores'):require __DIR__.'/lesson_book_scores_view.php';elseif($statsSection==='attendance'):require __DIR__.'/lesson_book_attendance_view.php';else:?>
+<?php if(lb_stat_team_scoped()):$leaderGroup=lb_stat_leader_group();?><div class="alert alert-info"><?=e($leaderGroup!==''?'Phạm vi thống kê: tổ '.$leaderGroup.'. Chỉ tính các tiết của tổ viên; bộ lọc và file xuất áp dụng cùng phạm vi.':'Chưa xác định được tổ chuyên môn. Vui lòng kiểm tra giáo viên liên kết tài khoản và tổ trong CSDL cán bộ.')?></div><?php endif;?>
 <div class="lb-stat-kpis">
 <?php foreach($statusCards as[$label,$value,$color]):?>
  <div class="lb-stat-kpi"><span><?=e($label)?></span><b style="color:<?=$color?>"><?=is_numeric($value)?number_format((float)$value,0,',','.'):e((string)$value)?></b></div>
@@ -115,3 +117,4 @@ $cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT
 </section>
 <?php endif;?>
 <script>(function(){const range=document.getElementById('lbStatsRange');function sync(){document.querySelectorAll('.stats-range-week').forEach(x=>x.style.display=range.value==='week'?'':'none');document.querySelectorAll('.stats-range-custom').forEach(x=>x.style.display=range.value==='custom'?'':'none')}if(range){range.addEventListener('change',sync);sync()}document.querySelectorAll('[data-stat-panel]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-stat-panel]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('[data-stat-content]').forEach(x=>x.classList.toggle('active',x.dataset.statContent===b.dataset.statPanel))}))})()</script>
+

@@ -1,6 +1,7 @@
 <?php
 /** Sổ đầu bài: dữ liệu độc lập theo từng tiết, dùng chung Tuần học và TKB. */
 require_once __DIR__ . '/timetable_store.php';
+require_once __DIR__.'/lesson_book_statistics_access.php';
 
 define('LB_RECORDS_FILE', DATA_PATH . '/lesson_book_records.json');
 define('LB_CURRICULUM_FILE', DATA_PATH . '/lesson_book_curriculum.json');
@@ -343,7 +344,7 @@ function lb_stat_filter_rows(array $rows,string $teacher='',string $subject='',s
 function lb_stat_rows(string $from,string $to,string $teacher='',string $subject='',string $class='',string $completion='all'): array {
  $out=[];$savedMap=lb_record_map_range($from,$to);$titleCache=[];$curriculumCache=[];$groupCache=[];
  foreach(lb_weeks()as$statWeek){$start=(string)($statWeek['start']??'');$end=(string)($statWeek['end']??'');if(($to!==''&&$start>$to)||($from!==''&&$end<$from))continue;
-  foreach(lb_slots($statWeek,$savedMap)as$r){$date=(string)($r['date']??'');if($date===''||($from!==''&&$date<$from)||($to!==''&&$date>$to)||!lb_can_view($r))continue;$rowTeacher=(string)($r['actual_teacher']??$r['scheduled_teacher']??'');$grade=(string)($r['grade']??lb_grade((string)($r['class']??'')));$rowSubject=(string)($r['subject']??'');$rowClass=(string)($r['class']??'');$scopeKey=lb_subject_key($rowSubject).'|'.$grade.'|'.lb_norm($rowClass);if(!array_key_exists($scopeKey,$titleCache))$titleCache[$scopeKey]=lb_curriculum_titles_for($rowSubject,$grade,$rowClass);$ppct=(int)($r['ppct_period']??0);$currKey=$scopeKey.'|'.$ppct;if($ppct>0&&!array_key_exists($currKey,$curriculumCache))$curriculumCache[$currKey]=lb_curriculum_for($rowSubject,$grade,$ppct,$rowClass);$curr=$ppct>0?($curriculumCache[$currKey]??null):null;$r['_ppct_missing']=empty($titleCache[$scopeKey])||($ppct>0&&!is_array($curr));$r['_ppct_found']=is_array($curr);$r['_saved']=!empty($r['created_at'])||!empty($r['updated_at']);$r['_completed']=!empty($r['signed_at']);if(!array_key_exists($rowTeacher,$groupCache))$groupCache[$rowTeacher]=function_exists('get_teacher_group')?(string)get_teacher_group($rowTeacher):'';$r['teacher_group']=$groupCache[$rowTeacher];$out[]=$r;
+  foreach(lb_slots($statWeek,$savedMap)as$r){$date=(string)($r['date']??'');if($date===''||($from!==''&&$date<$from)||($to!==''&&$date>$to)||!lb_stat_can_view($r))continue;if(lb_stat_team_scoped()&&trim((string)($r['actual_teacher']??''))==='')$r['actual_teacher']=(string)($r['scheduled_teacher']??'');$rowTeacher=(string)($r['actual_teacher']??$r['scheduled_teacher']??'');$grade=(string)($r['grade']??lb_grade((string)($r['class']??'')));$rowSubject=(string)($r['subject']??'');$rowClass=(string)($r['class']??'');$scopeKey=lb_subject_key($rowSubject).'|'.$grade.'|'.lb_norm($rowClass);if(!array_key_exists($scopeKey,$titleCache))$titleCache[$scopeKey]=lb_curriculum_titles_for($rowSubject,$grade,$rowClass);$ppct=(int)($r['ppct_period']??0);$currKey=$scopeKey.'|'.$ppct;if($ppct>0&&!array_key_exists($currKey,$curriculumCache))$curriculumCache[$currKey]=lb_curriculum_for($rowSubject,$grade,$ppct,$rowClass);$curr=$ppct>0?($curriculumCache[$currKey]??null):null;$r['_ppct_missing']=empty($titleCache[$scopeKey])||($ppct>0&&!is_array($curr));$r['_ppct_found']=is_array($curr);$r['_saved']=!empty($r['created_at'])||!empty($r['updated_at']);$r['_completed']=!empty($r['signed_at']);if(!array_key_exists($rowTeacher,$groupCache))$groupCache[$rowTeacher]=lb_stat_team_scoped()?lb_stat_teacher_group($rowTeacher):(function_exists('get_teacher_group')?(string)get_teacher_group($rowTeacher):'');$r['teacher_group']=$groupCache[$rowTeacher];$out[]=$r;
   }
  }
  usort($out,fn($a,$b)=>strcmp((string)($a['date']??''),(string)($b['date']??''))?:strnatcasecmp((string)($a['class']??''),(string)($b['class']??''))?:(int)($a['period']??0)<=>(int)($b['period']??0));return lb_stat_filter_rows($out,$teacher,$subject,$class,$completion);
@@ -400,4 +401,5 @@ function lb_save_week_lock_table(array $states): array {
  lb_rows_bust(LB_LOCKS_FILE);lb_audit('save_week_lock_table',['weeks'=>$states]);
  return['ok'=>true,'message'=>'Đã lưu trạng thái khóa/mở sổ của '.count($states).' tuần.'];
 }
+
 
