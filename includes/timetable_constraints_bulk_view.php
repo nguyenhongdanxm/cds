@@ -2,7 +2,7 @@
 // Included inside the summary panel, after the existing overview.
 $bulkItems=tlc_bulk_items($data);
 ?>
-<div class="mt-3 border-top pt-3"><h5>Tích chọn xóa ràng buộc</h5><p class="small text-muted">Chỉ xóa các mục được tích trong phiên bản tuần hiện tại. TKB đã công bố giữ nguyên.</p>
+<div class="mt-3 border-top pt-3"><h5>Tích chọn xóa ràng buộc</h5><p class="small text-muted">Chỉ xóa các mục được tích trong phiên bản tuần hiện tại. TKB đã công bố giữ nguyên. Mỗi lần xóa tối đa 500 mục.</p>
 <form method="post" action="/tkb_xep.php" class="constraint-bulk-form">
 <input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="constraints_bulk_delete"><input type="hidden" name="bulk_origin" value="summary"><input type="hidden" name="confirm_bulk" value="1">
 <label class="me-3"><input type="checkbox" data-bulk-all> Chọn tất cả danh sách</label>

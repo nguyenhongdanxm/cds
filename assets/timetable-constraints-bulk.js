@@ -24,7 +24,7 @@ document.querySelectorAll('.constraint-bulk-form').forEach(function(form){
  function update(){var b=boxes(),n=b.filter(function(x){return x.checked;}).length;all.checked=b.length>0&&n===b.length;all.indeterminate=n>0&&n<b.length;button.disabled=!n;button.textContent='Xóa đã chọn ('+n+')';}
  all.addEventListener('change',function(){boxes().forEach(function(x){x.checked=all.checked;});update();});
  boxes().forEach(function(b){b.addEventListener('change',update);});
- form.addEventListener('submit',function(ev){var count=boxes().filter(function(x){return x.checked;}).length;if(!count||count>500||!confirm('Xóa '+count+' ràng buộc đã chọn trong phiên bản tuần hiện tại?'))ev.preventDefault();});
+ form.addEventListener('submit',function(ev){var count=boxes().filter(function(x){return x.checked;}).length;if(count>500){ev.preventDefault();alert('Mỗi lần xóa tối đa 500 mục. Hãy bỏ bớt lựa chọn.');return;}if(!count||!confirm('Xóa '+count+' ràng buộc đã chọn trong phiên bản tuần hiện tại?'))ev.preventDefault();});
  update();
 });
 })();
