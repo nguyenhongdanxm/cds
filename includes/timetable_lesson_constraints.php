@@ -53,3 +53,45 @@ function tlc_return_url(array $input, string $panel): string {
     }
     return '/chuyenmon/tkb_lesson_constraints.php?'.http_build_query($query);
 }
+
+function tlc_bulk_fields(): array {
+    return ['blocked'=>'Giáo viên bận','class_blocked'=>'Lớp bận','scope_blocks'=>'Ô không học','fixed_lessons'=>'Tiết cố định','special_slots'=>'Hoạt động chung','double_lessons'=>'Hai tiết liền nhau','subject_sequences'=>'Thứ tự môn','subject_rules'=>'Ràng buộc môn','subject_limit_exceptions'=>'Giới hạn riêng của môn','period_overrides'=>'Khối lượng tiết điều chỉnh'];
+}
+function tlc_bulk_items(array $data): array {
+    $items=[];
+    foreach(tlc_bulk_fields() as $field=>$title) foreach((array)($data[$field]??[]) as $key=>$row){
+        if($field==='scope_blocks'&&!empty($row['special_id']))continue;
+        $label=is_array($row)?implode(' · ',array_filter([
+            $row['teacher']??'', $row['class']??'', implode('+',(array)($row['classes']??[])),
+            $row['subject']??'', $row['label']??'', isset($row['scope'])?($row['scope'].' '.($row['value']??'')):'',
+            isset($row['day'])?'Thứ '.$row['day'].' '.($row['session']??'').' tiết '.($row['period']??''):'',
+            implode(' → ',(array)($row['subjects']??[]))
+        ],fn($v)=>$v!=='')):(string)$row;
+        $items[]=['field'=>$field,'key'=>(string)$key,'title'=>$title,'label'=>$label!==''?$label:(string)$key,
+            'token'=>json_encode(['field'=>$field,'key'=>(string)$key,'hash'=>hash('sha256',serialize($row))],JSON_UNESCAPED_UNICODE)];
+    }
+    return $items;
+}
+function tlc_bulk_delete(array $data, array $input): array {
+    $selected=$input['selected_constraints']??null;
+    if(($input['confirm_bulk']??'')!=='1'||!is_array($selected)||!$selected||count($selected)>500)throw new RuntimeException('Hãy chọn tối đa 500 ràng buộc và xác nhận xóa.');
+    $targets=[];$fields=tlc_bulk_fields();
+    foreach($selected as$token){
+        if(!is_string($token))throw new RuntimeException('Lựa chọn không hợp lệ.');
+        $r=json_decode($token,true);
+        if(!is_array($r)||!is_string($r['field']??null)||!isset($fields[$r['field']])||!is_string($r['key']??null)||!is_string($r['hash']??null))throw new RuntimeException('Lựa chọn không hợp lệ.');
+        $field=$r['field'];$key=$r['key'];
+        if(!array_key_exists($key,(array)($data[$field]??[]))||!hash_equals(hash('sha256',serialize($data[$field][$key])),$r['hash']))throw new RuntimeException('Ràng buộc đã thay đổi. Hãy tải lại trang và chọn lại; chưa xóa mục nào.');
+        if($field==='scope_blocks'&&!empty($data[$field][$key]['special_id']))throw new RuntimeException('Hãy xóa hoạt động chung tương ứng để bỏ khóa ô.');
+        $targets[$field][$key]=true;
+    }
+    foreach($targets as$field=>$keys)foreach($keys as$key=>$_){
+        if($field==='special_slots'){
+            $specialId=(string)($data[$field][$key]['id']??$key);
+            $data['scope_blocks']=array_filter((array)$data['scope_blocks'],fn($r)=>(string)($r['special_id']??'')!==$specialId);
+        }
+        unset($data[$field][$key]);
+    }
+    $data['scope_blocks']=array_values((array)$data['scope_blocks']);
+    return $data;
+}

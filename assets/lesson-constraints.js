@@ -60,7 +60,7 @@ if(saved&&Date.now()-saved.time<30*60*1000){
  single=saved.single; (saved.multiple||[]).forEach(function(s){if(cells.some(function(c){return id(slot(c))===id(s);}))multiple.set(id(s),s);});
  if(single&&!cells.some(function(c){return id(slot(c))===id(single);}))single=null;
  // Restore only controls from these forms; never restore CSRF or actions.
- (saved.controls||[]).forEach(function(r){var form=document.forms[r.form];if(!form)return;var el=editableControls(form)[r.index];if(!el||el.type==='hidden'||(el.name!==r.name&&!(r.name==='scope_value'&&el.dataset.scopeName))||el.id!==r.id)return;if(el.type==='checkbox')el.checked=r.checked;else el.value=r.value;});
+ (saved.controls||[]).forEach(function(r){var form=Array.from(document.forms).find(function(f){return (f.querySelector('input[name="action"]')?.value||'GET')===r.action&&(f.closest('[id$="Panel"]')?.id||'')===r.formPanel;});if(!form)return;var el=editableControls(form)[r.index];if(!el||el.type==='hidden'||(el.name!==r.name&&!(r.name==='scope_value'&&el.dataset.scopeName))||el.id!==r.id)return;if(el.type==='checkbox')el.checked=r.checked;else el.value=r.value;});
  if(saved.panel===requestedPanel)active=saved.panel;
  document.querySelectorAll('.scope-select').forEach(updateScope);classesMode();
  history.scrollRestoration='manual';
@@ -75,7 +75,7 @@ document.addEventListener('submit',function(ev){
   hidden('return_constraints','1');
   var url=new URL(location.href);['double_scope','double_value','double_subject','double_q'].forEach(function(k){if(url.searchParams.has(k))hidden('return_'+k,url.searchParams.get(k));});
  }
- var controls=[];Array.from(document.forms).forEach(function(f,fi){editableControls(f).forEach(function(el,index){if(el.type!=='hidden'&&(el.name||el.id)&&el.type!=='submit')controls.push({form:fi,index:index,name:el.name,id:el.id,value:el.value,checked:el.checked});});});
+ var controls=[];Array.from(document.forms).forEach(function(f,fi){editableControls(f).forEach(function(el,index){if(el.type!=='hidden'&&(el.name||el.id)&&el.type!=='submit'&&el.name!=='selected_constraints[]')controls.push({action:f.querySelector('input[name="action"]')?.value||'GET',formPanel:f.closest('[id$="Panel"]')?.id||'',index:index,name:el.name,id:el.id,value:el.value,checked:el.checked});});});
  try{sessionStorage.setItem(key,JSON.stringify({time:Date.now(),panel:active,y:window.scrollY,single:single,multiple:Array.from(multiple.values()),controls:controls}));}catch(e){}
 });
 })();

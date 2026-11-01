@@ -63,7 +63,7 @@ function e($s){return htmlspecialchars((string)$s,ENT_QUOTES,'UTF-8');}
 function show_flash(){}
 $_GET=['panel'=>'special'];$_SESSION=['ttb_csrf'=>'synthetic-csrf'];
 $page=file_get_contents($root.'/chuyenmon/tkb_lesson_constraints.php');
-$page=preg_replace("~require_once [^;]+;~",'',$page,3);
+$page=preg_replace("~require_once [^;]+;~",'',$page);
 ob_start();eval('?>'.$page);$html=ob_get_clean();
 check(str_contains($html,'id="specialClasses"')&&str_contains($html,'name="classes[]"'),'actual page has class selection');
 if(in_array('--html',$argv,true))file_put_contents(sys_get_temp_dir().'/lesson-constraints.html',$html);

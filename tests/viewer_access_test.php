@@ -61,7 +61,7 @@ PHP);
  check(str_contains($run('POST','chuyenmon/sodaubai.php',[],'cm'),'chỉ được xem'),'CM mutation before init_data');
  // Defense in depth: execute each TKB page with the shared bootstrap gate deliberately absent.
  mkdir($tmp.'/tkb_fixture');mkdir($tmp.'/tkb_fixture/chuyenmon');mkdir($tmp.'/tkb_fixture/chuyenmon/includes');mkdir($tmp.'/tkb_fixture/includes');
- foreach(['tkb_xep.php','tkb_editor.php','tkb_constraints.php']as$p)copy(__DIR__.'/../'.$p,$tmp.'/tkb_fixture/'.$p);
+ foreach(['tkb_xep.php','tkb_editor.php','tkb_constraints.php','includes/timetable_lesson_constraints.php']as$p)copy(__DIR__.'/../'.$p,$tmp.'/tkb_fixture/'.$p);
  file_put_contents($tmp.'/tkb_fixture/chuyenmon/includes/functions.php','<?php require_once dirname(__DIR__,3)."/includes/viewer_access.php";function cds_user(){return ["role"=>"viewer"];}function cds_can_feature(...$args){return false;}');
  file_put_contents($tmp.'/tkb_fixture/chuyenmon/includes/timetable_store.php','<?php ');
  file_put_contents($tmp.'/tkb_fixture/includes/timetable_builder.php','<?php function ttb_data(){exit("AFTER_TKB_GATE");}');

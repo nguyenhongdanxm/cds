@@ -4,6 +4,11 @@ on:
     paths:
       - 'chuyenmon/tkb_lesson_constraints.php'
       - 'tkb_xep.php'
+      - 'tkb_constraints.php'
+      - 'tkb_editor.php'
+      - 'includes/timetable_constraints_bulk_view.php'
+      - 'assets/timetable-constraints-bulk.js'
+      - 'tests/timetable_constraints_bulk*'
       - 'includes/timetable_lesson_constraints.php'
       - 'assets/lesson-constraints.js'
       - 'tests/timetable_lesson_constraints*'
@@ -26,6 +31,10 @@ jobs:
           php -l chuyenmon/tkb_lesson_constraints.php
           php -l includes/timetable_lesson_constraints.php
           node --check assets/lesson-constraints.js
+          node --check assets/timetable-constraints-bulk.js
+          php -l tkb_constraints.php
+          php -l tkb_editor.php
+          php tests/timetable_constraints_bulk_test.php
           php tests/timetable_lesson_constraints_test.php
   browser:
     runs-on: ubuntu-latest
@@ -36,9 +45,9 @@ jobs:
         with:
           php-version: '8.3'
           extensions: mbstring
-      - run: php tests/timetable_lesson_constraints_test.php --html
+      - run: php tests/timetable_lesson_constraints_test.php --html && php tests/timetable_constraints_bulk_test.php --html
       - run: npm install --prefix "$RUNNER_TEMP/constraints-browser" --no-package-lock playwright@1.58.2
       - run: "$RUNNER_TEMP/constraints-browser/node_modules/.bin/playwright install --with-deps chromium"
-      - run: node tests/timetable_lesson_constraints_browser.cjs
+      - run: node tests/timetable_lesson_constraints_browser.cjs && node tests/timetable_constraints_bulk_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/constraints-browser/node_modules
