@@ -17,7 +17,7 @@ $classes=array_values($classes);sort($classes,SORT_NATURAL|SORT_FLAG_CASE);
 $className=trim((string)($_GET['class']??''));
 if(!in_array($className,$classes,true))$className=$classes[0]??'';
 $classSlots=array_values(array_filter($slots,fn($s)=>trim((string)($s['class']??$s['class_raw']??''))===$className));
-foreach((array)($week['special_slots']??[])as$special)if(tkb_activity_visible($special,'class')&&tkb_special_applies_to_class($special,$className))$classSlots[]=tkb_special_slot_row($special,$className);
+foreach((array)($week['special_slots']??[])as$special)if(tkb_activity_visible($special,'class')&&(in_array('school',(array)($special['display_groups']??['school']),true)||tkb_special_applies_to_class($special,$className)))$classSlots[]=tkb_special_slot_row($special,$className);
 $classSlots=tkb_activity_compact_rows($classSlots);
 $grid=[];$max=['Sáng'=>0,'Chiều'=>0];
 foreach($classSlots as$slot){$session=mb_stripos((string)($slot['session']??''),'chiều',0,'UTF-8')!==false?'Chiều':'Sáng';$period=max(1,(int)($slot['period']??1));$day=(int)($slot['day']??0);if($day<2||$day>7)continue;$max[$session]=max($max[$session],$period);$grid[$session][$period][$day][]=$slot;}
