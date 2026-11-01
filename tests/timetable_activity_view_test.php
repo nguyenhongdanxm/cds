@@ -7,7 +7,7 @@ check(count($compact)===3,'One card per activity/time');check(tkb_activity_scope
 check(count(tkb_activity_compact_rows($compact))===3,'Idempotent grouping');
 $lesson=['day'=>5,'session'=>'Chiều','period'=>2,'subject'=>'Toán'];check(count(tkb_activity_compact_rows([...$rows,$lesson,$lesson]))===5,'Keep all actual lessons');
 ob_start();tkb_activity_agenda($rows,'teacher');$html=ob_get_clean();check(substr_count($html,'<li>')===1,'One agenda event');check(str_contains($html,'Tiết 2–3, 5'),'Contiguous ranges only');check(str_contains($html,'Tham khảo'),'Teacher participation not inferred');check(str_contains($html,'&lt;CLB&gt;'),'Escape activity');
-$card=tkb_activity_card($compact[0],'teacher');check(str_contains($card,'7 lớp</small></summary>'),'Collapsed scope visible');check(str_contains($card,'Lớp 11B'),'All scopes accessible');
+$card=tkb_activity_card($compact[0],'teacher');check(!str_contains($card,'7 lớp')&&!str_contains($card,'Lớp 11B'),'No count or class list');check(!str_contains($card,'<details'),'No expanding class list');check(str_contains($card,'&lt;CLB&gt;'),'Escaped activity name');
 $card=tkb_activity_card($compact[0],'class');check(!str_contains($card,'Lớp 11B'),'No repeated class list in class view');
 check(serialize($rows)===$before,'Source immutable');
 $other=$rows[0];$other['subject']='Hoạt động khác';check(count(tkb_activity_compact_rows([...$rows,$other]))===4,'Distinct activities preserved');
@@ -19,3 +19,15 @@ check(tkb_activity_visible([],'teacher')&&tkb_activity_visible([],'class'),'Lega
 $source=file_get_contents(__DIR__.'/../chuyenmon/thoikhoabieu.php');check(!str_contains($source,'tkb_activity_agenda($slots,$mode);'),'No external agenda');
 $public=file_get_contents(__DIR__.'/../chuyenmon/tkb_public.php');check(!str_contains($public,"tkb_activity_agenda(\u0024classSlots"),'No external public agenda');
 echo "Audience combinations passed\n";
+require __DIR__.'/support/load_functions.php';
+load_functions(__DIR__.'/../chuyenmon/includes/timetable_store.php',['tkb_key','tkb_special_applies_to_class','tkb_special_slot_row']);
+function tkb_week_substitutions(array $week,bool $approved):array{return[];}
+load_functions(__DIR__.'/../chuyenmon/thoikhoabieu.php',['tkb_lookup_slots']);
+$week=['special_slots'=>[['id'=>'a','scope'=>'class','value'=>'6A','day'=>5,'session'=>'Chiều','period'=>2,'label'=>'CLB','display_groups'=>['school']]]];
+check(count(tkb_lookup_slots($week,[],'class','','6A'))===1,'Selected class receives activity');
+check(count(tkb_lookup_slots($week,[],'class','','6B'))===0,'Unselected class receives no activity even with school audience');
+check(count(tkb_lookup_slots($week,[],'teacher','GV A',''))===1,'Teacher audience retained');
+$week['special_slots'][0]['display_groups']=['student'];
+check(count(tkb_lookup_slots($week,[],'teacher','GV A',''))===0,'Student-only not on teacher timetable');
+check(count(tkb_lookup_slots($week,[],'class','','6A'))===1,'Student target receives activity');
+echo "Class target lookup assertions passed\n";

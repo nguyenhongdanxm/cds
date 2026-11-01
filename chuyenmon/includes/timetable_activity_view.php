@@ -25,10 +25,7 @@ function tkb_activity_scope(array $row):string{
     return count($classes)===count($scopes)?count($classes).' lớp':count($scopes).' nhóm áp dụng';
 }
 function tkb_activity_card(array $row,string $mode):string{
-    $h='tkb_activity_escape';$scope=tkb_activity_scope($row);
-    $detail=$mode==='class'?'Hoạt động chung':$scope;
-    $all=implode(' · ',(array)($row['_activity_scopes']??[$row['_special_scope']??'']));
-    return'<details class="tkb-activity-card"><summary>'.$h((string)($row['subject']??'Hoạt động chung')).'<small>'.$h($detail).'</small></summary><span class="tkb-activity-detail">'.$h($mode==='class'?'Áp dụng cho lớp đang xem':$all).'</span></details>';
+    return '<div class="tkb-activity-card">'.tkb_activity_escape((string)($row['subject']??'Hoạt động chung')).'</div>';
 }
 function tkb_activity_agenda(array $rows,string $mode):void{
     $groups=[];
