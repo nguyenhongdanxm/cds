@@ -54,12 +54,13 @@ function setPanel(name){
  var url=new URL(location.href);url.searchParams.set('panel',name);history.replaceState(null,'',url);render();
 }
 document.querySelectorAll('[data-bs-target$="Panel"]').forEach(function(b){b.addEventListener('click',function(){setPanel(b.dataset.bsTarget.slice(1,-5));});});
+function editableControls(form){return Array.from(form.elements).filter(function(el){return el.type!=='hidden';});}
 var saved=null;try{saved=JSON.parse(sessionStorage.getItem(key)||'null');sessionStorage.removeItem(key);}catch(e){}
 if(saved&&Date.now()-saved.time<30*60*1000){
  single=saved.single; (saved.multiple||[]).forEach(function(s){if(cells.some(function(c){return id(slot(c))===id(s);}))multiple.set(id(s),s);});
  if(single&&!cells.some(function(c){return id(slot(c))===id(single);}))single=null;
  // Restore only controls from these forms; never restore CSRF or actions.
- (saved.controls||[]).forEach(function(r){var form=document.forms[r.form];if(!form)return;var el=form.elements[r.index];if(!el||el.type==='hidden'||(el.name!==r.name&&!(r.name==='scope_value'&&el.dataset.scopeName))||el.id!==r.id)return;if(el.type==='checkbox')el.checked=r.checked;else el.value=r.value;});
+ (saved.controls||[]).forEach(function(r){var form=document.forms[r.form];if(!form)return;var el=editableControls(form)[r.index];if(!el||el.type==='hidden'||(el.name!==r.name&&!(r.name==='scope_value'&&el.dataset.scopeName))||el.id!==r.id)return;if(el.type==='checkbox')el.checked=r.checked;else el.value=r.value;});
  if(saved.panel===requestedPanel)active=saved.panel;
  document.querySelectorAll('.scope-select').forEach(updateScope);classesMode();
  history.scrollRestoration='manual';
@@ -74,7 +75,7 @@ document.addEventListener('submit',function(ev){
   hidden('return_constraints','1');
   var url=new URL(location.href);['double_scope','double_value','double_subject','double_q'].forEach(function(k){if(url.searchParams.has(k))hidden('return_'+k,url.searchParams.get(k));});
  }
- var controls=[];Array.from(document.forms).forEach(function(f,fi){Array.from(f.elements).forEach(function(el,index){if(el.type!=='hidden'&&(el.name||el.id)&&el.type!=='submit')controls.push({form:fi,index:index,name:el.name,id:el.id,value:el.value,checked:el.checked});});});
+ var controls=[];Array.from(document.forms).forEach(function(f,fi){editableControls(f).forEach(function(el,index){if(el.type!=='hidden'&&(el.name||el.id)&&el.type!=='submit')controls.push({form:fi,index:index,name:el.name,id:el.id,value:el.value,checked:el.checked});});});
  try{sessionStorage.setItem(key,JSON.stringify({time:Date.now(),panel:active,y:window.scrollY,single:single,multiple:Array.from(multiple.values()),controls:controls}));}catch(e){}
 });
 })();
