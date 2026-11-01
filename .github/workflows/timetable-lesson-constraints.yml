@@ -1,0 +1,44 @@
+name: Timetable lesson constraints
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/tkb_lesson_constraints.php'
+      - 'tkb_xep.php'
+      - 'includes/timetable_lesson_constraints.php'
+      - 'assets/lesson-constraints.js'
+      - 'tests/timetable_lesson_constraints*'
+      - '.github/workflows/timetable-lesson-constraints.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l tkb_xep.php
+          php -l chuyenmon/tkb_lesson_constraints.php
+          php -l includes/timetable_lesson_constraints.php
+          node --check assets/lesson-constraints.js
+          php tests/timetable_lesson_constraints_test.php
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: php tests/timetable_lesson_constraints_test.php --html
+      - run: npm install --prefix "$RUNNER_TEMP/constraints-browser" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/constraints-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/timetable_lesson_constraints_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/constraints-browser/node_modules
