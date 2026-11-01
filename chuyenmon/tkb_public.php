@@ -17,7 +17,7 @@ $classes=array_values($classes);sort($classes,SORT_NATURAL|SORT_FLAG_CASE);
 $className=trim((string)($_GET['class']??''));
 if(!in_array($className,$classes,true))$className=$classes[0]??'';
 $classSlots=array_values(array_filter($slots,fn($s)=>trim((string)($s['class']??$s['class_raw']??''))===$className));
-foreach((array)($week['special_slots']??[])as$special)if(tkb_special_applies_to_class($special,$className))$classSlots[]=tkb_special_slot_row($special,$className);
+foreach((array)($week['special_slots']??[])as$special)if(tkb_activity_visible($special,'class')&&(in_array('school',(array)($special['display_groups']??['school']),true)||tkb_special_applies_to_class($special,$className)))$classSlots[]=tkb_special_slot_row($special,$className);
 $classSlots=tkb_activity_compact_rows($classSlots);
 $grid=[];$max=['Sáng'=>0,'Chiều'=>0];
 foreach($classSlots as$slot){$session=mb_stripos((string)($slot['session']??''),'chiều',0,'UTF-8')!==false?'Chiều':'Sáng';$period=max(1,(int)($slot['period']??1));$day=(int)($slot['day']??0);if($day<2||$day>7)continue;$max[$session]=max($max[$session],$period);$grid[$session][$period][$day][]=$slot;}
@@ -39,7 +39,7 @@ $school=defined('SCHOOL_NAME')?SCHOOL_NAME:'Thời khóa biểu';
 <?php if(!$week):?><div class="empty">Chưa có thời khóa biểu được cập nhật.</div>
 <?php elseif($className===''):?><div class="empty">Tuần đã chọn chưa có dữ liệu lớp.</div>
 <?php else:?><div class="meta"><h2>Thời khóa biểu lớp <?=public_tkb_h($className)?></h2><span><?=public_tkb_h($week['label']??'')?> · <?=date('d/m/Y',strtotime((string)$week['start_date']))?>–<?=date('d/m/Y',strtotime((string)$week['end_date']))?></span></div>
-<?php tkb_activity_agenda($classSlots,'class');?>
+
 <div class="table-wrap"><table><thead><tr><th style="width:62px">Buổi</th><th style="width:58px">Tiết</th><?php for($day=2;$day<=7;$day++):?><th>Thứ <?=$day?></th><?php endfor;?></tr></thead><tbody>
 <?php foreach(['Sáng','Chiều']as$session):$count=(int)($max[$session]??0);if($count<1)continue;for($period=1;$period<=$count;$period++):?><tr><?php if($period===1):?><th class="session" rowspan="<?=$count?>"><?=$session?></th><?php endif;?><th class="period"><?=$period?></th><?php for($day=2;$day<=7;$day++):?><td><?php foreach((array)($grid[$session][$period][$day]??[])as$item):?><div class="lesson<?=!empty($item['_special'])?' special':''?>"><div class="subject"><?=public_tkb_h($item['subject']??'')?></div><div class="teacher"><?=public_tkb_h(!empty($item['_special'])?'Hoạt động chung':($item['teacher']??$item['teacher_raw']??''))?></div></div><?php endforeach;?></td><?php endfor;?></tr><?php endfor;endforeach;?>
 </tbody></table></div><?php endif;?>

@@ -1,6 +1,9 @@
 <?php
 /** Expand a validated batch into the existing one-scope/one-slot schema. No solver changes. */
 function tlc_special_batch(array $data, array $assignments, array $input): array {
+    $audiences=$input['display_groups']??(isset($input['display_groups_present'])?[]:['school']);
+    if(!is_array($audiences)||!$audiences||array_diff($audiences,['school','teacher','student']))throw new RuntimeException('Hãy chọn ít nhất một nhóm hiển thị hợp lệ.');
+    $audiences=array_values(array_unique($audiences));
     $scope = (string)($input['scope'] ?? 'school');
     $value = trim((string)($input['scope_value'] ?? ''));
     if (!in_array($scope, ['school','grade','class','classes'], true)) throw new RuntimeException('Hãy chọn đúng phạm vi.');
@@ -40,7 +43,7 @@ function tlc_special_batch(array $data, array $assignments, array $input): array
     $rows = [];
     foreach ($targets as $target) foreach ($validSlots as $slot) {
         $id = 'special_'.bin2hex(random_bytes(6));
-        $rows[$id] = ['id'=>$id] + $target + ['label'=>$label] + $slot + ['source'=>'lesson_constraints'];
+        $rows[$id] = ['id'=>$id] + $target + ['label'=>$label,'display_groups'=>$audiences] + $slot + ['source'=>'lesson_constraints'];
     }
     return $rows;
 }

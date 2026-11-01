@@ -1,4 +1,9 @@
 <?php
+function tkb_activity_visible(array $special,string $mode):bool{
+    $groups=$special['display_groups']??['school'];
+    if(!is_array($groups))return false;
+    return in_array('school',$groups,true)||($mode==='teacher'&&in_array('teacher',$groups,true))||(in_array($mode,['class','school'],true)&&in_array('student',$groups,true));
+}
 /** Presentation only: never persist or alter scheduling constraints. */
 function tkb_activity_escape(string $value):string{return htmlspecialchars($value,ENT_QUOTES,'UTF-8');}
 function tkb_activity_compact_rows(array $rows):array{
@@ -23,7 +28,7 @@ function tkb_activity_card(array $row,string $mode):string{
     $h='tkb_activity_escape';$scope=tkb_activity_scope($row);
     $detail=$mode==='class'?'Hoạt động chung':$scope;
     $all=implode(' · ',(array)($row['_activity_scopes']??[$row['_special_scope']??'']));
-    return'<details class="tkb-activity-card"><summary>'.$h((string)($row['subject']??'Hoạt động chung')).'<small>'.$h($detail).'</small></summary><span class="tkb-activity-detail">'.$h($mode==='class'?'Áp dụng cho lớp đang xem':$all).($mode==='teacher'?' · Lịch tham khảo; tham gia theo phân công':'').'</span></details>';
+    return'<details class="tkb-activity-card"><summary>'.$h((string)($row['subject']??'Hoạt động chung')).'<small>'.$h($detail).'</small></summary><span class="tkb-activity-detail">'.$h($mode==='class'?'Áp dụng cho lớp đang xem':$all).'</span></details>';
 }
 function tkb_activity_agenda(array $rows,string $mode):void{
     $groups=[];

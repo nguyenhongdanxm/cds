@@ -11,7 +11,7 @@ document.querySelectorAll('.rule-list').forEach(function(list,index){
  var button=document.createElement('button');button.className='btn btn-sm btn-outline-danger';button.dataset.bulkSubmit='1';button.disabled=true;form.appendChild(button);
  var count=0;
  list.querySelectorAll('.rule-row').forEach(function(row){
-  var action=row.querySelector('input[name="action"]'),spec=action&&actions[action.value];if(!spec)return;
+  var action=Array.from(row.querySelectorAll('input[name="action"]')).find(function(input){return !!actions[input.value];}),spec=action&&actions[action.value];if(!spec)return;
   var key=row.querySelector('input[name="'+spec[1]+'"]'),item=key&&items.find(function(x){return x.field===spec[0]&&x.key===key.value;});if(!item)return;
   var box=document.createElement('input');box.type='checkbox';box.name='selected_constraints[]';box.value=item.token;box.setAttribute('form',form.id);box.className='me-2';box.setAttribute('aria-label','Chọn '+item.label);
   row.querySelector('span').prepend(box);count++;
