@@ -1,30 +1,36 @@
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
 const {chromium}=require('playwright');
+const http=require('node:http');
 const deadline=setTimeout(()=>{console.error('Timed out');process.exit(1);},45000);deadline.unref();
 (async()=>{
+ let server;
  const browser=await chromium.launch({headless:true});
  try{
  const page=await browser.newPage({viewport:{width:1100,height:650}});
  const html=fs.readFileSync('/tmp/lesson-constraints.html','utf8').replace(/<script src="https:[^"]+"[^>]*><\/script>/g,'');
  const asset=fs.readFileSync('assets/lesson-constraints.js','utf8');
  let posts=[];
- await page.route('**/*',async route=>{
-  const u=new URL(route.request().url());
-  if(u.pathname==='/assets/lesson-constraints.js')return route.fulfill({contentType:'application/javascript; charset=utf-8',body:asset});
+ server=http.createServer(async(req,res)=>{
+  const u=new URL(req.url,'http://localhost');
+  if(u.pathname==='/assets/lesson-constraints.js'){res.writeHead(200,{'Content-Type':'application/javascript; charset=utf-8'});return res.end(asset);}
   if(u.pathname==='/tkb_xep.php'){
-   posts.push(new URLSearchParams(route.request().postData()));
+   let body='';for await(const chunk of req)body+=chunk;
+   posts.push(new URLSearchParams(body));
    const action=posts.at(-1).get('action');
    const panel=action.startsWith('special')?'special':action.startsWith('double')?'double':action.startsWith('subject')?'sequence':'fixed';
-   return route.fulfill({status:303,headers:{location:'/chuyenmon/tkb_lesson_constraints.php?panel='+panel}});
+   res.writeHead(303,{Location:'/chuyenmon/tkb_lesson_constraints.php?panel='+panel});return res.end();
   }
   if(u.pathname==='/chuyenmon/tkb_lesson_constraints.php'){
-   let body=html.replace('var requestedPanel="special"','var requestedPanel='+JSON.stringify(u.searchParams.get('panel')||'special'));
-   return route.fulfill({contentType:'text/html; charset=utf-8',body});
+   const body=html.replace('var requestedPanel="special"','var requestedPanel='+JSON.stringify(u.searchParams.get('panel')||'special'));
+   res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});return res.end(body);
   }
-  return route.abort();
+  res.writeHead(404);res.end();
  });
- await page.goto('http://fixture.test/chuyenmon/tkb_lesson_constraints.php?panel=special');
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const origin='http://127.0.0.1:'+server.address().port;
+ await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
+ await page.goto(origin+'/chuyenmon/tkb_lesson_constraints.php?panel=special');
  const first='.slot-grid td[data-day="2"][data-session="Sáng"][data-period="2"]';
  const second='.slot-grid td[data-day="3"][data-session="Chiều"][data-period="4"]';
  await page.locator(first).click();await page.locator(second).click();
@@ -37,7 +43,7 @@ const deadline=setTimeout(()=>{console.error('Timed out');process.exit(1);},4500
  await page.locator('#specialPanel input[name="label"]').fill('Chào cờ');
  await page.locator('#specialPanel .slot-submit').scrollIntoViewIfNeeded();
  const before=await page.evaluate(()=>scrollY);
- await Promise.all([page.waitForURL('**/*panel=special'),page.locator('#specialPanel .slot-submit').click()]);
+ await Promise.all([page.waitForNavigation({waitUntil:'load'}),page.locator('#specialPanel .slot-submit').click()]);
  await page.waitForLoadState('load');
  assert.equal(posts.length,1);
  assert.deepEqual(posts[0].getAll('classes[]'),['6A','6B']);
@@ -73,5 +79,5 @@ const deadline=setTimeout(()=>{console.error('Timed out');process.exit(1);},4500
  assert.equal(await page.locator('#specialPanel .grade-value').evaluate(e=>e.classList.contains('show')),true);
  assert.equal(await page.locator('#specialPanel .scope-select').isDisabled(),false);
  console.log('PASS browser: multi-slot toggle, selected/all classes, exact POST payload, restored tab/scroll/form/selections, fixed single-slot and legacy scope compatibility');
- }finally{await browser.close();}
+ }finally{await browser.close();if(server)await new Promise(resolve=>server.close(resolve));}
 })().catch(e=>{console.error(e);process.exit(1);});
