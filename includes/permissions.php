@@ -75,7 +75,7 @@ function permission_features_catalog() {
         // Thi đua — quyền đến từng menu con
         'td.teacher_attendance'  => ['module' => 'thidua', 'label' => 'Giáo viên · Chấm công', 'group' => 'Thi đua'],
         'td.teacher_achievement' => ['module' => 'thidua', 'label' => 'Giáo viên · Thành tích', 'group' => 'Thi đua'],
-        'td.teacher_rating'      => ['module' => 'thidua', 'label' => 'Giáo viên · Xếp loại', 'group' => 'Thi đua'],
+        'td.teacher_rating'      => ['module' => 'thidua', 'label' => 'CBGVNV · Đánh giá', 'group' => 'Thi đua'],
         'td.student_score'       => ['module' => 'thidua', 'label' => 'Học sinh · Nề nếp - Học tập', 'group' => 'Thi đua'],
         'td.student_room_input'  => ['module' => 'thidua', 'label' => 'Phòng nội trú · Nhập liệu', 'group' => 'Thi đua học sinh'],
         'td.student_room_stats'  => ['module' => 'thidua', 'label' => 'Phòng nội trú · Thống kê - Xếp loại', 'group' => 'Thi đua học sinh'],

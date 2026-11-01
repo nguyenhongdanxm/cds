@@ -17,6 +17,7 @@ function cds_viewer_read_routes(): array {
     $routes['noitru.php'] .= ' health_view health_q health_class health_from health_to medicine_view meal meal_view rice_view duty_view report_view list_view range attendance_view selected_date';
     $routes['thuvien.php'] .= ' equipment_q equipment_subject equipment_grade equipment_condition equipment_sort equipment_dir borrower_type';
     $routes['vanban.php'] .= ' type issuer_level field number_book number_q number_sort number_dir';
+    $routes['thidua_danhgia.php'] = 'view month staff_id from_month to_month export';
     $routes['thidua.php'] .= ' attendance_view score_view score_from score_to article';
     $routes['trolyai.php'] = 'assistant';
     $routes['tkb_xep.php'] = 'tab view teacher class scope target';

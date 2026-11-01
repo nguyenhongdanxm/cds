@@ -56,8 +56,7 @@ $cmNavGroups = [
     ['label'=>'Theo dõi – Đánh giá','items'=>[
         ['permission'=>'cm.baocao.dugio','pages'=>['dugio'],'href'=>'dugio.php','icon'=>'bi-eye','label'=>'Dự giờ'],
         ['permission'=>'cm.baocao.kythi','pages'=>['kiemtrahoso'],'href'=>'kiemtrahoso.php','icon'=>'bi-folder-check','label'=>'Kiểm tra'],
-        ['permission'=>'cm.baocao.dugio','pages'=>['danhgia'],'tab'=>'profile','href'=>'danhgia.php?view=profile','icon'=>'bi-person-lines-fill','label'=>'Hồ sơ đánh giá'],
-        ['permission'=>'cm.baocao.dugio','pages'=>['danhgia'],'tab'=>'overview','href'=>'danhgia.php?view=overview','icon'=>'bi-bar-chart-line','label'=>'Tổng hợp đánh giá'],
+        ['permission'=>'cm.baocao.dugio','pages'=>['danhgia'],'href'=>'/thidua_danhgia.php','icon'=>'bi-person-lines-fill','label'=>'Đánh giá CBGVNV (Thi đua)'],
     ]],
 ];
 
