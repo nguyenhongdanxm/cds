@@ -12,3 +12,10 @@ $card=tkb_activity_card($compact[0],'class');check(!str_contains($card,'Lớp 11
 check(serialize($rows)===$before,'Source immutable');
 $other=$rows[0];$other['subject']='Hoạt động khác';check(count(tkb_activity_compact_rows([...$rows,$other]))===4,'Distinct activities preserved');
 echo "Activity view assertions passed\n";
+foreach([['school'],['teacher'],['student'],['teacher','student'],['school','teacher'],['school','student'],['school','teacher','student']]as$groups){
+ foreach(['teacher','class','school','room']as$mode){$expected=in_array('school',$groups,true)||($mode==='teacher'&&in_array('teacher',$groups,true))||(in_array($mode,['class','school'],true)&&in_array('student',$groups,true));check(tkb_activity_visible(['display_groups'=>$groups],$mode)===$expected,'Audience matrix');}
+}
+check(tkb_activity_visible([],'teacher')&&tkb_activity_visible([],'class'),'Legacy defaults');
+$source=file_get_contents(__DIR__.'/../chuyenmon/thoikhoabieu.php');check(!str_contains($source,'tkb_activity_agenda($slots,$mode);'),'No external agenda');
+$public=file_get_contents(__DIR__.'/../chuyenmon/tkb_public.php');check(!str_contains($public,"tkb_activity_agenda(\u0024classSlots"),'No external public agenda');
+echo "Audience combinations passed\n";
