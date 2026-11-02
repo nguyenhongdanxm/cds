@@ -5,3 +5,8 @@
 /error_log
 **/error_log
 
+
+# Never commit iOffice local vaults or backup copies.
+**/master.key
+**/account.enc
+**/cds_private/
