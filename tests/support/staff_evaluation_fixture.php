@@ -2,7 +2,7 @@
 // Creates an isolated app with production controller/service; synthetic auth/data only.
 $root=dirname(__DIR__,2);$dir=$argv[1]??'';if($dir===''||!str_starts_with($dir,sys_get_temp_dir().'/se-browser-'))throw new RuntimeException('Use a temporary fixture directory.');
 @mkdir($dir.'/includes',0750,true);@mkdir($dir.'/assets',0750,true);@mkdir($dir.'/data/staff_evaluation',0750,true);
-foreach(['thidua_danhgia.php','includes/staff_evaluation.php','includes/staff_evaluation_month_print.php','assets/staff-evaluation.css','assets/staff-evaluation-print.css','assets/staff-evaluation-form.js']as$f)copy($root.'/'.$f,$dir.'/'.$f);
+foreach(['thidua_danhgia.php','includes/staff_evaluation.php','includes/staff_identity.php','includes/staff_evaluation_month_print.php','assets/staff-evaluation.css','assets/staff-evaluation-print.css','assets/staff-evaluation-form.js']as$f)copy($root.'/'.$f,$dir.'/'.$f);
 file_put_contents($dir.'/includes/auth.php','<?php' . "\n" . 'session_start();define("DATA_PATH",dirname(__DIR__)."/data");define("USERS_FILE",DATA_PATH."/users.json");define("SCHOOL_NAME","TRƯỜNG KIỂM THỬ");require_once '.var_export($root.'/includes/json_store.php',true).';
 function require_login(){}
 function current_user(){return ["id"=>($_GET["as"]??"u1"),"name"=>"Tài khoản kiểm thử","role"=>(($_GET["as"]??"")==="admin"?"admin":(($_GET["as"]??"")==="viewer"?"viewer":"teacher"))];}
@@ -11,7 +11,7 @@ function flash($v,$t=""){$_SESSION["flash"]=$v;}
 function show_flash(){if(!empty($_SESSION["flash"])){echo "<p>".htmlspecialchars($_SESSION["flash"])."</p>";unset($_SESSION["flash"]);}}
 ');
 file_put_contents($dir.'/includes/teacher_evaluation.php','<?php
-function te_teachers(){return [["id"=>"s1","name"=>"Giáo viên kiểm thử A","to_chuyen_mon"=>"Tổ A"],["id"=>"s2","name"=>"Nhân viên kiểm thử B","to_chuyen_mon"=>"Văn phòng"]];}
+function te_teachers(){return [["id"=>"s1","code"=>"0200000001","name"=>"Giáo viên kiểm thử A","to_chuyen_mon"=>"Tổ A"],["id"=>"s2","code"=>"0200000002","name"=>"Nhân viên kiểm thử B","to_chuyen_mon"=>"Văn phòng"]];}
 function te_norm($s){return strtolower(trim($s));}
 function te_teacher_team($s){return $s["to_chuyen_mon"]??"";}
 function te_observations(){return [["id"=>"o1","teacher_id"=>"s1","date"=>"2026-11-02","rating"=>"Giỏi"]];}

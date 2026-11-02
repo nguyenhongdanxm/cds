@@ -62,3 +62,10 @@ Cần bổ sung hướng dẫn của cơ quan quản lý trường khi có; khô
 - Khi đã hoàn tất thẩm định (Chờ phê duyệt), cá nhân không sửa trực tiếp; phải được trả bổ sung. Kỳ đã khóa giữ nguyên quy tắc mở lại có lý do.
 - Bấm gửi sẽ kiểm tra và liệt kê toàn bộ mục thiếu: điểm từng tiêu chí, kết quả chung, kết quả nhiệm vụ, ưu điểm, hạn chế, căn cứ đối tượng và nhiệm vụ chưa xác nhận. Bấm từng dòng lỗi để đến ô cần bổ sung; ô lỗi được đánh dấu, nội dung đã nhập còn nguyên trên biểu mẫu. Gửi lỗi không thay dữ liệu đã lưu.
 - Người thẩm định có nút Lưu nhận xét thẩm định riêng, không tự hoàn tất thẩm định. Nhận xét hiện cho cả cá nhân và người duyệt, lưu người viết, thời gian và phiên bản hồ sơ được nhận xét. Nhận xét trước đó được giữ khi cá nhân sửa và gửi lại. Kết luận thẩm định và ý kiến phê duyệt cũng hiện tại cùng khu vực dễ thấy.
+
+
+### Mã giáo viên trong CSDL
+
+Mã hiển thị trong phần đánh giá, phiếu tháng và CSV tổng hợp lấy từ trường `code` (cột MÃ của bảng giáo viên). Mã được giữ dạng chuỗi, kể cả số 0 đầu. `id` dạng `gv_...` vẫn là khóa liên kết nội bộ để bảo toàn hồ sơ và phân công đã có. Hồ sơ cũ được bổ sung mã khi đọc trong bộ nhớ, không ghi lại dữ liệu khi mở trang; lần lưu hợp lệ tiếp theo mới lưu metadata `staff_code`.
+
+Đối chiếu minh chứng chấp nhận mã CSDL hoặc ID cũ; nếu có nhiều trường mã thì tất cả phải cùng xác định một người. Mã trùng, mã không tồn tại hoặc các tham chiếu mâu thuẫn không được ghép theo tên. Thiếu mã và trùng mã được cảnh báo trong cấu hình; sửa tại CSDL, không tự sinh hoặc đoán mã. Các khóa chính của phân hệ khác không được đổi hàng loạt.
