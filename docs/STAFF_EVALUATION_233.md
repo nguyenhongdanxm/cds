@@ -55,3 +55,10 @@ Cần bổ sung hướng dẫn của cơ quan quản lý trường khi có; khô
 - Năm: chỉ lấy tháng đã khóa, ánh xạ nhận xét chung vào mục I.1; kết quả nhiệm vụ vào I.2; điểm vào bảng theo dõi/tổng hợp; ưu điểm vào I.4 và hạn chế vào I.5. Không tự xếp loại năm. Giữ nguyên bốn phần của Phụ lục II. Điểm bình quân vẫn ghi rõ tham khảo khi chưa xác nhận cách tính theo quy chế.
 - Hồ sơ cũ thiếu hai ô nhận xét nhóm được đọc bằng nội dung minh chứng và nhiệm vụ sẵn có, không sửa tệp, không thay điểm hay bản chốt. Khi sửa bản nháp sẽ lưu theo cấu trúc phiếu mới.
 - Kiểm tra thêm: `php tests/staff_evaluation_form_test.php`. Kiểm thử trình duyệt bao gồm in tháng, in năm, tổng điểm khi nhập, quyền truy cập bản in và đồng bộ nội dung tháng sang đúng mục của phiếu năm.
+
+## Sửa trước thẩm định, bổ sung thiếu và nhận xét chung
+
+- Cá nhân được sửa hồ sơ đang Nháp/Cần bổ sung/Chờ thẩm định. Nếu đang Chờ thẩm định, bấm Gửi lại đánh giá để gửi bản cập nhật; bấm Lưu chỉnh sửa về nháp thì hồ sơ rời hàng chờ, cần gửi lại sau khi hoàn thiện. Sửa kết quả nhiệm vụ hoặc đồng bộ nguồn ở bước này cũng chuyển về nháp. Mỗi lần lưu tăng revision, nên người thẩm định đang mở bản cũ phải tải lại trước khi xác nhận.
+- Khi đã hoàn tất thẩm định (Chờ phê duyệt), cá nhân không sửa trực tiếp; phải được trả bổ sung. Kỳ đã khóa giữ nguyên quy tắc mở lại có lý do.
+- Bấm gửi sẽ kiểm tra và liệt kê toàn bộ mục thiếu: điểm từng tiêu chí, kết quả chung, kết quả nhiệm vụ, ưu điểm, hạn chế, căn cứ đối tượng và nhiệm vụ chưa xác nhận. Bấm từng dòng lỗi để đến ô cần bổ sung; ô lỗi được đánh dấu, nội dung đã nhập còn nguyên trên biểu mẫu. Gửi lỗi không thay dữ liệu đã lưu.
+- Người thẩm định có nút Lưu nhận xét thẩm định riêng, không tự hoàn tất thẩm định. Nhận xét hiện cho cả cá nhân và người duyệt, lưu người viết, thời gian và phiên bản hồ sơ được nhận xét. Nhận xét trước đó được giữ khi cá nhân sửa và gửi lại. Kết luận thẩm định và ý kiến phê duyệt cũng hiện tại cùng khu vực dễ thấy.

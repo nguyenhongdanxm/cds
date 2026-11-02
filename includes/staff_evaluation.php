@@ -38,6 +38,23 @@ function se_scores($input,array $criteria,bool $required=false):array{
 }
 function se_url($value):string{$value=se_text($value,2000);if($value!==''&&(!filter_var($value,FILTER_VALIDATE_URL)||!in_array(strtolower((string)parse_url($value,PHP_URL_SCHEME)),['http','https'],true)))throw new RuntimeException('Minh chứng phải là liên kết http/https.');return$value;}
 function se_editable(array $r):bool{return in_array($r['status'],['draft','returned'],true);}
+class SeValidationException extends RuntimeException{
+ public array $issues;
+ public function __construct(array $issues){$this->issues=$issues;parent::__construct('Hồ sơ chưa đủ điều kiện gửi. Vui lòng bổ sung các mục được chỉ rõ bên dưới.');}
+}
+function se_self_editable(array $r):bool{return in_array($r['status'],['draft','returned','submitted'],true);}
+function se_submission_issues(array $r,array $input):array{
+ $issues=[];$add=function(string $field,string $label)use(&$issues){$issues[]=['field'=>$field,'label'=>$label];};
+ if(empty($r['criteria_version']['active']))$add('#se-config-feedback','Bộ tiêu chí còn dự thảo: cần quản trị kích hoạt quy chế.');
+ if(($r['assignment']['employment']??'')==='hopdong'&&empty($r['assignment']['contract_basis']))$add('#se-config-feedback','Chưa có căn cứ áp dụng đánh giá cho lao động hợp đồng.');
+ foreach($r['criteria']as$c){$value=$input['scores'][$c['id']]??'';$field='scores['.$c['id'].']';if($value===''||$value===null)$add($field,'Chưa chấm điểm: '.$c['id'].'. '.$c['name']);elseif(!is_scalar($value)||!is_numeric($value)||!is_finite((float)$value)||(float)$value<0||(float)$value>(float)$c['max'])$add($field,'Điểm '.$c['id'].' phải từ 0 đến '.$c['max'].'.');}
+ $summary=se_form_summary($r);foreach(['common_summary','task_summary','strengths','limits']as$field)if(array_key_exists($field,$input))$summary[$field]=se_text($input[$field],in_array($field,['common_summary','task_summary'],true)?12000:4000);
+ if(($input['form_schema']??'')==='2'||($r['form_schema']??1)===2){foreach(['common_summary'=>'Kết quả theo tiêu chí chung (30 điểm)','task_summary'=>'Kết quả thực hiện nhiệm vụ (70 điểm)','strengths'=>'Ưu điểm','limits'=>'Hạn chế và hướng khắc phục (ghi rõ nếu không có)']as$field=>$label)if(trim($summary[$field])==='')$add($field,'Cần bổ sung: '.$label.'.');}
+ else foreach($r['criteria']as$c)if(trim((string)($input['evidence'][$c['id']]??$r['evidence_notes'][$c['id']]??''))==='')$add('evidence['.$c['id'].']','Cần căn cứ/giải trình cho tiêu chí '.$c['id'].'.');
+ if(!$r['tasks']&&trim($summary['task_summary'])===''&&trim((string)($input['explanation']??$r['explanation']??''))==='')$add('task_summary','Chưa có kết quả nhiệm vụ; bổ sung công việc hoặc giải trình trường hợp đặc biệt.');
+ foreach($r['tasks']as$t)if(empty($t['cancelled'])&&empty($t['assigned']))$add('#se-task-feedback','Nhiệm vụ tự đề xuất chưa được xác nhận: '.$t['title'].'.');
+ return array_values($issues);
+}
 function se_transition(array $record,array $user,string $action,array $input,array $sources=[],array $config=[]):array{
  if(se_readonly($user)||se_uid($user)==='')throw new RuntimeException('Tài khoản chỉ xem không được cập nhật.');
  if(!se_can_read($record,$user))throw new RuntimeException('Hồ sơ ngoài phạm vi được giao.');
@@ -53,13 +70,13 @@ function se_transition(array $record,array $user,string $action,array $input,arr
   $id=se_text($input['task_id']??'',100);if(!isset($record['tasks'][$id]))throw new RuntimeException('Nhiệm vụ không tồn tại.');
   $t=&$record['tasks'][$id];if(!empty($input['cancel'])){$t['cancelled']=true;}else{$t['product']=se_text($input['product']??'',2000);$t['quality']=se_text($input['quality']??'',2000);$t['due']=se_date(se_text($input['due']??'',10));if(substr($t['due'],0,7)!==$record['month']||$t['product']===''||$t['quality']==='')throw new RuntimeException('Cần sản phẩm, chất lượng và mốc trong tháng.');$t['accepted']=false;unset($t['acceptance'],$t['accepted_by']);}$t['adjustment']=$reason;unset($t);
  }elseif($action==='task_add'){
-  if(!se_editable($record)||!($own||$review||$approve))throw new RuntimeException('Không thể thêm nhiệm vụ ở bước này.');
+  if(!(($own&&se_self_editable($record))||(($review||$approve)&&se_editable($record))))throw new RuntimeException('Không thể thêm nhiệm vụ ở bước này.');
   $title=se_text($input['title']??'',500);$product=se_text($input['product']??'',2000);$quality=se_text($input['quality']??'',2000);if($title===''||$product===''||$quality==='')throw new RuntimeException('Cần tên nhiệm vụ, sản phẩm và yêu cầu chất lượng.');
   $due=se_date(se_text($input['due']??'',10));if(substr($due,0,7)!==$record['month'])throw new RuntimeException('Hạn/mốc sản phẩm phải thuộc tháng đang đánh giá.');
   $weight=$input['weight']??1;if(!is_numeric($weight)||!is_finite((float)$weight)||(float)$weight<=0||(float)$weight>1000)throw new RuntimeException('Khối lượng không hợp lệ.');
   $id=bin2hex(random_bytes(10));$record['tasks'][$id]=['id'=>$id,'title'=>$title,'product'=>$product,'quality'=>$quality,'due'=>$due,'weight'=>(float)$weight,'assigned'=>$review||$approve,'created_by'=>se_uid($user),'result'=>'','url'=>'','completed'=>'','accepted'=>false];
  }elseif($action==='task_result'){
-  if(!$own||!se_editable($record))throw new RuntimeException('Chỉ cá nhân cập nhật kết quả khi hồ sơ đang mở.');$id=se_text($input['task_id']??'',100);if(!isset($record['tasks'][$id])||!empty($record['tasks'][$id]['cancelled']))throw new RuntimeException('Không tìm thấy nhiệm vụ đang áp dụng.');
+  if(!$own||!se_self_editable($record))throw new RuntimeException('Chỉ cá nhân cập nhật kết quả khi hồ sơ đang mở.');$id=se_text($input['task_id']??'',100);if(!isset($record['tasks'][$id])||!empty($record['tasks'][$id]['cancelled']))throw new RuntimeException('Không tìm thấy nhiệm vụ đang áp dụng.');
   $task=&$record['tasks'][$id];$result=se_text($input['result']??'');$url=se_url($input['url']??'');$completed=se_text($input['completed']??'',10);if($completed!=='')se_date($completed);
   if(($task['result']??'')!==$result||($task['url']??'')!==$url||($task['completed']??'')!==$completed){$task['accepted']=false;unset($task['accepted_by'],$task['acceptance']);}
   $task['result']=$result;$task['url']=$url;$task['completed']=$completed;unset($task);
@@ -67,7 +84,8 @@ function se_transition(array $record,array $user,string $action,array $input,arr
   if(!($review||$approve)||!in_array($record['status'],['draft','returned','submitted'],true))throw new RuntimeException('Không có quyền xác nhận nhiệm vụ ở bước này.');$id=se_text($input['task_id']??'',100);if(!isset($record['tasks'][$id])||!empty($record['tasks'][$id]['cancelled']))throw new RuntimeException('Không tìm thấy nhiệm vụ đang áp dụng.');if($reason==='')throw new RuntimeException('Cần nhận xét xác nhận/nghiệm thu.');
   $task=&$record['tasks'][$id];$task['assigned']=true;if(!empty($input['accept_result'])){if($task['result']===''||$task['completed']==='')throw new RuntimeException('Chưa có kết quả và ngày hoàn thành để nghiệm thu.');$task['accepted']=true;$task['accepted_by']=se_uid($user);$task['acceptance']=$reason;}unset($task);
  }elseif(in_array($action,['save_self','submit'],true)){
-  if(!$own||!se_editable($record))throw new RuntimeException('Không thể tự đánh giá ở bước này.');
+  if(!$own||!se_self_editable($record))throw new RuntimeException('Hồ sơ đã hoàn tất thẩm định; cần được trả bổ sung để sửa.');
+  if($action==='submit'){ $issues=se_submission_issues($record,$input);if($issues)throw new SeValidationException($issues);}
   $record['self_scores']=se_scores($input['scores']??[],$record['criteria'],$action==='submit');
   $record['strengths']=se_text($input['strengths']??'');$record['limits']=se_text($input['limits']??'');$record['explanation']=se_text($input['explanation']??'');
   foreach($record['criteria']as$c)$record['evidence_notes'][$c['id']]=se_text($input['evidence'][$c['id']]??($record['evidence_notes'][$c['id']]??''),2000);
@@ -84,6 +102,10 @@ function se_transition(array $record,array $user,string $action,array $input,arr
    foreach($record['tasks']as$t)if(empty($t['cancelled'])&&empty($t['assigned']))throw new RuntimeException('Nhiệm vụ tự đề xuất chưa được người phụ trách xác nhận.');
    $record['review_scores']=[];$record['approved_scores']=[];$record['review_note']='';$record['approval_note']='';$record['status']='submitted';
   }
+ }elseif($action==='review_comment'){
+  if(!$review||!in_array($record['status'],['submitted','reviewed'],true))throw new RuntimeException('Chỉ người thẩm định được giao được ghi nhận xét khi hồ sơ đang thẩm định/chờ duyệt.');
+  if($reason==='')throw new RuntimeException('Hãy nhập nội dung nhận xét thẩm định.');
+  $record['review_comments'][]=['at'=>date('c'),'user_id'=>se_uid($user),'name'=>se_text($user['name']??'',200),'revision'=>$record['revision'],'text'=>$reason];
  }elseif($action==='review'){
   if(!$review||$record['status']!=='submitted')throw new RuntimeException('Chỉ người thẩm định được giao được xử lý hồ sơ đã gửi.');
   if($reason==='')throw new RuntimeException('Cần nhận xét thẩm định và lý do điều chỉnh điểm (nếu có).');$record['review_scores']=se_scores($input['scores']??[],$record['criteria'],true);$record['review_note']=$reason;$record['status']='reviewed';
@@ -95,8 +117,9 @@ function se_transition(array $record,array $user,string $action,array $input,arr
  }elseif($action==='reopen'){
   if(!$approve||$record['status']!=='locked'||$reason==='')throw new RuntimeException('Chỉ người phê duyệt được mở lại với lý do.');$snapshot=$old;unset($snapshot['closed_versions']);$record['closed_versions'][]=$snapshot;$record['approved_scores']=[];$record['approval_note']='';unset($record['locked_at'],$record['locked_by']);$record['status']='returned';$record['return_reason']=$reason;
  }elseif($action==='sync'){
-  if(!($own||$review||$approve)||!se_editable($record))throw new RuntimeException('Chỉ cập nhật minh chứng khi hồ sơ đang mở.');$record['sources']=$sources;$record['sources_at']=date('c');
+  if(!(($own&&se_self_editable($record))||(($review||$approve)&&se_editable($record))))throw new RuntimeException('Chỉ cập nhật minh chứng khi hồ sơ đang mở.');$record['sources']=$sources;$record['sources_at']=date('c');
  }else throw new RuntimeException('Thao tác không hợp lệ.');
+ if($old['status']==='submitted'&&$own&&in_array($action,['save_self','task_result','task_add','sync'],true))$record['status']='draft';
  if(str_starts_with($action,'task_')){$taskId=(string)($input['task_id']??$id??'');$record['task_history'][]=['at'=>date('c'),'by'=>se_uid($user),'action'=>$action,'reason'=>$reason,'before'=>$old['tasks'][$taskId]??null,'after'=>$record['tasks'][$taskId]??null];}
  $record['revision']++;$record['updated_at']=date('c');$record['history'][]=['at'=>date('c'),'user_id'=>se_uid($user),'name'=>se_text($user['name']??'',200),'action'=>$action,'from'=>$old['status'],'to'=>$record['status'],'reason'=>$reason,'config_before'=>$old['criteria_version']['id'],'config_after'=>$record['criteria_version']['id'],'assignment_before'=>$old['assignment'],'assignment_after'=>$record['assignment'],'form_before'=>se_form_summary($old),'form_after'=>se_form_summary($record),'before'=>['self'=>$old['self_scores'],'review'=>$old['review_scores'],'approved'=>$old['approved_scores']],'after'=>['self'=>$record['self_scores'],'review'=>$record['review_scores'],'approved'=>$record['approved_scores']]];
  return$record;
