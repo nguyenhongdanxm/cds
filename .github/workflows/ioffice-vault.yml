@@ -1,0 +1,30 @@
+name: iOffice credential vault
+on:
+  pull_request:
+    paths:
+      - 'includes/ioffice_vault.php'
+      - 'ioffice_settings.php'
+      - 'bin/ioffice-vault.php'
+      - 'tests/ioffice_vault_test.php'
+      - 'tests/ioffice_settings_test.php'
+      - '.github/workflows/ioffice-vault.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+      - run: |
+          php -l includes/ioffice_vault.php
+          php -l ioffice_settings.php
+          php -l bin/ioffice-vault.php
+          php -l vanban.php
+          php tests/ioffice_vault_test.php
+          php tests/ioffice_settings_test.php
