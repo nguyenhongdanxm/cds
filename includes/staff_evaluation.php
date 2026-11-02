@@ -70,12 +70,17 @@ function se_transition(array $record,array $user,string $action,array $input,arr
   if(!$own||!se_editable($record))throw new RuntimeException('Không thể tự đánh giá ở bước này.');
   $record['self_scores']=se_scores($input['scores']??[],$record['criteria'],$action==='submit');
   $record['strengths']=se_text($input['strengths']??'');$record['limits']=se_text($input['limits']??'');$record['explanation']=se_text($input['explanation']??'');
-  foreach($record['criteria']as$c)$record['evidence_notes'][$c['id']]=se_text($input['evidence'][$c['id']]??'',2000);
+  foreach($record['criteria']as$c)$record['evidence_notes'][$c['id']]=se_text($input['evidence'][$c['id']]??($record['evidence_notes'][$c['id']]??''),2000);
+  foreach(['common_summary','task_summary']as$field)if(array_key_exists($field,$input))$record[$field]=se_text($input[$field],12000);
+  if(($input['form_schema']??'')==='2')$record['form_schema']=2;
   if($action==='submit'){
    if(empty($record['criteria_version']['active']))throw new RuntimeException('Bộ tiêu chí còn dự thảo. Cần kích hoạt quy chế trước khi gửi.');
    if(($record['assignment']['employment']??'')==='hopdong'&&empty($record['assignment']['contract_basis']))throw new RuntimeException('Chưa có căn cứ áp dụng đánh giá cho lao động hợp đồng.');
-   foreach($record['criteria']as$c)if($record['evidence_notes'][$c['id']]==='')throw new RuntimeException('Cần căn cứ/giải trình cho từng tiêu chí.');
-   if(!$record['tasks']&&$record['explanation']==='')throw new RuntimeException('Chưa có nhiệm vụ; cần bổ sung hoặc giải trình trường hợp đặc biệt.');
+   $summary=se_form_summary($record);
+   if(($record['form_schema']??1)===2){
+    foreach(['common_summary','task_summary','strengths','limits']as$field)if(trim($summary[$field])==='')throw new RuntimeException('Cần hoàn thiện kết quả tiêu chí chung, kết quả nhiệm vụ, ưu điểm và hạn chế (ghi rõ nếu không có).');
+   }else{foreach($record['criteria']as$c)if($record['evidence_notes'][$c['id']]==='')throw new RuntimeException('Cần căn cứ/giải trình cho từng tiêu chí.');}
+   if(!$record['tasks']&&$record['explanation']===''&&trim($summary['task_summary'])==='')throw new RuntimeException('Chưa có nhiệm vụ; cần bổ sung hoặc giải trình trường hợp đặc biệt.');
    foreach($record['tasks']as$t)if(empty($t['cancelled'])&&empty($t['assigned']))throw new RuntimeException('Nhiệm vụ tự đề xuất chưa được người phụ trách xác nhận.');
    $record['review_scores']=[];$record['approved_scores']=[];$record['review_note']='';$record['approval_note']='';$record['status']='submitted';
   }
@@ -93,7 +98,7 @@ function se_transition(array $record,array $user,string $action,array $input,arr
   if(!($own||$review||$approve)||!se_editable($record))throw new RuntimeException('Chỉ cập nhật minh chứng khi hồ sơ đang mở.');$record['sources']=$sources;$record['sources_at']=date('c');
  }else throw new RuntimeException('Thao tác không hợp lệ.');
  if(str_starts_with($action,'task_')){$taskId=(string)($input['task_id']??$id??'');$record['task_history'][]=['at'=>date('c'),'by'=>se_uid($user),'action'=>$action,'reason'=>$reason,'before'=>$old['tasks'][$taskId]??null,'after'=>$record['tasks'][$taskId]??null];}
- $record['revision']++;$record['updated_at']=date('c');$record['history'][]=['at'=>date('c'),'user_id'=>se_uid($user),'name'=>se_text($user['name']??'',200),'action'=>$action,'from'=>$old['status'],'to'=>$record['status'],'reason'=>$reason,'config_before'=>$old['criteria_version']['id'],'config_after'=>$record['criteria_version']['id'],'assignment_before'=>$old['assignment'],'assignment_after'=>$record['assignment'],'before'=>['self'=>$old['self_scores'],'review'=>$old['review_scores'],'approved'=>$old['approved_scores']],'after'=>['self'=>$record['self_scores'],'review'=>$record['review_scores'],'approved'=>$record['approved_scores']]];
+ $record['revision']++;$record['updated_at']=date('c');$record['history'][]=['at'=>date('c'),'user_id'=>se_uid($user),'name'=>se_text($user['name']??'',200),'action'=>$action,'from'=>$old['status'],'to'=>$record['status'],'reason'=>$reason,'config_before'=>$old['criteria_version']['id'],'config_after'=>$record['criteria_version']['id'],'assignment_before'=>$old['assignment'],'assignment_after'=>$record['assignment'],'form_before'=>se_form_summary($old),'form_after'=>se_form_summary($record),'before'=>['self'=>$old['self_scores'],'review'=>$old['review_scores'],'approved'=>$old['approved_scores']],'after'=>['self'=>$record['self_scores'],'review'=>$record['review_scores'],'approved'=>$record['approved_scores']]];
  return$record;
 }
 function se_configure(array $old,array $user,array $input,array $staff,array $users):array{
@@ -128,4 +133,23 @@ function se_source_rows(array $staff,string $month,array $roster):array{
   $ids=array_filter([(string)($row['teacher_id']??''),(string)($row['person_id']??'')]);$byId=in_array((string)$staff['id'],$ids,true);$byName=!$ids&&$same===1&&te_norm($row['teacher']??$row['teacher_name']??$row['person_name']??'')===$name;if(!$byId&&!$byName)continue;
   $sources[]=['id'=>(string)($row['id']??hash('sha256',json_encode($row))),'type'=>$type,'date'=>$date,'label'=>se_text($row['title']??$row['content']??$row['rating']??$row['status']??$type,6000),'matched'=>$byId?'Mã nhân sự':'Tên duy nhất – cần đối chiếu','url'=>$type==='Dự giờ'?'/chuyenmon/dugio.php':($type==='Kiểm tra hồ sơ'?'/chuyenmon/kiemtrahoso.php':'/thidua.php')];
  }return$sources;
+}
+
+/** Shared month-to-year fields, with read-only fallback for records created before schema 2. */
+function se_form_summary(array $record):array{
+ $a=trim((string)($record['common_summary']??''));$b=trim((string)($record['task_summary']??''));
+ $byGroup=['A'=>[],'B'=>[]];foreach($record['criteria']??[]as$c){$note=trim((string)($record['evidence_notes'][$c['id']]??''));if($note!=='')$byGroup[$c['group']][]=$c['name'].': '.$note;}
+ if($a==='')$a=implode("\n",$byGroup['A']);
+ if($b===''){$lines=[];foreach($record['tasks']??[]as$t)if(empty($t['cancelled']))$lines[]=$t['title'].' — Sản phẩm: '.$t['product'].'; yêu cầu chất lượng: '.$t['quality'].'; hạn: '.$t['due'].'; kết quả: '.($t['result']?:'Chưa cập nhật').'; hoàn thành: '.($t['completed']?:'Chưa xác nhận');$b=implode("\n",array_merge($byGroup['B'],$lines));}
+ return ['common_summary'=>$a,'task_summary'=>$b,'strengths'=>(string)($record['strengths']??''),'limits'=>(string)($record['limits']??'')];
+}
+function se_group_points(array $record,string $stage):array{
+ $scores=$record[$stage]??[];$groups=['A'=>[],'B'=>[]];foreach($record['criteria']??[]as$c)$groups[$c['group']][]=$c;
+ return ['A'=>se_total($scores,$groups['A']),'B'=>se_total($scores,$groups['B']),'total'=>se_total($scores,$record['criteria']??[])];
+}
+function se_year_summary(array $records,string $from,string $to):array{
+ se_month($from);se_month($to);if($from>$to||substr($from,0,4)!==substr($to,0,4))throw new RuntimeException('Khoảng tháng phải trong cùng năm công tác.');
+ $out=['months'=>[],'missing'=>[],'common_summary'=>[],'task_summary'=>[],'strengths'=>[],'limits'=>[],'points'=>['A'=>null,'B'=>null,'total'=>null]];$a=[];$b=[];$total=[];
+ for($month=$from;$month<=$to;$month=date('Y-m',strtotime($month.'-01 +1 month'))){$r=$records[$month]??null;if(!$r||($r['status']??'')!=='locked'){$out['missing'][]=$month;continue;}$p=se_group_points($r,'approved_scores');if($p['total']===null){$out['missing'][]=$month;continue;}$a[]=$p['A'];$b[]=$p['B'];$total[]=$p['total'];$out['months'][]=$month;foreach(se_form_summary($r)as$key=>$value)if($value!=='')$out[$key][]=$month.': '.$value;}
+ if($total)$out['points']=['A'=>round(array_sum($a)/count($a),2),'B'=>round(array_sum($b)/count($b),2),'total'=>round(array_sum($total)/count($total),2)];return$out;
 }
