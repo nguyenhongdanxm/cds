@@ -20,7 +20,7 @@ Thi đua → Đánh giá CBGVNV (`/thidua_danhgia.php`). Ba mục: Đánh giá t
 - Người phụ trách giao nhiệm vụ; cá nhân cũng có thể đề xuất rồi được xác nhận. Khai sản phẩm, yêu cầu chất lượng, khối lượng và hạn/mốc trong tháng. Nhiệm vụ dài hạn khai theo mốc sản phẩm tháng, không nhân đôi toàn bộ khối lượng.
 - Cá nhân ghi kết quả, ngày hoàn thành, liên kết sản phẩm. Người phụ trách xác nhận giao việc/nghiệm thu. Điều chỉnh sản phẩm/chất lượng/hạn hoặc hủy phải có lý do và lưu lịch sử. Sửa kết quả đã nghiệm thu sẽ bỏ trạng thái nghiệm thu cũ.
 - Cập nhật minh chứng từ Dự giờ, Kiểm tra hồ sơ, Chấm công, Thành tích. Ưu tiên mã nhân sự; dữ liệu cũ thiếu mã chỉ ghép khi tên duy nhất trong danh mục và gắn nhãn cần đối chiếu. Có mã khác thì không ghép theo tên. Không tự quy đổi nguồn thành điểm.
-- Cá nhân nhập điểm và căn cứ từng tiêu chí, ưu điểm, hạn chế/hướng khắc phục, giải trình rồi Lưu nháp/Gửi đánh giá. Để trống điểm là chưa đủ căn cứ, không phải 0. Không có nhiệm vụ phải giải trình trường hợp đặc biệt (ví dụ nghỉ theo chế độ).
+- Cá nhân nhập điểm từng tiêu chí, kết quả chung theo hai nhóm, ưu điểm, hạn chế/hướng khắc phục, giải trình rồi Lưu nháp/Gửi đánh giá. Căn cứ riêng từng tiêu chí có thể bổ sung khi cần. Để trống điểm là chưa đủ căn cứ, không phải 0. Không có nhiệm vụ phải giải trình trường hợp đặc biệt (ví dụ nghỉ theo chế độ).
 - Người được phân công thẩm định → người được phân công phê duyệt và khóa. Có thể trả bổ sung với lý do. Điều chỉnh điểm cần nhận xét. Không tự phê duyệt, không cho admin dùng quyền kỹ thuật thay thẩm quyền nghiệp vụ.
 - Kỳ khóa không cho sửa/đồng bộ. Người duyệt có thể mở lại với lý do, giữ bản chốt trước; gửi lại xóa các điểm thẩm định/duyệt hiện hành để xử lý lại.
 
@@ -45,3 +45,13 @@ Chưa thực hiện quyết định xếp loại năm, kiểm soát tỷ lệ xu
 - Các mức xếp loại, điểm năm và tỷ lệ: https://xaydungchinhsach.chinhphu.vn/cac-muc-xep-loai-chat-luong-vien-chuc-119260701155446369.htm
 
 Cần bổ sung hướng dẫn của cơ quan quản lý trường khi có; không coi cấu hình phần mềm là văn bản ban hành quy chế.
+
+
+## Phiếu tháng rút gọn và liên thông phiếu năm
+
+- Màn hình chính là một phiếu tháng: (1) kết quả theo tiêu chí chung; (2) kết quả nhiệm vụ, sản phẩm, số lượng, chất lượng, tiến độ; (3) điểm từng tiêu chí và tổng điểm; (4) ưu điểm; (5) hạn chế và hướng khắc phục. Chỉ cần Lưu nháp hoặc Gửi đánh giá một lần cho các nội dung này.
+- Không bắt nhập lặp minh chứng tại từng dòng khi đã ghi đủ kết quả hai nhóm. Minh chứng theo tiêu chí, giao việc chi tiết và đồng bộ nguồn là các mục thu gọn; dữ liệu và chức năng cũ được giữ.
+- Nút Xem / In phiếu tháng mở cùng hồ sơ đã kiểm tra quyền, có ngày/tháng, người tự đánh giá, ý kiến thẩm định, ý kiến người có thẩm quyền, điểm ba bước và vị trí ký. Bản chưa khóa ghi rõ dự thảo. Có thể dùng In → Lưu PDF. Mẫu tháng là biểu mẫu theo dõi nội bộ của đơn vị, không ghi là mẫu tháng được ban hành kèm Nghị định.
+- Năm: chỉ lấy tháng đã khóa, ánh xạ nhận xét chung vào mục I.1; kết quả nhiệm vụ vào I.2; điểm vào bảng theo dõi/tổng hợp; ưu điểm vào I.4 và hạn chế vào I.5. Không tự xếp loại năm. Giữ nguyên bốn phần của Phụ lục II. Điểm bình quân vẫn ghi rõ tham khảo khi chưa xác nhận cách tính theo quy chế.
+- Hồ sơ cũ thiếu hai ô nhận xét nhóm được đọc bằng nội dung minh chứng và nhiệm vụ sẵn có, không sửa tệp, không thay điểm hay bản chốt. Khi sửa bản nháp sẽ lưu theo cấu trúc phiếu mới.
+- Kiểm tra thêm: `php tests/staff_evaluation_form_test.php`. Kiểm thử trình duyệt bao gồm in tháng, in năm, tổng điểm khi nhập, quyền truy cập bản in và đồng bộ nội dung tháng sang đúng mục của phiếu năm.

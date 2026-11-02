@@ -4,6 +4,9 @@ on:
     paths:
       - 'tools/deploy_cds.php'
       - 'includes/staff_evaluation.php'
+      - 'includes/staff_evaluation_month_print.php'
+      - 'assets/staff-evaluation-print.css'
+      - 'assets/staff-evaluation-form.js'
       - 'thidua_danhgia.php'
       - 'assets/staff-evaluation.css'
       - 'tests/staff_evaluation*'
@@ -25,6 +28,8 @@ jobs:
       - run: |
           php -l includes/staff_evaluation.php
           php -l thidua_danhgia.php
+          php -l includes/staff_evaluation_month_print.php
+          php tests/staff_evaluation_form_test.php
           php tests/staff_evaluation_test.php
           php tests/staff_evaluation_deploy_test.php
           php tests/viewer_access_test.php
