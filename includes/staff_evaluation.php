@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/staff_identity.php';
 /** NĐ 233: monthly workflow. Stored separately from legacy teacher evaluations. */
 function se_text($value,int $limit=4000):string{if(!is_scalar($value)&&$value!==null)throw new RuntimeException('Nội dung không hợp lệ.');$s=trim((string)$value);if(strlen($s)>$limit)throw new RuntimeException('Nội dung quá dài.');return $s;}
 function se_month(string $month):string{if(!preg_match('/^20\d{2}-(0[1-9]|1[0-2])$/D',$month))throw new RuntimeException('Tháng không hợp lệ.');return $month;}
@@ -27,7 +28,7 @@ function se_actor(array $record,array $user,string $role):bool{
 }
 function se_blank(array $staff,string $month,array $config):array{
  $id=se_text($staff['id']??'',100);if($id==='')throw new RuntimeException('Nhân sự thiếu mã.');$a=se_assignment($config,$id);$v=se_version($config,$month);
- return ['revision'=>0,'month'=>se_month($month),'staff_id'=>$id,'name'=>(string)($staff['name']??''),'team'=>(string)($staff['to_chuyen_mon']??$staff['pccm_group']??''),'assignment'=>$a,'criteria_version'=>$v,'criteria'=>$v['profiles'][$a['profile']??'regular']??$v['profiles']['regular'],'status'=>'draft','tasks'=>[],'self_scores'=>[],'review_scores'=>[],'approved_scores'=>[],'evidence_notes'=>[],'sources'=>[],'strengths'=>'','limits'=>'','explanation'=>'','review_note'=>'','approval_note'=>'','history'=>[]];
+ return ['revision'=>0,'month'=>se_month($month),'staff_id'=>$id,'staff_code'=>si_code($staff),'name'=>(string)($staff['name']??''),'team'=>(string)($staff['to_chuyen_mon']??$staff['pccm_group']??''),'assignment'=>$a,'criteria_version'=>$v,'criteria'=>$v['profiles'][$a['profile']??'regular']??$v['profiles']['regular'],'status'=>'draft','tasks'=>[],'self_scores'=>[],'review_scores'=>[],'approved_scores'=>[],'evidence_notes'=>[],'sources'=>[],'strengths'=>'','limits'=>'','explanation'=>'','review_note'=>'','approval_note'=>'','history'=>[]];
 }
 function se_total(array $scores,array $criteria):?float{$sum=0;foreach($criteria as$c){if(!array_key_exists($c['id'],$scores)||$scores[$c['id']]===null)return null;$sum+=(float)$scores[$c['id']];}return round($sum,2);}
 function se_scores($input,array $criteria,bool $required=false):array{
@@ -136,7 +137,7 @@ function se_configure(array $old,array $user,array $input,array $staff,array $us
  foreach($staff as$s){$id=(string)$s['id'];$r=$input['assignments'][$id]??se_assignment($old,$id);$a=[];foreach(['user_id','reviewer','approver']as$key){$a[$key]=se_text($r[$key]??'',100);if($a[$key]!==''&&!isset($validUsers[$a[$key]]))throw new RuntimeException('Tài khoản phân quyền không hợp lệ.');}
   if($a['user_id']!==''&&isset($assigned[$a['user_id']]))throw new RuntimeException('Một tài khoản chỉ liên kết một nhân sự.');if($a['user_id']!=='')$assigned[$a['user_id']]=true;
   if($a['user_id']!==''&&in_array($a['user_id'],[$a['reviewer'],$a['approver']],true))throw new RuntimeException('Không được tự thẩm định/phê duyệt hồ sơ của mình.');
-  $a['profile']=($r['profile']??'')==='manager'?'manager':'regular';$a['employment']=($r['employment']??'')==='hopdong'?'hopdong':'vienchuc';$a['contract_basis']=se_text($r['contract_basis']??'',500);$a['position']=se_text($r['position']??'',200);$a['external']=!empty($r['external']);$new['assignments'][$id]=$a;
+  $a['staff_code']=si_code($s);$a['profile']=($r['profile']??'')==='manager'?'manager':'regular';$a['employment']=($r['employment']??'')==='hopdong'?'hopdong':'vienchuc';$a['contract_basis']=se_text($r['contract_basis']??'',500);$a['position']=se_text($r['position']??'',200);$a['external']=!empty($r['external']);$new['assignments'][$id]=$a;
  }
  $new['assignment_history'][]=['at'=>date('c'),'by'=>se_uid($user),'before'=>$old['assignments']??[],'after'=>$new['assignments']];$new['revision']=($old['revision']??0)+1;return$new;
 }
@@ -148,13 +149,13 @@ function se_update(string $file,callable $fn,array $default):void{
  $error=null;$ok=cds_json_update($file,function($current)use($fn,&$error){try{return$fn($current);}catch(Throwable$e){$error=$e;return false;}},$default);if($error)throw$error;if(!$ok)throw new RuntimeException('Không lưu được dữ liệu. Hãy tải lại và thử lại.');
 }
 function se_source_rows(array $staff,string $month,array $roster):array{
- $sources=[];$name=te_norm($staff['name']??'');$same=count(array_filter($roster,fn($s)=>te_norm($s['name']??'')===$name));
+ $sources=[];$identityIndex=si_index($roster);
  $groups=['Dự giờ'=>te_observations(),'Kiểm tra hồ sơ'=>te_file_checks(),'Thi đua'=>load_json(DATA_PATH.'/thidua.json',[])['records']??[]];
  foreach($groups as$type=>$rows)foreach($rows as$row){
   if($type==='Thi đua'&&!in_array($row['type']??'',['teacher_attendance','teacher_achievement'],true))continue;
   $date=(string)($row['date']??$row['start_date']??$row['from_date']??'');$end=(string)($row['to_date']??$date);$from=$month.'-01';$to=date('Y-m-t',strtotime($from));if($date===''||$date>$to||$end<$from)continue;
-  $ids=array_filter([(string)($row['teacher_id']??''),(string)($row['person_id']??'')]);$byId=in_array((string)$staff['id'],$ids,true);$byName=!$ids&&$same===1&&te_norm($row['teacher']??$row['teacher_name']??$row['person_name']??'')===$name;if(!$byId&&!$byName)continue;
-  $sources[]=['id'=>(string)($row['id']??hash('sha256',json_encode($row))),'type'=>$type,'date'=>$date,'label'=>se_text($row['title']??$row['content']??$row['rating']??$row['status']??$type,6000),'matched'=>$byId?'Mã nhân sự':'Tên duy nhất – cần đối chiếu','url'=>$type==='Dự giờ'?'/chuyenmon/dugio.php':($type==='Kiểm tra hồ sơ'?'/chuyenmon/kiemtrahoso.php':'/thidua.php')];
+  $matched=si_match($row,(string)$staff['id'],$identityIndex);if($matched==='')continue;
+  $sources[]=['id'=>(string)($row['id']??hash('sha256',json_encode($row))),'type'=>$type,'date'=>$date,'label'=>se_text($row['title']??$row['content']??$row['rating']??$row['status']??$type,6000),'matched'=>$matched,'staff_code'=>si_code($staff),'url'=>$type==='Dự giờ'?'/chuyenmon/dugio.php':($type==='Kiểm tra hồ sơ'?'/chuyenmon/kiemtrahoso.php':'/thidua.php')];
  }return$sources;
 }
 
