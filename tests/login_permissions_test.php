@@ -1,0 +1,7 @@
+<?php
+function check($v,$m){if(!$v)throw new RuntimeException($m);}
+$GLOBALS['reads']=0;$GLOBALS['saved']=[];function cds_json_load($f,$d){$GLOBALS['reads']++;return $GLOBALS['saved'];}
+require __DIR__.'/../includes/chuyenmon_permission_runtime.php';
+foreach([[],['gv'=>['access'=>['cm.pccm'=>'none','cm.baocao'=>'view']]],['gv'=>['access'=>['cm.baocao.dinhky'=>'edit']]]]as$saved){$GLOBALS['saved']=$saved;foreach([['role'=>'admin'],['role'=>'viewer'],['role'=>'gv'],['role'=>'gv','groups'=>['gv'],'permission_model_version'=>2],['role'=>'gv','permission_model_version'=>2,'groups'=>['gv'],'permission_overrides'=>['cm.pccm'=>'none']]]as$user){$old=[];foreach(cds_cm_permission_codes()as$code)$old[$code]=cds_cm_feature_access_for_user($user,$code,'/fixture');$GLOBALS['reads']=0;$groups=cds_cm_permission_groups('/fixture');$new=[];foreach(cds_cm_permission_codes()as$code)$new[$code]=cds_cm_feature_access_for_user($user,$code,'/fixture',$groups);check($old===$new,'All feature permissions identical with explicit snapshot');check($GLOBALS['reads']===1,'One group-file read per full permission calculation');}}
+$GLOBALS['saved']=['gv'=>['access'=>['cm.pccm'=>'none']]];$groups=cds_cm_permission_groups('/fixture');check(cds_cm_feature_access_for_user(['role'=>'gv','groups'=>['gv'],'permission_model_version'=>2],'cm.pccm','/fixture',$groups)==='none','Revocation read freshly on next calculation');
+echo "PASS permission read optimization: exact parity across roles, legacy/groups/overrides and fresh revocation; one group-file read per calculation\n";

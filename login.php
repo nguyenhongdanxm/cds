@@ -1,22 +1,33 @@
 <?php
-require_once 'includes/auth.php';
+header('Cache-Control: no-store, private, max-age=0');
+header('Pragma: no-cache');
+define('CDS_SKIP_DRIVE_ACTION_REGISTRATION', true);
+define('CDS_AUTH_LOGIN_ONLY', true);
+$loginStarted=hrtime(true);
+require_once __DIR__.'/includes/auth.php';
 if (is_logged_in()) {
+    session_write_close();
     header('Location: ' . BASE_URL . 'admin.php');
     exit;
 }
 $error = '';
 $user = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $user = trim($_POST['username'] ?? '');
-    $pass = $_POST['password'] ?? '';
+    $user = is_string($_POST['username']??null)?trim($_POST['username']):'';
+    $pass = is_string($_POST['password']??null)?$_POST['password']:'';
     if (attempt_login($user, $pass)) {
         $next = $_GET['next'] ?? (BASE_URL . 'admin.php');
         if (!str_starts_with($next, '/') || str_starts_with($next, '//') || str_contains($next, '://')) $next = BASE_URL . 'admin.php';
+        header('Server-Timing: login;dur='.round((hrtime(true)-$loginStarted)/1e6,1));
+        session_write_close();
         header('Location: ' . $next);
         exit;
     }
-    $error = 'Sai tài khoản hoặc mật khẩu.';
+    $error = $GLOBALS['cds_login_error']??'Sai tài khoản hoặc mật khẩu.';
+    header('Server-Timing: login;dur='.round((hrtime(true)-$loginStarted)/1e6,1));
 }
+// Release the session before rendering so parallel login/asset requests need not wait.
+if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -27,9 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link rel="manifest" href="<?= e(BASE_URL) ?>manifest.php">
 <link rel="apple-touch-icon" href="<?= e(BASE_URL) ?>assets/icons/cds-192.png">
 <title>Đăng nhập – CDS <?= e(SCHOOL_SHORT) ?></title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <style>
+*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,sans-serif;color:#182a42}.container{width:100%;padding:24px}.card{background:#fff;overflow:hidden}.mx-auto{margin-inline:auto}.text-center{text-align:center}.py-3{padding-block:16px}.p-4{padding:24px}.small,.form-text{font-size:.875rem}.opacity-75{opacity:.75}.mb-3{margin-bottom:16px}.mt-3{margin-top:16px}.fw-semibold{font-weight:600}.form-label{display:block;margin-bottom:6px}.form-control{display:block;width:100%;padding:11px 12px;border:1px solid #b8c5d4;border-radius:8px;font:inherit}.form-control:focus{outline:2px solid #78b0de;outline-offset:1px}.form-check{padding-left:24px}.form-check-input{float:left;margin:5px 0 0 -24px;width:16px;height:16px}.form-text,.text-muted{color:#596b7f}.form-text{margin-top:5px}.btn{cursor:pointer;color:white;padding:11px 16px;border-radius:8px;font:inherit;font-weight:600}.btn:disabled{opacity:.7;cursor:wait}.w-100{width:100%}.alert{padding:10px 12px;border-radius:8px;margin-bottom:16px}.alert-danger{background:#fff0f0;color:#8b2323;border:1px solid #efb5b5}a{color:#245e8c}
 body{min-height:100vh;display:flex;align-items:center;justify-content:center;
 background:radial-gradient(ellipse at center,#124a8a 0%,#0a2a5c 60%,#061428 100%);}
 .card{border:none;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.3);max-width:400px;width:100%}
@@ -59,8 +69,8 @@ background:radial-gradient(ellipse at center,#124a8a 0%,#0a2a5c 60%,#061428 100%
           <label class="form-check-label fw-semibold" for="rememberLogin">Ghi nhớ tài khoản và mật khẩu</label>
           <div class="form-text">Mật khẩu được lưu an toàn bởi trình duyệt. Không chọn trên máy dùng chung.</div>
         </div>
-        <button class="btn btn-primary w-100" style="background:#1F4E79;border:0">
-          <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
+        <button type="submit" id="loginSubmit" class="btn btn-primary w-100" style="background:#1F4E79;border:0">
+          Đăng nhập
         </button>
       </form>
       <div class="text-center mt-3">
@@ -86,7 +96,11 @@ background:radial-gradient(ellipse at center,#124a8a 0%,#0a2a5c 60%,#061428 100%
     // Trình duyệt có thể chặn bộ nhớ cục bộ; đăng nhập vẫn hoạt động bình thường.
   }
 
-  form.addEventListener('submit', function () {
+  let submitting=false;
+  form.addEventListener('submit', function (event) {
+    if(submitting){event.preventDefault();return;}
+    submitting=true;const button=document.getElementById('loginSubmit');button.disabled=true;button.textContent='Đang đăng nhập…';
+    form.setAttribute('aria-busy','true');
     try {
       if (remember.checked) localStorage.setItem(storageKey, username.value.trim());
       else localStorage.removeItem(storageKey);
@@ -94,6 +108,7 @@ background:radial-gradient(ellipse at center,#124a8a 0%,#0a2a5c 60%,#061428 100%
       // Không ảnh hưởng tới quá trình gửi biểu mẫu đăng nhập.
     }
   });
+  window.addEventListener('pageshow',()=>{submitting=false;const button=document.getElementById('loginSubmit');button.disabled=false;button.textContent='Đăng nhập';form.removeAttribute('aria-busy');});
 })();
 </script>
 </body>

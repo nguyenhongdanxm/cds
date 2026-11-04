@@ -1,0 +1,46 @@
+name: Login consistency and speed
+on:
+  pull_request:
+    paths:
+      - 'login.php'
+      - 'includes/auth.php'
+      - 'includes/permissions.php'
+      - 'includes/chuyenmon_permission_runtime.php'
+      - 'tests/login*'
+      - 'tests/support/login_fixture.php'
+      - '.github/workflows/login.yml'
+  workflow_dispatch:
+jobs:
+  login:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, tokenizer
+      - run: |
+          php -l login.php
+          php -l includes/auth.php
+          php -l includes/permissions.php
+          php -l includes/chuyenmon_permission_runtime.php
+          php tests/login_test.php
+          php tests/login_permissions_test.php
+          php tests/viewer_access_test.php
+          php tests/substitution_permissions_test.php
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: npm install --prefix "$RUNNER_TEMP/login-browser" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/login-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/login_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/login-browser/node_modules
