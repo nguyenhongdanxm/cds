@@ -8,6 +8,7 @@ on:
       - 'chuyenmon/includes/lesson_book_bulk_delete*.php'
       - 'assets/lesson-book-bulk-delete.js'
       - 'tests/lesson_book_bulk_delete*'
+      - 'tests/lesson_book_sign*'
       - '.github/workflows/lesson-book-bulk-delete.yml'
   workflow_dispatch:
 jobs:
@@ -29,6 +30,7 @@ jobs:
           node --check assets/lesson-book-bulk-delete.js
           php tests/lesson_book_bulk_delete_test.php
           php tests/lesson_book_sign_validation_test.php
+          php tests/lesson_book_sign_performance_test.php
   sql:
     runs-on: ubuntu-latest
     strategy:
@@ -69,8 +71,12 @@ jobs:
         with:
           php-version: '8.3'
       - run: php tests/lesson_book_bulk_delete_fixture.php
+      - run: php tests/lesson_book_sign_browser_fixture.php
       - run: npm install --prefix "$RUNNER_TEMP/lb-bulk-browser" --no-package-lock playwright@1.58.2
       - run: "$RUNNER_TEMP/lb-bulk-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/lesson_book_sign_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/lb-bulk-browser/node_modules
       - run: node tests/lesson_book_bulk_delete_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/lb-bulk-browser/node_modules
