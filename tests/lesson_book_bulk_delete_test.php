@@ -11,6 +11,14 @@ $week=['key'=>'6','start'=>'2026-10-05','end'=>'2026-10-11'];$a=['slot_id'=>'a',
 $choice=fn($r)=>['id'=>$r['slot_id'],'signed_at'=>$r['signed_at'],'updated_at'=>$r['updated_at'],'version'=>lb_bulk_delete_version($r)];$selection=json_encode([$choice($a),$choice($b)]);
 $reset=function()use($rows){cds_json_save(LB_RECORDS_FILE,$rows);$GLOBALS['sql']=array_column($rows,null,'slot_id');$GLOBALS['shadow']=false;$GLOBALS['pending']=null;$GLOBALS['sql_fail']=false;$GLOBALS['mark_fail']=false;unset($GLOBALS['resign'],$GLOBALS['cds_force_json_lb_read']);};
 try{
+// Render the real checkbox with a stale display snapshot and a current JSON record.
+$view=file_get_contents(__DIR__.'/../chuyenmon/sodaubai.php');
+preg_match('/<input type="checkbox" class="lb-delete-select".*?aria-label=.*?>/s',$view,$markup);
+check(!empty($markup[0]),'Actual selection markup found');
+$r=array_replace($a,['signed_at'=>'old snapshot','updated_at'=>'old snapshot']);$lbDeleteRows=['a'=>$a];$lbDeleteVersions=['a'=>lb_bulk_delete_version($a)];
+function e($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
+ob_start();eval('?>'.$markup[0]);$html=ob_get_clean();
+check(str_contains($html,'data-signed-at="'.$a['signed_at'].'"')&&str_contains($html,'data-updated-at="'.$a['updated_at'].'"')&&!str_contains($html,'old snapshot'),'Checkbox timestamps and version use the same JSON record despite stale display snapshot');
 $reset();$GLOBALS['admin']=false;check(!lb_bulk_delete_signed($week,$selection,'Lý do','1')['ok']&&cds_json_load(LB_RECORDS_FILE)===$rows,'Teacher cannot delete');$GLOBALS['admin']=true;
 foreach([['[]','reason','1'],['broken','reason','1'],[$selection,'','1'],[$selection,'reason','0'],[json_encode([$choice($a),$choice($other)]),'reason','1'],[json_encode([$choice($a),$choice($unsigned)]),'reason','1'],[json_encode([$choice($a),array_replace($choice($b),['signed_at'=>'stale'])]),'reason','1'],[json_encode([$choice($a),array_replace($choice($b),['id'=>'missing'])]),'reason','1']] as [$json,$reason,$confirmed]){check(!lb_bulk_delete_signed($week,$json,$reason,$confirmed)['ok'],'Invalid/stale selection rejected');check(cds_json_load(LB_RECORDS_FILE)===$rows,'Entire batch untouched on rejection');}
 $changed=$rows;$changed[0]['lesson_title']='Sửa trong cùng giây';cds_json_save(LB_RECORDS_FILE,$changed);check(!lb_bulk_delete_signed($week,$selection,'reason','1')['ok']&&cds_json_load(LB_RECORDS_FILE)===$changed,'Full version catches edits with unchanged timestamp');$reset();

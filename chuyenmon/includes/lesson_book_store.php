@@ -2,6 +2,7 @@
 /** Sổ đầu bài: dữ liệu độc lập theo từng tiết, dùng chung Tuần học và TKB. */
 require_once __DIR__ . '/timetable_store.php';
 require_once __DIR__.'/lesson_book_statistics_access.php';
+require_once __DIR__.'/lesson_book_sign_validation.php';
 
 define('LB_RECORDS_FILE', DATA_PATH . '/lesson_book_records.json');
 define('LB_CURRICULUM_FILE', DATA_PATH . '/lesson_book_curriculum.json');
@@ -270,7 +271,7 @@ function lb_sign_date_error(array $slot,?DateTimeImmutable $now=null): string {
 function lb_commit_record(array $week,array $input,bool $sign=false): array {
  $slotId=trim((string)($input['slot_id']??''));
  if($sign){$slot=null;foreach(lb_slots($week)as$r)if(($r['slot_id']??'')===$slotId){$slot=$r;break;}if(!$slot)return['ok'=>false,'message'=>'Không tìm thấy tiết học.'];$dateError=lb_sign_date_error($slot);if($dateError!=='')return['ok'=>false,'message'=>$dateError];}
- if($sign){$status=trim((string)($input['status']??''));if($status===''||$status==='pending')$input['status']='taught';}
+ if($sign){$missing=lb_sign_required_fields($input);if($missing)return['ok'=>false,'message'=>'Chưa thể ký: còn thiếu '.implode(', ',$missing).'.'];}
  $saved=lb_save_record($week,$input);
  if(empty($saved['ok']))return$saved;
  if(!$sign)return$saved;
@@ -302,7 +303,7 @@ function lb_sign(array $week,string $slotId): array {
  if(!lb_can_edit($slot))return['ok'=>false,'message'=>'Bạn không được ký tiết này.'];
  if(lb_locked($week,$slot))return['ok'=>false,'message'=>'Sổ đã khóa.'];
  $row=[];foreach(lb_rows(LB_RECORDS_FILE)as$r)if(($r['slot_id']??'')===$slotId){$row=$r;break;}
- if(!$row)return['ok'=>false,'message'=>'Hãy lưu nội dung tiết trước khi ký.'];
+ if(!$row)return['ok'=>false,'message'=>'Hãy lưu nội dung tiết trước khi ký.'];$missing=lb_sign_required_fields($row);if($missing)return['ok'=>false,'message'=>'Chưa thể ký: còn thiếu '.implode(', ',$missing).'.'];
  $sig=lb_signature_meta();
  $row['signed_at']=date('c');$row['signed_by']=lb_teacher_name();$row['updated_at']=date('c');$row['updated_by']=lb_teacher_name();
  if($sig){$row['signature_path']=$sig['path'];$row['signature_version']=$sig['version'];}else unset($row['signature_path'],$row['signature_version']);
