@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'chuyenmon/sodaubai.php'
+      - 'chuyenmon/includes/lesson_book_store.php'
+      - 'chuyenmon/includes/lesson_book_sign_validation.php'
       - 'chuyenmon/includes/lesson_book_bulk_delete*.php'
       - 'assets/lesson-book-bulk-delete.js'
       - 'tests/lesson_book_bulk_delete*'
@@ -26,6 +28,7 @@ jobs:
           php -l chuyenmon/includes/lesson_book_bulk_delete_view.php
           node --check assets/lesson-book-bulk-delete.js
           php tests/lesson_book_bulk_delete_test.php
+          php tests/lesson_book_sign_validation_test.php
   sql:
     runs-on: ubuntu-latest
     strategy:
