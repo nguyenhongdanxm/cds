@@ -2,7 +2,7 @@
 const button=document.getElementById('lbBulkDeleteButton'),all=document.getElementById('lbDeleteSelectAll'),reason=document.getElementById('lbBulkDeleteReason'),status=document.getElementById('lbBulkDeleteStatus');let busy=false;
 const boxes=()=>[...document.querySelectorAll('.lb-delete-select')];const selected=()=>boxes().filter(el=>el.checked);
 function sync(){const count=selected().length;button.textContent=`Xóa ${count} tiết đã chọn`;button.disabled=busy||!count;if(all){all.checked=boxes().length>0&&count===boxes().length;all.indeterminate=count>0&&!all.checked;}}
-all?.addEventListener('change',()=>{boxes().forEach(el=>el.checked=all.checked);sync();});boxes().forEach(el=>el.addEventListener('change',sync));
+all?.addEventListener('change',()=>{boxes().forEach(el=>el.checked=all.checked);sync();});document.addEventListener('change',event=>{if(event.target.matches('.lb-delete-select'))sync();});
 button.addEventListener('click',async()=>{if(busy)return;const rows=selected(),sign=document.getElementById('lbBulkSign');if(sign?.disabled){status.textContent='Hãy chờ thao tác ký hoàn tất.';return;}if(!rows.length||rows.length>200){status.textContent='Chọn từ 1 đến 200 tiết đã ký.';return;}if(!reason.value.trim()){status.textContent='Nhập lý do xóa.';reason.focus();return;}
 if(!window.confirm(`Xóa dữ liệu và chữ ký của ${rows.length} tiết đã chọn? Tiết trong TKB vẫn được giữ. Lý do: ${reason.value.trim()}`))return;
 busy=true;sync();const controls=[...document.querySelectorAll('.lb-sign-btn,#lbBulkSign,.lb-delete-record button,.lb-delete-select,#lbDeleteSelectAll')].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);status.textContent='Đang kiểm tra và xóa các tiết đã chọn…';
