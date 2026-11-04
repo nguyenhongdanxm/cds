@@ -3,6 +3,10 @@
 Phần này chỉ lưu tài khoản mã hóa. Chưa cài bộ tự đăng nhập, đọc văn bản hay gửi thông báo iOffice.
 Không khởi động lại tác vụ ChatGPT dựa trên kho này: đó là hai môi trường riêng.
 
+## 0. Cập nhật mã nguồn lên hosting
+
+Trong cPanel → Git Version Control, chọn repository CDS → Manage → Pull or Deploy → Update from Remote, sau đó Deploy HEAD Commit. Quy trình triển khai chép `ioffice_settings.php`, `bin/ioffice-vault.php` và `includes/ioffice_vault.php` sang thư mục website; giữ nguyên dữ liệu hiện có. Nếu trang báo 404, kiểm tra ba tệp này đã có trong document root của tên miền CDS và nhật ký triển khai có `CDS_DEPLOY_OK`. Chỉ Pull mã nguồn chưa đủ nếu repository và thư mục website tách riêng.
+
 ## 1. Kiểm tra hosting
 
 - Cần PHP 8+ và extension Sodium; bật trong PHP Selector hoặc nhờ nhà cung cấp.

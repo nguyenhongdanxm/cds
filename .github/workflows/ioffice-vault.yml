@@ -7,6 +7,8 @@ on:
       - 'bin/ioffice-vault.php'
       - 'tests/ioffice_vault_test.php'
       - 'tests/ioffice_settings_test.php'
+      - 'tools/deploy_cds.php'
+      - 'tests/staff_evaluation_deploy_test.php'
       - '.github/workflows/ioffice-vault.yml'
   workflow_dispatch:
 jobs:
@@ -28,3 +30,4 @@ jobs:
           php -l vanban.php
           php tests/ioffice_vault_test.php
           php tests/ioffice_settings_test.php
+          php tests/staff_evaluation_deploy_test.php
