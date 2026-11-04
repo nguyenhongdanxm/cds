@@ -33,14 +33,20 @@ function cds_cm_load_array_file(string $file): array {
     return is_array($data) ? $data : [];
 }
 
-function cds_cm_feature_access_for_user(array $user, string $code, string $rootDataPath): string {
+function cds_cm_permission_groups(string $rootDataPath): array {
+    $groups=cds_cm_default_group_access();
+    foreach(cds_cm_load_array_file(rtrim($rootDataPath,'/').'/permission_groups.json') as $key=>$group){if(is_array($group))$groups[$key]=is_array($group['access']??null)?$group['access']:[];}
+    return $groups;
+}
+
+function cds_cm_feature_access_for_user(array $user, string $code, string $rootDataPath, ?array $groups=null): string {
     if (($user['role'] ?? '') === 'viewer') return in_array($code, array_merge(cds_cm_permission_codes(), ['cm.baocao','cm.tkb']), true) ? 'view' : 'none';
     if (($user['role'] ?? '') === 'admin') return 'delete';
     $reports = ['cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi'];
     if ($code === 'cm.baocao') {
         $best = 'none';
         foreach ($reports as $child) {
-            $level = cds_cm_feature_access_for_user($user, $child, $rootDataPath);
+            $level = cds_cm_feature_access_for_user($user, $child, $rootDataPath, $groups);
             if (cds_cm_permission_rank($level) > cds_cm_permission_rank($best)) $best = $level;
         }
         return $best;
@@ -56,10 +62,7 @@ function cds_cm_feature_access_for_user(array $user, string $code, string $rootD
         if (cds_cm_permission_rank($module) > cds_cm_permission_rank($access)) $access = $module;
     }
 
-    $groups = cds_cm_default_group_access();
-    foreach (cds_cm_load_array_file(rtrim($rootDataPath, '/') . '/permission_groups.json') as $key => $group) {
-        if (is_array($group)) $groups[$key] = is_array($group['access'] ?? null) ? $group['access'] : [];
-    }
+    $groups = $groups ?? cds_cm_permission_groups($rootDataPath);
     $userGroups = (array)($user['groups'] ?? []);
     $roleGroup = (string)($user['role'] ?? '');
     if ((int)($user['permission_model_version'] ?? 1) < 2 && !$userGroups && isset($groups[$roleGroup])) {

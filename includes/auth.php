@@ -165,7 +165,10 @@ function refresh_current_user_session() {
 }
 
 function attempt_login($username,$password){
-    $u=find_user($username);
+    unset($GLOBALS['cds_login_error']);
+    $raw=@file_get_contents(USERS_FILE);$users=is_string($raw)?json_decode($raw,true):null;
+    if(!is_array($users)||array_filter($users,fn($row)=>!is_array($row))){$GLOBALS['cds_login_error']='Tạm thời không đọc được dữ liệu tài khoản. Vui lòng thử lại sau; nếu lặp lại hãy báo quản trị.';error_log('[CDS login] Account store unavailable or invalid');return false;}
+    $u=null;foreach($users as$candidate)if(strcasecmp((string)($candidate['username']??''),(string)$username)===0){$u=$candidate;break;}
     if(!$u||empty($u['active'])||!password_verify($password,$u['password_hash']??'')){require_once __DIR__.'/audit.php';cds_audit_log('login_failed','auth',['username'=>$username],['username'=>$username]);return false;}
     session_regenerate_id(true);
     $_SESSION['cds_user']=session_user_from_record($u);
@@ -198,9 +201,12 @@ require_once __DIR__ . '/permissions.php';
 refresh_current_user_session();
 require_once __DIR__ . '/audit.php';
 cds_audit_touch();
+if (!defined('CDS_AUTH_LOGIN_ONLY') || !CDS_AUTH_LOGIN_ONLY) {
 require_once __DIR__ . '/noitru_meal_history.php';
 require_once __DIR__ . '/noitru_duty_filter.php';
 require_once __DIR__ . '/dashboard_home_controls.php';
 require_once __DIR__ . '/dashboard_school_year_sync.php';
 require_once __DIR__ . '/global_ui.php';
 require_once __DIR__ . '/student_card_link.php';
+
+}
