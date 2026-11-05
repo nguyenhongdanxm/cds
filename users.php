@@ -411,6 +411,8 @@ $featsByMod = [];
 foreach ($featCatalog as $code => $meta) {
     $featsByMod[$meta['module']][$code] = $meta;
 }
+require_once __DIR__.'/includes/users_permission_navigation.php';
+$featsByMod = up_permission_navigation($featCatalog);
 $view = ($_GET['view'] ?? 'users') === 'groups' ? 'groups' : 'users';
 $selectedGroupKey = $_GET['group'] ?? array_key_first($permissionGroups);
 if (!isset($permissionGroups[$selectedGroupKey])) $selectedGroupKey = array_key_first($permissionGroups);
@@ -471,6 +473,7 @@ body{background:#f0f4f8}
 .editor-card{border:2px solid #b7cce0}
 @media(max-width:767px){.matrix-user{min-width:220px}.permission-matrix{min-width:1180px}}
 </style>
+<link rel="stylesheet" href="assets/users-permissions.css?v=20261105-1">
 </head>
 <body>
 <?php
@@ -498,7 +501,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
       <h3 class="mb-0"><i class="bi bi-shield-lock"></i> Tài khoản & phân quyền</h3>
-      <div class="text-muted small">Mỗi trang một danh mục quyền · Quyền nhóm là nền · Quyền cá nhân chỉ dùng khi cần ngoại lệ</div>
+      <div class="text-muted small">Phân quyền theo menu hiện tại · Quyền nhóm là nền · Quyền cá nhân dùng cho ngoại lệ</div>
     </div>
     <a href="admin.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Quản trị</a>
   </div>
@@ -540,7 +543,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
       </form>
     </div>
     <div class="col-lg-9">
-      <form method="post" class="card">
+      <form method="post" class="card" data-up-root="group">
         <input type="hidden" name="action" value="save_group">
         <input type="hidden" name="group_key" value="<?= e($selectedGroupKey) ?>">
         <div class="card-header">Phân quyền nhóm</div>
@@ -550,9 +553,10 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
           <div class="alert alert-info py-2 small">
             Không quyền: ẩn chức năng · Xem: chỉ đọc · Sửa: được cập nhật · Xóa: được xóa dữ liệu.
           </div>
+          <?=up_permission_toolbar($modCatalog,'group')?>
           <?php foreach ($featsByMod as $mod => $feats): ?>
-          <div class="card border mb-3 shadow-none">
-            <div class="card-header py-2"><?= e($modCatalog[$mod]['label'] ?? $mod) ?></div>
+          <details class="up-module" data-up-module-panel="<?=e($mod)?>">
+            <summary><span><?= e($modCatalog[$mod]['label'] ?? $mod) ?></span><small><?=count($feats)?> quyền · <?=count(array_filter(array_keys($feats),fn($c)=>($selectedGroup['access'][$c]??'none')!=='none'))?> đang có</small></summary>
             <div class="table-responsive">
               <table class="table table-sm align-middle mb-0">
                 <thead><tr><th>Chức năng</th><th style="width:180px">Mức quyền</th></tr></thead>
@@ -560,8 +564,8 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                 <?php foreach ($feats as $code => $meta):
                   $groupLevel = $selectedGroup['access'][$code] ?? 'none';
                 ?>
-                <tr>
-                  <td><span class="badge text-bg-light border me-1"><?= e($meta['group'] ?? 'Chung') ?></span><?= e($meta['label']) ?><div class="text-muted small"><?= e($code) ?></div></td>
+                <tr data-up-feature data-up-module="<?=e($mod)?>" data-up-search="<?=e($code.' '.$meta['label'].' '.$meta['ui_label'].' '.$meta['ui_menu'])?>">
+                  <td><strong class="up-feature-label"><?=e($meta['ui_label'])?></strong><?=up_permission_hint($code,$meta)?></td>
                   <td>
                     <select class="form-select form-select-sm" name="access[<?= e($code) ?>]">
                       <?php foreach ($accessLevels as $level => $label): ?>
@@ -574,7 +578,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                 </tbody>
               </table>
             </div>
-          </div>
+          </details>
           <?php endforeach; ?>
           <button class="btn btn-primary" type="submit"><i class="bi bi-save"></i> Lưu quyền nhóm</button>
         </div>
@@ -697,6 +701,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
           </div>
         </div>
 
+        <div class="up-matrix-toolbar"><label for="upMatrixModule">Tập trung phân hệ</label><select class="form-select form-select-sm" id="upMatrixModule"><option value="">Tất cả phân hệ</option><?php foreach($modCatalog as$mk=>$mm):?><option value="<?=e($mk)?>"><?=e($mm['label'])?></option><?php endforeach;?></select><span class="up-note">Chọn một phân hệ để bảng gọn hơn. Tài khoản đã tích vẫn được giữ.</span></div>
         <div class="table-responsive border rounded">
           <table class="table table-sm table-hover mb-0 permission-matrix">
             <thead>
@@ -707,7 +712,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                 </th>
                 <th>Nhóm / lớp</th>
                 <?php foreach ($modCatalog as $moduleKey => $module): ?>
-                <th class="matrix-module" title="<?= e($module['label'] ?? $moduleKey) ?>">
+                <th data-up-column="<?=e($moduleKey)?>" class="matrix-module" title="<?= e($module['label'] ?? $moduleKey) ?>">
                   <i class="bi <?= e($module['icon'] ?? 'bi-grid') ?>"></i>
                   <div><?= e($module['label'] ?? $moduleKey) ?></div>
                 </th>
@@ -749,7 +754,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                 <?php foreach ($modCatalog as $moduleKey => $module):
                   $moduleLevel = user_module_access($u, $moduleKey, $featCatalog);
                 ?>
-                <td class="text-center">
+                <td data-up-column="<?=e($moduleKey)?>" class="text-center">
                   <?php if ($isAdmin): ?>
                     <span class="badge bg-dark">Quản trị</span>
                   <?php else: ?>
@@ -765,7 +770,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                           onclick='openPasswordReset(<?=json_encode((string)($u['id']??''),JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_TAG|JSON_HEX_QUOT)?>,<?=json_encode((string)($u['name']??$u['username']??''),JSON_UNESCAPED_UNICODE|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_TAG|JSON_HEX_QUOT)?>)'>
                     <i class="bi bi-key"></i>
                   </button>
-                  <button type="button" class="btn btn-sm btn-outline-primary"
+                  <button type="button" class="btn btn-sm btn-outline-primary" title="Chi tiết nhóm và quyền cá nhân"
                           onclick='editUser(<?= json_encode(user_for_edit($u), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_TAG | JSON_HEX_QUOT) ?>)'>
                     <i class="bi bi-sliders"></i>
                   </button>
@@ -790,7 +795,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
   <div class="modal fade permission-modal" id="permissionModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
       <div class="modal-content">
-        <form method="post" id="permissionPopupForm">
+        <form method="post" id="permissionPopupForm" data-up-root="popup">
           <input type="hidden" name="action" value="bulk_feature_access">
           <input type="hidden" name="permission_target" id="popupPermissionTarget" value="selected">
           <div id="popupSelectedUsers"></div>
@@ -806,6 +811,8 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
               Tích <strong>Áp dụng</strong> ở chức năng muốn thay đổi. Quyền Xóa tự bao gồm quyền Xem và Sửa.
               Chức năng không tích “Áp dụng” sẽ được giữ nguyên. Khi phân cho người dùng, đây là quyền cá nhân và sẽ ghi đè quyền nhóm; muốn quay về nhóm hãy dùng “Xóa ghi đè cá nhân”.
             </div>
+            <?=up_permission_toolbar($modCatalog,'popup')?>
+            <div class="up-pending-summary" data-up-pending role="status">Chưa chọn mục áp dụng.</div>
             <ul class="nav nav-tabs flex-nowrap overflow-auto" role="tablist">
               <?php $tabIndex = 0; foreach ($modCatalog as $moduleKey => $module): ?>
               <li class="nav-item" role="presentation">
@@ -820,7 +827,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
             <div class="tab-content border border-top-0 rounded-bottom p-3">
               <?php $tabIndex = 0; foreach ($modCatalog as $moduleKey => $module): ?>
               <div class="tab-pane fade <?= $tabIndex === 0 ? 'show active' : '' ?>"
-                   id="permTab_<?= e($moduleKey) ?>" role="tabpanel">
+                   id="permTab_<?= e($moduleKey) ?>" role="tabpanel" data-up-module-panel="<?=e($moduleKey)?>">
                 <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
                   <strong><?= e($module['label'] ?? $moduleKey) ?></strong>
                   <div class="btn-group btn-group-sm">
@@ -830,11 +837,11 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                     <button type="button" class="btn btn-outline-dark" onclick="clearModuleRights('<?= e($moduleKey) ?>')">Bỏ quyền</button>
                   </div>
                 </div>
+                <p class="up-note">Các nút “Tất cả” và “Bỏ quyền” áp dụng cho toàn phân hệ, kể cả mục đang được lọc ẩn.</p>
                 <?php foreach (($featsByMod[$moduleKey] ?? []) as $code => $meta): ?>
-                <div class="feature-row row align-items-center g-2" data-module="<?= e($moduleKey) ?>">
+                <div class="feature-row row align-items-center g-2" data-module="<?= e($moduleKey) ?>" data-up-feature data-up-module="<?=e($moduleKey)?>" data-up-search="<?=e($code.' '.$meta['label'].' '.$meta['ui_label'].' '.$meta['ui_menu'])?>">
                   <div class="col-lg-6">
-                    <div class="fw-semibold"><?= e($meta['label']) ?></div>
-                    <div class="small text-muted"><?= e($code) ?></div>
+                    <div class="fw-semibold"><?=e($meta['ui_label'])?></div><?=up_permission_hint($code,$meta)?>
                   </div>
                   <div class="col-lg-6">
                     <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-3">
@@ -936,12 +943,14 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
 
             <h6 class="text-primary"><i class="bi bi-2-circle"></i> Quyền cá nhân</h6>
             <div class="form-text mb-2"><strong>Theo nhóm</strong> là lựa chọn nên dùng. Chỉ chọn Không quyền / Xem / Sửa / Xóa khi người này cần ngoại lệ riêng; ngoại lệ cá nhân luôn ưu tiên hơn nhóm.</div>
-            <div class="perm-box mb-3" style="max-height:360px">
+            <div class="up-person-permissions mb-3" data-up-root="person">
+              <?=up_permission_toolbar($modCatalog,'person')?>
+              <p class="up-note" data-up-person-snapshot>Chọn một tài khoản để đối chiếu quyền hiện có. Mức hiện có là kết quả đã lưu trước khi chỉnh.</p>
               <?php foreach ($featsByMod as $mod => $feats): ?>
-                <div class="small fw-semibold text-secondary mb-1 mt-2"><?= e($modCatalog[$mod]['label'] ?? $mod) ?></div>
+                <details class="up-module" data-up-module-panel="<?=e($mod)?>"><summary><span><?=e($modCatalog[$mod]['label']??$mod)?></span><small><?=count($feats)?> quyền</small></summary>
                 <?php foreach ($feats as $code => $meta): ?>
-                <div class="row g-1 align-items-center mb-1">
-                  <label class="col-8 small" for="ov_<?= e($code) ?>"><?= e($meta['label']) ?></label>
+                <div class="row g-1 align-items-center up-person-row" data-up-feature data-up-module="<?=e($mod)?>" data-up-search="<?=e($code.' '.$meta['label'].' '.$meta['ui_label'].' '.$meta['ui_menu'])?>">
+                  <div class="col-8"><label class="small fw-semibold" for="ov_<?=e($code)?>"><?=e($meta['ui_label'])?></label><?=up_permission_hint($code,$meta)?><span class="up-snapshot" data-up-effective="<?=e($code)?>"></span></div>
                   <div class="col-4">
                     <select class="form-select form-select-sm override-select" name="permission_overrides[<?= e($code) ?>]" id="ov_<?= e($code) ?>" data-code="<?= e($code) ?>">
                       <?php foreach ($overrideLevels as $level => $label): ?>
@@ -951,6 +960,7 @@ if (is_file(__DIR__ . '/includes/nav_top.php')) include __DIR__ . '/includes/nav
                   </div>
                 </div>
                 <?php endforeach; ?>
+                </details>
               <?php endforeach; ?>
             </div>
 
@@ -1208,8 +1218,8 @@ function generateAdminPassword(){
   document.getElementById('adminNewPassword').value=password;
   document.getElementById('adminConfirmPassword').value=password;
 }
-resetForm();
-document.getElementById('bulkPermissionForm').addEventListener('submit',function(event){
+if(document.getElementById('userForm'))resetForm();
+document.getElementById('bulkPermissionForm')?.addEventListener('submit',function(event){
   if (!document.querySelector('.user-select:checked')) {
     event.preventDefault();
     alert('Hãy tích chọn ít nhất một giáo viên trong bảng.');
@@ -1217,7 +1227,7 @@ document.getElementById('bulkPermissionForm').addEventListener('submit',function
   }
   if (!confirm('Áp dụng thay đổi cho các giáo viên đã chọn?')) event.preventDefault();
 });
-document.getElementById('permissionPopupForm').addEventListener('submit',function(event){
+document.getElementById('permissionPopupForm')?.addEventListener('submit',function(event){
   if (!document.querySelector('#permissionPopupForm .feature-apply:checked')) {
     event.preventDefault();
     alert('Hãy tích “Áp dụng” ở ít nhất một chức năng.');
@@ -1227,5 +1237,6 @@ document.getElementById('permissionPopupForm').addEventListener('submit',functio
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/users-permissions.js?v=20261105-1" defer></script>
 </body>
 </html>

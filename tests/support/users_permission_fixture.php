@@ -1,0 +1,17 @@
+<?php
+function up_fixture(?string $baseline=null):string {
+ $repo=dirname(__DIR__,2);$dir=sys_get_temp_dir().'/users-permission-'.bin2hex(random_bytes(6));foreach(['includes','assets','data']as$p)mkdir($dir.'/'.$p,0700,true);
+ copy($repo.'/users.php',$dir.'/users.php');if($baseline)copy($baseline,$dir.'/before.php');foreach(['users_permission_navigation.php','permissions.php','session_user.php','chuyenmon_permission_runtime.php']as$f)copy($repo.'/includes/'.$f,$dir.'/includes/'.$f);foreach(['users-permissions.css','users-permissions.js']as$f)copy($repo.'/assets/'.$f,$dir.'/assets/'.$f);
+ file_put_contents($dir.'/includes/auth.php', <<<'STUB'
+<?php
+define('DATA_PATH',dirname(__DIR__).'/data');define('USERS_FILE',DATA_PATH.'/users.json');define('BASE_URL','/');define('DEFAULT_USER_PASSWORD','FixtureOnly!123');define('CDS_SESSION_LIFETIME',31536000);$_SESSION=[];
+require __DIR__.'/session_user.php';require __DIR__.'/chuyenmon_permission_runtime.php';require __DIR__.'/permissions.php';
+function require_admin(){}function current_user(){return ['id'=>'admin','role'=>'admin','name'=>'Quản trị thử'];}function load_json($file,$d=[]){return is_file($file)?json_decode(file_get_contents($file),true):$d;}function save_json($file,$data){return file_put_contents($file,json_encode($data,JSON_UNESCAPED_UNICODE))!==false;}function get_users(){return load_json(USERS_FILE,[]);}function save_users($rows){return save_json(USERS_FILE,$rows);}function e($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}function flash($m,$t='success'){}function show_flash(){}function cds_is_viewer($u=null){return ($u['role']??'')==='viewer';}function user_group_presets(){return [];}function cds_account_csrf_token(){return 'fixture';}function cds_account_csrf_valid($token){return $token==='fixture';}
+STUB);
+ file_put_contents($dir.'/includes/user_sync.php','<?php');file_put_contents($dir.'/includes/account_profile.php','<?php');file_put_contents($dir.'/includes/csdl_store.php','<?php function csdl_classes_all(){return [["name"=>"6A"],["name"=>"6B"]];}function csdl_compare_class_names($a,$b){return strcmp($a,$b);}function csdl_compare_person_names($a,$b){return strcmp($a,$b);}');
+ // The production permission catalog/defaults are used, but all records are synthetic.
+ if(!function_exists('permission_features_catalog'))require $repo.'/includes/permissions.php';
+ $groups=permission_default_groups();$groups['fixture']=['label'=>'Nhóm thử riêng','access'=>['cm.dashboard'=>'view','cm.baocao.dugio'=>'none','td.teacher_rating'=>'edit']];$catalog=permission_features_catalog();foreach($groups as&$g){$g['version']=12;$access=[];foreach($catalog as$c=>$unused)$access[$c]=$g['access'][$c]??'none';$g['access']=$access;}unset($g);
+ $users=[['id'=>'admin','username'=>'admin','name'=>'Quản trị thử','role'=>'admin','active'=>true,'groups'=>[]],['id'=>'u1','username'=>'teacher-a','name'=>'Người thử A','role'=>'gv','active'=>true,'permission_model_version'=>2,'groups'=>['gv','fixture'],'permission_overrides'=>['cm.baocao.dugio'=>'none','cm.tracuu'=>'view'],'classes'=>['6A'],'homeroom_classes'=>[]],['id'=>'u2','username'=>'teacher-b','name'=>'Người thử B','role'=>'gv','active'=>false,'permission_model_version'=>2,'groups'=>['gv'],'permission_overrides'=>[],'classes'=>['6B'],'homeroom_classes'=>['6B']]];
+ file_put_contents($dir.'/data/users.json',json_encode($users,JSON_UNESCAPED_UNICODE));file_put_contents($dir.'/data/permission_groups.json',json_encode($groups,JSON_UNESCAPED_UNICODE));return $dir;
+}
