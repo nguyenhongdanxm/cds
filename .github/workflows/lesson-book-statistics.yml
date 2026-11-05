@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'chuyenmon/sodaubai.php'
+      - 'chuyenmon/sodaubai_stats_export.php'
       - 'chuyenmon/includes/lesson_book_store.php'
       - 'chuyenmon/includes/lesson_book_student_roster.php'
       - 'chuyenmon/includes/lesson_book_stat*.php'
@@ -34,7 +35,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring
+          extensions: mbstring, zip, dom
       - run: |
           php -l chuyenmon/sodaubai.php
           php -l chuyenmon/includes/lesson_book_store.php
@@ -53,6 +54,8 @@ jobs:
           php tests/lesson_book_roster_test.php
           php tests/lesson_book_statistics_test.php
           php tests/lesson_book_team_statistics_test.php
+          php tests/lesson_book_statistics_excel_test.php
+          php tests/progress_slots_test.php
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -61,7 +64,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring
+          extensions: mbstring, zip, dom
       - run: php tests/lesson_book_statistics_test.php --html
       - run: npm install --prefix "$RUNNER_TEMP/lb-stat-browser" --no-package-lock playwright@1.58.2
       - run: "$RUNNER_TEMP/lb-stat-browser/node_modules/.bin/playwright install --with-deps chromium"
