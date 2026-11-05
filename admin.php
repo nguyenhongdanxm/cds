@@ -134,7 +134,7 @@ $pushUnread = cds_push_unread_count($user);
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20261012-2" rel="stylesheet">
   <link href="<?= e(BASE_URL) ?>assets/admin-theme.css?v=20261012-5" rel="stylesheet">
-  <link href="<?= e(BASE_URL) ?>assets/admin-layout.css?v=20261105-4" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-layout.css?v=20261105-5" rel="stylesheet">
 </head>
 <body class="admin-dashboard">
 <?php require_once __DIR__ . '/includes/module_switcher.php'; ?>
@@ -276,7 +276,7 @@ $pushUnread = cds_push_unread_count($user);
 
       <?php if ($observations): ?><section class="panel observation-panel"><div class="panel-head"><div><span class="section-kicker">Chuyên môn</span><h2>Lịch dự giờ sắp tới</h2></div><i class="bi bi-journal-check panel-symbol"></i></div><div class="compact-list" tabindex="0" role="region" aria-label="Lịch dự giờ sắp tới"><?php foreach($observations as $row): ?><div><time><strong><?= date('d',strtotime($row['dashboard_date'])) ?></strong><span>Th <?= date('m',strtotime($row['dashboard_date'])) ?></span></time><p><strong><?= e($row['teacher']??$row['teacher_name']??$row['name']??'Lịch dự giờ') ?></strong><small><?= e(implode(' · ',array_filter([$row['time']??'',$row['subject']??'',$row['class']??$row['class_name']??'']))) ?></small></p></div><?php endforeach; ?></div></section><?php endif; ?>
 
-      <section class="panel leave-panel"><div class="panel-head"><div><span class="section-kicker">Nhân sự</span><h2>Lịch nghỉ giáo viên</h2></div><i class="bi bi-calendar2-week panel-symbol"></i></div><div class="compact-list leave-list" tabindex="0" role="region" aria-label="Lịch nghỉ giáo viên"><?php foreach($dashboard['leave'] as $row): ?><div><time><strong><?= date('d',strtotime($row['from'])) ?></strong><span>Th <?= date('m',strtotime($row['from'])) ?></span></time><p><strong><?= e($row['name']) ?></strong><small><?= e($row['reason'] ?: $row['permission']) ?><?= $row['to']!==$row['from']?' · đến '.date('d/m',strtotime($row['to'])):'' ?></small></p></div><?php endforeach; ?><?php if(!$dashboard['leave']): ?><div class="mini-empty"><i class="bi bi-calendar-check"></i><span>Không có lịch nghỉ hiện tại hoặc sắp tới.</span></div><?php endif; ?></div></section>
+      <section class="panel leave-panel"><div class="panel-head"><div><span class="section-kicker">Nhân sự</span><h2>Lịch nghỉ giáo viên</h2></div><i class="bi bi-calendar2-week panel-symbol"></i></div><div class="compact-list leave-list" tabindex="0" role="region" aria-label="Lịch nghỉ giáo viên"><?php foreach(array_slice($dashboard['leave'],0,3) as $row): ?><div><time><strong><?= date('d',strtotime($row['from'])) ?></strong><span>Th <?= date('m',strtotime($row['from'])) ?></span></time><p><strong><?= e($row['name']) ?></strong><small><?= e($row['reason'] ?: $row['permission']) ?><?= $row['to']!==$row['from']?' · đến '.date('d/m',strtotime($row['to'])):'' ?></small></p></div><?php endforeach; ?><?php if(!$dashboard['leave']): ?><div class="mini-empty"><i class="bi bi-calendar-check"></i><span>Không có lịch nghỉ hiện tại hoặc sắp tới.</span></div><?php endif; ?></div></section>
     </div>
 
   </div>

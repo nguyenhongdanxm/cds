@@ -59,3 +59,23 @@ body.admin-dashboard .side-stack>.leave-panel{height:220px;max-height:220px}
  body.admin-dashboard .latest-docs-panel .doc-row>i{grid-column:1;grid-row:1 / span 2;width:30px;height:34px}
 }
 @media print{body.admin-dashboard .content-grid,body.admin-dashboard .content-grid>.main-stack,body.admin-dashboard .content-grid>.side-stack{display:block}body.admin-dashboard .side-stack>.panel{height:auto!important;max-height:none!important;min-height:0}body.admin-dashboard .side-stack>.panel>[role=region]{contain:none}}
+
+/* Only the page scrolls. Cards grow to fit the bounded dashboard lists. */
+body.admin-dashboard .side-stack>.panel,body.admin-dashboard .main-stack>.feed-panel{height:auto;max-height:none;overflow:visible}
+body.admin-dashboard .side-stack>.panel>.feed-list,body.admin-dashboard .main-stack>.feed-panel>.feed-list,body.admin-dashboard .side-stack>.panel>.doc-list,body.admin-dashboard .side-stack>.panel>.compact-list{flex:0 0 auto;overflow:visible;max-height:none;contain:none;scrollbar-gutter:auto;padding-right:0}
+body.admin-dashboard .side-stack>.latest-docs-panel{min-height:360px}
+body.admin-dashboard .side-stack>.leave-panel{min-height:260px}
+body.admin-dashboard .latest-docs-panel .doc-row{min-height:60px;padding:8px 0}
+body.admin-dashboard .latest-docs-panel .doc-copy strong{line-height:1.4}
+body.admin-dashboard .latest-docs-panel .doc-copy small{margin-top:4px}
+body.admin-dashboard .attendance-recent{overflow:visible}
+body.admin-dashboard .attendance-recent>div{min-width:0}
+body.admin-dashboard .attendance-recent small{flex:1 1 auto;min-width:0;white-space:normal;overflow-wrap:anywhere}
+@media(min-width:1001px){
+ body.admin-dashboard .content-grid>.main-stack{grid-template-rows:auto minmax(0,1fr)}
+ body.admin-dashboard .content-grid>.side-stack{grid-template-rows:minmax(max-content,1fr) auto}
+ body.admin-dashboard .side-stack:has(.observation-panel){grid-template-rows:minmax(max-content,1fr) auto auto}
+}
+@media(max-width:1000px){body.admin-dashboard .side-stack>.panel,body.admin-dashboard .main-stack>.feed-panel{min-height:0}body.admin-dashboard .side-stack>.leave-panel{min-height:230px}}
+
+@media(min-width:1001px){body.admin-dashboard .main-stack>.feed-panel{min-height:320px}}
