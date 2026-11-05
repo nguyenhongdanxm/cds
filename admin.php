@@ -134,7 +134,7 @@ $pushUnread = cds_push_unread_count($user);
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20261012-2" rel="stylesheet">
   <link href="<?= e(BASE_URL) ?>assets/admin-theme.css?v=20261012-5" rel="stylesheet">
-  <link href="<?= e(BASE_URL) ?>assets/admin-layout.css?v=20261105-1" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/admin-layout.css?v=20261105-2" rel="stylesheet">
 </head>
 <body class="admin-dashboard">
 <?php require_once __DIR__ . '/includes/module_switcher.php'; ?>
@@ -211,19 +211,6 @@ $pushUnread = cds_push_unread_count($user);
 
   <div class="content-grid">
     <div class="main-stack">
-    <section class="panel operation-panel">
-      <div class="panel-head"><div><span class="section-kicker">Toàn trường</span><h2>Lịch trực hôm nay</h2></div><?php if($isAdmin && can_module('noitru','view')):?><a href="admin_operation_settings.php"><i class="bi bi-gear"></i> Cài đặt</a><?php endif;?></div>
-      <div class="operation-grid">
-        <?php if(can_module('noitru','view')): ?>
-        <?php foreach(['management'=>'bi-person-badge-fill','departments'=>'bi-diagram-3-fill','youth'=>'bi-stars'] as $groupKey=>$groupIcon):$groupPeople=$operationGroups[$groupKey]??[];?><article class="operation-group-box"><span class="op-icon"><i class="bi <?=e($groupIcon)?>"></i></span><div class="op-copy"><span><?=e($operationGroupLabels[$groupKey]??'')?></span><?php if($groupPeople):?><div class="operation-people"><?php foreach($groupPeople as$personIndex=>$person):$personNote=trim((string)($person['note']??''),' ()');?><?=$personIndex?', ':''?><b><?=e($person['name']??'')?></b><?php if($personNote!==''):?> <span class="operation-note">(<?=e($personNote)?>)</span><?php endif;?><?php endforeach;?></div><small>Phân công hiển thị hôm nay</small><?php else:?><strong>Chưa phân công</strong><small>Chưa có lịch hiển thị trong ngày</small><?php endif;?></div></article><?php endforeach;?>
-        <article class="duty-box"><span class="op-icon"><i class="bi bi-calendar2-check"></i></span><div class="op-copy"><span>Trực nội trú</span><?php if($duty && $duty['people']): ?><strong><?= e(implode(', ',$duty['people'])) ?></strong><small><?= e($duty['start']) ?> – <?= e($duty['end']) ?> hôm sau · còn <?= $dutyHours ?>h <?= $dutyMinutes ?>p</small><?php else: ?><strong>Chưa phân công</strong><small>Chưa có người trực trong ca hiện tại</small><?php endif; ?><?php if($duty && $duty['managers']): ?><em>Quản lý: <?= e(implode(', ',$duty['managers'])) ?></em><?php endif; ?></div></article>
-        <?php endif; ?>
-        <article class="attendance-box"><span class="op-icon"><i class="bi bi-person-check-fill"></i></span><div class="op-copy"><span>3 lần điểm danh gần nhất</span><?php if($adminAttendanceRecent): ?><div class="attendance-recent"><?php foreach($adminAttendanceRecent as $attendance): ?><div><strong><b><?= (int)$attendance['present'] ?>/<?= (int)$attendance['total'] ?></b></strong><small><?= e($attendance['shift_label']) ?> · <?= date('d/m/Y',strtotime($attendance['date'])) ?> · Vắng <?= (int)$attendance['absent'] + (int)$attendance['excused'] ?><?= $attendance['by']!==''?' · '.e($attendance['by']):'' ?></small></div><?php endforeach; ?></div><?php elseif(cds_dashboard_attendance_error()): ?><strong>Không thể tải dữ liệu</strong><small>Vui lòng thử lại sau.</small><?php else: ?><strong>Chưa có dữ liệu</strong><small>Chưa ghi nhận báo cáo điểm danh</small><?php endif; ?></div><?php if(can_module('noitru','view')): ?><a href="noitru_attendance.php" aria-label="Mở điểm danh"><i class="bi bi-chevron-right"></i></a><?php endif; ?></article>
-      </div>
-    </section>
-    </div>
-
-    <div class="side-stack">
     <section class="panel feed-panel">
       <div class="panel-head"><div><span class="section-kicker">Thông báo</span><h2>Thông báo đang và sắp diễn ra</h2></div><span class="count-pill"><?= count($feedItems) ?></span></div>
       <div class="feed-list" id="professionalFeed" tabindex="0" role="region" aria-label="Thông báo đang và sắp diễn ra">
@@ -270,6 +257,21 @@ $pushUnread = cds_push_unread_count($user);
       </div>
       <?php if (count($feedItems) > 5): ?><nav class="feed-pagination" aria-label="Trang thông báo"><?php for($feedPage=1,$feedPages=(int)ceil(count($feedItems)/5);$feedPage<=$feedPages;$feedPage++): ?><button type="button" class="<?= $feedPage===1?'active':'' ?>" data-feed-page-button="<?= $feedPage ?>" <?= $feedPage===1?'aria-current="page"':'' ?>><?= $feedPage ?></button><?php endfor; ?></nav><?php endif; ?>
     </section>
+
+    <section class="panel operation-panel">
+      <div class="panel-head"><div><span class="section-kicker">Toàn trường</span><h2>Lịch trực hôm nay</h2></div><?php if($isAdmin && can_module('noitru','view')):?><a href="admin_operation_settings.php"><i class="bi bi-gear"></i> Cài đặt</a><?php endif;?></div>
+      <div class="operation-grid">
+        <?php if(can_module('noitru','view')): ?>
+        <?php foreach(['management'=>'bi-person-badge-fill','departments'=>'bi-diagram-3-fill','youth'=>'bi-stars'] as $groupKey=>$groupIcon):$groupPeople=$operationGroups[$groupKey]??[];?><article class="operation-group-box"><span class="op-icon"><i class="bi <?=e($groupIcon)?>"></i></span><div class="op-copy"><span><?=e($operationGroupLabels[$groupKey]??'')?></span><?php if($groupPeople):?><div class="operation-people"><?php foreach($groupPeople as$personIndex=>$person):$personNote=trim((string)($person['note']??''),' ()');?><?=$personIndex?', ':''?><b><?=e($person['name']??'')?></b><?php if($personNote!==''):?> <span class="operation-note">(<?=e($personNote)?>)</span><?php endif;?><?php endforeach;?></div><small>Phân công hiển thị hôm nay</small><?php else:?><strong>Chưa phân công</strong><small>Chưa có lịch hiển thị trong ngày</small><?php endif;?></div></article><?php endforeach;?>
+        <article class="duty-box"><span class="op-icon"><i class="bi bi-calendar2-check"></i></span><div class="op-copy"><span>Trực nội trú</span><?php if($duty && $duty['people']): ?><strong><?= e(implode(', ',$duty['people'])) ?></strong><small><?= e($duty['start']) ?> – <?= e($duty['end']) ?> hôm sau · còn <?= $dutyHours ?>h <?= $dutyMinutes ?>p</small><?php else: ?><strong>Chưa phân công</strong><small>Chưa có người trực trong ca hiện tại</small><?php endif; ?><?php if($duty && $duty['managers']): ?><em>Quản lý: <?= e(implode(', ',$duty['managers'])) ?></em><?php endif; ?></div></article>
+        <?php endif; ?>
+        <article class="attendance-box"><span class="op-icon"><i class="bi bi-person-check-fill"></i></span><div class="op-copy"><span>3 lần điểm danh gần nhất</span><?php if($adminAttendanceRecent): ?><div class="attendance-recent"><?php foreach($adminAttendanceRecent as $attendance): ?><div><strong><b><?= (int)$attendance['present'] ?>/<?= (int)$attendance['total'] ?></b></strong><small><?= e($attendance['shift_label']) ?> · <?= date('d/m/Y',strtotime($attendance['date'])) ?> · Vắng <?= (int)$attendance['absent'] + (int)$attendance['excused'] ?><?= $attendance['by']!==''?' · '.e($attendance['by']):'' ?></small></div><?php endforeach; ?></div><?php elseif(cds_dashboard_attendance_error()): ?><strong>Không thể tải dữ liệu</strong><small>Vui lòng thử lại sau.</small><?php else: ?><strong>Chưa có dữ liệu</strong><small>Chưa ghi nhận báo cáo điểm danh</small><?php endif; ?></div><?php if(can_module('noitru','view')): ?><a href="noitru_attendance.php" aria-label="Mở điểm danh"><i class="bi bi-chevron-right"></i></a><?php endif; ?></article>
+      </div>
+    </section>
+    </div>
+
+    <div class="side-stack">
+
 
 
       <?php if ($observations): ?><section class="panel observation-panel"><div class="panel-head"><div><span class="section-kicker">Chuyên môn</span><h2>Lịch dự giờ sắp tới</h2></div><i class="bi bi-journal-check panel-symbol"></i></div><div class="compact-list" tabindex="0" role="region" aria-label="Lịch dự giờ sắp tới"><?php foreach($observations as $row): ?><div><time><strong><?= date('d',strtotime($row['dashboard_date'])) ?></strong><span>Th <?= date('m',strtotime($row['dashboard_date'])) ?></span></time><p><strong><?= e($row['teacher']??$row['teacher_name']??$row['name']??'Lịch dự giờ') ?></strong><small><?= e(implode(' · ',array_filter([$row['time']??'',$row['subject']??'',$row['class']??$row['class_name']??'']))) ?></small></p></div><?php endforeach; ?></div></section><?php endif; ?>
