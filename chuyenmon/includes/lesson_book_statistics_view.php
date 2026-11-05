@@ -1,8 +1,8 @@
 <?php
 // Navigation never carries a load flag: changing a tab cannot trigger another report.
-$statsSections=['scores'=>'Bảng quy đổi và điểm sổ đầu bài','indicators'=>'Chỉ số ký sổ theo đối tượng','attendance'=>'Sĩ số · học sinh vắng','audit'=>'Nhật ký ký sổ'];
-$statsSection=(string)($_GET['stats_section']??'scores');
-if(!isset($statsSections[$statsSection]))$statsSection='scores';
+$statsSections=['indicators'=>'Ký sổ','attendance'=>'Sĩ số học sinh','scores'=>'Xếp loại','audit'=>'Nhật ký'];
+$statsSection=(string)($_GET['stats_section']??'indicators');
+if(!isset($statsSections[$statsSection]))$statsSection='indicators';
 $statsLoad=($_GET['stats_load']??'')==='1';
 ?>
 <nav class="lb-tabs" aria-label="Các mục thống kê">

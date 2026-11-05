@@ -11,7 +11,7 @@ if($statsTo<$statsFrom){[$statsFrom,$statsTo]=[$statsTo,$statsFrom];}
 $statsTeacher=trim((string)($_GET['stats_teacher']??''));$statsSubject=trim((string)($_GET['stats_subject']??''));$statsClass=trim((string)($_GET['stats_class']??''));
 $statsCompletionInput=(string)($_GET['stats_completion']??'all');
 $statsCompletion=in_array($statsCompletionInput,['all','completed','incomplete','saved_unsigned','not_saved'],true)?$statsCompletionInput:'all';
-$allAccessible=$statsLoad?lb_stat_rows($statsFrom,$statsTo):[];$teachers=[];$subjects=[];$statClasses=[];
+$allAccessible=$statsLoad?lb_stat_rows($statsFrom,$statsTo,'','','','all',$statsSection!=='indicators'):[];$teachers=[];$subjects=[];$statClasses=[];
 foreach($allAccessible as$r){$teacherName=trim((string)($r['actual_teacher']??$r['scheduled_teacher']??''));if($teacherName!=='')$teachers[$teacherName]=true;if(trim((string)($r['subject']??''))!=='')$subjects[(string)$r['subject']]=true;if(trim((string)($r['class']??''))!=='')$statClasses[(string)$r['class']]=true;}
 foreach([['value'=>$statsTeacher,'kind'=>'teacher'],['value'=>$statsSubject,'kind'=>'subject'],['value'=>$statsClass,'kind'=>'class']]as$selected){if($selected['value']==='')continue;if($selected['kind']==='teacher')$teachers[$selected['value']]=true;elseif($selected['kind']==='subject')$subjects[$selected['value']]=true;else$statClasses[$selected['value']]=true;}
 $teachers=array_keys($teachers);$subjects=array_keys($subjects);$statClasses=array_keys($statClasses);sort($teachers,SORT_NATURAL);sort($subjects,SORT_NATURAL);sort($statClasses,SORT_NATURAL);
@@ -19,18 +19,23 @@ $statRows=lb_stat_filter_rows($allAccessible,$statsTeacher,$statsSubject,$statsC
 $exportQuery=array_filter(['stats_from'=>$statsFrom,'stats_to'=>$statsTo,'stats_teacher'=>$statsTeacher,'stats_subject'=>$statsSubject,'stats_class'=>$statsClass,'stats_completion'=>$statsCompletion,'stats_range'=>$statsRange,'stats_week'=>$statsWeekKey],'strlen');
 if($statsLoad&&$statsSection==='indicators'){
 $tot=lb_stat_totals($statRows);
-$teacherStats=lb_stat_group($statRows,'actual_teacher');$subjectStats=lb_stat_group($statRows,'subject');$classStats=lb_stat_group($statRows,'class');$groupStats=lb_stat_group($statRows,'teacher_group');$weekStats=lb_stat_group($statRows,'week_label');
+require_once __DIR__.'/lesson_book_statistics_detail.php';
+$statMetric=lb_stats_metric((string)($_GET['stats_metric']??''));
+$statPanel=lb_stats_panel((string)($_GET['stats_group']??''));
+$detailRows=$statMetric!==''?lb_stats_metric_rows($statRows,$statMetric):[];
+$groupRows=$statMetric!==''?lb_stat_group($detailRows,['teacher'=>'actual_teacher','subject'=>'subject','class'=>'class','group'=>'teacher_group','week'=>'week_label'][$statPanel]):[];
+$detailQuery=['tab'=>'progress','week'=>$weekKey,'stats_section'=>'indicators','stats_load'=>'1']+$exportQuery;
 $rate=$tot['scheduled']?($tot['completed']*100/$tot['scheduled']):0;
 $statusCards=[
- ['Tổng tiết TKB',$tot['scheduled'],'#173f67'],
- ['Đã hoàn thành (ký)',$tot['completed'],'#166534'],
- ['Chưa hoàn thành',$tot['incomplete'],'#991b1b'],
- ['Đã dạy',$tot['taught'],'#1d4ed8'],
- ['Dạy thay',$tot['substitute'],'#7c3aed'],
- ['Dạy bù',$tot['makeup'],'#0f766e'],
- ['Nghỉ / hoãn / hủy',$tot['off'],'#b45309'],
- ['Môn chưa có PPCT',$tot['missing_ppct'],'#be123c'],
- ['Tỷ lệ hoàn thành',number_format($rate,1,',','.').'%',$rate>=80?'#166534':'#b45309'],
+ ['scheduled','Tổng tiết TKB',$tot['scheduled'],'#173f67'],
+ ['completed','Đã hoàn thành (ký)',$tot['completed'],'#166534'],
+ ['incomplete','Chưa hoàn thành',$tot['incomplete'],'#991b1b'],
+ ['taught','Đã dạy',$tot['taught'],'#1d4ed8'],
+ ['substitute','Dạy thay',$tot['substitute'],'#7c3aed'],
+ ['makeup','Dạy bù',$tot['makeup'],'#0f766e'],
+ ['off','Nghỉ / hoãn / hủy',$tot['off'],'#b45309'],
+ ['missing_ppct','Môn chưa có PPCT',$tot['missing_ppct'],'#be123c'],
+ ['rate','Tỷ lệ hoàn thành',number_format($rate,1,',','.').'%',$rate>=80?'#166534':'#b45309'],
 ];
 $cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT','missing_ppct'=>'Thiếu PPCT','taught'=>'Đã dạy','substitute'=>'Thay','makeup'=>'Bù','online'=>'Trực tuyến','off'=>'Nghỉ/hoãn/hủy','holiday'=>'Nghỉ lễ','teacher_absent'=>'GV nghỉ','class_absent'=>'Lớp nghỉ','postponed'=>'Hoãn','cancelled'=>'Hủy','pending'=>'Chưa ghi'];
 }
@@ -38,8 +43,8 @@ $cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT
 <style>
 .lb-stat-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
 @media(max-width:900px){.lb-stat-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.lb-stat-kpi{background:#fff;border-radius:12px;padding:12px 14px;box-shadow:0 4px 16px #183b5b12}
-.lb-stat-kpi b{display:block;font-size:1.45rem;line-height:1.1}
+.lb-stat-kpi{display:block;text-decoration:none;border:1px solid transparent;background:#fff;border-radius:12px;padding:12px 14px;box-shadow:0 4px 16px #183b5b12}
+.lb-stat-kpi:hover,.lb-stat-kpi:focus-visible,.lb-stat-kpi[aria-current=true]{border-color:#2c72a5;box-shadow:0 0 0 2px #2c72a51c}.lb-stat-kpi small{font-size:.7rem;color:#516b81}.lb-stat-kpi b{display:block;font-size:1.45rem;line-height:1.1}
 .lb-stat-kpi span{color:#64748b;font-size:.8rem}
 .lb-stat-switch{display:flex;gap:6px;flex-wrap:wrap}
 .lb-stat-switch button{border:1px solid #cbd8e6;background:#fff;color:#1f4e79;border-radius:8px;padding:6px 10px;font-weight:700}
@@ -88,24 +93,26 @@ $cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT
 <?php if(!$statsLoad):?><section class="lb-card text-muted">Chưa tải nội dung. Chọn phạm vi rồi bấm <strong>Xem</strong> để tải riêng mục này.</section><?php elseif($statsSection==='scores'):require __DIR__.'/lesson_book_scores_view.php';elseif($statsSection==='attendance'):require __DIR__.'/lesson_book_attendance_view.php';else:?>
 <?php if(lb_stat_team_scoped()):$leaderGroup=lb_stat_leader_group();?><div class="alert alert-info"><?=e($leaderGroup!==''?'Phạm vi thống kê: tổ '.$leaderGroup.'. Chỉ tính các tiết của tổ viên; bộ lọc và file xuất áp dụng cùng phạm vi.':'Chưa xác định được tổ chuyên môn. Vui lòng kiểm tra giáo viên liên kết tài khoản và tổ trong CSDL cán bộ.')?></div><?php endif;?>
 <div class="lb-stat-kpis">
-<?php foreach($statusCards as[$label,$value,$color]):?>
- <div class="lb-stat-kpi"><span><?=e($label)?></span><b style="color:<?=$color?>"><?=is_numeric($value)?number_format((float)$value,0,',','.'):e((string)$value)?></b></div>
+<?php foreach($statusCards as[$metric,$label,$value,$color]):?>
+ <a class="lb-stat-kpi" aria-current="<?=$statMetric===$metric?'true':'false'?>" href="<?=e(BASE_URL.'sodaubai.php?'.http_build_query($detailQuery+['stats_metric'=>$metric,'stats_group'=>$statPanel]).'#lb-stat-detail')?>"><span><?=e($label)?></span><b style="color:<?=$color?>"><?=is_numeric($value)?number_format((float)$value,0,',','.'):e((string)$value)?></b><small>Xem chi tiết</small></a>
 <?php endforeach;?>
 </div>
-
-<section class="lb-card">
+<?php if($statMetric===''):?>
+<p class="lb-note">Bấm vào chỉ số cần xem để tải chi tiết theo giáo viên, môn, lớp, tổ hoặc tuần.</p>
+<?php else:?>
+<section class="lb-card" id="lb-stat-detail">
+ <a class="btn btn-sm btn-outline-secondary mb-2" href="<?=e(BASE_URL.'sodaubai.php?'.http_build_query($detailQuery))?>">Thu gọn chi tiết</a>
  <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
-  <div><h2 class="h5 mb-0">Bảng chỉ số theo đối tượng</h2><div class="lb-note">Tách theo tuần, giáo viên, môn hoặc lớp.</div></div>
-  <div class="lb-stat-switch"><?php foreach(['teacher'=>'Giáo viên','subject'=>'Môn','class'=>'Lớp','group'=>'Tổ','week'=>'Tuần']as$k=>$label):?><button type="button" data-stat-panel="<?=$k?>" class="<?=$k==='teacher'?'active':''?>"><?=e($label)?></button><?php endforeach;?></div>
+  <div><h2 class="h5 mb-1"><?=e(lb_stats_metric_labels()[$statMetric])?></h2><div class="lb-note">Chi tiết các tiết thuộc chỉ số đã chọn.</div></div>
+  <div class="lb-stat-switch"><?php foreach(['teacher'=>'Giáo viên','subject'=>'Môn','class'=>'Lớp','group'=>'Tổ','week'=>'Tuần']as$panel=>$label):?><a data-stat-panel="<?=$panel?>" class="btn btn-sm <?=$panel===$statPanel?'btn-primary':'btn-outline-primary'?>" href="<?=e(BASE_URL.'sodaubai.php?'.http_build_query($detailQuery+['stats_metric'=>$statMetric,'stats_group'=>$panel]).'#lb-stat-detail')?>"><?=e($label)?></a><?php endforeach;?></div>
  </div>
- <?php foreach(['teacher'=>$teacherStats,'subject'=>$subjectStats,'class'=>$classStats,'group'=>$groupStats,'week'=>$weekStats]as$panel=>$groupRows):?>
- <div class="lb-stat-panel <?=$panel==='teacher'?'active':''?>" data-stat-content="<?=$panel?>">
+ <div data-stat-content="<?=e($statPanel)?>" class="lb-stat-panel active">
   <div class="table-responsive"><table class="table table-sm table-hover lb-stat-table">
-   <thead><tr><th><?=e(['teacher'=>'Giáo viên','subject'=>'Môn','class'=>'Lớp','group'=>'Tổ','week'=>'Tuần'][$panel])?></th><?php foreach($cols as$c=>$lab):?><th class="text-center"><?=e($lab)?></th><?php endforeach;?><th class="text-center">Đã ký / Cần ký</th><th class="text-center">Tỷ lệ</th></tr></thead>
+   <thead><tr><th><?=e(['teacher'=>'Giáo viên','subject'=>'Môn','class'=>'Lớp','group'=>'Tổ','week'=>'Tuần'][$statPanel])?></th><?php foreach($cols as$lab):?><th class="text-center"><?=e($lab)?></th><?php endforeach;?><th class="text-center">Đã ký / Cần ký</th><th class="text-center">Tỷ lệ</th></tr></thead>
    <tbody>
    <?php foreach($groupRows as$g):$gr=$g['scheduled']?($g['completed']*100/$g['scheduled']):0;?>
     <tr>
-     <td class="fw-bold <?=in_array($panel,['teacher','subject'],true)&&$g['incomplete']>0?'text-danger':''?>"><?=e($g['name'])?></td>
+     <td class="fw-bold <?=in_array($statPanel,['teacher','subject'],true)&&$g['incomplete']>0?'text-danger':''?>"><?=e($g['name'])?></td>
      <?php foreach(array_keys($cols) as$c):?><td class="text-center"><?=isset($g[$c])?(is_float($g[$c])?number_format($g[$c],1,',','.'):(int)$g[$c]):0?></td><?php endforeach;?>
      <td class="text-center <?=$g['incomplete']>0?'text-danger fw-bold':''?>"><?=$g['completed']?> / <?=$g['scheduled']?></td><td class="text-center"><span class="badge <?=$gr>=100?'text-bg-success':($gr>=80?'text-bg-warning':'text-bg-light')?>"><?=number_format($gr,1,',','.')?>%</span></td>
     </tr>
@@ -113,8 +120,7 @@ $cols=['scheduled'=>'Tổng','completed'=>'Hoàn thành','incomplete'=>'Chưa HT
    </tbody>
   </table></div>
  </div>
- <?php endforeach;?>
 </section>
 <?php endif;?>
-<script>(function(){const range=document.getElementById('lbStatsRange');function sync(){document.querySelectorAll('.stats-range-week').forEach(x=>x.style.display=range.value==='week'?'':'none');document.querySelectorAll('.stats-range-custom').forEach(x=>x.style.display=range.value==='custom'?'':'none')}if(range){range.addEventListener('change',sync);sync()}document.querySelectorAll('[data-stat-panel]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-stat-panel]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('[data-stat-content]').forEach(x=>x.classList.toggle('active',x.dataset.statContent===b.dataset.statPanel))}))})()</script>
-
+<?php endif;?>
+<script>(function(){const range=document.getElementById('lbStatsRange');function sync(){document.querySelectorAll('.stats-range-week').forEach(x=>x.style.display=range.value==='week'?'':'none');document.querySelectorAll('.stats-range-custom').forEach(x=>x.style.display=range.value==='custom'?'':'none')}if(range){range.addEventListener('change',sync);sync()}})()</script>

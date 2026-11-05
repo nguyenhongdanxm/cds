@@ -6,6 +6,19 @@ $from=(string)($_GET['stats_from']??'');$to=(string)($_GET['stats_to']??'');
 if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$from)||!preg_match('/^\d{4}-\d{2}-\d{2}$/',$to)){http_response_code(422);exit('Khoảng ngày không hợp lệ.');}
 $completion=in_array((string)($_GET['stats_completion']??'all'),['all','completed','incomplete','saved_unsigned','not_saved'],true)?(string)$_GET['stats_completion']:'all';
 $rows=lb_stat_rows($from,$to,trim((string)($_GET['stats_teacher']??'')),trim((string)($_GET['stats_subject']??'')),trim((string)($_GET['stats_class']??'')),$completion);
+if(($_GET['format']??'xlsx')!=='csv'){
+ require_once __DIR__.'/includes/lesson_book_statistics_excel.php';
+ $tmp=tempnam(sys_get_temp_dir(),'lb_stats_');
+ $filters=['Giáo viên'=>trim((string)($_GET['stats_teacher']??'')),'Môn'=>trim((string)($_GET['stats_subject']??'')),'Lớp'=>trim((string)($_GET['stats_class']??'')),'Tình trạng'=>['all'=>'Tất cả','completed'=>'Đã ký','incomplete'=>'Chưa hoàn thành','saved_unsigned'=>'Đã lưu, chưa ký','not_saved'=>'Chưa ghi'][$completion]];
+ if($tmp===false){http_response_code(500);exit('Không tạo được tệp tạm Excel.');}
+ try{
+  if(!lb_stats_xlsx($rows,$from,$to,$tmp,$filters)){http_response_code(500);exit('Không tạo được Excel. Hosting cần bật ZipArchive.');}
+  header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  header('Content-Disposition: attachment; filename="Thong-ke-Ky-so-'.$from.'-'.$to.'.xlsx"');
+  header('Content-Length: '.filesize($tmp));readfile($tmp);
+ }finally{@unlink($tmp);}
+ exit;
+}
 $labels=['pending'=>'Chưa ghi','taught'=>'Đã dạy','substitute'=>'Dạy thay','makeup'=>'Dạy bù','online'=>'Trực tuyến','holiday'=>'Nghỉ lễ','teacher_absent'=>'GV nghỉ','class_absent'=>'Lớp nghỉ','postponed'=>'Hoãn','cancelled'=>'Hủy'];
 $filename='Thong-ke-So-dau-bai-'.$from.'-'.$to.'.csv';
 header('Content-Type: text/csv; charset=UTF-8');
