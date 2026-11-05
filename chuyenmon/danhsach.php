@@ -2,6 +2,7 @@
 $page_title = 'Danh sách phân công';
 require_once 'includes/functions.php';
 require_login();
+if(($_SERVER['REQUEST_METHOD']??'GET')==='GET'){header('Location: '.BASE_URL.'them.php'.(!empty($_GET['q'])?'?q='.urlencode((string)$_GET['q']):''));exit;}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['delete_day_id'])) {

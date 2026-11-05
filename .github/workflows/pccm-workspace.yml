@@ -1,0 +1,38 @@
+name: PCCM single workspace
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/them.php'
+      - 'chuyenmon/danhsach.php'
+      - 'chuyenmon/includes/pccm_workspace_view.php'
+      - 'chuyenmon/includes/program_assignment_view.php'
+      - 'chuyenmon/assets/pccm-workspace.css'
+      - 'tests/pccm_workspace*'
+      - '.github/workflows/pccm-workspace.yml'
+  workflow_dispatch:
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - name: Preserve current handlers
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: |
+          git show "$BASE_SHA:chuyenmon/them.php" > "$RUNNER_TEMP/them-before.php"
+          CDS_WORKSPACE_BASELINE="$RUNNER_TEMP/them-before.php" php tests/pccm_workspace_test.php
+          php -l chuyenmon/them.php
+          php -l chuyenmon/danhsach.php
+          php -l chuyenmon/includes/program_assignment_view.php
+          php tests/pccm_workspace_fixture.php
+      - run: npm install --prefix "$RUNNER_TEMP/pccm" --no-package-lock playwright@1.58.2 bootstrap@5.3.3
+      - run: "$RUNNER_TEMP/pccm/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/pccm_workspace_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/pccm/node_modules

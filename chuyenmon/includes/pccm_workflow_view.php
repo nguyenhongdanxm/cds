@@ -2,7 +2,7 @@
 /** Navigation only: existing forms, handlers, feature codes and records stay in their original pages. */
 $pccmInputPages=['monhoc','lop','giaovien','kiemnhiem'];$pccmWorkPages=['them','danhsach','doicheo','rasoat','sua'];$pccmResultPages=['ketqua','thongke','xuat_bang'];
 $pccmStage=in_array($current,$pccmInputPages,true)?'input':(in_array($current,$pccmWorkPages,true)?'work':(in_array($current,$pccmResultPages,true)?'result':''));
-if($pccmStage==='')return;
+if($pccmStage===''||$pccmStage==='work')return;
 $pccmTabs=$pccmStage==='input'?[
  ['Môn học','monhoc.php','cm.nhaplieu'],['Lớp','lop.php','cm.nhaplieu'],['Giáo viên','giaovien.php','cm.nhaplieu'],['Kiêm nhiệm','kiemnhiem.php','cm.nhaplieu']
 ]:($pccmStage==='work'?[

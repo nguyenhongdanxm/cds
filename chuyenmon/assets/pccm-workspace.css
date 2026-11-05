@@ -1,0 +1,21 @@
+/* One board, contextual editors and no duplicate work-stage navigation. */
+body.cm-body #board{border:1px solid #dce5ed;border-radius:10px;box-shadow:none}
+body.cm-body #board>.card-header{background:#fff;color:#34465a;padding:10px 12px;border-bottom:1px solid #e3eaf0}
+body.cm-body #board .board-scroll{max-height:none;min-height:0;overflow:visible;padding:0 12px}
+body.cm-body #board .board-row{padding:10px 0;background:transparent;border-radius:0;box-shadow:none;border-bottom:1px solid #e6edf3}
+body.cm-body #board .chip{font-size:13px;border-radius:6px;padding:4px 7px;margin:2px;line-height:1.35;text-decoration:none}
+body.cm-body #board .filter-bar{gap:6px}
+body.cm-body #board .filter-bar input{flex:1;min-width:150px!important}
+body.cm-body #board .filter-bar select{min-width:100px;font-size:12px;max-width:145px}
+body.cm-body #pccmCompose .modal-body{padding:14px;overflow-x:hidden}
+body.cm-body #pccmCompose .nav-pills{flex-wrap:wrap}
+body.cm-body #pccmCompose .nav-link{color:#315776!important;background:#f0f5fa;border-radius:6px;font-size:13px}
+body.cm-body #pccmCompose .nav-link.active{color:white!important;background:#245a84}
+body.cm-body #pccmCompose .gdp-wrap{max-width:none}
+body.cm-body #pccmCompose .gdp-panel{border:0;border-radius:0;padding:0;margin-bottom:12px;box-shadow:none}
+body.cm-body #pccmCompose .gdp-range .form-control,body.cm-body #pccmCompose .gdp-range .form-select{min-height:34px;font-size:13px}
+body.cm-body #pccmCompose .gdp-periods{margin:8px 0}
+body.cm-body #pccmCompose .cds-manual-panel{padding:0;margin:0;border:0;background:transparent;box-shadow:none}
+body.cm-body #pccmCompose .cds-manual-panel .card{border:0;box-shadow:none;margin:0}
+@media(min-width:1000px){body.cm-body #board .board-row{display:grid;grid-template-columns:290px minmax(0,1fr);gap:0 14px}body.cm-body #board .board-row>div:first-child{grid-row:1 / span 2;display:block!important}body.cm-body #board .teacher-name{display:block;margin-bottom:4px}body.cm-body #board .board-row>div:first-child>span{display:block;font-size:11px!important;line-height:1.6}body.cm-body #board .board-drop{min-height:24px}}
+@media(max-width:600px){body.cm-body #pccmCompose .modal-dialog{margin:8px}body.cm-body #pccmCompose .modal-body{padding:10px}body.cm-body #board .filter-bar select{flex:1;max-width:100%;min-width:90px}body.cm-body #board .teacher-name{font-size:14px}}
