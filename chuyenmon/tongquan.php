@@ -32,6 +32,8 @@ usort($under, fn($a, $b) => $a['diff'] <=> $b['diff']);
 require_once 'includes/header.php';
 ?>
 
+<section class="pccm-overview">
+<link rel="stylesheet" href="<?=BASE_URL?>assets/pccm-overview.css?v=20261105-1">
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
   <div>
     <h3 class="mb-0"><i class="bi bi-grid-1x2"></i> Tổng quan phân công (PCCM)</h3>
@@ -40,8 +42,8 @@ require_once 'includes/header.php';
   <div class="d-flex flex-wrap gap-2">
     <a href="<?= BASE_URL ?>them.php" class="btn btn-primary btn-sm"><i class="bi bi-pencil-square"></i> Phân công</a>
     <a href="<?= BASE_URL ?>danhsach.php" class="btn btn-outline-primary btn-sm"><i class="bi bi-list-ul"></i> Danh sách</a>
-    <a href="<?= BASE_URL ?>thongke.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-bar-chart-line"></i> Thống kê PCCM</a>
-    <a href="<?= BASE_URL ?>index.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-house"></i> Trang chủ CM</a>
+    <a href="<?= BASE_URL ?>rasoat.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-search"></i> Rà soát</a>
+
   </div>
 </div>
 
@@ -57,17 +59,19 @@ require_once 'includes/header.php';
 <div class="alert alert-warning">Chưa có phiên bản phân công. Tạo tại <a href="<?= BASE_URL ?>ketqua.php">Kết quả</a>.</div>
 <?php endif; ?>
 
-<div class="row g-2 mb-3">
+<div class="row g-2 mb-3 pccm-key-counts">
   <div class="col-6 col-md-3 col-xl-2"><div class="card stat-card py-2"><div class="number fs-5"><?= count($teachers) ?></div><div class="label">Giáo viên</div></div></div>
   <div class="col-6 col-md-3 col-xl-2"><div class="card stat-card py-2"><div class="number fs-5"><?= count($classes) ?></div><div class="label">Lớp</div></div></div>
   <div class="col-6 col-md-3 col-xl-2"><div class="card stat-card py-2"><div class="number fs-5"><?= count($assignments) ?></div><div class="label">Phân công dạy</div></div></div>
   <div class="col-6 col-md-3 col-xl-2"><div class="card stat-card py-2"><div class="number fs-5"><?= count($roles) ?></div><div class="label">Kiêm nhiệm</div></div></div>
-  <?php if ($stats): ?>
-  <div class="col-6 col-md-3 col-xl-2"><div class="card stat-card py-2"><div class="number fs-5 text-success"><?= (int)$stats['slots_ok'] ?></div><div class="label">Ô đủ chuẩn</div></div></div>
-  <div class="col-6 col-md-3 col-xl-2"><div class="card stat-card py-2"><div class="number fs-5 text-danger"><?= (int)$stats['slots_missing'] ?></div><div class="label">Ô thiếu PC</div></div></div>
-  <?php endif; ?>
+
 </div>
 
+<?php if($stats):?><div class="pccm-attention" role="status"><span>Thiếu phân công: <b><?= (int)($stats['slots_missing']??0) ?></b> ô</span><span>Vượt định mức: <b><?=count($over)?></b> GV</span><span>Dưới định mức: <b><?=count($under)?></b> GV</span></div><?php endif;?>
+<details class="pccm-detail"><summary>Chi tiết tiết dạy và chương trình</summary><div class="pccm-detail-body"><div class="row g-2 mb-3">  <?php if ($stats): ?>
+  <div class="col-6 col-md-3 col-xl-2"><div class="card stat-card py-2"><div class="number fs-5 text-success"><?= (int)$stats['slots_ok'] ?></div><div class="label">Ô đủ chuẩn</div></div></div>
+  <div class="col-6 col-md-3 col-xl-2"><div class="card stat-card py-2"><div class="number fs-5 text-danger"><?= (int)$stats['slots_missing'] ?></div><div class="label">Ô thiếu PC</div></div></div>
+  <?php endif; ?></div>
 <?php if ($stats):
   $cov = $stats['total_std'] > 0 ? round($stats['total_assigned'] / $stats['total_std'] * 100, 1) : 0;
 ?>
@@ -79,6 +83,8 @@ require_once 'includes/header.php';
 </div>
 <?php endif; ?>
 
+</div></details>
+<details class="pccm-detail"><summary>Định mức giáo viên <small><?=count($over)?> vượt · <?=count($under)?> dưới · <?=count($ok)?> đúng</small></summary><div class="pccm-detail-body">
 <div class="row g-3 mb-3">
   <div class="col-lg-4">
     <div class="card h-100">
@@ -153,8 +159,9 @@ require_once 'includes/header.php';
   </div>
 </div>
 
+</div></details>
 <?php if ($stats && !empty($stats['missing_list'])): ?>
-<div class="card mb-3">
+<details class="pccm-detail"><summary>Chi tiết thiếu phân công (<?=count($stats['missing_list'])?> ô)</summary><div class="pccm-detail-body"><div class="card mb-3">
   <div class="card-header bg-danger d-flex justify-content-between">
     <span><i class="bi bi-exclamation-octagon"></i> Thiếu phân công (<?= count($stats['missing_list']) ?> ô)</span>
     <a href="<?= BASE_URL ?>thongke.php" class="btn btn-sm btn-light">Xem thống kê đầy đủ</a>
@@ -173,9 +180,10 @@ require_once 'includes/header.php';
     <?php endif; ?>
   </div>
 </div>
+</div></details>
 <?php endif; ?>
 
-<div class="card">
+<details class="pccm-detail"><summary>Công cụ khác</summary><div class="pccm-detail-body"><div class="card">
   <div class="card-header"><i class="bi bi-lightning"></i> Thao tác nhanh</div>
   <div class="card-body d-flex flex-wrap gap-2">
     <a class="btn btn-primary btn-sm" href="<?= BASE_URL ?>them.php"><i class="bi bi-plus-lg"></i> Thêm phân công</a>
@@ -186,4 +194,6 @@ require_once 'includes/header.php';
   </div>
 </div>
 
+</div></details>
+</section>
 <?php require_once 'includes/footer.php'; ?>

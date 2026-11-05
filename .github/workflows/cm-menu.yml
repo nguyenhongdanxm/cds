@@ -4,6 +4,9 @@ on:
     paths:
       - 'chuyenmon/includes/header.php'
       - 'chuyenmon/kehoach.php'
+      - 'chuyenmon/tongquan.php'
+      - 'chuyenmon/assets/pccm-overview.css'
+      - 'includes/chuyenmon_responsive_layout.php'
       - 'chuyenmon/includes/cds_responsive_layout.php'
       - 'tests/cm_menu*'
       - '.github/workflows/cm-menu.yml'
@@ -16,24 +19,33 @@ jobs:
         php: ['8.2', '8.3']
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           extensions: mbstring
+      - name: Original PCCM page
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: git show "$BASE_SHA:chuyenmon/tongquan.php" > "$RUNNER_TEMP/pccm-before.php"
       - run: |
           php -l chuyenmon/includes/header.php
           php -l chuyenmon/kehoach.php
           php -l chuyenmon/includes/cds_responsive_layout.php
           php tests/cm_menu_test.php
+          CDS_PCCM_BASELINE="$RUNNER_TEMP/pccm-before.php" php tests/cm_menu_pccm_test.php
   browser:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
           extensions: mbstring
-      - run: php tests/cm_menu_test.php --html
+      - run: php tests/cm_menu_test.php --html && php tests/cm_menu_pccm_test.php
       - run: npm install --prefix "$RUNNER_TEMP/cm-menu" --no-package-lock playwright@1.58.2 bootstrap@5.3.3
       - run: "$RUNNER_TEMP/cm-menu/node_modules/.bin/playwright install --with-deps chromium"
       - run: node tests/cm_menu_browser.cjs

@@ -131,7 +131,7 @@ document.querySelectorAll('.cm-sidebar-link span,.cm-mobile-bottom span,.cm-mobi
 });
 </script>
 <?php show_flash(); ?>
-<?php if ($logged && $active_ver && in_array($current, ['them','danhsach','tongquan','sua','doicheo','rasoat'], true)): ?>
+<?php if ($logged && $active_ver && in_array($current, ['them','danhsach','sua','doicheo','rasoat'], true)): ?>
 <div class="version-bar">
     <i class="bi bi-folder2-open"></i>
     Đang làm việc trên: <strong><?= e($active_ver['name']) ?></strong>

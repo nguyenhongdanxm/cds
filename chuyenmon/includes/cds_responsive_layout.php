@@ -63,6 +63,15 @@ $cmNavGroups = [
     ]],
 ];
 
+// Presentation groups only. All existing destinations and permission filters stay unchanged.
+$cmMenuSections=static function(array $group)use($cmLayoutActive):array{
+ if(($group['label']??'')!=='Phân công chuyên môn')return [['label'=>'','items'=>$group['items'],'open'=>false]];
+ $sets=['main'=>['label'=>'','items'=>[]],'setup'=>['label'=>'Danh mục','items'=>[]],'reports'=>['label'=>'Phiên bản & báo cáo','items'=>[]]];
+ foreach($group['items']as$item){$key=in_array($item['href'],['giaovien.php','monhoc.php','lop.php','kiemnhiem.php'],true)?'setup':(in_array($item['href'],['ketqua.php','thongke.php','xuat_bang.php'],true)?'reports':'main');$sets[$key]['items'][]=$item;}
+ foreach($sets as&$set){$set['open']=false;foreach($set['items']as$item)if($cmLayoutActive($item['pages'],$item['tab']??null))$set['open']=true;}unset($set);
+ return array_values(array_filter($sets,static fn($set)=>!empty($set['items'])));
+};
+
 /*
  * Một chức năng chỉ xuất hiện một lần trong sidebar. Dữ liệu cũ có thể khai
  * báo cùng đường dẫn ở nhiều nhóm (ví dụ hồ sơ đánh giá); giữ vị trí đầu tiên.
@@ -151,6 +160,7 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
  .cm-mobile-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:10px;margin-top:10px;border-top:1px solid #e2e8f0}.cm-mobile-more .cm-mobile-actions .btn{display:flex;align-items:center;justify-content:center;min-height:44px;padding:7px 8px;font-size:.75rem;line-height:1.3;border-radius:9px}.cm-mobile-menu-open .cds-launcher{visibility:hidden;pointer-events:none}
  .pccm-toast{bottom:calc(var(--cm-mobile-nav-height) + 16px)!important}
 }
+.cm-pccm-extra{grid-column:1/-1;margin:4px 0;border-top:1px solid #ffffff18}.cm-pccm-extra>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:40px;padding:8px 12px;color:#c9d9e8;font-size:12px;font-weight:650;cursor:pointer;list-style:none}.cm-pccm-extra>summary::-webkit-details-marker{display:none}.cm-pccm-extra>summary i{font-size:10px;transition:transform .15s}.cm-pccm-extra[open]>summary i{transform:rotate(180deg)}.cm-pccm-extra>summary:focus-visible{outline:2px solid #70b9ef;outline-offset:-2px}.cm-mobile-grid>.cm-pccm-extra{border:1px solid #e1e8f0;border-radius:10px}.cm-mobile-grid>.cm-pccm-extra>summary{min-height:44px;color:#365a79}.cm-mobile-grid>.cm-pccm-extra>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 8px 8px}.cm-pccm-extra:not([open])>div{display:none!important}
 </style>
 
 <style>.cm-sidebar-link.disabled,.cm-mobile-bottom .disabled,.cm-mobile-link.disabled{display:none!important}</style>
@@ -169,12 +179,16 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
           <i class="bi <?= e($group['icon']) ?>"></i><span><?= e($group['label']) ?></span><i class="bi bi-chevron-down cm-sidebar-chevron"></i>
         </button>
         <div class="cm-sidebar-items" id="<?= e($group['id']) ?>" aria-hidden="<?=$group['open']?'false':'true'?>" <?=$group['open']?'':'inert'?>><div>
-          <?php foreach ($group['items'] as $item):
+          <?php foreach($cmMenuSections($group)as$cmMenuSection):?>
+          <?php if($cmMenuSection['label']!==''):?><details class="cm-pccm-extra" <?=$cmMenuSection['open']?'open':''?>><summary><?=e($cmMenuSection['label'])?><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><?php endif;?>
+          <?php foreach ($cmMenuSection['items'] as $item):
             $allowed = $cmLayoutCan($item['permission']);
             $active = $cmLayoutActive($item['pages'], $item['tab'] ?? null);
           ?>
             <a class="cm-sidebar-link <?= $active?'active':'' ?> <?= !$allowed?'disabled':'' ?>" href="<?= BASE_URL . e($item['href']) ?>" <?= !$allowed?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi <?= e($item['icon']) ?>"></i><span><?= e($item['label']) ?></span></a>
           <?php endforeach; ?>
+          <?php if($cmMenuSection['label']!==''):?></div></details><?php endif;?>
+          <?php endforeach;?>
         </div></div>
       </section>
     <?php endforeach; ?>
@@ -203,12 +217,16 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
     <?php foreach ($cmVisibleNavGroups as $groupIndex=>$group): if(!empty($group['direct']))continue;?>
       <section class="cm-mobile-group" data-cm-mobile-group="<?= (int)$groupIndex ?>" hidden>
         <div class="cm-mobile-grid">
-          <?php foreach ($group['items'] as $item):
+          <?php foreach($cmMenuSections($group)as$cmMenuSection):?>
+          <?php if($cmMenuSection['label']!==''):?><details class="cm-pccm-extra" <?=$cmMenuSection['open']?'open':''?>><summary><?=e($cmMenuSection['label'])?><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><?php endif;?>
+          <?php foreach ($cmMenuSection['items'] as $item):
             $allowed = $cmLayoutCan($item['permission']);
             $active = $cmLayoutActive($item['pages'], $item['tab'] ?? null);
           ?>
             <a class="cm-mobile-link <?= $active?'active':'' ?> <?= !$allowed?'disabled':'' ?>" href="<?= BASE_URL . e($item['href']) ?>" <?= !$allowed?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi <?= e($item['icon']) ?>"></i><span><?= e($item['label']) ?></span></a>
           <?php endforeach; ?>
+          <?php if($cmMenuSection['label']!==''):?></div></details><?php endif;?>
+          <?php endforeach;?>
         </div>
       </section>
     <?php endforeach; ?>

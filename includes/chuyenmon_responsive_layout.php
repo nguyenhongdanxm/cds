@@ -16,23 +16,36 @@ $cmLayoutCan = static function (string $permission) use ($cmLayoutLogged): bool 
     if ($permission === 'cm.home') { $u=function_exists('cds_user')?(cds_user()??[]):[]; return ($u['role']??'')==='admin' || (function_exists('cds_user_has_group')&&cds_user_has_group($u,'gvcn')) || !empty($u['homeroom_classes']); }
     return function_exists('cds_can_feature') ? cds_can_feature($permission, 'view') : true;
 };
+if($current==='activities'&&$cmLayoutTab==='')$cmLayoutTab='clubs';
+if($current==='kehoach'&&$cmLayoutTab==='')$cmLayoutTab='vanban';
+if($current==='baocao'&&$cmLayoutTab==='thang')$cmLayoutTab='dinhky';
 $cmLayoutActive = static function (array $pages, ?string $tab = null) use ($current, $cmLayoutTab): bool {
     if (!in_array($current, $pages, true)) return false;
-    return $tab === null || $cmLayoutTab === $tab || ($cmLayoutTab === '' && $tab === 'dinhky');
+    return $tab === null || $cmLayoutTab === $tab || ($cmLayoutTab === '' && $tab === 'dinhky') || ($current === 'kehoach' && $tab === 'vanban' && $cmLayoutTab === 'chitieu');
 };
 
-$cmPccmActive = in_array($current, ['tracuu','tongquan','them','danhsach','doicheo','rasoat','sua','ketqua','giaovien','monhoc','lop','kiemnhiem','xuat_bang','thongke'], true);
-$cmPlanActive = in_array($current, ['kehoach','boiduong'], true) || ($current === 'baocao' && in_array($cmLayoutTab,['dinhky','tiendo'],true));
-$cmReportActive = in_array($current,['dugio','kiemtrahoso','danhgia'],true);
 $cmSidebarStartsCollapsed = $current === 'sodaubai';
 
 $cmNavGroups = [
-    ['label'=>'Tổng quan','items'=>[
+    ['label'=>'Tổng quan','direct'=>true,'icon'=>'bi-speedometer2','items'=>[
+        ['permission'=>'cm.support','pages'=>['index'],'href'=>'index.php','icon'=>'bi-speedometer2','label'=>'Tổng quan'],
+    ]],
+    ['label'=>'Giảng dạy','icon'=>'bi-journal-bookmark','items'=>[
         ['permission'=>'cm.dashboard','pages'=>['sodaubai'],'href'=>'sodaubai.php','icon'=>'bi-journal-check','label'=>'Sổ đầu bài'],
         ['permission'=>'cm.tracuu','pages'=>['thoikhoabieu'],'href'=>'thoikhoabieu.php','icon'=>'bi-calendar3','label'=>'Thời khóa biểu'],
         ['permission'=>'cm.tracuu','pages'=>['tracuu'],'href'=>'tracuu.php','icon'=>'bi-search','label'=>'Tra cứu phân công'],
+        ['permission'=>'cm.baocao.tiendo','pages'=>['baocao'],'tab'=>'tiendo','href'=>'baocao.php?tab=tiendo','icon'=>'bi-graph-up-arrow','label'=>'Tiến độ chương trình'],
     ]],
-    ['label'=>'Phân công – Danh mục','items'=>[
+    ['label'=>'Học tập','icon'=>'bi-mortarboard','items'=>[
+        ['permission'=>'cm.support','pages'=>['boiduong'],'href'=>'boiduong.php','icon'=>'bi-mortarboard','label'=>'Bồi dưỡng học sinh'],
+        ['permission'=>'cm.kehoach','pages'=>['activities'],'tab'=>'clubs','href'=>'activities.php?tab=clubs&view=list','icon'=>'bi-people-fill','label'=>'Các câu lạc bộ'],
+        ['permission'=>'cm.kehoach','pages'=>['activities'],'tab'=>'online','href'=>'activities.php?tab=online&view=students','icon'=>'bi-laptop','label'=>'Học Online'],
+    ]],
+    ['label'=>'Đánh giá','icon'=>'bi-clipboard2-check','items'=>[
+        ['permission'=>'cm.baocao.dugio','pages'=>['dugio'],'href'=>'dugio.php','icon'=>'bi-eye','label'=>'Dự giờ'],
+        ['permission'=>'cm.baocao.kythi','pages'=>['kiemtrahoso'],'href'=>'kiemtrahoso.php','icon'=>'bi-folder-check','label'=>'Kiểm tra chuyên môn'],
+    ]],
+    ['label'=>'Phân công chuyên môn','short_label'=>'Phân công','icon'=>'bi-diagram-3','items'=>[
         ['permission'=>'cm.pccm','pages'=>['tongquan'],'href'=>'tongquan.php','icon'=>'bi-grid','label'=>'Tổng quan PCCM'],
         ['permission'=>'cm.pccm','pages'=>['them','doicheo','rasoat','sua'],'href'=>'them.php','icon'=>'bi-pencil-square','label'=>'Phân công'],
         ['permission'=>'cm.pccm','pages'=>['danhsach'],'href'=>'danhsach.php','icon'=>'bi-list-ul','label'=>'Danh sách'],
@@ -44,21 +57,20 @@ $cmNavGroups = [
         ['permission'=>'cm.thongke','pages'=>['thongke'],'href'=>'thongke.php','icon'=>'bi-bar-chart-line','label'=>'Thống kê PCCM'],
         ['permission'=>'cm.thongke','pages'=>['xuat_bang'],'href'=>'xuat_bang.php','icon'=>'bi-printer','label'=>'Xuất bảng'],
     ]],
-    ['label'=>'Kế hoạch – Thực hiện','items'=>[
+    ['label'=>'Báo cáo','icon'=>'bi-file-earmark-text','items'=>[
         ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'vanban','href'=>'kehoach.php?tab=vanban','icon'=>'bi-file-earmark-check','label'=>'Kế hoạch giáo dục'],
-        ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'chitieu','href'=>'kehoach.php?tab=chitieu','icon'=>'bi-bullseye','label'=>'Chỉ tiêu'],
-        ['permission'=>'cm.support','pages'=>['boiduong'],'href'=>'boiduong.php','icon'=>'bi-mortarboard','label'=>'Bồi dưỡng học sinh'],
-        ['permission'=>'cm.kehoach','pages'=>['activities'],'tab'=>'clubs','href'=>'activities.php?tab=clubs&view=list','icon'=>'bi-people-fill','label'=>'Các CLB'],
-        ['permission'=>'cm.kehoach','pages'=>['activities'],'tab'=>'online','href'=>'activities.php?tab=online&view=students','icon'=>'bi-laptop','label'=>'Học Online'],
-        ['permission'=>'cm.baocao.tiendo','pages'=>['baocao'],'tab'=>'tiendo','href'=>'baocao.php?tab=tiendo','icon'=>'bi-graph-up-arrow','label'=>'Tiến độ chương trình'],
         ['permission'=>'cm.baocao.dinhky','pages'=>['baocao'],'tab'=>'dinhky','href'=>'baocao.php?tab=dinhky','icon'=>'bi-calendar-check','label'=>'Báo cáo định kỳ'],
     ]],
-    ['label'=>'Theo dõi – Đánh giá','items'=>[
-        ['permission'=>'cm.baocao.dugio','pages'=>['dugio'],'href'=>'dugio.php','icon'=>'bi-eye','label'=>'Dự giờ'],
-        ['permission'=>'cm.baocao.kythi','pages'=>['kiemtrahoso'],'href'=>'kiemtrahoso.php','icon'=>'bi-folder-check','label'=>'Kiểm tra'],
-        ['permission'=>'cm.baocao.dugio','pages'=>['danhgia'],'href'=>'/thidua_danhgia.php','icon'=>'bi-person-lines-fill','label'=>'Đánh giá CBGVNV'],
-    ]],
 ];
+
+// Presentation groups only. All existing destinations and permission filters stay unchanged.
+$cmMenuSections=static function(array $group)use($cmLayoutActive):array{
+ if(($group['label']??'')!=='Phân công chuyên môn')return [['label'=>'','items'=>$group['items'],'open'=>false]];
+ $sets=['main'=>['label'=>'','items'=>[]],'setup'=>['label'=>'Danh mục','items'=>[]],'reports'=>['label'=>'Phiên bản & báo cáo','items'=>[]]];
+ foreach($group['items']as$item){$key=in_array($item['href'],['giaovien.php','monhoc.php','lop.php','kiemnhiem.php'],true)?'setup':(in_array($item['href'],['ketqua.php','thongke.php','xuat_bang.php'],true)?'reports':'main');$sets[$key]['items'][]=$item;}
+ foreach($sets as&$set){$set['open']=false;foreach($set['items']as$item)if($cmLayoutActive($item['pages'],$item['tab']??null))$set['open']=true;}unset($set);
+ return array_values(array_filter($sets,static fn($set)=>!empty($set['items'])));
+};
 
 /*
  * Một chức năng chỉ xuất hiện một lần trong sidebar. Dữ liệu cũ có thể khai
@@ -67,10 +79,10 @@ $cmNavGroups = [
 $cmVisibleNavGroups = [];
 $cmSeenTargets = [];
 $cmSeenLabels = [];
-$cmGroupIcons = ['bi-speedometer2','bi-diagram-3','bi-calendar2-week','bi-clipboard2-check'];
 foreach ($cmNavGroups as $groupIndex=>$group) {
     $visibleItems = [];
     foreach ($group['items'] as $item) {
+        if (!$cmLayoutCan($item['permission'])) continue;
         $target = strtolower(trim((string)($item['href'] ?? '')));
         $target = preg_replace('~/+~', '/', $target);
         $labelKey = function_exists('mb_strtolower')
@@ -85,7 +97,7 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
     if (!$visibleItems) continue;
     $group['items'] = $visibleItems;
     $group['id'] = 'cmGroup' . $groupIndex;
-    $group['icon'] = $cmGroupIcons[$groupIndex] ?? 'bi-folder2';
+    $group['icon'] = $group['icon'] ?? 'bi-folder2';
     $group['open'] = false;
     foreach ($visibleItems as $item) {
         if ($cmLayoutActive($item['pages'], $item['tab'] ?? null)) { $group['open'] = true; break; }
@@ -99,7 +111,7 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
 .cm-sidebar-brand{display:flex;align-items:center;gap:.7rem;padding:.85rem .85rem .78rem;color:#fff;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.12)}
 .cm-sidebar-brand .cm-logo{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.13);font-size:1.1rem}
 .cm-sidebar-brand strong{display:block;font-size:.94rem}.cm-sidebar-brand small{display:block;color:#bfdbfe;font-size:.68rem;margin-top:.08rem}
-.cm-sidebar-scroll{flex:1;overflow-y:auto;padding:.55rem .55rem .8rem;scrollbar-width:thin}
+.cm-sidebar-home{margin:.3rem 0 .5rem;min-height:44px;padding:.65rem .8rem;border:1px solid #ffffff20;border-radius:12px;font-size:.82rem}.cm-sidebar-home>i{width:28px;font-size:1.1rem}.cm-sidebar-scroll{flex:1;overflow-y:auto;padding:.55rem .55rem .8rem;scrollbar-width:thin}
 .cm-sidebar-group{margin:.28rem 0;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(255,255,255,.025);overflow:hidden}
 .cm-sidebar-group.open{background:rgba(255,255,255,.055);border-color:rgba(147,197,253,.25)}
 .cm-sidebar-group-toggle{display:flex;align-items:center;width:100%;min-height:42px;padding:.52rem .65rem;border:0;background:transparent;color:#dbeafe;text-align:left;font-size:.76rem;font-weight:800;letter-spacing:.025em;text-transform:uppercase;cursor:pointer}
@@ -120,8 +132,9 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
  .cm-desktop-sidebar,.cm-desktop-sidebar *{transition-duration:.2s;transition-property:width,padding,margin,opacity,transform}
  .cm-desktop-sidebar.is-collapsed{width:64px}
  .cm-desktop-sidebar.is-collapsed .cm-sidebar-brand{justify-content:center;padding-left:.35rem;padding-right:.35rem}
- .cm-desktop-sidebar.is-collapsed .cm-sidebar-brand>span:last-child,.cm-desktop-sidebar.is-collapsed .cm-sidebar-group-toggle span,.cm-desktop-sidebar.is-collapsed .cm-sidebar-chevron,.cm-desktop-sidebar.is-collapsed .cm-sidebar-items,.cm-desktop-sidebar.is-collapsed .cm-sidebar-footer{display:none!important}
+ .cm-desktop-sidebar.is-collapsed .cm-sidebar-home span,.cm-desktop-sidebar.is-collapsed .cm-sidebar-brand>span:last-child,.cm-desktop-sidebar.is-collapsed .cm-sidebar-group-toggle span,.cm-desktop-sidebar.is-collapsed .cm-sidebar-chevron,.cm-desktop-sidebar.is-collapsed .cm-sidebar-items,.cm-desktop-sidebar.is-collapsed .cm-sidebar-footer{display:none!important}
  .cm-desktop-sidebar.is-collapsed .cm-sidebar-scroll{padding:.55rem .35rem}
+ .cm-desktop-sidebar.is-collapsed .cm-sidebar-home{justify-content:center;padding:.6rem 0;border-color:transparent}
  .cm-desktop-sidebar.is-collapsed .cm-sidebar-group{border-color:transparent;background:transparent}
  .cm-desktop-sidebar.is-collapsed .cm-sidebar-group-toggle{justify-content:center;padding:.42rem .2rem}
  .cm-desktop-sidebar.is-collapsed .cm-sidebar-group-toggle>i:first-child{margin:0;width:38px;height:38px;font-size:1.05rem}
@@ -139,10 +152,15 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
  .cm-mobile-bottom a,.cm-mobile-bottom button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;border:0;background:transparent;color:#64748b;text-decoration:none;font-size:.65rem;font-weight:750;line-height:1.1}
  .cm-mobile-bottom i{font-size:1.25rem}.cm-mobile-bottom .active{color:#1f5d8d}.cm-mobile-bottom .disabled{opacity:.3;pointer-events:none}
  .cm-mobile-more{display:block}.cm-mobile-more .offcanvas-header{background:linear-gradient(135deg,var(--cm-nav-blue),var(--cm-nav-blue-2));color:#fff}.cm-mobile-more .btn-close{filter:invert(1)}
- .cm-mobile-group{margin-bottom:1rem}.cm-mobile-group-title{margin:0 0 .45rem;color:#64748b;font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+ .cm-mobile-group{margin-bottom:0}.cm-mobile-group-title{margin:0 0 .45rem;color:#64748b;font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
  .cm-mobile-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}.cm-mobile-link{display:flex;align-items:center;gap:.62rem;min-height:50px;padding:.65rem;border:1px solid #e2e8f0;border-radius:13px;background:#fff;color:#334155;text-decoration:none;font-size:.78rem;font-weight:700}.cm-mobile-link i{color:#1f5d8d;font-size:1.05rem}.cm-mobile-link.active{border-color:#60a5fa;background:#eff6ff;color:#174b73}.cm-mobile-link.disabled{opacity:.35;pointer-events:none}
+ .cm-mobile-more.offcanvas-bottom{display:flex;flex-direction:column;height:auto;max-height:min(70vh,520px);max-height:min(70dvh,520px);bottom:calc(var(--cm-mobile-nav-height) + env(safe-area-inset-bottom));border-radius:16px 16px 0 0;border:0;box-shadow:0 -8px 28px #0f274526}
+ .cm-mobile-more .offcanvas-header{padding:8px 14px;min-height:52px;flex-shrink:0}.cm-mobile-more .offcanvas-title{font-size:1rem;font-weight:700;line-height:1.3}.cm-mobile-more .offcanvas-header .btn-close{width:44px;height:44px;padding:12px;margin:-4px -6px -4px 8px;flex-shrink:0;box-sizing:border-box;background-size:13px}
+ .cm-mobile-more .offcanvas-body{flex:0 1 auto;min-height:0;padding:12px;overflow-y:auto;overscroll-behavior:contain}.cm-mobile-more .cm-mobile-grid{gap:8px}.cm-mobile-more .cm-mobile-link{min-height:46px;padding:10px;border-radius:9px;gap:8px;font-size:.8rem;line-height:1.35;font-weight:600}.cm-mobile-more .cm-mobile-link i{font-size:1.05rem;flex-shrink:0}.cm-mobile-more .cm-mobile-link span{min-width:0;overflow-wrap:anywhere}
+ .cm-mobile-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:10px;margin-top:10px;border-top:1px solid #e2e8f0}.cm-mobile-more .cm-mobile-actions .btn{display:flex;align-items:center;justify-content:center;min-height:44px;padding:7px 8px;font-size:.75rem;line-height:1.3;border-radius:9px}.cm-mobile-menu-open .cds-launcher{visibility:hidden;pointer-events:none}
  .pccm-toast{bottom:calc(var(--cm-mobile-nav-height) + 16px)!important}
 }
+.cm-pccm-extra{grid-column:1/-1;margin:4px 0;border-top:1px solid #ffffff18}.cm-pccm-extra>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:40px;padding:8px 12px;color:#c9d9e8;font-size:12px;font-weight:650;cursor:pointer;list-style:none}.cm-pccm-extra>summary::-webkit-details-marker{display:none}.cm-pccm-extra>summary i{font-size:10px;transition:transform .15s}.cm-pccm-extra[open]>summary i{transform:rotate(180deg)}.cm-pccm-extra>summary:focus-visible{outline:2px solid #70b9ef;outline-offset:-2px}.cm-mobile-grid>.cm-pccm-extra{border:1px solid #e1e8f0;border-radius:10px}.cm-mobile-grid>.cm-pccm-extra>summary{min-height:44px;color:#365a79}.cm-mobile-grid>.cm-pccm-extra>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 8px 8px}.cm-pccm-extra:not([open])>div{display:none!important}
 </style>
 
 <style>.cm-sidebar-link.disabled,.cm-mobile-bottom .disabled,.cm-mobile-link.disabled{display:none!important}</style>
@@ -155,17 +173,22 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
   </a>
   <div class="cm-sidebar-scroll">
     <?php foreach ($cmVisibleNavGroups as $group): ?>
+      <?php if(!empty($group['direct'])):$home=$group['items'][0];?><a class="cm-sidebar-link cm-sidebar-home <?=$group['open']?'active':''?>" href="<?=BASE_URL.e($home['href'])?>" title="<?=e($group['label'])?>" <?=$group['open']?'aria-current="page"':''?>><i class="bi <?=e($group['icon'])?>"></i><span><?=e($group['label'])?></span></a><?php continue;endif;?>
       <section class="cm-sidebar-group <?= $group['open']?'open':'' ?>" data-cm-nav-group>
         <button type="button" class="cm-sidebar-group-toggle" aria-expanded="<?= $group['open']?'true':'false' ?>" aria-controls="<?= e($group['id']) ?>">
           <i class="bi <?= e($group['icon']) ?>"></i><span><?= e($group['label']) ?></span><i class="bi bi-chevron-down cm-sidebar-chevron"></i>
         </button>
-        <div class="cm-sidebar-items" id="<?= e($group['id']) ?>"><div>
-          <?php foreach ($group['items'] as $item):
+        <div class="cm-sidebar-items" id="<?= e($group['id']) ?>" aria-hidden="<?=$group['open']?'false':'true'?>" <?=$group['open']?'':'inert'?>><div>
+          <?php foreach($cmMenuSections($group)as$cmMenuSection):?>
+          <?php if($cmMenuSection['label']!==''):?><details class="cm-pccm-extra" <?=$cmMenuSection['open']?'open':''?>><summary><?=e($cmMenuSection['label'])?><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><?php endif;?>
+          <?php foreach ($cmMenuSection['items'] as $item):
             $allowed = $cmLayoutCan($item['permission']);
             $active = $cmLayoutActive($item['pages'], $item['tab'] ?? null);
           ?>
             <a class="cm-sidebar-link <?= $active?'active':'' ?> <?= !$allowed?'disabled':'' ?>" href="<?= BASE_URL . e($item['href']) ?>" <?= !$allowed?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi <?= e($item['icon']) ?>"></i><span><?= e($item['label']) ?></span></a>
           <?php endforeach; ?>
+          <?php if($cmMenuSection['label']!==''):?></div></details><?php endif;?>
+          <?php endforeach;?>
         </div></div>
       </section>
     <?php endforeach; ?>
@@ -178,33 +201,36 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
   </div>
 </aside>
 
-<nav class="cm-mobile-bottom" aria-label="Menu Chuyên môn trên điện thoại">
+<nav class="cm-mobile-bottom" aria-label="Menu Chuyên môn trên điện thoại" style="grid-template-columns:repeat(<?=max(1,count($cmVisibleNavGroups))?>,minmax(0,1fr))">
   <?php foreach ($cmVisibleNavGroups as $groupIndex=>$group):
     $groupAllowed = false;
     foreach ($group['items'] as $item) { if ($cmLayoutCan($item['permission'])) { $groupAllowed = true; break; } }
   ?>
-    <button class="<?= $group['open']?'active':'' ?> <?= !$groupAllowed?'disabled':'' ?>" type="button" data-cm-mobile-parent="<?= (int)$groupIndex ?>" data-cm-mobile-label="<?= e($group['label']) ?>" data-bs-toggle="offcanvas" data-bs-target="#cmMobileMore" aria-controls="cmMobileMore"><i class="bi <?= e($group['icon']) ?>"></i><span><?= e($group['label']) ?></span></button>
+    <?php if(!empty($group['direct'])):?><a href="<?=BASE_URL.e($group['items'][0]['href'])?>" class="<?=$group['open']?'active':''?>" <?=$group['open']?'aria-current="page"':''?>><i class="bi <?=e($group['icon'])?>"></i><span><?=e($group['label'])?></span></a><?php continue;endif;?>
+    <button class="<?= $group['open']?'active':'' ?> <?= !$groupAllowed?'disabled':'' ?>" type="button" data-cm-mobile-parent="<?= (int)$groupIndex ?>" data-cm-mobile-label="<?= e($group['label']) ?>" data-bs-toggle="offcanvas" data-bs-target="#cmMobileMore" aria-controls="cmMobileMore"><i class="bi <?= e($group['icon']) ?>"></i><span><?= e($group['short_label']??$group['label']) ?></span></button>
   <?php endforeach; ?>
-  <a href="/"><i class="bi bi-grid-3x3-gap-fill"></i><span>Hệ sinh thái</span></a>
 </nav>
 
-<div class="offcanvas offcanvas-bottom cm-mobile-more" tabindex="-1" id="cmMobileMore" aria-labelledby="cmMobileMoreLabel" style="height:min(82vh,720px);border-radius:22px 22px 0 0">
-  <div class="offcanvas-header"><div><h5 class="offcanvas-title" id="cmMobileMoreLabel"><i class="bi bi-journal-bookmark-fill me-2"></i><span data-cm-mobile-title>Chuyên môn</span></h5><div class="small text-white-50">Chọn chức năng cần sử dụng</div></div><button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button></div>
+<div class="offcanvas offcanvas-bottom cm-mobile-more" tabindex="-1" id="cmMobileMore" aria-labelledby="cmMobileMoreLabel" >
+  <div class="offcanvas-header"><div><h5 class="offcanvas-title" id="cmMobileMoreLabel"><i class="bi bi-journal-bookmark-fill me-2"></i><span data-cm-mobile-title>Chuyên môn</span></h5></div><button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button></div>
   <div class="offcanvas-body">
-    <?php foreach ($cmVisibleNavGroups as $groupIndex=>$group): ?>
+    <?php foreach ($cmVisibleNavGroups as $groupIndex=>$group): if(!empty($group['direct']))continue;?>
       <section class="cm-mobile-group" data-cm-mobile-group="<?= (int)$groupIndex ?>" hidden>
-        <h6 class="cm-mobile-group-title"><?= e($group['label']) ?></h6>
         <div class="cm-mobile-grid">
-          <?php foreach ($group['items'] as $item):
+          <?php foreach($cmMenuSections($group)as$cmMenuSection):?>
+          <?php if($cmMenuSection['label']!==''):?><details class="cm-pccm-extra" <?=$cmMenuSection['open']?'open':''?>><summary><?=e($cmMenuSection['label'])?><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><?php endif;?>
+          <?php foreach ($cmMenuSection['items'] as $item):
             $allowed = $cmLayoutCan($item['permission']);
             $active = $cmLayoutActive($item['pages'], $item['tab'] ?? null);
           ?>
             <a class="cm-mobile-link <?= $active?'active':'' ?> <?= !$allowed?'disabled':'' ?>" href="<?= BASE_URL . e($item['href']) ?>" <?= !$allowed?'aria-disabled="true" tabindex="-1"':'' ?>><i class="bi <?= e($item['icon']) ?>"></i><span><?= e($item['label']) ?></span></a>
           <?php endforeach; ?>
+          <?php if($cmMenuSection['label']!==''):?></div></details><?php endif;?>
+          <?php endforeach;?>
         </div>
       </section>
     <?php endforeach; ?>
-    <div class="d-grid gap-2 mt-3">
+    <div class="cm-mobile-actions">
       <a href="/" class="btn btn-outline-primary"><i class="bi bi-grid me-1"></i> Hệ sinh thái CDS</a>
       <?php if ($cmLayoutLogged): ?><a href="<?= BASE_URL ?>logout.php" class="btn btn-outline-danger"><i class="bi bi-box-arrow-right me-1"></i> Đăng xuất</a><?php endif; ?>
     </div>
@@ -225,10 +251,11 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
       var group=button.closest('[data-cm-nav-group]'),open=!group.classList.contains('open');
       document.querySelectorAll('[data-cm-nav-group]').forEach(function(other){
         var keep=other===group&&open;other.classList.toggle('open',keep);
-        var toggle=other.querySelector(':scope>.cm-sidebar-group-toggle');if(toggle)toggle.setAttribute('aria-expanded',keep?'true':'false');
+        var toggle=other.querySelector(':scope>.cm-sidebar-group-toggle');if(toggle)toggle.setAttribute('aria-expanded',keep?'true':'false');var items=other.querySelector('.cm-sidebar-items');if(items){items.inert=!keep;items.setAttribute('aria-hidden',keep?'false':'true');}
       });
     });
   });
+  var mobileSheet=document.getElementById('cmMobileMore');if(mobileSheet){mobileSheet.addEventListener('show.bs.offcanvas',function(){document.body.classList.add('cm-mobile-menu-open')});mobileSheet.addEventListener('hidden.bs.offcanvas',function(){document.body.classList.remove('cm-mobile-menu-open')});}
   document.querySelectorAll('[data-cm-mobile-parent]').forEach(function(button){
     button.addEventListener('click',function(){
       var wanted=button.getAttribute('data-cm-mobile-parent');
