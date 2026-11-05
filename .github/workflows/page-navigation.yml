@@ -1,0 +1,35 @@
+name: Ecosystem page navigation
+on:
+  pull_request:
+    paths:
+      - 'includes/config.php'
+      - 'chuyenmon/includes/config.php'
+      - 'includes/page_navigation.php'
+      - 'assets/page-navigation.*'
+      - 'olympia_san_khau_preview.html'
+      - 'tests/page_navigation*'
+      - '.github/workflows/page-navigation.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: |
+          php -l includes/page_navigation.php
+          php -l includes/config.php
+          php -l chuyenmon/includes/config.php
+          python tests/page_navigation_coverage_test.py
+          php tests/page_navigation_test.php
+          php tests/viewer_access_test.php
+          node --check assets/page-navigation.js
+          node --check tests/page_navigation_browser.cjs
+      - run: npm install --prefix "$RUNNER_TEMP/navigation" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/navigation/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/page_navigation_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/navigation/node_modules
