@@ -11,7 +11,8 @@ $pccmTabs=$pccmStage==='input'?[
 $pccmSelectedVersion=null;$pccmVersionId='';
 if($pccmStage==='result'){$candidate=$view_id??$vid??get_active_version_id();if(is_scalar($candidate)&&($pccmSelectedVersion=get_version((string)$candidate)))$pccmVersionId=(string)$candidate;}
 ?>
-<link rel="stylesheet" href="<?=e(BASE_URL)?>assets/pccm-workflow.css?v=20261105-1">
+<link rel="stylesheet" href="<?=e(BASE_URL)?>assets/pccm-workflow.css?v=20261105-2">
+<?php if ($pccmStage === 'input'): ?><link rel="stylesheet" href="<?=e(BASE_URL)?>assets/pccm-input.css?v=20261105-1"><?php endif; ?>
 <section class="pccm-workflow" aria-label="<?=e(['input'=>'Nhập liệu','work'=>'Phân công','result'=>'Kết quả phiên bản'][$pccmStage])?>">
  <div class="pccm-workflow-title"><strong><?=e(['input'=>'Nhập liệu','work'=>'Phân công','result'=>'Kết quả phiên bản'][$pccmStage])?></strong><span><?=e(['input'=>'Danh mục dùng cho phân công chuyên môn','work'=>'Các thao tác luôn áp dụng phiên bản đang làm việc','result'=>'Chọn phiên bản để xem, thống kê và xuất kết quả'][$pccmStage])?></span></div>
  <nav class="pccm-workflow-tabs" aria-label="Các tab <?=e($pccmStage)?>">
