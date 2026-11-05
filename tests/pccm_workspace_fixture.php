@@ -1,11 +1,14 @@
 <?php
 require __DIR__.'/../includes/program_assignment.php';
+require __DIR__.'/support/load_functions.php';
+define('TEACHERS_FILE','fixture/teachers.json');
+$DEFAULT_TEACHERS=['Giáo viên A','Giáo viên B'];
+load_functions(__DIR__.'/../chuyenmon/includes/functions.php',['get_teachers','get_teachers_sorted','sort_teachers_by_ten','ten_cuoi']);
+function check($ok,$message){if(!$ok)throw new RuntimeException($message);}
 function cds_can_feature($code,$level){return true;}
 function e($s){return htmlspecialchars((string)$s,ENT_QUOTES,'UTF-8');}
-function load_json($f,$d=[]){return str_contains($f,'program_assignments_')?['8A'=>['subject'=>'GDĐP','ranges'=>[['teacher'=>'Giáo viên A','from'=>1,'to'=>35]]]]:[];}
+function load_json($f,$d=[]){if($f===TEACHERS_FILE)return ['Giáo viên A','Giáo viên B'];return str_contains($f,'program_assignments_')?['8A'=>['subject'=>'GDĐP','ranges'=>[['teacher'=>'Giáo viên A','from'=>1,'to'=>35]]]]:[];}
 function get_active_version_id(){return 'v1';}
-function get_teachers(){return [['name'=>'Giáo viên A'],['name'=>'Giáo viên B']];}
-function get_teachers_sorted(){return ['Giáo viên A','Giáo viên B'];}
 function get_subjects(){return ['GDĐP'=>['8'=>1],'Toán học'=>['8'=>4]];}
 function get_classes(){return ['8A','8B'];}
 function get_roles(){return [['name'=>'GVCN','periods'=>4,'need_class'=>true]];}
@@ -18,13 +21,13 @@ function get_teacher_level($t){return 'THCS';}
 function get_teacher_flags($t){return ['khxh'=>true];}
 function get_teacher_chuyen_mon($t){return ['Toán học'];}
 function get_grade($c){return '8';}
-function sort_teachers_by_ten($list){return $list;}
 function get_version($v){return ['name'=>'Phiên bản thử'];}
 define('BASE_URL','/chuyenmon/');define('DATA_PATH','fixture');$_SESSION=['gdp_csrf'=>'fixture'];$_GET=[];
 $active_ver=['name'=>'Phiên bản thử'];
 $src=file_get_contents(__DIR__.'/../chuyenmon/them.php');$view=explode("require_once 'includes/header.php';",$src,2)[1];
 $view=str_replace("__DIR__.'/includes/program_assignment_view.php'",var_export(__DIR__.'/../chuyenmon/includes/program_assignment_view.php',true),$view);
 $view=str_replace("__DIR__.'/assets/pccm-workspace.css'",var_export(__DIR__.'/../chuyenmon/assets/pccm-workspace.css',true),$view);
+$view=str_replace("__DIR__.'/includes/pccm_panel_view.php'",var_export(__DIR__.'/../chuyenmon/includes/pccm_panel_view.php',true),$view);
 $view=str_replace("__DIR__.'/includes/pccm_manual_view.php'",var_export(__DIR__.'/../chuyenmon/includes/pccm_manual_view.php',true),$view);
 $view=str_replace("__DIR__.'/includes/pccm_teacher_subjects.php'",var_export(__DIR__.'/../chuyenmon/includes/pccm_teacher_subjects.php',true),$view);
 $view=str_replace("__DIR__.'/includes/pccm_workspace_view.php'",var_export(__DIR__.'/../chuyenmon/includes/pccm_workspace_view.php',true),$view);

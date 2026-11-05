@@ -349,87 +349,6 @@ $ask_replace_role = !empty($_GET['ask_replace_role']);
 <div class="danger-box py-2"><i class="bi bi-exclamation-octagon-fill"></i> Có <strong><?= $n_conflict ?></strong> trùng môn+lớp. <a href="#" data-bs-toggle="modal" data-bs-target="#modalAudit">Xem rà soát</a></div>
 <?php endif; ?>
 
-<div class="modal fade" id="pccmCompose" tabindex="-1" aria-labelledby="pccmComposeTitle"><div class="modal-dialog modal-xl modal-dialog-centered"><div class="modal-content">
-<div class="modal-header"><h5 class="modal-title" id="pccmComposeTitle">Phân công</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
-<div class="modal-body">
-<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-<ul class="nav nav-pills card-header-pills gap-1 mb-0">
-<li class="nav-item"><button type="button" class="nav-link active py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabDay" style="color:inherit">Dạy môn</button></li>
-<li class="nav-item"><button type="button" class="nav-link py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabRole" style="color:inherit">Kiêm nhiệm</button></li>
-<li class="nav-item"><button type="button" class="nav-link py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabMulti" style="color:inherit">Nhiều lớp</button></li>
-<li class="nav-item"><button type="button" class="nav-link py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabProgram" id="pccmProgramTab">GDĐP 1–35</button></li>
-<li class="nav-item"><button type="button" class="nav-link py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabManual">Thủ công</button></li>
-</ul>
-</div>
-<div class="tab-content">
-
-<div class="tab-pane fade show active" id="tabDay">
-<form method="post" id="formAddOne" class="row g-2 align-items-end">
-<input type="hidden" name="action" value="add_one">
-<input type="hidden" name="replace" id="replaceOne" value="">
-<div class="col-md-3"><label class="form-label small mb-0 fw-semibold">Giáo viên *</label>
-<select name="teacher" id="addTeacher" class="form-select form-select-sm" required>
-<option value="">-- Chọn --</option>
-<?php foreach ($teachers as $t): ?><option value="<?= e($t) ?>" <?= ($_GET['teacher']??'')===$t?'selected':'' ?>><?= e($t) ?></option><?php endforeach; ?>
-</select></div>
-<div class="col-md-2"><label class="form-label small mb-0 fw-semibold">Môn *</label>
-<select name="subject" id="subject" class="form-select form-select-sm" required>
-<option value="">--</option>
-<?php foreach ($subjects as $s): ?><option value="<?= e($s) ?>" <?= ($_GET['subject']??'')===$s?'selected':'' ?>><?= e($s) ?></option><?php endforeach; ?>
-</select></div>
-<div class="col-md-2"><label class="form-label small mb-0 fw-semibold">Lớp *</label>
-<select name="class_name" id="class_name" class="form-select form-select-sm" required>
-<option value="">--</option>
-<?php foreach ($classes as $c): ?><option value="<?= e($c) ?>" <?= ($_GET['class']??'')===$c?'selected':'' ?>><?= e($c) ?></option><?php endforeach; ?>
-</select></div>
-<div class="col-md-2"><label class="form-label small mb-0 fw-semibold">Số tiết</label>
-<div id="periods-display" class="small text-success d-none">Tự động: <b id="periods-value">0</b></div>
-<input type="number" name="periods_manual" id="periods_manual" class="form-control form-control-sm d-none" step="0.01" min="0" value="<?= e($_GET['periods_manual']??'') ?>" placeholder="Thủ công">
-</div>
-<div class="col-md-2"><label class="form-label small mb-0">Ghi chú</label>
-<input type="text" name="note" class="form-control form-control-sm" value="<?= e($_GET['note']??'') ?>"></div>
-<div class="col-md-1"><button class="btn btn-primary btn-sm w-100">Lưu</button></div>
-</form>
-</div>
-
-<div class="tab-pane fade" id="tabMulti">
-<form method="post" class="row g-2">
-<input type="hidden" name="action" value="add_multi">
-<input type="hidden" name="replace" value="1">
-<div class="col-md-3"><select name="teacher" class="form-select form-select-sm" required><option value="">-- GV --</option>
-<?php foreach ($teachers as $t): ?><option value="<?= e($t) ?>"><?= e($t) ?></option><?php endforeach; ?></select></div>
-<div class="col-md-2"><select name="subject" class="form-select form-select-sm" required><option value="">-- Môn --</option>
-<?php foreach ($subjects as $s): ?><option value="<?= e($s) ?>"><?= e($s) ?></option><?php endforeach; ?></select></div>
-<div class="col-md-5"><div class="d-flex flex-wrap gap-2">
-<?php foreach ($classes as $c): ?>
-<label class="form-check-label small border rounded px-2 py-1 bg-white"><input type="checkbox" name="classes[]" value="<?= e($c) ?>" class="form-check-input me-1"> <?= e($c) ?></label>
-<?php endforeach; ?>
-</div><div class="form-text">Trùng môn+lớp sẽ <strong>tự thay thế</strong> GV cũ.</div></div>
-<div class="col-md-2"><button class="btn btn-success btn-sm w-100">Thêm</button></div>
-</form>
-</div>
-
-<div class="tab-pane fade" id="tabRole">
-<form method="post" id="formAddRole" class="row g-2 align-items-end">
-<input type="hidden" name="action" value="add_role">
-<input type="hidden" name="replace" id="replaceRole" value="">
-<div class="col-md-3"><select name="teacher" class="form-select form-select-sm" required><option value="">-- GV --</option>
-<?php foreach ($teachers as $t): ?><option value="<?= e($t) ?>" <?= ($_GET['teacher']??'')===$t?'selected':'' ?>><?= e($t) ?></option><?php endforeach; ?></select></div>
-<div class="col-md-3"><select name="role" id="roleSelect" class="form-select form-select-sm" required><option value="">-- Chức vụ --</option>
-<?php foreach ($roles as $r): ?>
-<option value="<?= e($r['name']) ?>" data-need-class="<?= !empty($r['need_class'])?'1':'0' ?>" data-periods="<?= e($r['periods']??0) ?>" <?= ($_GET['role']??'')===$r['name']?'selected':'' ?>><?= e($r['name']) ?> (<?= e($r['periods']??0) ?>t)</option>
-<?php endforeach; ?></select></div>
-<div class="col-md-2" id="roleClassWrap"><select name="class_name" class="form-select form-select-sm"><option value="">-- Lớp --</option>
-<?php foreach ($classes as $c): ?><option value="<?= e($c) ?>" <?= ($_GET['class']??'')===$c?'selected':'' ?>><?= e($c) ?></option><?php endforeach; ?></select></div>
-<div class="col-md-2"><input type="number" name="periods_manual" class="form-control form-control-sm" step="0.01" min="0" placeholder="Tiết (tuỳ chọn)" value="<?= e($_GET['periods_manual']??'') ?>"></div>
-<div class="col-md-2"><button class="btn btn-info btn-sm w-100">Lưu KN</button></div>
-</form>
-</div>
-
-<div class="tab-pane fade" id="tabProgram"><?php $gdpEmbedded=true;require __DIR__.'/includes/program_assignment_view.php'; ?></div>
-<div class="tab-pane fade" id="tabManual"><div id="pccmManualHost"><?php require __DIR__.'/includes/pccm_manual_view.php'; ?></div></div>
-</div></div></div></div></div>
-
 <div class="card" id="board" data-server-manual="1">
 <div class="card-header">
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
@@ -512,6 +431,88 @@ Tổng <b><?= number_format($load['total'],2) ?></b>/<?= number_format($load['qu
 </div>
 <div class="card-footer small text-muted">Bộ lọc được giữ đến khi bấm «Xóa lọc» · Vị trí cuộn được giữ sau thêm/xóa</div>
 </div>
+
+<?php require_once __DIR__.'/includes/pccm_panel_view.php'; ?>
+<div class="modal fade" id="pccmCompose" tabindex="-1" aria-labelledby="pccmComposeTitle"><div class="modal-dialog modal-xl modal-dialog-centered"><div class="modal-content">
+<div class="modal-header"><h5 class="modal-title" id="pccmComposeTitle">Phân công</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+<div class="modal-body">
+<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+<ul class="nav nav-pills card-header-pills gap-1 mb-0">
+<li class="nav-item"><button type="button" class="nav-link active py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabDay" style="color:inherit">Dạy môn</button></li>
+<li class="nav-item"><button type="button" class="nav-link py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabRole" style="color:inherit">Kiêm nhiệm</button></li>
+<li class="nav-item"><button type="button" class="nav-link py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabMulti" style="color:inherit">Nhiều lớp</button></li>
+<li class="nav-item"><button type="button" class="nav-link py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabProgram" id="pccmProgramTab">GDĐP 1–35</button></li>
+<li class="nav-item"><button type="button" class="nav-link py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabManual">Thủ công</button></li>
+</ul>
+</div>
+<div class="tab-content">
+
+<div class="tab-pane fade show active" id="tabDay">
+<form method="post" id="formAddOne" class="row g-2 align-items-end">
+<input type="hidden" name="action" value="add_one">
+<input type="hidden" name="replace" id="replaceOne" value="">
+<div class="col-md-3"><label class="form-label small mb-0 fw-semibold">Giáo viên *</label>
+<select name="teacher" id="addTeacher" class="form-select form-select-sm" required>
+<option value="">-- Chọn --</option>
+<?php foreach ($teachers as $t): ?><option value="<?= e($t) ?>" <?= ($_GET['teacher']??'')===$t?'selected':'' ?>><?= e($t) ?></option><?php endforeach; ?>
+</select></div>
+<div class="col-md-2"><label class="form-label small mb-0 fw-semibold">Môn *</label>
+<select name="subject" id="subject" class="form-select form-select-sm" required>
+<option value="">--</option>
+<?php foreach ($subjects as $s): ?><option value="<?= e($s) ?>" <?= ($_GET['subject']??'')===$s?'selected':'' ?>><?= e($s) ?></option><?php endforeach; ?>
+</select></div>
+<div class="col-md-2"><label class="form-label small mb-0 fw-semibold">Lớp *</label>
+<select name="class_name" id="class_name" class="form-select form-select-sm" required>
+<option value="">--</option>
+<?php foreach ($classes as $c): ?><option value="<?= e($c) ?>" <?= ($_GET['class']??'')===$c?'selected':'' ?>><?= e($c) ?></option><?php endforeach; ?>
+</select></div>
+<div class="col-md-2"><label class="form-label small mb-0 fw-semibold">Số tiết</label>
+<div id="periods-display" class="small text-success d-none">Tự động: <b id="periods-value">0</b></div>
+<input type="number" name="periods_manual" id="periods_manual" class="form-control form-control-sm d-none" step="0.01" min="0" value="<?= e($_GET['periods_manual']??'') ?>" placeholder="Thủ công">
+</div>
+<div class="col-md-2"><label class="form-label small mb-0">Ghi chú</label>
+<input type="text" name="note" class="form-control form-control-sm" value="<?= e($_GET['note']??'') ?>"></div>
+<div class="col-md-1"><button class="btn btn-primary btn-sm w-100">Lưu</button></div>
+</form>
+</div>
+
+<div class="tab-pane fade" id="tabMulti">
+<form method="post" class="row g-2">
+<input type="hidden" name="action" value="add_multi">
+<input type="hidden" name="replace" value="1">
+<div class="col-md-3"><select name="teacher" class="form-select form-select-sm" required><option value="">-- GV --</option>
+<?php foreach ($teachers as $t): ?><option value="<?= e($t) ?>"><?= e($t) ?></option><?php endforeach; ?></select></div>
+<div class="col-md-2"><select name="subject" class="form-select form-select-sm" required><option value="">-- Môn --</option>
+<?php foreach ($subjects as $s): ?><option value="<?= e($s) ?>"><?= e($s) ?></option><?php endforeach; ?></select></div>
+<div class="col-md-5"><div class="d-flex flex-wrap gap-2">
+<?php foreach ($classes as $c): ?>
+<label class="form-check-label small border rounded px-2 py-1 bg-white"><input type="checkbox" name="classes[]" value="<?= e($c) ?>" class="form-check-input me-1"> <?= e($c) ?></label>
+<?php endforeach; ?>
+</div><div class="form-text">Trùng môn+lớp sẽ <strong>tự thay thế</strong> GV cũ.</div></div>
+<div class="col-md-2"><button class="btn btn-success btn-sm w-100">Thêm</button></div>
+</form>
+</div>
+
+<div class="tab-pane fade" id="tabRole">
+<form method="post" id="formAddRole" class="row g-2 align-items-end">
+<input type="hidden" name="action" value="add_role">
+<input type="hidden" name="replace" id="replaceRole" value="">
+<div class="col-md-3"><select name="teacher" class="form-select form-select-sm" required><option value="">-- GV --</option>
+<?php foreach ($teachers as $t): ?><option value="<?= e($t) ?>" <?= ($_GET['teacher']??'')===$t?'selected':'' ?>><?= e($t) ?></option><?php endforeach; ?></select></div>
+<div class="col-md-3"><select name="role" id="roleSelect" class="form-select form-select-sm" required><option value="">-- Chức vụ --</option>
+<?php foreach ($roles as $r): ?>
+<option value="<?= e($r['name']) ?>" data-need-class="<?= !empty($r['need_class'])?'1':'0' ?>" data-periods="<?= e($r['periods']??0) ?>" <?= ($_GET['role']??'')===$r['name']?'selected':'' ?>><?= e($r['name']) ?> (<?= e($r['periods']??0) ?>t)</option>
+<?php endforeach; ?></select></div>
+<div class="col-md-2" id="roleClassWrap"><select name="class_name" class="form-select form-select-sm"><option value="">-- Lớp --</option>
+<?php foreach ($classes as $c): ?><option value="<?= e($c) ?>" <?= ($_GET['class']??'')===$c?'selected':'' ?>><?= e($c) ?></option><?php endforeach; ?></select></div>
+<div class="col-md-2"><input type="number" name="periods_manual" class="form-control form-control-sm" step="0.01" min="0" placeholder="Tiết (tuỳ chọn)" value="<?= e($_GET['periods_manual']??'') ?>"></div>
+<div class="col-md-2"><button class="btn btn-info btn-sm w-100">Lưu KN</button></div>
+</form>
+</div>
+
+<div class="tab-pane fade" id="tabProgram"><?php pccm_render_panel(__DIR__.'/includes/program_assignment_view.php',['gdpEmbedded'=>true]); ?></div>
+<div class="tab-pane fade" id="tabManual"><div id="pccmManualHost"><?php pccm_render_panel(__DIR__.'/includes/pccm_manual_view.php',['teachers'=>$teachers,'subjects'=>$subjects,'classes'=>$classes]); ?></div></div>
+</div></div></div></div></div>
 
 <form method="post" id="formMove" class="d-none">
 <input type="hidden" name="action" value="move_day">

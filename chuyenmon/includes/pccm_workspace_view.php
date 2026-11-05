@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  const editor=document.getElementById('pccmCompose');if(!editor||typeof bootstrap==='undefined')return;
  const host=document.getElementById('pccmManualHost'),manual=host?.querySelector('[data-native-manual]');
  // Remove stale legacy panels if an older header script is still present during deployment.
+ document.querySelectorAll('#board .cds-manual-chip').forEach(p=>p.remove());
  if(manual){document.querySelectorAll('#cdsManualAssignments').forEach(p=>{if(p!==manual)p.remove();});manual.querySelectorAll('.cds-manual-chip').forEach(p=>p.remove());manual.querySelectorAll('datalist').forEach(list=>{const seen=new Set();list.querySelectorAll('option').forEach(o=>{if(seen.has(o.value))o.remove();else seen.add(o.value);});});}
  function openProgram(){resetContext();bootstrap.Tab.getOrCreateInstance(document.getElementById('pccmProgramTab')).show();bootstrap.Modal.getOrCreateInstance(editor).show();}
  document.querySelectorAll('[data-pccm-program]').forEach(b=>b.addEventListener('click',openProgram));

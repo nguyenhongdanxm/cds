@@ -5,7 +5,7 @@ function load_json($f,$d=[]){return cds_json_load($f,$d);}
 function get_active_version_id(){return 'v1';}
 function get_classes(){return ['8A','8B'];}
 function get_subjects(){return ['GDĐP'=>[]];}
-function get_teachers(){return [['name'=>'A'],['name'=>'B']];}
+function get_teachers(){return ['A','B'];}
 function cds_can_feature($code,$level){return $GLOBALS['can'];}
 function flash($m,$t){}
 $dir=sys_get_temp_dir().'/cds-gdp-post-'.bin2hex(random_bytes(6));mkdir($dir,0700);define('DATA_PATH',$dir);define('BASE_URL','/chuyenmon/');
