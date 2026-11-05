@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'chuyenmon/includes/header.php'
+      - 'chuyenmon/kehoach.php'
       - 'chuyenmon/includes/cds_responsive_layout.php'
       - 'tests/cm_menu*'
       - '.github/workflows/cm-menu.yml'
@@ -21,6 +22,7 @@ jobs:
           extensions: mbstring
       - run: |
           php -l chuyenmon/includes/header.php
+          php -l chuyenmon/kehoach.php
           php -l chuyenmon/includes/cds_responsive_layout.php
           php tests/cm_menu_test.php
   browser:

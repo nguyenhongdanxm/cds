@@ -128,6 +128,8 @@ require_once 'includes/header.php';
 
 <h3 class="mb-3"><i class="bi <?= e($tabs[$tab][1]) ?>"></i> <?= e($tabs[$tab][0]) ?></h3>
 
+<p class="small mb-3"><a class="btn btn-sm btn-outline-primary" data-cm-plan-switch href="<?=BASE_URL?>kehoach.php?tab=<?=$tab==='chitieu'?'vanban':'chitieu'?>"><i class="bi <?=$tab==='chitieu'?'bi-file-earmark-check':'bi-bullseye'?>"></i> <?=$tab==='chitieu'?'Kế hoạch giáo dục':'Chỉ tiêu chuyên môn'?></a></p>
+
 <ul class="nav nav-pills gap-1 mb-4 flex-wrap">
   <?php foreach ($tabs as $k => $info): ?>
   <li class="nav-item">
