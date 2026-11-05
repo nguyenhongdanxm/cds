@@ -4,6 +4,12 @@ function gdp_subject(string $s): bool {
     $s=mb_strtolower(preg_replace('/[\s.]+/u','',trim($s)),'UTF-8');
     return in_array($s,['gdđp','gddp','giáodụcđịaphương','nộidunggiáodụcđịaphương'],true);
 }
+function gdp_teacher_names(array $teachers): array {
+    $names=[];foreach($teachers as$teacher){
+        $name=is_string($teacher)?trim($teacher):(is_array($teacher)?trim((string)($teacher['name']??'')):'');
+        if($name!==''&&!in_array($name,$names,true))$names[]=$name;
+    }return $names;
+}
 function gdp_file(string $dir,string $version): string {
     if(!preg_match('/^[a-zA-Z0-9_-]+$/D',$version))throw new RuntimeException('Phiên bản không hợp lệ.');
     return rtrim($dir,'/').'/program_assignments_'.$version.'.json';

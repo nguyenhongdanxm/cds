@@ -4,7 +4,7 @@ function e($s){return htmlspecialchars((string)$s,ENT_QUOTES,'UTF-8');}
 function get_active_version_id(){return 'v1';}
 function load_json($f,$d=[]){return [];}
 function get_classes(){return ['8A','8B','9A'];}
-function get_teachers(){return [['name'=>'Giáo viên A'],['name'=>'Giáo viên B']];}
+function get_teachers(){return ['Giáo viên A','Giáo viên B'];}
 function get_subjects(){return ['GDĐP'=>[],'Toán học'=>[]];}
 function get_version($v){return ['name'=>'Phân công thử nghiệm'];}
 define('DATA_PATH','fixture');define('BASE_URL','/chuyenmon/');$_SESSION=['gdp_csrf'=>'fixture'];

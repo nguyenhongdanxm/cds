@@ -12,7 +12,7 @@ if(($_SERVER['REQUEST_METHOD']??'')==='POST'&&in_array((string)($_POST['action']
         $ranges=[];$subject=trim((string)($_POST['subject']??''));
         if($_POST['action']==='program_save'){
             if(!gdp_subject($subject)||!array_key_exists($subject,get_subjects()))throw new RuntimeException('Chọn môn GDĐP có trong danh mục.');
-            $teacherNames=array_map(fn($t)=>(string)$t['name'],get_teachers());$rows=[];
+            $teacherNames=gdp_teacher_names(get_teachers());$rows=[];
             foreach((array)($_POST['teacher']??[])as$i=>$teacher)$rows[]=['teacher'=>$teacher,'from'=>$_POST['from'][$i]??'','to'=>$_POST['to'][$i]??''];
             $ranges=gdp_validate($rows,$teacherNames);
         }

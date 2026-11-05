@@ -21,6 +21,7 @@ function tkb_mapping(){return ['teachers'=>[],'classes'=>[]];}
 function tkb_resolve_slot(array $slot,array $map):array{$slot['teacher']=$slot['teacher_raw'];$slot['class']=$slot['class_raw'];return $slot;}
 load_functions(__DIR__.'/../includes/timetable_builder.php',['ttb_pccm_dir','ttb_assignments','ttb_activities','ttb_room_name','ttb_entry_room','ttb_room_conflicts','ttb_slot_key','ttb_publish']);
 try{
+ check(gdp_teacher_names(['A',' B ',['name'=>'C'],'A',[],null])===['A','B','C'],'Teacher names accept real CM strings and compatible named records without changing stored data');
  $teachers=['A','B','C'];$ranges=gdp_validate([['teacher'=>'A','from'=>'1','to'=>'7'],['teacher'=>'B','from'=>8,'to'=>20],['teacher'=>'A','from'=>21,'to'=>35]],$teachers);
  check(gdp_teacher(['ranges'=>$ranges],7)==='A'&&gdp_teacher(['ranges'=>$ranges],8)==='B','Teacher follows program period boundary');
  foreach([
