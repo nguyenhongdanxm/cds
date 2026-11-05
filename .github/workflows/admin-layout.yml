@@ -1,0 +1,29 @@
+name: Admin dashboard layout
+on:
+  pull_request:
+    paths:
+      - 'admin.php'
+      - 'assets/admin-layout.css'
+      - 'includes/admin_dashboard_compact.php'
+      - 'tests/admin_layout*'
+      - '.github/workflows/admin-layout.yml'
+  workflow_dispatch:
+jobs:
+  layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - run: |
+          php -l admin.php
+          php -l includes/admin_dashboard_compact.php
+          php tests/admin_layout_fixture.php
+          php tests/dashboard_attendance_public_test.php
+          node --check tests/admin_layout_browser.cjs
+      - run: npm install --prefix "$RUNNER_TEMP/admin-layout" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/admin-layout/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/admin_layout_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/admin-layout/node_modules

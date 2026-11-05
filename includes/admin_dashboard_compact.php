@@ -75,7 +75,7 @@ ob_start(static function (string $html) use ($latestDocumentsJson, $vanbanUrl, $
    let rows='';
    docs.forEach(d=>{const meta=[d.symbol,d.issuer].filter(Boolean).join(' · ');const date=d.issued_date?d.issued_date.split('-').reverse().join('/'):'';rows+='<a class="doc-row" href="'+esc(d.url)+'"><i class="bi bi-file-earmark-text-fill"></i><span class="doc-copy"><strong>'+esc(d.title)+'</strong><small>'+esc(meta||'Văn bản cập nhật')+'</small></span><span>'+esc(date)+'</span></a>'});
    if(!rows)rows='<div class="mini-empty"><i class="bi bi-file-earmark"></i> Chưa có văn bản cập nhật</div>';
-   panel.innerHTML='<div class="panel-head"><div><span class="section-kicker">Văn bản mới</span><h2>5 văn bản cập nhật gần nhất</h2></div><a href="'+esc(vanbanUrl)+'?tab=documents">Xem tất cả</a></div><div class="doc-list">'+rows+'</div>';
+   panel.innerHTML='<div class="panel-head"><div><span class="section-kicker">Văn bản mới</span><h2>5 văn bản cập nhật gần nhất</h2></div><a href="'+esc(vanbanUrl)+'?tab=documents">Xem tất cả</a></div><div class="doc-list" tabindex="0" role="region" aria-label="Văn bản cập nhật">'+rows+'</div>';
    side.prepend(panel);
  }
  const moduleGrid=document.querySelector('.module-grid');
