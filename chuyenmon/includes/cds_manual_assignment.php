@@ -2,6 +2,9 @@
 /** Hiển thị và gắn phân công thủ công vào bảng phân công theo giáo viên. */
 if (!isset($current) || !in_array($current, ['them', 'danhsach'], true)) return;
 
+// The current workspace owns its manual editor and renders all records once.
+if($current==='them'&&!empty($pccmWorkspaceNative))return;
+
 $manualPage = $current;
 $manualFile = dirname(__DIR__) . '/data/manual_assignments.json';
 $manualCanEdit = function_exists('cds_can_feature')
@@ -27,6 +30,7 @@ $formatPeriods = static function ($value): string {
 </style>
 <script>
 document.addEventListener('DOMContentLoaded',function(){
+  if(document.getElementById('cdsManualAssignments'))return;
   var manualRows=<?= $manualRowsJson ?>;
   var esc=function(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]})};
   var periodText=function(v){var n=Math.round((parseFloat(v)||0)*10)/10;return String(n).replace('.',',')};

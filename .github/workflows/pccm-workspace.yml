@@ -6,6 +6,7 @@ on:
       - 'chuyenmon/danhsach.php'
       - 'chuyenmon/includes/pccm_workspace_view.php'
       - 'chuyenmon/includes/pccm_teacher_subjects.php'
+      - 'chuyenmon/includes/pccm_manual_view.php'
       - 'chuyenmon/includes/cds_manual_assignment.php'
       - 'includes/chuyenmon_manual_assignment.php'
       - 'chuyenmon/includes/program_assignment_view.php'
@@ -33,12 +34,13 @@ jobs:
           php -l chuyenmon/them.php
           php -l chuyenmon/danhsach.php
           php -l chuyenmon/includes/pccm_teacher_subjects.php
+          php -l chuyenmon/includes/pccm_manual_view.php
           php -l chuyenmon/includes/cds_manual_assignment.php
           php -l includes/chuyenmon_manual_assignment.php
           php -l chuyenmon/includes/program_assignment_view.php
           php tests/pccm_workspace_fixture.php
       - run: npm install --prefix "$RUNNER_TEMP/pccm" --no-package-lock playwright@1.58.2 bootstrap@5.3.3
-      - run: "$RUNNER_TEMP/pccm/node_modules/.bin/playwright install --with-deps chromium"
+      - run: "$RUNNER_TEMP/pccm/node_modules/.bin/playwright install chromium"
       - run: node tests/pccm_workspace_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/pccm/node_modules
