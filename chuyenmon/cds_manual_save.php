@@ -41,6 +41,7 @@ if ($teacher === '' || $subject === '' || $className === '' || $periods <= 0) {
 }
 
 $file = __DIR__ . '/data/manual_assignments.json';
+pccm_lock_request(dirname($file));
 $rows = [];
 if (is_file($file)) {
     $raw = file_get_contents($file);
@@ -78,7 +79,7 @@ if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
     exit;
 }
 
-if (!cds_json_save($file, array_values($rows))) {
+if (!pccm_assignment_write($file, fn()=>cds_json_save($file,array_values($rows)),array_values($rows))) {
     http_response_code(500);
     echo json_encode(['ok'=>false,'message'=>'Không ghi được dữ liệu phân công thủ công.'], JSON_UNESCAPED_UNICODE);
     exit;

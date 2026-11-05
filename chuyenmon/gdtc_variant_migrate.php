@@ -33,6 +33,13 @@ $scan($rootData.'/timetable_versions.json','tkb');$scan($rootData.'/lesson_book_
 
 $message='';
 if($_SERVER['REQUEST_METHOD']==='POST'&&($_POST['action']??'')==='run'){
+  require_once dirname(__DIR__).'/includes/json_store.php';
+  require_once dirname(__DIR__).'/includes/pccm_release.php';
+  pccm_lock_request($pccmDir);
+  if (!empty(pccm_release_state($pccmDir)['locked'])) {
+    http_response_code(423);
+    exit('Có phiên bản phân công đã khóa.');
+  }
   $changed=['pccm'=>0,'tkb'=>0,'ppct'=>0];$seen=[];
   foreach($preview['files'] as $f){
     $rows=$read($f['file']);$dirty=false;

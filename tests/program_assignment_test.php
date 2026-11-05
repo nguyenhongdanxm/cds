@@ -2,6 +2,8 @@
 require __DIR__.'/support/load_functions.php';
 require __DIR__.'/../includes/json_store.php';
 require __DIR__.'/../includes/program_assignment.php';
+require_once __DIR__.'/../includes/json_store.php';
+require_once __DIR__.'/../includes/pccm_release.php';
 require __DIR__.'/../chuyenmon/includes/lesson_book_sign_validation.php';
 function check($ok,$m){if(!$ok)throw new RuntimeException($m);}
 function rejects($fn,$m){try{$fn();}catch(RuntimeException $e){return;}throw new RuntimeException('Expected rejection: '.$m);}
@@ -20,6 +22,9 @@ function flash($m,$type){}
 function tkb_mapping(){return ['teachers'=>[],'classes'=>[]];}
 function tkb_resolve_slot(array $slot,array $map):array{$slot['teacher']=$slot['teacher_raw'];$slot['class']=$slot['class_raw'];return $slot;}
 load_functions(__DIR__.'/../includes/timetable_builder.php',['ttb_pccm_dir','ttb_assignments','ttb_activities','ttb_room_name','ttb_entry_room','ttb_room_conflicts','ttb_slot_key','ttb_publish']);
+function get_active_version_id(){return load_json(DATA_PATH.'/active_version.json',[])['id']??'';}
+function assignments_file($version){return DATA_PATH.'/assignments_'.$version.'.json';}
+function role_assignments_file($version){return DATA_PATH.'/roles_'.$version.'.json';}
 try{
  check(gdp_teacher_names(['A',' B ',['name'=>'C'],'A',[],null])===['A','B','C'],'Teacher names accept real CM strings and compatible named records without changing stored data');
  $teachers=['A','B','C'];$ranges=gdp_validate([['teacher'=>'A','from'=>'1','to'=>'7'],['teacher'=>'B','from'=>8,'to'=>20],['teacher'=>'A','from'=>21,'to'=>35]],$teachers);
@@ -69,5 +74,26 @@ try{
  $published=$GLOBALS['weeks'];$changed['8A']['ranges'][0]['teacher']='C';save_json(gdp_file($dir,'v1'),$changed);check($GLOBALS['weeks']===$published,'Config save cannot rewrite published weeks');
  check(lb_program_period_error(['planned_ppct_period'=>7],['status'=>'taught','ppct_period'=>8])!=='','Cannot change pinned lesson to another teacher range while signing');check(lb_program_period_error(['planned_ppct_period'=>7],['status'=>'postponed','ppct_period'=>0])==='','Postponement permitted without consuming progress');check(lb_program_period_error([],['ppct_period'=>8])==='','Other subjects unchanged');
  save_json(gdp_file($dir,'v1'),[]);check(count(ttb_assignments())===3,'Disabling restores untouched legacy assignments');
+ $manualFile=$dir.'/manual_assignments.json';
+ $manualRows=[
+  ['id'=>'m1','version_id'=>'v1','teacher'=>'A','subject'=>'Toán','class_name'=>'8A','periods'=>1],
+  ['id'=>'m2','teacher'=>'B','subject'=>'Văn','class_name'=>'8A','periods'=>1],
+  ['id'=>'other','version_id'=>'v2','teacher'=>'B','subject'=>'Văn','class_name'=>'8A','periods'=>1],
+ ];
+ save_json($manualFile,$manualRows);
+ rejects(fn()=>pccm_delete_manual_rows($dir,'v1',['m1','other']),'Cross-version deletion is atomic');
+ check(load_json($manualFile)===$manualRows,'Failed selection retains every row');
+ pccm_delete_manual_rows($dir,'v1',['m1','m2']);
+ check(load_json($manualFile)===[$manualRows[2]],'Bulk deletion retains other versions');
+ $before=ttb_assignments();
+ pccm_publish_version($dir,'v1','Bản thử',false);
+ check(!pccm_assignment_write(assignments_file('v1'),fn()=>save_json(assignments_file('v1'),[])),'Locked assignment rejects write');
+ rejects(fn()=>pccm_delete_manual_rows($dir,'v1',['m1']),'Locked manual delete rejected');
+ pccm_publish_version($dir,'v1','Bản thử',true);
+ check(pccm_assignment_write(assignments_file('v1'),fn()=>save_json(assignments_file('v1'),[])),'Unlock allows draft writes');
+ save_json($dir.'/active_version.json',['id'=>'v2']);
+ check(ttb_assignments()===$before,'TKB still reads published rows after draft edit and version switch');
+ check(gdp_builder_configs()['version']==='v1','GDĐP uses same published source');
+ echo "PASS PCCM release: bulk scope, atomic rejection, frozen source and unlock\n";
  echo "PASS GDĐP: validation, 35-period coverage, totals, version isolation, week9/period7, makeup, gaps, snapshot invalidation, real scheduler/publish integration, collisions, signed progress and legacy restoration\n";
 }finally{foreach(glob($dir.'/*')as$f)unlink($f);rmdir($dir);}

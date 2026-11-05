@@ -39,6 +39,26 @@ document.addEventListener('DOMContentLoaded',()=>{
  assignmentFilter();
  const params=new URL(location.href).searchParams;
  if(params.has('program'))openProgram();
+ if(location.hash==='#cdsManualAssignments'){
+  bootstrap.Tab.getOrCreateInstance(editor.querySelector('[data-bs-target="#tabManual"]')).show();
+  bootstrap.Modal.getOrCreateInstance(editor).show();
+ }
+ const bulk=document.getElementById('pccmManualBulk');
+ if(bulk){
+  const boxes=Array.from(manual.querySelectorAll('input[form="pccmManualBulk"]'));
+  const all=document.getElementById('pccmManualSelectVisible');
+  const button=document.getElementById('pccmManualDeleteSelected');
+  function update(){
+   const count=boxes.filter(box=>box.checked).length;
+   button.disabled=count===0;
+   button.textContent=count?'Xóa '+count+' dòng đã chọn':'Xóa đã chọn';
+  }
+  boxes.forEach(box=>box.addEventListener('change',update));
+  all.addEventListener('change',()=>{
+   boxes.forEach(box=>{box.checked=!box.closest('[data-manual-teacher]').hidden&&all.checked;});
+   update();
+  });
+ }
  if(location.hash==='#rasoat')bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAudit')).show();
  if(location.hash==='#doicheo')bootstrap.Modal.getOrCreateInstance(document.getElementById('modalSwap')).show();
  // The form stays directly accessible; only the existing configuration list is collapsed.

@@ -2,6 +2,7 @@
 $page_title = 'Phân công chuyên môn';
 require_once 'includes/functions.php';
 require_login();
+require_once __DIR__.'/includes/pccm_release_controller.php';
 require_once __DIR__.'/includes/program_assignment_controller.php';
 
 function go_board($extra = '') {
@@ -349,6 +350,7 @@ $ask_replace_role = !empty($_GET['ask_replace_role']);
 <div class="danger-box py-2"><i class="bi bi-exclamation-octagon-fill"></i> Có <strong><?= $n_conflict ?></strong> trùng môn+lớp. <a href="#" data-bs-toggle="modal" data-bs-target="#modalAudit">Xem rà soát</a></div>
 <?php endif; ?>
 
+<?php require __DIR__.'/includes/pccm_release_view.php'; ?>
 <div class="card" id="board" data-server-manual="1">
 <div class="card-header">
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
