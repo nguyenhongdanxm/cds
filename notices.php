@@ -77,7 +77,7 @@ function cds_notice_sync_dashboard_feed(): void {
         'vanban'=>'Văn bản · Hành chính',
         'noitru'=>'Nội trú',
         'thuvien'=>'Thư viện · Thiết bị',
-        'thidua'=>'Thi đua',
+        'thidua'=>'Đánh giá - Xếp loại',
         'csdl'=>'Cơ sở dữ liệu',
     ];
     $feed = [];

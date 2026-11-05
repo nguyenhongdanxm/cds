@@ -18,7 +18,7 @@ function permission_modules_catalog() {
         'csdl'      => ['label' => 'Cơ sở dữ liệu', 'icon' => 'bi-database', 'page' => 'csdl.php'],
         'hoclieu'   => ['label' => 'Học liệu và thi', 'icon' => 'bi-laptop', 'page' => 'hoclieu.php'],
         'noitru'    => ['label' => 'Quản lý nội trú', 'icon' => 'bi-building', 'page' => 'noitru.php'],
-        'thidua'    => ['label' => 'Thi đua', 'icon' => 'bi-trophy', 'page' => 'thidua.php'],
+        'thidua'    => ['label' => 'Đánh giá - Xếp loại', 'icon' => 'bi-trophy', 'page' => 'thidua.php'],
         'trolyai'    => ['label' => 'Trợ lý AI', 'icon' => 'bi-stars', 'page' => 'trolyai.php'],
     ];
 }
@@ -73,15 +73,15 @@ function permission_features_catalog() {
         'vb.tuongtac' => ['module' => 'vanban', 'label' => 'Tạo bình chọn · khảo sát · xử lý góp ý', 'group' => 'Văn bản'],
 
         // Thi đua — quyền đến từng menu con
-        'td.teacher_attendance'  => ['module' => 'thidua', 'label' => 'Giáo viên · Chấm công', 'group' => 'Thi đua'],
-        'td.teacher_achievement' => ['module' => 'thidua', 'label' => 'Giáo viên · Thành tích', 'group' => 'Thi đua'],
-        'td.teacher_rating'      => ['module' => 'thidua', 'label' => 'CBGVNV · Đánh giá', 'group' => 'Thi đua'],
-        'td.student_score'       => ['module' => 'thidua', 'label' => 'Học sinh · Nề nếp - Học tập', 'group' => 'Thi đua'],
+        'td.teacher_attendance'  => ['module' => 'thidua', 'label' => 'Giáo viên · Chấm công', 'group' => 'Đánh giá - Xếp loại'],
+        'td.teacher_achievement' => ['module' => 'thidua', 'label' => 'Giáo viên · Thành tích', 'group' => 'Đánh giá - Xếp loại'],
+        'td.teacher_rating'      => ['module' => 'thidua', 'label' => 'CBGVNV · Đánh giá', 'group' => 'Đánh giá - Xếp loại'],
+        'td.student_score'       => ['module' => 'thidua', 'label' => 'Học sinh · Nề nếp - Học tập', 'group' => 'Đánh giá - Xếp loại'],
         'td.student_room_input'  => ['module' => 'thidua', 'label' => 'Phòng nội trú · Nhập liệu', 'group' => 'Thi đua học sinh'],
         'td.student_room_stats'  => ['module' => 'thidua', 'label' => 'Phòng nội trú · Thống kê - Xếp loại', 'group' => 'Thi đua học sinh'],
         'td.student_room_settings'=> ['module' => 'thidua', 'label' => 'Phòng nội trú · Cài đặt', 'group' => 'Thi đua học sinh'],
-        'td.student_profile'     => ['module' => 'thidua', 'label' => 'Học sinh · Hồ sơ thi đua', 'group' => 'Thi đua'],
-        'td.stats'               => ['module' => 'thidua', 'label' => 'Thống kê thi đua', 'group' => 'Thi đua'],
+        'td.student_profile'     => ['module' => 'thidua', 'label' => 'Học sinh · Hồ sơ thi đua', 'group' => 'Đánh giá - Xếp loại'],
+        'td.stats'               => ['module' => 'thidua', 'label' => 'Thống kê thi đua', 'group' => 'Đánh giá - Xếp loại'],
         'td.all_data'            => ['module' => 'thidua', 'label' => 'Xem dữ liệu của tất cả giáo viên/lớp', 'group' => 'Phạm vi dữ liệu'],
 
         // Trang Học liệu và thi

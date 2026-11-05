@@ -158,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Location: instance_settings.php?saved=1'); exit;
 }
 
-$moduleLabels = ['tintuc'=>'Tin tức','chuyenmon'=>'Chuyên môn','vanban'=>'Văn bản','thuvien'=>'Thư viện – Thiết bị','csdl'=>'Cơ sở dữ liệu','hoclieu'=>'Học liệu & thi','noitru'=>'Quản lý nội trú','thidua'=>'Thi đua','yte'=>'Y tế'];
+$moduleLabels = ['tintuc'=>'Tin tức','chuyenmon'=>'Chuyên môn','vanban'=>'Văn bản','thuvien'=>'Thư viện – Thiết bị','csdl'=>'Cơ sở dữ liệu','hoclieu'=>'Học liệu & thi','noitru'=>'Quản lý nội trú','thidua'=>'Đánh giá - Xếp loại','yte'=>'Y tế'];
 $deployTarget = (string)($instance['deployment']['target_path'] ?? BASE_PATH);
 ?><!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cấu hình trường – CDS</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"><style>body{background:#f4f7fb}.card{border:0;box-shadow:0 .25rem 1rem rgba(0,0,0,.06)}.section-title{font-weight:800;color:#1f4e79}.form-text{font-size:.82rem}</style></head><body>

@@ -60,7 +60,7 @@ function get_ecosystem_modules() {
         ],
         [
             'id' => 'thidua', 'num' => 8,
-            'title' => 'Thi đua',
+            'title' => 'Đánh giá - Xếp loại',
             'subtitle' => 'Thi đua · khen thưởng · xếp loại',
             'icon' => 'bi-trophy', 'color' => '#ffc107',
             'status' => 'live', 'url' => BASE_URL . 'thidua.php', 'external' => false,
