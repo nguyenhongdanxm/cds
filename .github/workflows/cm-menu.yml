@@ -5,6 +5,9 @@ on:
       - 'chuyenmon/includes/header.php'
       - 'chuyenmon/kehoach.php'
       - 'chuyenmon/tongquan.php'
+      - 'chuyenmon/ketqua.php'
+      - 'chuyenmon/includes/pccm_workflow_view.php'
+      - 'chuyenmon/assets/pccm-workflow.css'
       - 'chuyenmon/assets/pccm-overview.css'
       - 'includes/chuyenmon_responsive_layout.php'
       - 'chuyenmon/includes/cds_responsive_layout.php'
@@ -28,7 +31,7 @@ jobs:
       - name: Original PCCM page
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
-        run: git show "$BASE_SHA:chuyenmon/tongquan.php" > "$RUNNER_TEMP/pccm-before.php"
+        run: git show "$BASE_SHA:chuyenmon/ketqua.php" > "$RUNNER_TEMP/pccm-before.php"
       - run: |
           php -l chuyenmon/includes/header.php
           php -l chuyenmon/kehoach.php

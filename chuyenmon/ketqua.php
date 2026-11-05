@@ -57,7 +57,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-require_once 'includes/header.php';
 
 $versions = get_versions();
 usort($versions, fn($a, $b) => strcmp($b['date'] ?? '', $a['date'] ?? ''));
@@ -81,19 +80,12 @@ $all_names = sort_teachers_by_ten(array_unique(array_merge(array_keys($by_teache
 $total_all = array_sum(array_column($loads, 'total'));
 $total_day = array_sum(array_column($loads, 'day'));
 $total_role = array_sum(array_column($loads, 'role'));
+require_once 'includes/header.php';
 ?>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-    <h3 class="mb-0"><i class="bi bi-clipboard-data"></i> Kết quả phân công</h3>
+    <h3 class="mb-0"><i class="bi bi-clipboard-data"></i> Kết quả phiên bản</h3>
     <div class="d-flex flex-wrap gap-2">
-        <?php if ($view_id): ?>
-        <a href="<?= BASE_URL ?>thongke.php?v=<?= e($view_id) ?>" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-bar-chart-line"></i> Thống kê
-        </a>
-        <a href="<?= BASE_URL ?>tracuu.php?v=<?= e($view_id) ?>" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-search"></i> Tra cứu GV
-        </a>
-        <?php endif; ?>
         <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate">
             <i class="bi bi-plus-lg"></i> Tạo phiên bản mới
         </button>
@@ -154,7 +146,7 @@ $total_role = array_sum(array_column($loads, 'role'));
     <?php if ($view['id'] === $active_id): ?>
     <span class="badge bg-success ms-2">Đang làm việc (Thêm/Sửa sẽ ghi vào phiên bản này)</span>
     <?php endif; ?>
-    <a href="<?= BASE_URL ?>thongke.php?v=<?= e($view_id) ?>" class="ms-2">Xem thống kê chi tiết →</a>
+
 </div>
 
 <div class="row g-2 mb-3">
@@ -164,7 +156,7 @@ $total_role = array_sum(array_column($loads, 'role'));
     <?php if ($stats): ?>
     <div class="col-md-3"><div class="card stat-card py-2">
         <div class="number fs-4 <?= $stats['slots_missing']?'text-danger':'text-success' ?>"><?= (int)$stats['slots_missing'] ?></div>
-        <div class="label">Ô thiếu môn+lớp · <a href="<?= BASE_URL ?>thongke.php?v=<?= e($view_id) ?>" class="small">Chi tiết</a></div>
+        <div class="label">Ô thiếu môn+lớp</div>
     </div></div>
     <?php endif; ?>
 </div>
