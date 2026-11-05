@@ -265,7 +265,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 
 require_once 'includes/header.php';
-if(isset($_GET['program'])){require __DIR__.'/includes/program_assignment_view.php';require __DIR__.'/includes/footer.php';exit;}
 
 $teachers = get_teachers_sorted();
 $subjects = array_keys(get_subjects()); sort($subjects);
@@ -310,6 +309,7 @@ $ask_replace = !empty($_GET['ask_replace']);
 $ask_replace_role = !empty($_GET['ask_replace_role']);
 ?>
 
+<link rel="stylesheet" href="<?=e(BASE_URL)?>assets/pccm-workspace.css?v=20261105-1">
 <style>
 .board-drop{min-height:36px;border-radius:8px;transition:background .15s}
 .board-drop.drag-over{background:#d4edda;outline:2px dashed #198754}
@@ -324,7 +324,8 @@ $ask_replace_role = !empty($_GET['ask_replace_role']);
 </style>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-<h3 class="mb-0"><i class="bi bi-clipboard-check"></i> Phân công</h3><a class="btn btn-sm btn-outline-primary" href="?program=1">GDĐP · Phân công tiết 1–35</a>
+<div><h3 class="mb-0">Phân công chuyên môn</h3><span class="small text-muted"><?=e($active_ver['name']??'Phiên bản hiện tại')?> · <?=count($assignments)?> phân công</span></div>
+<div class="d-flex gap-2"><button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#pccmCompose">+ Phân công</button><button type="button" class="btn btn-outline-primary btn-sm" data-pccm-program>GDĐP 1–35</button></div>
 <div class="d-flex flex-wrap gap-1">
 <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalAudit">
 <i class="bi bi-search"></i> Rà soát
@@ -342,16 +343,18 @@ $ask_replace_role = !empty($_GET['ask_replace_role']);
 <div class="danger-box py-2"><i class="bi bi-exclamation-octagon-fill"></i> Có <strong><?= $n_conflict ?></strong> trùng môn+lớp. <a href="#" data-bs-toggle="modal" data-bs-target="#modalAudit">Xem rà soát</a></div>
 <?php endif; ?>
 
-<div class="card mb-3">
-<div class="card-header d-flex justify-content-between align-items-center">
-<span><i class="bi bi-plus-circle"></i> Thêm phân công</span>
+<div class="modal fade" id="pccmCompose" tabindex="-1" aria-labelledby="pccmComposeTitle"><div class="modal-dialog modal-xl modal-dialog-centered"><div class="modal-content">
+<div class="modal-header"><h5 class="modal-title" id="pccmComposeTitle">Phân công</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+<div class="modal-body">
+<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
 <ul class="nav nav-pills card-header-pills gap-1 mb-0">
 <li class="nav-item"><button type="button" class="nav-link active py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabDay" style="color:inherit">Dạy môn</button></li>
 <li class="nav-item"><button type="button" class="nav-link py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabRole" style="color:inherit">Kiêm nhiệm</button></li>
 <li class="nav-item"><button type="button" class="nav-link py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabMulti" style="color:inherit">Nhiều lớp</button></li>
+<li class="nav-item"><button type="button" class="nav-link py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabProgram" id="pccmProgramTab">GDĐP 1–35</button></li>
+<li class="nav-item"><button type="button" class="nav-link py-1 px-2" data-bs-toggle="tab" data-bs-target="#tabManual">Thủ công</button></li>
 </ul>
 </div>
-<div class="card-body py-3">
 <div class="tab-content">
 
 <div class="tab-pane fade show active" id="tabDay">
@@ -417,13 +420,15 @@ $ask_replace_role = !empty($_GET['ask_replace_role']);
 </form>
 </div>
 
-</div></div></div>
+<div class="tab-pane fade" id="tabProgram"><?php $gdpEmbedded=true;require __DIR__.'/includes/program_assignment_view.php'; ?></div>
+<div class="tab-pane fade" id="tabManual"><div id="pccmManualHost"></div></div>
+</div></div></div></div></div>
 
 <div class="card" id="board">
 <div class="card-header">
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-<span><i class="bi bi-table"></i> Bảng phân công — kéo thả · bấm chip để sửa</span>
-<button type="button" class="btn btn-sm btn-outline-light" id="fClear">Xóa lọc</button>
+<span class="small text-muted">Bấm phân công để sửa · Kéo sang giáo viên khác để chuyển</span>
+<button type="button" class="btn btn-sm btn-outline-secondary" id="fClear">Xóa lọc</button>
 </div>
 <div class="filter-bar">
 <input type="search" id="boardFilter" class="form-control form-control-sm" placeholder="Tên / môn / lớp..." style="min-width:160px">
@@ -443,7 +448,7 @@ $ask_replace_role = !empty($_GET['ask_replace_role']);
 <option value="ok">Đủ định mức</option>
 <option value="over">Thừa tiết</option>
 </select>
-<span class="small text-white-50" id="fCount"></span>
+<span class="small text-muted" id="fCount"></span>
 </div>
 </div>
 <div class="card-body board-scroll" id="boardBody">
@@ -480,7 +485,7 @@ Tổng <b><?= number_format($load['total'],2) ?></b>/<?= number_format($load['qu
 <div class="board-drop mb-1" data-teacher="<?= e($t) ?>" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onDropChip(event, this)">
 <span class="text-muted small me-1">Dạy:</span>
 <?php if (!empty($day_by_t[$t])): foreach ($day_by_t[$t] as $a): ?>
-<?php if(!empty($a['program_assignment'])): ?><a class="chip" href="?program=1&amp;class=<?=urlencode($a['class'])?>" title="<?=e($a['note'])?>"><?=e($a['subject'])?> <?=e($a['class'])?> · <?=e($a['annual_periods'])?> tiết/năm</a><?php continue;endif; ?>
+<?php if(!empty($a['program_assignment'])): ?><a class="chip" href="<?=e(BASE_URL)?>them.php?program=1&amp;class=<?=urlencode($a['class'])?>" title="<?=e($a['note'])?>"><?=e($a['subject'])?> <?=e($a['class'])?> · <?=e($a['annual_periods'])?> tiết/năm</a><?php continue;endif; ?>
 <span class="chip chip-clickable" draggable="true"
   data-id="<?= e($a['id']) ?>" data-type="day"
   data-teacher="<?= e($a['teacher']) ?>" data-subject="<?= e($a['subject']) ?>"
@@ -655,7 +660,7 @@ Tổng <b><?= number_format($load['total'],2) ?></b>/<?= number_format($load['qu
 
   // Khôi phục bộ lọc đã lưu
   var st = loadState();
-  if (document.getElementById('boardFilter')) document.getElementById('boardFilter').value = st.q||'';
+  if (document.getElementById('boardFilter')) document.getElementById('boardFilter').value = new URL(location.href).searchParams.get('q')||st.q||'';
   if (document.getElementById('fLevel')) document.getElementById('fLevel').value = st.level||'';
   if (document.getElementById('fGroup')) document.getElementById('fGroup').value = st.group||'';
   if (document.getElementById('fLoad')) document.getElementById('fLoad').value = st.load||'';
@@ -791,4 +796,4 @@ document.getElementById('btnChipDelete')?.addEventListener('click', function() {
 })();
 <?php endif; ?>
 </script>
-<?php require_once 'includes/footer.php'; ?>
+<?php require __DIR__.'/includes/pccm_workspace_view.php';require_once 'includes/footer.php'; ?>
