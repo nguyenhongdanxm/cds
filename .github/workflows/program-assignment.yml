@@ -29,6 +29,7 @@ jobs:
       - run: |
           for f in includes/program*.php chuyenmon/includes/program*.php includes/timetable_builder.php tkb_xep.php chuyenmon/them.php chuyenmon/includes/functions.php chuyenmon/includes/lesson_book_store.php chuyenmon/includes/lesson_book_sign_validation.php; do php -l "$f" || exit 1; done
           php tests/program_assignment_test.php
+          php tests/program_assignment_controller_test.php
           php tests/program_lesson_book_test.php
           php tests/timetable_workspace_copy_test.php
           php tests/lesson_book_sign_validation_test.php
