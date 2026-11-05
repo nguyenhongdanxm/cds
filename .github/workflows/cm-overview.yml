@@ -1,0 +1,49 @@
+name: Academic overview
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/index.php'
+      - 'chuyenmon/includes/cm_overview.php'
+      - 'assets/cm-overview.css'
+      - 'tests/cm_overview*'
+      - 'tests/support/cm_overview_fixture.php'
+      - '.github/workflows/cm-overview.yml'
+  workflow_dispatch:
+jobs:
+  overview:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, tokenizer
+      - run: |
+          php -l chuyenmon/index.php
+          php -l chuyenmon/includes/cm_overview.php
+          php tests/cm_overview_test.php
+          php tests/lesson_book_roster_test.php
+          php tests/lesson_book_statistics_test.php
+          php tests/lesson_book_team_statistics_test.php
+          php tests/staff_evaluation_deploy_test.php
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: npm install --prefix "$RUNNER_TEMP/cm-overview" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/cm-overview/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/cm_overview_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/cm-overview/node_modules
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cm-overview-screenshots
+          path: /tmp/cm-overview-*.png
