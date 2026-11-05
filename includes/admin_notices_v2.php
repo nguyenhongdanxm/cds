@@ -10,7 +10,7 @@ function notice_fields_v2(): array {return [
  'vanban'=>['label'=>'Văn bản · Hành chính','color'=>'#7c3aed','module'=>'vanban'],
  'noitru'=>['label'=>'Nội trú','color'=>'#be185d','module'=>'noitru'],
  'thuvien'=>['label'=>'Thư viện · Thiết bị','color'=>'#0f766e','module'=>'thuvien'],
- 'thidua'=>['label'=>'Thi đua','color'=>'#b45309','module'=>'thidua'],
+ 'thidua'=>['label'=>'Đánh giá - Xếp loại','color'=>'#b45309','module'=>'thidua'],
  'csdl'=>['label'=>'Cơ sở dữ liệu','color'=>'#0369a1','module'=>'csdl'],
 ];}
 function notice_can_field_v2(string $key): bool {$u=current_user();if(($u['role']??'')==='admin')return true;$f=notice_fields_v2()[$key]??null;if(!$f||$key==='chung')return false;$m=(string)($f['module']??'');return $m!==''&&can_module($m,'edit');}

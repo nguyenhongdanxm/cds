@@ -23,7 +23,7 @@ $hasQuery = ($q !== '' || $scope !== 'all');
       <div>
         <h5 class="mb-1"><i class="bi bi-database text-success"></i> CSDL là nguồn chuẩn</h5>
         <p class="small text-muted mb-0">
-          Quản lý và cập nhật tại đây. Các module khác (PCCM, Nội trú, Thi đua…)
+          Quản lý và cập nhật tại đây. Các module khác (PCCM, Nội trú, Đánh giá - Xếp loại…)
           <strong>đồng bộ một chiều từ CSDL</strong> khi người dùng ấn nút đồng bộ trên trang đó.
         </p>
       </div>

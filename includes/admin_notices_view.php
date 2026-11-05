@@ -11,7 +11,7 @@ function cds_notice_fields(): array {
         'vanban' => ['label'=>'Văn bản · Hành chính','color'=>'#7c3aed','module'=>'vanban'],
         'noitru' => ['label'=>'Nội trú','color'=>'#be185d','module'=>'noitru'],
         'thuvien' => ['label'=>'Thư viện · Thiết bị','color'=>'#0f766e','module'=>'thuvien'],
-        'thidua' => ['label'=>'Thi đua','color'=>'#b45309','module'=>'thidua'],
+        'thidua' => ['label'=>'Đánh giá - Xếp loại','color'=>'#b45309','module'=>'thidua'],
         'csdl' => ['label'=>'Cơ sở dữ liệu','color'=>'#0369a1','module'=>'csdl'],
     ];
 }
