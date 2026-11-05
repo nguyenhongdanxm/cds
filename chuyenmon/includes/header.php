@@ -139,3 +139,5 @@ document.querySelectorAll('.cm-sidebar-link span,.cm-mobile-bottom span,.cm-mobi
     · <a href="<?= BASE_URL ?>ketqua.php">Đổi phiên bản</a>
 </div>
 <?php endif; ?>
+
+<?php require __DIR__.'/pccm_workflow_view.php'; ?>
