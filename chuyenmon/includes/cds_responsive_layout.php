@@ -143,8 +143,12 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
  .cm-mobile-bottom a,.cm-mobile-bottom button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;border:0;background:transparent;color:#64748b;text-decoration:none;font-size:.65rem;font-weight:750;line-height:1.1}
  .cm-mobile-bottom i{font-size:1.25rem}.cm-mobile-bottom .active{color:#1f5d8d}.cm-mobile-bottom .disabled{opacity:.3;pointer-events:none}
  .cm-mobile-more{display:block}.cm-mobile-more .offcanvas-header{background:linear-gradient(135deg,var(--cm-nav-blue),var(--cm-nav-blue-2));color:#fff}.cm-mobile-more .btn-close{filter:invert(1)}
- .cm-mobile-group{margin-bottom:1rem}.cm-mobile-group-title{margin:0 0 .45rem;color:#64748b;font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+ .cm-mobile-group{margin-bottom:0}.cm-mobile-group-title{margin:0 0 .45rem;color:#64748b;font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
  .cm-mobile-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}.cm-mobile-link{display:flex;align-items:center;gap:.62rem;min-height:50px;padding:.65rem;border:1px solid #e2e8f0;border-radius:13px;background:#fff;color:#334155;text-decoration:none;font-size:.78rem;font-weight:700}.cm-mobile-link i{color:#1f5d8d;font-size:1.05rem}.cm-mobile-link.active{border-color:#60a5fa;background:#eff6ff;color:#174b73}.cm-mobile-link.disabled{opacity:.35;pointer-events:none}
+ .cm-mobile-more.offcanvas-bottom{height:auto;max-height:min(70vh,520px);max-height:min(70dvh,520px);bottom:calc(var(--cm-mobile-nav-height) + env(safe-area-inset-bottom));border-radius:16px 16px 0 0;border:0;box-shadow:0 -8px 28px #0f274526}
+ .cm-mobile-more .offcanvas-header{padding:8px 14px;min-height:52px;flex-shrink:0}.cm-mobile-more .offcanvas-title{font-size:1rem;font-weight:700;line-height:1.3}.cm-mobile-more .offcanvas-header .btn-close{width:44px;height:44px;padding:12px;margin:-4px -6px -4px 8px;flex-shrink:0;box-sizing:border-box;background-size:13px}
+ .cm-mobile-more .offcanvas-body{flex:0 1 auto;min-height:0;padding:12px;overflow-y:auto;overscroll-behavior:contain}.cm-mobile-more .cm-mobile-grid{gap:8px}.cm-mobile-more .cm-mobile-link{min-height:46px;padding:10px;border-radius:9px;gap:8px;font-size:.8rem;line-height:1.35;font-weight:600}.cm-mobile-more .cm-mobile-link i{font-size:1.05rem;flex-shrink:0}.cm-mobile-more .cm-mobile-link span{min-width:0;overflow-wrap:anywhere}
+ .cm-mobile-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:10px;margin-top:10px;border-top:1px solid #e2e8f0}.cm-mobile-more .cm-mobile-actions .btn{display:flex;align-items:center;justify-content:center;min-height:44px;padding:7px 8px;font-size:.75rem;line-height:1.3;border-radius:9px}.cm-mobile-menu-open .cds-launcher{visibility:hidden;pointer-events:none}
  .pccm-toast{bottom:calc(var(--cm-mobile-nav-height) + 16px)!important}
 }
 </style>
@@ -193,12 +197,11 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
   <?php endforeach; ?>
 </nav>
 
-<div class="offcanvas offcanvas-bottom cm-mobile-more" tabindex="-1" id="cmMobileMore" aria-labelledby="cmMobileMoreLabel" style="height:min(82vh,720px);border-radius:22px 22px 0 0">
-  <div class="offcanvas-header"><div><h5 class="offcanvas-title" id="cmMobileMoreLabel"><i class="bi bi-journal-bookmark-fill me-2"></i><span data-cm-mobile-title>Chuyên môn</span></h5><div class="small text-white-50">Chọn chức năng cần sử dụng</div></div><button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button></div>
+<div class="offcanvas offcanvas-bottom cm-mobile-more" tabindex="-1" id="cmMobileMore" aria-labelledby="cmMobileMoreLabel" >
+  <div class="offcanvas-header"><div><h5 class="offcanvas-title" id="cmMobileMoreLabel"><i class="bi bi-journal-bookmark-fill me-2"></i><span data-cm-mobile-title>Chuyên môn</span></h5></div><button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button></div>
   <div class="offcanvas-body">
     <?php foreach ($cmVisibleNavGroups as $groupIndex=>$group): if(!empty($group['direct']))continue;?>
       <section class="cm-mobile-group" data-cm-mobile-group="<?= (int)$groupIndex ?>" hidden>
-        <h6 class="cm-mobile-group-title"><?= e($group['label']) ?></h6>
         <div class="cm-mobile-grid">
           <?php foreach ($group['items'] as $item):
             $allowed = $cmLayoutCan($item['permission']);
@@ -209,7 +212,7 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
         </div>
       </section>
     <?php endforeach; ?>
-    <div class="d-grid gap-2 mt-3">
+    <div class="cm-mobile-actions">
       <a href="/" class="btn btn-outline-primary"><i class="bi bi-grid me-1"></i> Hệ sinh thái CDS</a>
       <?php if ($cmLayoutLogged): ?><a href="<?= BASE_URL ?>logout.php" class="btn btn-outline-danger"><i class="bi bi-box-arrow-right me-1"></i> Đăng xuất</a><?php endif; ?>
     </div>
@@ -234,6 +237,7 @@ foreach ($cmNavGroups as $groupIndex=>$group) {
       });
     });
   });
+  var mobileSheet=document.getElementById('cmMobileMore');if(mobileSheet){mobileSheet.addEventListener('show.bs.offcanvas',function(){document.body.classList.add('cm-mobile-menu-open')});mobileSheet.addEventListener('hidden.bs.offcanvas',function(){document.body.classList.remove('cm-mobile-menu-open')});}
   document.querySelectorAll('[data-cm-mobile-parent]').forEach(function(button){
     button.addEventListener('click',function(){
       var wanted=button.getAttribute('data-cm-mobile-parent');
