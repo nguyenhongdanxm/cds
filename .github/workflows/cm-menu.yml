@@ -1,0 +1,41 @@
+name: Academic navigation
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/includes/header.php'
+      - 'chuyenmon/kehoach.php'
+      - 'chuyenmon/includes/cds_responsive_layout.php'
+      - 'tests/cm_menu*'
+      - '.github/workflows/cm-menu.yml'
+  workflow_dispatch:
+jobs:
+  menu:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l chuyenmon/includes/header.php
+          php -l chuyenmon/kehoach.php
+          php -l chuyenmon/includes/cds_responsive_layout.php
+          php tests/cm_menu_test.php
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: php tests/cm_menu_test.php --html
+      - run: npm install --prefix "$RUNNER_TEMP/cm-menu" --no-package-lock playwright@1.58.2 bootstrap@5.3.3
+      - run: "$RUNNER_TEMP/cm-menu/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/cm_menu_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/cm-menu/node_modules
