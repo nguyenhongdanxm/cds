@@ -32,18 +32,30 @@ body.admin-dashboard .side-stack [role=region]:focus-visible{outline:2px solid #
 @media print{body.admin-dashboard .content-grid,body.admin-dashboard .side-stack{display:block}body.admin-dashboard .side-stack>.panel,body.admin-dashboard .main-stack>.feed-panel{height:auto;max-height:none;overflow:visible}body.admin-dashboard .side-stack>.panel>[role=region],body.admin-dashboard .main-stack>.feed-panel>[role=region],body.admin-dashboard .attendance-recent{overflow:visible;max-height:none}}
 @media(max-width:680px){body.admin-dashboard .operation-grid{grid-template-columns:minmax(0,1fr)!important}}
 
-/* Pair the original left/right cards by row, rather than leaving two unrelated stacks. */
+/* Keep both original columns aligned; give documents the larger share on the right. */
+body.admin-dashboard .latest-docs-panel .doc-list{display:block}
+body.admin-dashboard .latest-docs-panel .doc-row{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:start;gap:8px 10px;height:auto;min-height:72px;padding:12px 0}
+body.admin-dashboard .latest-docs-panel .doc-row>.doc-copy{display:block;min-width:0;white-space:normal}
+body.admin-dashboard .latest-docs-panel .doc-copy strong{display:block;white-space:normal;overflow-wrap:anywhere;line-height:1.5;letter-spacing:normal;max-height:none}
+body.admin-dashboard .latest-docs-panel .doc-copy small{display:block;white-space:normal;overflow-wrap:anywhere;line-height:1.45;letter-spacing:normal;margin-top:6px;max-height:none}
+body.admin-dashboard .latest-docs-panel .doc-row>i{width:34px;height:36px}
+body.admin-dashboard .side-stack>.latest-docs-panel{height:440px;max-height:440px}
+body.admin-dashboard .side-stack>.leave-panel{height:220px;max-height:220px}
 @media(min-width:1001px){
- body.admin-dashboard .content-grid{align-items:stretch;grid-auto-rows:minmax(320px,auto)}
- body.admin-dashboard .content-grid>.main-stack,body.admin-dashboard .content-grid>.side-stack{display:contents}
- body.admin-dashboard .main-stack>.feed-panel{grid-column:1;grid-row:1}
- body.admin-dashboard .main-stack>.operation-panel{grid-column:1;grid-row:2;align-self:stretch;margin:0}
- body.admin-dashboard .side-stack>.latest-docs-panel{grid-column:2;grid-row:1}
- body.admin-dashboard .side-stack>.leave-panel{grid-column:2;grid-row:2}
- body.admin-dashboard .side-stack>.observation-panel{grid-column:2;grid-row:2}
- body.admin-dashboard .content-grid:has(.observation-panel) .main-stack>.operation-panel{grid-row:2 / span 2}
- body.admin-dashboard .content-grid:has(.observation-panel) .side-stack>.leave-panel{grid-row:3}
- body.admin-dashboard .side-stack>.panel{height:auto;max-height:none;min-height:320px;align-self:stretch}
+ body.admin-dashboard .content-grid{align-items:stretch}
+ body.admin-dashboard .content-grid>.main-stack{display:grid;grid-template-rows:320px minmax(0,1fr);align-content:stretch}
+ body.admin-dashboard .main-stack>.operation-panel{align-self:stretch;margin:0}
+ body.admin-dashboard .content-grid>.side-stack{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(360px,1fr) 180px;align-content:stretch;align-self:stretch;min-height:0}
+ body.admin-dashboard .side-stack:has(.observation-panel){grid-template-rows:minmax(360px,1fr) 180px 180px}
+ body.admin-dashboard .side-stack>.panel{height:auto;max-height:none;min-height:0;align-self:stretch}
  body.admin-dashboard .side-stack>.panel>[role=region]{contain:size}
 }
-@media print{body.admin-dashboard .content-grid>.main-stack,body.admin-dashboard .content-grid>.side-stack{display:block}body.admin-dashboard .side-stack>.panel>[role=region]{contain:none}body.admin-dashboard .side-stack>.panel{min-height:0}}
+@media(max-width:680px){
+ body.admin-dashboard .side-stack>.latest-docs-panel{height:420px;max-height:420px}
+ body.admin-dashboard .side-stack>.leave-panel{height:200px;max-height:200px}
+ body.admin-dashboard .latest-docs-panel .doc-row{grid-template-columns:30px minmax(0,1fr)}
+ body.admin-dashboard .latest-docs-panel .doc-row>.doc-copy{grid-column:2;grid-row:1}
+ body.admin-dashboard .latest-docs-panel .doc-row>span:last-child{grid-column:2;grid-row:2}
+ body.admin-dashboard .latest-docs-panel .doc-row>i{grid-column:1;grid-row:1 / span 2;width:30px;height:34px}
+}
+@media print{body.admin-dashboard .content-grid,body.admin-dashboard .content-grid>.main-stack,body.admin-dashboard .content-grid>.side-stack{display:block}body.admin-dashboard .side-stack>.panel{height:auto!important;max-height:none!important;min-height:0}body.admin-dashboard .side-stack>.panel>[role=region]{contain:none}}
