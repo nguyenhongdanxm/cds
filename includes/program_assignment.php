@@ -41,6 +41,20 @@ function gdp_week_context(array $data): array {
     foreach($weeks as$w){$s=(string)($w['start']??'');if($s!==''&&($first===''||$s<$first))$first=$s;if((string)($w['key']??'')===$key)$week=$w;}
     return ['key'=>$key,'start'=>(string)($week['start']??''),'year_start'=>$first];
 }
+/** Same SQL/JSON authority as the lesson book; reads only the current school-year range. */
+function gdp_week_records(array $ctx): array {
+    if(($ctx['start']??'')==='')return [];
+    if(!function_exists('cds_lb_read_effective'))require_once __DIR__.'/database_lesson_book.php';
+    if(cds_lb_read_effective()){
+        try{return cds_lb_sql_range($ctx['year_start'],date('Y-m-d',strtotime($ctx['start'].' -1 day')));}
+        catch(Throwable $e){error_log('[CDS GDĐP progress fallback] '.$e->getMessage());}
+    }
+    return (array)load_json(ttb_pccm_dir().'/lesson_book_records.json',[]);
+}
+function gdp_progress_hash(array $configs,array $ctx,array $records): string {
+    $next=[];foreach($configs as$class=>$config)$next[$class]=gdp_next($records,(string)$class,$ctx['start'],$ctx['year_start']);
+    return hash('sha256',json_encode($next));
+}
 function gdp_week_rows(array $data,array $configs,string $version): array {
     $ctx=gdp_week_context($data);$snap=(array)($data['program_week']??[]);
     if($ctx['key']===''||$ctx['start']===''||($snap['week_key']??'')!==$ctx['key']||($snap['version_id']??'')!==$version)throw new RuntimeException('GDĐP: chọn tuần làm việc và xác nhận tiết chương trình tại Khối lượng.');
@@ -60,6 +74,7 @@ function gdp_builder_ready(array $data): void {$source=gdp_builder_configs();if(
 function gdp_publish_periods(array $data,array $plan,string $weekKey,string $from): array {
     $source=gdp_builder_configs();$configs=$source['configs'];if(!$configs)return [];
     $ctx=gdp_week_context($data);if($ctx['key']!==$weekKey||$ctx['start']!==$from)throw new RuntimeException('GDĐP: tuần công bố phải trùng tuần đã xác nhận.');
+    if(($data['program_week']['progress_hash']??'')!==gdp_progress_hash($configs,$ctx,gdp_week_records($ctx)))throw new RuntimeException('Tiến độ GDĐP đã thay đổi sau lần xác nhận (có thể do ký sổ muộn). Hãy kiểm tra và xác nhận lại tại Khối lượng; phương án chưa bị thay đổi.');
     $rows=gdp_week_rows($data,$configs,$source['version']);$byClass=[];foreach($rows as$r)$byClass[$r['class']]=$r;$found=[];$periods=[];
     foreach((array)($plan['entries']??[])as$e)foreach((array)($e['classes']??[])as$class){if(!gdp_subject((string)($e['subject']??''))||!isset($configs[$class]))continue;$r=$byClass[$class]??null;
         if(!$r||($e['activity_id']??'')!==$r['id'].'_1'||($e['teacher']??'')!==$r['teacher']||isset($found[$class]))throw new RuntimeException('GDĐP lớp '.$class.': phương án cũ hoặc sai giáo viên/tiết. Hãy xếp lại và kiểm tra trước khi công bố.');

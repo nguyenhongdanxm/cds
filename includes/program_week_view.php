@@ -2,11 +2,7 @@
 $gdpSource=gdp_builder_configs();$gdpConfigs=$gdpSource['configs'];
 if($gdpConfigs):
 $gdpCtx=gdp_week_context($data);$gdpRecords=[];
-if($gdpCtx['start']!==''){
-    require_once __DIR__.'/database_lesson_book.php';
-    if(cds_lb_read_effective()){try{$gdpRecords=cds_lb_sql_range($gdpCtx['year_start'],date('Y-m-d',strtotime($gdpCtx['start'].' -1 day')));}catch(Throwable $e){$gdpRecords=(array)load_json(ttb_pccm_dir().'/lesson_book_records.json',[]);}}
-    else $gdpRecords=(array)load_json(ttb_pccm_dir().'/lesson_book_records.json',[]);
-}
+$gdpRecords=gdp_week_records($gdpCtx);
 ?>
 <section class="card p-3 mb-3"><div class="d-flex flex-wrap justify-content-between gap-2"><h5 class="mb-1">GDĐP · Tiết sẽ dạy trong tuần</h5><a href="/chuyenmon/them.php?program=1">Phân công tiết 1–35</a></div>
 <p class="small text-muted mb-2">Đề xuất theo tiết đã dạy và ký trước tuần này, không lấy số tuần làm số tiết. Kiểm tra sổ đã cập nhật; có thể điều chỉnh rồi xác nhận. 36 = đã hoàn thành 35 tiết.</p>

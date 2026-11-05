@@ -9,6 +9,7 @@ function load_json($file,$default=[]){return cds_json_load($file,$default);}
 function save_json($file,$data){return cds_json_save($file,$data);}
 $dir=sys_get_temp_dir().'/cds-gdp-'.bin2hex(random_bytes(6));mkdir($dir,0700);define('DATA_PATH',$dir);define('PCCM_DATA_PATH',$dir);define('BASE_PATH',dirname(__DIR__));define('TKB_WEEKS_FILE',$dir.'/weeks.json');
 function cds_school_week_calendar(){return [['key'=>'1','start'=>'2026-09-07','end'=>'2026-09-13'],['key'=>'9','start'=>'2026-11-02','end'=>'2026-11-08']];}
+function cds_lb_read_effective(){return false;}
 function tkb_subject_canonical($s){return $s;}
 function tkb_weeks(){return $GLOBALS['weeks']??[];}
 function tkb_save($file,$rows){$GLOBALS['weeks']=$rows;return true;}
@@ -45,7 +46,7 @@ try{
  $records[]=['class'=>'8A','subject'=>'GDĐP','date'=>'2026-10-31','status'=>'makeup','signed_at'=>'signed','ppct_period'=>7];check(gdp_next($records,'8A','2026-11-02','2026-09-07')===8,'Signed makeup advances progress');
  unset($records[2]);check(gdp_next($records,'8A','2026-11-02','2026-09-07')===3,'Missing earlier period is never skipped by MAX');
  $data=['_workspace_id'=>'w9','_workspace'=>['week_key'=>'9']];rejects(fn()=>gdp_week_rows($data,$configs,'v1'),'Confirmation required');
- $data['program_week']=['week_key'=>'9','version_id'=>'v1','classes'=>['8A'=>['period'=>7,'teacher'=>'A','hash'=>gdp_hash($configs['8A'])]]];$GLOBALS['CDS_TTB_CURRENT_DATA']=$data;
+ $data['program_week']=['week_key'=>'9','version_id'=>'v1','classes'=>['8A'=>['period'=>7,'teacher'=>'A','hash'=>gdp_hash($configs['8A'])]]];$data['program_week']['progress_hash']=gdp_progress_hash($configs,gdp_week_context($data),[]);$GLOBALS['CDS_TTB_CURRENT_DATA']=$data;
  $weekly=ttb_assignments();$gdp=array_values(array_filter($weekly,fn($r)=>isset($r['program_period'])));check(count($gdp)===1&&$gdp[0]['teacher']==='A'&&$gdp[0]['periods']===1&&$gdp[0]['program_period']===7,'Actual builder receives one integer period for A in week nine');
  check(hash_file('sha256',$dir.'/assignments_v1.json')===$hash,'Legacy data untouched');
  $copy=$data;$copy['_workspace']['week_key']='1';rejects(fn()=>gdp_week_rows($copy,$configs,'v1'),'Copied week must be reconfirmed');
@@ -53,6 +54,7 @@ try{
  $activities=ttb_activities($gdp,[]);check(count($activities)===1&&$activities[0]['teacher']==='A','One scheduler activity with correct teacher');
  $entry=['activity_id'=>$activities[0]['id'],'teacher'=>'A','subject'=>'GDĐP','classes'=>['8A'],'day'=>2,'session'=>'Sáng','period'=>1];$plan=['id'=>'p','entries'=>[$entry],'unplaced'=>[],'errors'=>[]];
  $periods=gdp_publish_periods($data,$plan,'9','2026-11-02');check($periods[$entry['activity_id']]===7,'Publish carries pinned program period');
+ save_json($dir.'/lesson_book_records.json',[['class'=>'8A','subject'=>'GDĐP','date'=>'2026-10-01','status'=>'taught','signed_at'=>'late','ppct_period'=>1]]);rejects(fn()=>gdp_publish_periods($data,$plan,'9','2026-11-02'),'Late signing requires explicit progress review');save_json($dir.'/lesson_book_records.json',[]);
  $bad=$plan;$bad['entries'][0]['teacher']='B';rejects(fn()=>gdp_publish_periods($data,$bad,'9','2026-11-02'),'Stale teacher not silently changed');
  rejects(fn()=>gdp_publish_periods($data,$plan,'1','2026-09-07'),'Publish different week blocked');
  $bad=$plan;$bad['entries'][]=['activity_id'=>'math','teacher'=>'A','subject'=>'Toán','classes'=>['8B'],'day'=>2,'session'=>'Sáng','period'=>1];rejects(fn()=>gdp_publish_periods($data,$bad,'9','2026-11-02'),'Teacher collision blocked even incomplete publishing');
