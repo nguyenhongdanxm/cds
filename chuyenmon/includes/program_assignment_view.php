@@ -5,6 +5,7 @@ $gdpSubjects=array_values(array_filter(array_keys(get_subjects()),'gdp_subject')
 $gdpRanges=$gdpExisting['ranges']??[['teacher'=>'','from'=>1,'to'=>35]];
 $gdpSelected=$gdpExisting?[$gdpEdit]:[];
 if(isset($GLOBALS['gdp_form_error'])){$gdpSelected=(array)($_POST['classes']??[]);$gdpRanges=[];foreach((array)($_POST['teacher']??[])as$i=>$t)$gdpRanges[]=['teacher'=>$t,'from'=>$_POST['from'][$i]??'','to'=>$_POST['to'][$i]??''];}
+if(!$gdpRanges)$gdpRanges=[['teacher'=>'','from'=>1,'to'=>35]];
 ?>
 <style>.gdp-wrap{max-width:1100px}.gdp-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}.gdp-panel{background:#fff;border:1px solid #dce5ed;border-radius:10px;padding:14px;margin-bottom:14px}.gdp-classes{display:flex;gap:8px 14px;flex-wrap:wrap;margin:10px 0}.gdp-classes label{display:flex;align-items:center;gap:5px}.gdp-range{display:grid;grid-template-columns:minmax(160px,1fr) 86px 86px 40px;gap:8px;align-items:center;margin:7px 0}.gdp-periods{display:flex;gap:4px;flex-wrap:wrap;margin:10px 0}.gdp-periods span{width:25px;text-align:center;border-radius:4px;background:#e4f3eb;color:#16643e;font-size:12px}.gdp-periods span.missing{background:#fff0d8;color:#885000}.gdp-periods span.duplicate{background:#ffe3e3;color:#9e1717}@media(max-width:600px){.gdp-range{grid-template-columns:minmax(0,1fr) 62px 62px 36px;gap:5px}.gdp-panel{padding:10px}.gdp-range select{min-width:0}}</style>
 <div class="gdp-wrap">
