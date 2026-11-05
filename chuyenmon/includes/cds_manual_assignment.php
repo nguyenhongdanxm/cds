@@ -90,6 +90,7 @@ document.addEventListener('DOMContentLoaded',function(){
     }
     return null;
   }
+  if(document.getElementById('board')?.dataset.serverManual==='1')return;
   var sums={};manualRows.forEach(function(r){var k=normalize(r.teacher);sums[k]=(sums[k]||0)+(parseFloat(r.periods)||0)});
   Object.keys(sums).forEach(function(teacher){
     var block=findTeacherBlock(teacher);if(!block)return;

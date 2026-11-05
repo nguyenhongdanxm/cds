@@ -19,3 +19,15 @@ body.cm-body #pccmCompose .cds-manual-panel{padding:0;margin:0;border:0;backgrou
 body.cm-body #pccmCompose .cds-manual-panel .card{border:0;box-shadow:none;margin:0}
 @media(min-width:1000px){body.cm-body #board .board-row{display:grid;grid-template-columns:290px minmax(0,1fr);gap:0 14px}body.cm-body #board .board-row>div:first-child{grid-row:1 / span 2;display:block!important}body.cm-body #board .teacher-name{display:block;margin-bottom:4px}body.cm-body #board .board-row>div:first-child>span{display:block;font-size:11px!important;line-height:1.6}body.cm-body #board .board-drop{min-height:24px}}
 @media(max-width:600px){body.cm-body #pccmCompose .modal-dialog{margin:8px}body.cm-body #pccmCompose .modal-body{padding:10px}body.cm-body #board .filter-bar select{flex:1;max-width:100%;min-width:90px}body.cm-body #board .teacher-name{font-size:14px}}
+body.cm-body #board .pccm-subject-row{display:flex;align-items:baseline;gap:8px;margin:3px 0}
+body.cm-body #board .pccm-subject-name{font-size:13px;color:#234e70;flex:0 0 120px}
+body.cm-body #board .pccm-class-chips{display:flex;flex-wrap:wrap;align-items:center;gap:3px}
+body.cm-body #board .pccm-program-chip{background:#eef0ff;border-color:#cbd1f3;color:#3f4384}
+body.cm-body #board .pccm-manual-chip{background:#f7f0ff;border-color:#dbcaed;color:#6c3b8b}
+body.cm-body #board .pccm-inline-add{border:0;background:transparent;color:#276696;font-size:12px;padding:3px 6px}
+body.cm-body #board .pccm-assign-teacher{font-size:12px;margin:4px 0;min-height:30px;padding:3px 8px}
+body.cm-body #board .pccm-extra-filters{font-size:12px;color:#536b7e}
+.pccm-context-teacher{margin-bottom:12px;padding:8px 10px;background:#eef5fb;color:#244d70;border-radius:6px;font-weight:650}
+@media(max-width:600px){body.cm-body #board .pccm-subject-row{display:block}body.cm-body #board .pccm-subject-name{display:block;margin:5px 0 3px}body.cm-body #board .pccm-assign-teacher{margin:0 0 4px}}
+
+body.cm-body #board [hidden]{display:none!important}

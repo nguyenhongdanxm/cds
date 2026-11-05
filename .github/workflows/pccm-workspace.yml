@@ -5,6 +5,9 @@ on:
       - 'chuyenmon/them.php'
       - 'chuyenmon/danhsach.php'
       - 'chuyenmon/includes/pccm_workspace_view.php'
+      - 'chuyenmon/includes/pccm_teacher_subjects.php'
+      - 'chuyenmon/includes/cds_manual_assignment.php'
+      - 'includes/chuyenmon_manual_assignment.php'
       - 'chuyenmon/includes/program_assignment_view.php'
       - 'chuyenmon/assets/pccm-workspace.css'
       - 'tests/pccm_workspace*'
@@ -29,6 +32,9 @@ jobs:
           CDS_WORKSPACE_BASELINE="$RUNNER_TEMP/them-before.php" php tests/pccm_workspace_test.php
           php -l chuyenmon/them.php
           php -l chuyenmon/danhsach.php
+          php -l chuyenmon/includes/pccm_teacher_subjects.php
+          php -l chuyenmon/includes/cds_manual_assignment.php
+          php -l includes/chuyenmon_manual_assignment.php
           php -l chuyenmon/includes/program_assignment_view.php
           php tests/pccm_workspace_fixture.php
       - run: npm install --prefix "$RUNNER_TEMP/pccm" --no-package-lock playwright@1.58.2 bootstrap@5.3.3
