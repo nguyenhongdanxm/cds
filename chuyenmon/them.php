@@ -271,9 +271,14 @@ $subjects = array_keys(get_subjects()); sort($subjects);
 $all_subjects = get_subjects();
 $classes = get_classes();
 $roles = get_roles();
-$assignments = gdp_overlay(get_assignments(),gdp_load(DATA_PATH,(string)get_active_version_id()));
+$programConfigs=gdp_load(DATA_PATH,(string)get_active_version_id());
+$assignments = gdp_overlay(array_merge(get_assignments(),get_manual_assignments()),$programConfigs);
+$subjects=array_values(array_unique(array_merge($subjects,array_column($assignments,'subject'))));sort($subjects);
 $role_items = get_role_assignments();
 $loads = get_teacher_loads();
+// Manual entries are now rendered server-side; include their load once, excluding GDĐP replaced by program ranges.
+foreach($assignments as$entry)if(!empty($entry['is_manual'])){$name=$entry['teacher'];if(!isset($loads[$name]))$loads[$name]=['day'=>0,'role'=>0,'total'=>0,'quota'=>get_quota($name),'diff'=>-get_quota($name),'level'=>get_teacher_level($name)];$p=(float)$entry['periods'];$loads[$name]['day']+=$p;$loads[$name]['total']+=$p;$loads[$name]['diff']+=$p;}
+
 
 $day_by_t = [];
 foreach ($assignments as $a) $day_by_t[$a['teacher']][] = $a;
@@ -424,15 +429,18 @@ $ask_replace_role = !empty($_GET['ask_replace_role']);
 <div class="tab-pane fade" id="tabManual"><div id="pccmManualHost"></div></div>
 </div></div></div></div></div>
 
-<div class="card" id="board">
+<div class="card" id="board" data-server-manual="1">
 <div class="card-header">
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
 <span class="small text-muted">Bấm phân công để sửa · Kéo sang giáo viên khác để chuyển</span>
-<button type="button" class="btn btn-sm btn-outline-secondary" id="fClear">Xóa lọc</button>
+<button type="button" class="btn btn-sm btn-outline-secondary" id="fClear">Hiện tất cả</button>
 </div>
 <div class="filter-bar">
 <input type="search" id="boardFilter" class="form-control form-control-sm" placeholder="Tên / môn / lớp..." style="min-width:160px">
-<select id="fLevel" class="form-select form-select-sm" title="Cấp">
+<select id="fSubject" class="form-select form-select-sm" aria-label="Lọc môn"><option value="">Tất cả môn</option><?php foreach($subjects as$s): ?><option value="<?=e($s)?>"><?=e($s)?></option><?php endforeach; ?></select>
+<select id="fGrade" class="form-select form-select-sm" aria-label="Lọc khối"><option value="">Tất cả khối</option><?php $boardGrades=array_values(array_unique(array_map('get_grade',$classes)));sort($boardGrades,SORT_NATURAL);foreach($boardGrades as$g): ?><option value="<?=e($g)?>">Khối <?=e($g)?></option><?php endforeach; ?></select>
+<select id="fClass" class="form-select form-select-sm" aria-label="Lọc lớp"><option value="">Tất cả lớp</option><?php foreach($classes as$c): ?><option value="<?=e($c)?>" data-grade="<?=e(get_grade($c))?>"><?=e($c)?></option><?php endforeach; ?></select>
+<details class="pccm-extra-filters"><summary>Lọc thêm</summary><div class="d-flex flex-wrap gap-1 mt-1"><select id="fLevel" class="form-select form-select-sm" title="Cấp">
 <option value="">Mọi cấp</option>
 <option value="THCS">THCS</option>
 <option value="THPT">THPT</option>
@@ -448,6 +456,7 @@ $ask_replace_role = !empty($_GET['ask_replace_role']);
 <option value="ok">Đủ định mức</option>
 <option value="over">Thừa tiết</option>
 </select>
+</div></details>
 <span class="small text-muted" id="fCount"></span>
 </div>
 </div>
@@ -462,6 +471,7 @@ $ask_replace_role = !empty($_GET['ask_replace_role']);
     foreach ($day_by_t[$t] ?? [] as $a) $search .= ' ' . mb_strtolower(($a['subject']??'').' '.($a['class']??''), 'UTF-8');
     foreach ($role_by_t[$t] ?? [] as $a) $search .= ' ' . mb_strtolower(($a['role']??'').' '.($a['class']??''), 'UTF-8');
     $level = $load['level'] ?? get_teacher_level($t);
+    $subjectGroups=[];foreach($day_by_t[$t]??[]as$entry)$subjectGroups[$entry['subject']][]=$entry;ksort($subjectGroups,SORT_NATURAL);
 ?>
 <div class="board-row"
   data-search="<?= e($search) ?>"
@@ -472,7 +482,7 @@ $ask_replace_role = !empty($_GET['ask_replace_role']);
   data-load="<?= e($loadStatus) ?>"
   data-cm="<?= e(mb_strtolower(implode(' ', $cm_list), 'UTF-8')) ?>">
 <div class="d-flex flex-wrap justify-content-between gap-2 mb-1">
-<strong class="teacher-name"><?= e($t) ?></strong>
+<strong class="teacher-name"><?= e($t) ?></strong><button type="button" class="btn btn-sm btn-outline-primary pccm-assign-teacher" data-pccm-assign="<?=e($t)?>">+ Gán môn / lớp</button>
 <span class="small">
 <span class="badge bg-secondary"><?= e($level) ?></span>
 <?php if (!empty($flags['khxh'])): ?><span class="badge bg-info text-dark">KHXH</span><?php endif; ?>
@@ -483,17 +493,7 @@ Tổng <b><?= number_format($load['total'],2) ?></b>/<?= number_format($load['qu
 </span>
 </div>
 <div class="board-drop mb-1" data-teacher="<?= e($t) ?>" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onDropChip(event, this)">
-<span class="text-muted small me-1">Dạy:</span>
-<?php if (!empty($day_by_t[$t])): foreach ($day_by_t[$t] as $a): ?>
-<?php if(!empty($a['program_assignment'])): ?><a class="chip" href="<?=e(BASE_URL)?>them.php?program=1&amp;class=<?=urlencode($a['class'])?>" title="<?=e($a['note'])?>"><?=e($a['subject'])?> <?=e($a['class'])?> · <?=e($a['annual_periods'])?> tiết/năm</a><?php continue;endif; ?>
-<span class="chip chip-clickable" draggable="true"
-  data-id="<?= e($a['id']) ?>" data-type="day"
-  data-teacher="<?= e($a['teacher']) ?>" data-subject="<?= e($a['subject']) ?>"
-  data-class="<?= e($a['class']) ?>" data-periods="<?= e($a['periods']) ?>" data-note="<?= e($a['note']??'') ?>"
-  ondragstart="onDragChip(event)" onclick="openChipModal(this)">
-<?= e($a['subject']) ?> <?= e($a['class']) ?> (<?= e($a['periods']) ?>t)
-</span>
-<?php endforeach; else: ?><span class="text-muted small drop-hint">— kéo chip vào đây</span><?php endif; ?>
+<?php if($subjectGroups): require __DIR__.'/includes/pccm_teacher_subjects.php';else: ?><span class="text-muted small drop-hint">Chưa gán môn, lớp · Bấm “Gán môn / lớp” để thêm</span><?php endif; ?>
 </div>
 <div>
 <span class="text-muted small me-1">KN:</span>
@@ -665,6 +665,7 @@ Tổng <b><?= number_format($load['total'],2) ?></b>/<?= number_format($load['qu
   if (document.getElementById('fGroup')) document.getElementById('fGroup').value = st.group||'';
   if (document.getElementById('fLoad')) document.getElementById('fLoad').value = st.load||'';
   applyFilters();
+  window.pccmApplyTeacherFilters=applyFilters;
 
   ['boardFilter','fLevel','fGroup','fLoad'].forEach(function(id){
     var el = document.getElementById(id);

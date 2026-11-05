@@ -8,9 +8,10 @@ function get_teachers_sorted(){return ['Giáo viên A','Giáo viên B'];}
 function get_subjects(){return ['GDĐP'=>['8'=>1],'Toán học'=>['8'=>4]];}
 function get_classes(){return ['8A','8B'];}
 function get_roles(){return [['name'=>'GVCN','periods'=>4,'need_class'=>true]];}
-function get_assignments(){return [['id'=>'a','teacher'=>'Giáo viên A','subject'=>'Toán học','class'=>'8A','periods'=>4,'note'=>'']];}
+function get_assignments(){return [['id'=>'a','teacher'=>'Giáo viên A','subject'=>'Toán học','class'=>'8A','periods'=>4,'note'=>''],['id'=>'a2','teacher'=>'Giáo viên A','subject'=>'Toán học','class'=>'8B','periods'=>4,'note'=>'']];}
+function get_manual_assignments(){return [['id'=>'manual1','teacher'=>'Giáo viên A','subject'=>'Ngữ văn','class'=>'8B','periods'=>0.3,'is_manual'=>true]];}
 function get_role_assignments(){return [];}
-function get_teacher_loads(){return [];}
+function get_teacher_loads(){return ['Giáo viên A'=>['day'=>9,'role'=>0,'total'=>9,'quota'=>17,'diff'=>-8,'level'=>'THCS']];}
 function get_quota($t){return 17;}
 function get_teacher_level($t){return 'THCS';}
 function get_teacher_flags($t){return ['khxh'=>true];}
@@ -22,6 +23,7 @@ define('BASE_URL','/chuyenmon/');define('DATA_PATH','fixture');$_SESSION=['gdp_c
 $active_ver=['name'=>'Phiên bản thử'];
 $src=file_get_contents(__DIR__.'/../chuyenmon/them.php');$view=explode("require_once 'includes/header.php';",$src,2)[1];
 $view=str_replace("__DIR__.'/includes/program_assignment_view.php'",var_export(__DIR__.'/../chuyenmon/includes/program_assignment_view.php',true),$view);
+$view=str_replace("__DIR__.'/includes/pccm_teacher_subjects.php'",var_export(__DIR__.'/../chuyenmon/includes/pccm_teacher_subjects.php',true),$view);
 $view=str_replace("__DIR__.'/includes/pccm_workspace_view.php'",var_export(__DIR__.'/../chuyenmon/includes/pccm_workspace_view.php',true),$view);
 $view=str_replace("require_once 'includes/footer.php';",'', $view);
 ob_start();eval($view);$body=ob_get_clean();$body='<script>document.addEventListener("DOMContentLoaded",()=>{const p=document.createElement("section");p.id="cdsManualAssignments";p.textContent="Phân công thủ công";document.getElementById("board").after(p);});</script>'.$body;
