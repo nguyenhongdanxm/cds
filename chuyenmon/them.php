@@ -264,6 +264,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 }
 
+$pccmWorkspaceNative = true;
 require_once 'includes/header.php';
 
 $teachers = get_teachers_sorted();
@@ -314,7 +315,7 @@ $ask_replace = !empty($_GET['ask_replace']);
 $ask_replace_role = !empty($_GET['ask_replace_role']);
 ?>
 
-<link rel="stylesheet" href="<?=e(BASE_URL)?>assets/pccm-workspace.css?v=20261105-1">
+<link rel="stylesheet" href="<?=e(BASE_URL)?>assets/pccm-workspace.css?v=<?=e((string)filemtime(__DIR__.'/assets/pccm-workspace.css'))?>">
 <style>
 .board-drop{min-height:36px;border-radius:8px;transition:background .15s}
 .board-drop.drag-over{background:#d4edda;outline:2px dashed #198754}
@@ -426,7 +427,7 @@ $ask_replace_role = !empty($_GET['ask_replace_role']);
 </div>
 
 <div class="tab-pane fade" id="tabProgram"><?php $gdpEmbedded=true;require __DIR__.'/includes/program_assignment_view.php'; ?></div>
-<div class="tab-pane fade" id="tabManual"><div id="pccmManualHost"></div></div>
+<div class="tab-pane fade" id="tabManual"><div id="pccmManualHost"><?php require __DIR__.'/includes/pccm_manual_view.php'; ?></div></div>
 </div></div></div></div></div>
 
 <div class="card" id="board" data-server-manual="1">

@@ -4,16 +4,18 @@
 <script>
 document.addEventListener('DOMContentLoaded',()=>{
  const editor=document.getElementById('pccmCompose');if(!editor||typeof bootstrap==='undefined')return;
- const manual=document.getElementById('cdsManualAssignments'),host=document.getElementById('pccmManualHost');if(manual&&host)host.append(manual);
+ const host=document.getElementById('pccmManualHost'),manual=host?.querySelector('[data-native-manual]');
+ // Remove stale legacy panels if an older header script is still present during deployment.
+ if(manual){document.querySelectorAll('#cdsManualAssignments').forEach(p=>{if(p!==manual)p.remove();});manual.querySelectorAll('.cds-manual-chip').forEach(p=>p.remove());manual.querySelectorAll('datalist').forEach(list=>{const seen=new Set();list.querySelectorAll('option').forEach(o=>{if(seen.has(o.value))o.remove();else seen.add(o.value);});});}
  function openProgram(){resetContext();bootstrap.Tab.getOrCreateInstance(document.getElementById('pccmProgramTab')).show();bootstrap.Modal.getOrCreateInstance(editor).show();}
  document.querySelectorAll('[data-pccm-program]').forEach(b=>b.addEventListener('click',openProgram));
  const context=document.createElement('div');context.className='pccm-context-teacher';context.hidden=true;editor.querySelector('.modal-body').prepend(context);
- function resetContext(){context.hidden=true;editor.querySelectorAll('[name="teacher"]').forEach(s=>{const box=s.closest('.col-md-3');if(box)box.hidden=false;});const manualTeacher=editor.querySelector('[name="manual_teacher"]');if(manualTeacher)manualTeacher.readOnly=false;}
+ function resetContext(){context.hidden=true;editor.querySelectorAll('[name="teacher"]').forEach(s=>{const box=s.closest('.col-md-3');if(box)box.hidden=false;});const manualTeacher=editor.querySelector('[name="manual_teacher"]');if(manualTeacher){manualTeacher.readOnly=false;const field=manualTeacher.closest('.pccm-manual-teacher-field');if(field)field.hidden=false;}editor.querySelectorAll('[data-manual-teacher]').forEach(g=>g.hidden=false);}
  function chooseTeacher(name,subject='',mode='day'){
   resetContext();context.textContent=name+' · Chọn môn và lớp để gán';context.hidden=false;
   editor.querySelectorAll('[name="teacher"]').forEach(select=>{if(!Array.from(select.options).some(o=>o.value===name))select.add(new Option(name,name));select.value=name;const box=select.closest('.col-md-3');if(box)box.hidden=true;});
   const subjectSelect=document.getElementById('subject');subjectSelect.value=subject||'';document.getElementById('class_name').value='';subjectSelect.dispatchEvent(new Event('change',{bubbles:true}));editor.querySelectorAll('#tabMulti [name="classes[]"]').forEach(c=>c.checked=false);
-  const mt=editor.querySelector('[name="manual_teacher"]');if(mt){mt.value=name;mt.readOnly=true;}
+  const mt=editor.querySelector('[name="manual_teacher"]');if(mt){mt.value=name;mt.readOnly=true;const field=mt.closest('.pccm-manual-teacher-field');if(field)field.hidden=true;}editor.querySelectorAll('[data-manual-teacher]').forEach(g=>g.hidden=g.dataset.manualTeacher!==name);
   if(mode==='program'){const first=editor.querySelector('#gdpRanges select');if(first&&(editor.querySelectorAll('#gdpRanges select').length===1||!first.value)){first.value=name;first.dispatchEvent(new Event('change',{bubbles:true}));}}
   const tab=mode==='program'?'#tabProgram':mode==='manual'?'#tabManual':'#tabDay';
   bootstrap.Tab.getOrCreateInstance(editor.querySelector('[data-bs-target="'+tab+'"]')).show();

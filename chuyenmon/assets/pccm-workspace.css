@@ -31,3 +31,5 @@ body.cm-body #board .pccm-extra-filters{font-size:12px;color:#536b7e}
 @media(max-width:600px){body.cm-body #board .pccm-subject-row{display:block}body.cm-body #board .pccm-subject-name{display:block;margin:5px 0 3px}body.cm-body #board .pccm-assign-teacher{margin:0 0 4px}}
 
 body.cm-body #board [hidden]{display:none!important}
+
+.pccm-manual-grid{display:flex;flex-wrap:wrap;align-items:end;gap:8px}.pccm-manual-grid>div{flex:1 1 140px;min-width:0}.pccm-manual-grid>div:has([name="manual_periods"]){flex:0 1 90px}.pccm-manual-entry{display:inline-flex;align-items:center;gap:6px;padding:4px 7px;border:1px solid #e1d3ed;border-radius:6px;font-size:13px}.pccm-native-manual [hidden]{display:none!important}
