@@ -9,6 +9,7 @@ if (!is_logged_in()) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    pccm_lock_request(DATA_PATH);
     $action = $_POST['action'] ?? '';
 
     if ($action === 'create') {
@@ -40,7 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete') {
         $id = $_POST['id'] ?? '';
         $versions = get_versions();
-        if (count($versions) <= 1) {
+        if (!empty(pccm_release_state(DATA_PATH)['locked'][$id])) {
+            flash('Phiên bản đã khóa. Mở khóa trước khi xóa.','warning');
+        } elseif (count($versions) <= 1) {
             flash('Phải giữ ít nhất 1 phiên bản.', 'warning');
         } else {
             $versions = array_values(array_filter($versions, fn($v) => $v['id'] !== $id));

@@ -1,5 +1,7 @@
 <?php
 require __DIR__.'/../includes/program_assignment.php';
+require_once __DIR__.'/../includes/json_store.php';
+require_once __DIR__.'/../includes/pccm_release.php';
 require __DIR__.'/support/load_functions.php';
 define('TEACHERS_FILE','fixture/teachers.json');
 $DEFAULT_TEACHERS=['Giáo viên A','Giáo viên B'];
@@ -22,7 +24,7 @@ function get_teacher_flags($t){return ['khxh'=>true];}
 function get_teacher_chuyen_mon($t){return ['Toán học'];}
 function get_grade($c){return '8';}
 function get_version($v){return ['name'=>'Phiên bản thử'];}
-define('BASE_URL','/chuyenmon/');define('DATA_PATH','fixture');$_SESSION=['gdp_csrf'=>'fixture'];$_GET=[];
+define('BASE_URL','/chuyenmon/');define('DATA_PATH','fixture');$_SESSION=['gdp_csrf'=>'fixture','pccm_release_csrf'=>'fixture'];$_GET=[];
 $active_ver=['name'=>'Phiên bản thử'];
 $src=file_get_contents(__DIR__.'/../chuyenmon/them.php');$view=explode("require_once 'includes/header.php';",$src,2)[1];
 $view=str_replace("__DIR__.'/includes/program_assignment_view.php'",var_export(__DIR__.'/../chuyenmon/includes/program_assignment_view.php',true),$view);
@@ -31,6 +33,7 @@ $view=str_replace("__DIR__.'/includes/pccm_panel_view.php'",var_export(__DIR__.'
 $view=str_replace("__DIR__.'/includes/pccm_manual_view.php'",var_export(__DIR__.'/../chuyenmon/includes/pccm_manual_view.php',true),$view);
 $view=str_replace("__DIR__.'/includes/pccm_teacher_subjects.php'",var_export(__DIR__.'/../chuyenmon/includes/pccm_teacher_subjects.php',true),$view);
 $view=str_replace("__DIR__.'/includes/pccm_workspace_view.php'",var_export(__DIR__.'/../chuyenmon/includes/pccm_workspace_view.php',true),$view);
+$view=str_replace("__DIR__.'/includes/pccm_release_view.php'",var_export(__DIR__.'/../chuyenmon/includes/pccm_release_view.php',true),$view);
 $view=str_replace("require_once 'includes/footer.php';",'', $view);
 $current='them';$pccmWorkspaceNative=true;
 ob_start();require __DIR__.'/../chuyenmon/includes/cds_manual_assignment.php';require __DIR__.'/../includes/chuyenmon_manual_assignment.php';$suppressed=ob_get_clean();

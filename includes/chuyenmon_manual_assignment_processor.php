@@ -12,13 +12,14 @@ if (!$manualCanEdit) {
 }
 
 $manualFile = dirname(__DIR__) . '/data/manual_assignments.json';
+pccm_lock_request(dirname($manualFile));
 $loadRows = static function () use ($manualFile): array {
     if (!is_file($manualFile)) return [];
     $rows = json_decode((string)file_get_contents($manualFile), true);
     return is_array($rows) ? array_values(array_filter($rows, 'is_array')) : [];
 };
 $saveRows = static function (array $rows) use ($manualFile): void {
-    cds_json_save($manualFile, array_values($rows));
+    save_json($manualFile, array_values($rows));
 };
 $number = static function ($value): float {
     $value = str_replace(',', '.', trim((string)$value));

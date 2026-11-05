@@ -2,6 +2,7 @@
 require_once __DIR__ . '/config.php';
 require_once dirname(__DIR__,2).'/includes/program_assignment.php';
 require_once dirname(__DIR__, 2) . '/includes/json_store.php';
+require_once dirname(__DIR__, 2) . '/includes/pccm_release.php';
 require_once dirname(__DIR__, 2) . '/includes/session_user.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once dirname(__DIR__, 2) . '/includes/viewer_access.php';
@@ -53,7 +54,12 @@ function load_json($file, $default = []) {
     return cds_json_load((string)$file, $default);
 }
 function save_json($file, $data) {
-    return cds_json_save((string)$file, $data);
+    $file = (string)$file;
+    $saved = pccm_assignment_write($file, fn()=>cds_json_save($file,$data), is_array($data)?$data:null);
+    if (!$saved && preg_match('/^(?:assignments|roles|program_assignments)_|^manual_assignments\.json$/',basename($file))) {
+        throw new RuntimeException('Không lưu được phân công. Kiểm tra trạng thái khóa của phiên bản.');
+    }
+    return $saved;
 }
 
 function assignments_file($vid) { return DATA_PATH . '/assignments_' . $vid . '.json'; }
@@ -331,7 +337,7 @@ function get_role_assignments($vid = null) {
         }
     }
     unset($a);
-    if ($changed) save_json(role_assignments_file($vid), $items);
+    if ($changed && empty(pccm_release_state(DATA_PATH)['locked'][$vid])) save_json(role_assignments_file($vid), $items);
     return $items;
 }
 function save_role_assignments($data, $vid = null) {

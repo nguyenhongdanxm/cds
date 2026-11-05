@@ -16,10 +16,10 @@ if(($_SERVER['REQUEST_METHOD']??'')==='POST'&&in_array((string)($_POST['action']
             foreach((array)($_POST['teacher']??[])as$i=>$teacher)$rows[]=['teacher'=>$teacher,'from'=>$_POST['from'][$i]??'','to'=>$_POST['to'][$i]??''];
             $ranges=gdp_validate($rows,$teacherNames);
         }
-        $ok=cds_json_update($file,function($current)use($classes,$subject,$ranges,$fingerprint){
+        $ok=pccm_assignment_write($file,fn()=>cds_json_update($file,function($current)use($classes,$subject,$ranges,$fingerprint){
             if(!hash_equals($fingerprint,hash('sha256',json_encode((array)$current))))throw new RuntimeException('Dữ liệu vừa thay đổi, hãy tải lại trang.');
             foreach($classes as$c){if($_POST['action']==='program_disable')unset($current[$c]);else$current[$c]=['subject'=>$subject,'ranges'=>$ranges];}return$current;
-        },[]);
+        },[]));
         if(!$ok)throw new RuntimeException('Không lưu được phân công.');
         flash('Đã cập nhật '.count($classes).' lớp. TKB đã công bố và sổ đã ký được giữ nguyên.','success');
         header('Location: '.BASE_URL.'them.php?program=1');exit;

@@ -1,5 +1,7 @@
 <?php
 require __DIR__.'/../includes/json_store.php';require __DIR__.'/../includes/program_assignment.php';
+require_once __DIR__.'/../includes/json_store.php';
+require_once __DIR__.'/../includes/pccm_release.php';
 function check($v,$m){if(!$v)throw new RuntimeException($m);}
 function load_json($f,$d=[]){return cds_json_load($f,$d);}
 function get_active_version_id(){return 'v1';}

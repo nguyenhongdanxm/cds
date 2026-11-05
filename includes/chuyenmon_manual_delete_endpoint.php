@@ -32,6 +32,7 @@ if ($id === '') {
 }
 
 $file = __DIR__ . '/data/manual_assignments.json';
+pccm_lock_request(dirname($file));
 $rows = [];
 if (is_file($file)) {
     $decoded = json_decode((string)file_get_contents($file), true);
@@ -46,7 +47,7 @@ if (count($rows) === $before) {
     exit;
 }
 
-if (!cds_json_save($file, $rows)) {
+if (!pccm_assignment_write($file, fn()=>cds_json_save($file,$rows),$rows)) {
     http_response_code(500);
     echo json_encode(['ok'=>false,'message'=>'Không thể ghi lại dữ liệu phân công.'], JSON_UNESCAPED_UNICODE);
     exit;

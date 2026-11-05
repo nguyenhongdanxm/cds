@@ -71,7 +71,9 @@ function gdp_week_rows(array $data,array $configs,string $version): array {
     }return $out;
 }
 function gdp_builder_configs(): array {
-    $dir=ttb_pccm_dir();$version=trim((string)((load_json($dir.'/active_version.json',[]))['id']??''));
+    $dir=ttb_pccm_dir();$published=pccm_published_source($dir);
+    if($published)return ['version'=>$published['version'],'configs'=>$published['configs']];
+    $version=trim((string)((load_json($dir.'/active_version.json',[]))['id']??''));
     if($version==='')foreach((array)load_json($dir.'/versions.json',[])as$v)if(!empty($v['id'])){$version=(string)$v['id'];break;}
     return ['version'=>$version,'configs'=>gdp_load($dir,$version)];
 }

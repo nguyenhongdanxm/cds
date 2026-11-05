@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'chuyenmon/them.php'
+      - 'chuyenmon/includes/pccm_release*.php'
+      - 'includes/pccm_release.php'
       - 'chuyenmon/danhsach.php'
       - 'chuyenmon/includes/pccm_workspace_view.php'
       - 'chuyenmon/includes/pccm_teacher_subjects.php'
