@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/page_navigation.php';
 /**
  * Cổng dữ liệu số (CDS) - Hệ sinh thái số nhà trường.
  * Thông tin nhận diện trường được quản lý tập trung tại school_config.php.

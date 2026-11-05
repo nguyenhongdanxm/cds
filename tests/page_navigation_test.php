@@ -1,0 +1,6 @@
+<?php
+function check($ok,$message){if(!$ok)throw new RuntimeException($message);}
+define('BASE_URL','/chuyenmon/');require __DIR__.'/../includes/page_navigation.php';
+$source='<!doctype html><html><head><title>Fixture</title></head><body><main><form method="post"><input name="status" value="taught"></form></main></body></html>';
+$result=cds_page_navigation_filter($source);check(substr_count($result,'id="cdsPageNavigation"')===1,'One navigation group');check(substr_count($result,'href="/"')===2,'Academic app points to ecosystem home');check(str_contains($result,'src="/assets/page-navigation.js'),'Root assets even under academic BASE_URL');check(str_contains($result,'<main><form method="post"><input name="status" value="taught"></form></main>'),'Business form unchanged');check(cds_page_navigation_filter($result)===$result,'Idempotent');foreach(['{"ok":true}','a,b,c',"PK\x03\x04",'<main>fragment</main>','{"payload":"<html><head></head><body>embedded</body></html>"}']as$body)check(cds_page_navigation_filter($body)===$body,'Non-page responses are untouched');
+echo "PASS navigation: two accessible controls, ecosystem home, scoped assets, idempotency, preserved forms and non-HTML bytes\n";

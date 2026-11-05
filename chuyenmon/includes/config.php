@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__,2).'/includes/page_navigation.php';
 define('BASE_PATH', dirname(__DIR__));
 define('DATA_PATH', BASE_PATH . '/data');
 /* Deploy độc lập: /pccm/ — Deploy trong CDS: /chuyenmon/ */
