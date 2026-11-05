@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once dirname(__DIR__,2).'/includes/program_assignment.php';
 require_once dirname(__DIR__, 2) . '/includes/json_store.php';
 require_once dirname(__DIR__, 2) . '/includes/session_user.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
@@ -98,6 +99,8 @@ function create_version($name, $date, $note = '', $copy_from = null) {
             $manualCopies[] = $copy;
         }
         if ($manualCopies) save_json($manualFile, array_merge($manualRows, $manualCopies));
+        $programs=gdp_load(DATA_PATH,(string)$copy_from);
+        if($programs&&!save_json(gdp_file(DATA_PATH,$id),$programs))throw new RuntimeException('Không sao chép được phân công GDĐP.');
     } else {
         save_json(assignments_file($id), []);
         save_json(role_assignments_file($id), []);
@@ -283,7 +286,10 @@ function get_assignments($vid = null) {
     // Trang thêm/danh sách đã có bộ hiển thị tương tác riêng cho phân công thủ công.
     // Các trang còn lại nhận dữ liệu đã chuẩn hóa tại đây để tra cứu, thống kê và xuất bảng thống nhất.
     $page = basename((string)($_SERVER['PHP_SELF'] ?? ''), '.php');
-    if (!in_array($page, ['them', 'danhsach'], true)) $rows = array_merge($rows, get_manual_assignments($vid));
+    if (!in_array($page, ['them', 'danhsach'], true)) {
+        $rows = array_merge($rows, get_manual_assignments($vid));
+        if(in_array($page,['tracuu','ketqua','thongke','xuat_bang','sodaubai','baocao','index'],true))$rows = gdp_overlay($rows,gdp_load(DATA_PATH,(string)$vid));
+    }
     return $rows;
 }
 function get_manual_assignments($vid = null) {
@@ -347,7 +353,7 @@ function get_teachers_sorted() { return sort_teachers_by_ten(get_teachers()); }
 
 function get_teacher_loads($vid = null) {
     $load = [];
-    foreach (get_assignments($vid) as $a) {
+    foreach (gdp_overlay(get_assignments($vid),gdp_load(DATA_PATH,(string)($vid?:get_active_version_id()))) as $a) {
         $t = $a['teacher'];
         if (!isset($load[$t])) $load[$t] = ['day'=>0,'role'=>0,'total'=>0,'classes'=>[],'subjects'=>[],'roles'=>[]];
         $load[$t]['day'] += floatval($a['periods'] ?? 0);
@@ -442,7 +448,8 @@ function get_assignment_stats($vid = null) {
     $vid = $vid ?: get_active_version_id();
     $subjects = get_subjects();
     $classes = get_classes();
-    $assignments = get_assignments($vid);
+    $programConfigs=gdp_load(DATA_PATH,(string)$vid);
+    $assignments = gdp_overlay(get_assignments($vid),$programConfigs);
     $role_items = get_role_assignments($vid);
 
     $map = [];
@@ -481,6 +488,7 @@ function get_assignment_stats($vid = null) {
         $teachers = array_values(array_unique($info['teachers']));
         if (count($teachers) > 1) {
             [$sub, $cls] = explode('|', $key, 2);
+            if(gdp_subject($sub)&&isset($programConfigs[$cls]))continue;
             $conflict_list[] = ['subject' => $sub, 'class' => $cls, 'teachers' => $teachers];
         }
     }
@@ -497,6 +505,7 @@ function get_assignment_stats($vid = null) {
         foreach ($subjects as $sub => $grades) {
             if (!is_subject_visible_for_level($sub, $level_key)) continue;
             $sp = resolve_std_period($grades, $cls);
+            if(gdp_subject((string)$sub)&&isset($programConfigs[$cls]))$sp=1;
             if ($sp === null || $sp <= 0) continue;
 
             $std += $sp;

@@ -2,6 +2,7 @@
 $page_title = 'Phân công chuyên môn';
 require_once 'includes/functions.php';
 require_login();
+require_once __DIR__.'/includes/program_assignment_controller.php';
 
 function go_board($extra = '') {
     // Không ép #board — JS sẽ khôi phục vị trí cuộn + bộ lọc
@@ -264,13 +265,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 
 require_once 'includes/header.php';
+if(isset($_GET['program'])){require __DIR__.'/includes/program_assignment_view.php';require __DIR__.'/includes/footer.php';exit;}
 
 $teachers = get_teachers_sorted();
 $subjects = array_keys(get_subjects()); sort($subjects);
 $all_subjects = get_subjects();
 $classes = get_classes();
 $roles = get_roles();
-$assignments = get_assignments();
+$assignments = gdp_overlay(get_assignments(),gdp_load(DATA_PATH,(string)get_active_version_id()));
 $role_items = get_role_assignments();
 $loads = get_teacher_loads();
 
@@ -281,7 +283,7 @@ foreach ($role_items as $a) $role_by_t[$a['teacher']][] = $a;
 $board_names = sort_teachers_by_ten(array_unique(array_merge($teachers, array_keys($day_by_t), array_keys($role_by_t))));
 
 $slot = [];
-foreach ($assignments as $a) $slot[$a['subject'].'|'.$a['class']][] = $a['teacher'];
+foreach ($assignments as $a) if(empty($a['program_assignment']))$slot[$a['subject'].'|'.$a['class']][] = $a['teacher'];
 $conflicts = [];
 foreach ($slot as $k => $list) {
     $u = array_values(array_unique($list));
@@ -322,7 +324,7 @@ $ask_replace_role = !empty($_GET['ask_replace_role']);
 </style>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-<h3 class="mb-0"><i class="bi bi-clipboard-check"></i> Phân công</h3>
+<h3 class="mb-0"><i class="bi bi-clipboard-check"></i> Phân công</h3><a class="btn btn-sm btn-outline-primary" href="?program=1">GDĐP · Phân công tiết 1–35</a>
 <div class="d-flex flex-wrap gap-1">
 <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalAudit">
 <i class="bi bi-search"></i> Rà soát
@@ -478,6 +480,7 @@ Tổng <b><?= number_format($load['total'],2) ?></b>/<?= number_format($load['qu
 <div class="board-drop mb-1" data-teacher="<?= e($t) ?>" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onDropChip(event, this)">
 <span class="text-muted small me-1">Dạy:</span>
 <?php if (!empty($day_by_t[$t])): foreach ($day_by_t[$t] as $a): ?>
+<?php if(!empty($a['program_assignment'])): ?><a class="chip" href="?program=1&amp;class=<?=urlencode($a['class'])?>" title="<?=e($a['note'])?>"><?=e($a['subject'])?> <?=e($a['class'])?> · <?=e($a['annual_periods'])?> tiết/năm</a><?php continue;endif; ?>
 <span class="chip chip-clickable" draggable="true"
   data-id="<?= e($a['id']) ?>" data-type="day"
   data-teacher="<?= e($a['teacher']) ?>" data-subject="<?= e($a['subject']) ?>"

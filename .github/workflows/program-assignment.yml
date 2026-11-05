@@ -1,0 +1,50 @@
+name: GDĐP program assignments
+on:
+  pull_request:
+    paths:
+      - 'includes/program*'
+      - 'includes/timetable_builder.php'
+      - 'tkb_xep.php'
+      - 'chuyenmon/them.php'
+      - 'chuyenmon/includes/program*'
+      - 'chuyenmon/includes/functions.php'
+      - 'chuyenmon/includes/lesson_book_store.php'
+      - 'chuyenmon/includes/lesson_book_sign_validation.php'
+      - 'tests/program_assignment*'
+      - 'tests/program_lesson_book_test.php'
+      - '.github/workflows/program-assignment.yml'
+  workflow_dispatch:
+jobs:
+  program:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          for f in includes/program*.php chuyenmon/includes/program*.php includes/timetable_builder.php tkb_xep.php chuyenmon/them.php chuyenmon/includes/functions.php chuyenmon/includes/lesson_book_store.php chuyenmon/includes/lesson_book_sign_validation.php; do php -l "$f" || exit 1; done
+          php tests/program_assignment_test.php
+          php tests/program_assignment_controller_test.php
+          php tests/program_lesson_book_test.php
+          php tests/timetable_workspace_copy_test.php
+          php tests/lesson_book_sign_validation_test.php
+          php tests/lesson_book_sign_performance_test.php
+  input-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: php tests/program_assignment_browser_fixture.php --empty-error
+      - run: npm install --prefix "$RUNNER_TEMP/gdp" --no-package-lock playwright@1.58.2 bootstrap@5.3.3
+      - run: "$RUNNER_TEMP/gdp/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/program_assignment_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/gdp/node_modules

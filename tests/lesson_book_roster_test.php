@@ -7,6 +7,7 @@ $source=file_get_contents(__DIR__.'/../chuyenmon/includes/lesson_book_store.php'
 file_put_contents($dir.'/chuyenmon/includes/roster.php',"<?php\n".substr($source,$start,$end-$start));copy(__DIR__.'/../chuyenmon/includes/lesson_book_student_roster.php',$dir.'/chuyenmon/includes/lesson_book_student_roster.php');
 // Load the actual full Chuyên môn function file, not a substitute Drive declaration.
 copy(__DIR__.'/../chuyenmon/includes/functions.php',$dir.'/chuyenmon/includes/functions.php');
+copy(__DIR__.'/../includes/program_assignment.php',$dir.'/includes/program_assignment.php');
 copy(__DIR__.'/../includes/json_store.php',$dir.'/includes/json_store.php');copy(__DIR__.'/../includes/json_rows.php',$dir.'/includes/json_rows.php');copy(__DIR__.'/../includes/json_fields.php',$dir.'/includes/json_fields.php');
 file_put_contents($dir.'/chuyenmon/includes/config.php', <<<'CONFIG'
 <?php
