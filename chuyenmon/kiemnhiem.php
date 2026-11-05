@@ -60,7 +60,7 @@ $roles = get_roles();
 <div class="alert alert-info"><i class="bi bi-info-circle"></i> Tạo tên chức vụ và quy định số tiết chuẩn tại đây (cho phép lẻ đến <strong>0,01</strong>). Việc <strong>phân công</strong> kiêm nhiệm thực hiện ở trang <a href="<?= BASE_URL ?>them.php">Thêm phân công</a>.</div>
 
 <div class="row mb-4">
-<div class="col-md-5">
+<div class="col-12 role-add">
 <div class="card">
 <div class="card-header">Thêm chức vụ mới</div>
 <div class="card-body">
@@ -76,7 +76,7 @@ $roles = get_roles();
 </div>
 
 <?php foreach ($roles as $i => $r): ?>
-<div class="card mb-2">
+<div class="card mb-2 role-entry">
 <div class="card-body py-2">
 <form method="post" class="row g-2 align-items-end">
 <input type="hidden" name="action" value="update">

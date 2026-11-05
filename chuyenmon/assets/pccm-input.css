@@ -1,0 +1,52 @@
+/* Input catalogue only: keep assignment and result screens unchanged. */
+body.cm-body.pccm-input-page .pccm-workflow{padding:12px 14px;margin-bottom:16px;border-top:3px solid #25699b;background:#f7fbff}
+body.cm-body.pccm-input-page .pccm-workflow-title{margin-bottom:9px}
+body.cm-body.pccm-input-page .pccm-workflow-tabs{gap:8px}
+body.cm-body.pccm-input-page .pccm-workflow-tabs a{min-width:116px;text-align:center;font-size:15px;font-weight:700;background:#fff;border-color:#aec6da}
+body.cm-body.pccm-input-page .pccm-workflow-tabs a[aria-current=page]{background:#1f527d;color:#fff;border-color:#1f527d;box-shadow:0 3px 0 #103a5c}
+body.cm-body.pccm-input-page h3{font-size:1.3rem;margin-bottom:12px!important}
+body.cm-body.pccm-input-page .card{border-radius:9px;box-shadow:none}
+body.cm-body.pccm-input-page .card-header{padding:8px 12px;font-size:.92rem}
+body.cm-body.pccm-input-page .card-body{padding:12px}
+body.cm-body.pccm-input-page .form-label{margin-bottom:3px}
+body.cm-body.pccm-input-page .form-control,body.cm-body.pccm-input-page .form-select{min-height:34px;padding:5px 9px;font-size:.9rem;border-radius:6px}
+body.cm-body.pccm-input-page .btn{padding:6px 10px;font-size:.88rem;border-radius:7px;min-height:34px}
+body.cm-body.pccm-input-page .alert{padding:8px 12px;margin-bottom:12px;font-size:.88rem;line-height:1.5}
+body.cm-body.pccm-input-page .stat-card{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;padding:7px!important}
+body.cm-body.pccm-input-page .stat-card .number{font-size:1rem!important;margin:0}
+body.cm-body.pccm-input-page .stat-card .label{font-size:.8rem}
+body.cm-body.pccm-input-page .nav-level{margin-bottom:10px!important}
+body.cm-body.pccm-input-page .nav-level .nav-link{padding:7px 14px;border-width:1px;font-size:.95rem}
+body.cm-body.pccm-input-page .hint{font-size:.83rem;line-height:1.45;margin-bottom:12px!important}
+body.cm-body.pccm-input-page .subject-add-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-bottom:14px;padding:10px 0;border-block:1px solid #dce5ed}
+body.cm-body.pccm-input-page .subject-add-toolbar .form-control{width:220px;max-width:100%}
+body.cm-body.pccm-input-page .subject-row{padding:10px 12px;margin-bottom:0;border-radius:0;box-shadow:none;border-bottom:1px solid #dce5ed}
+body.cm-body.pccm-input-page .subject-row:first-of-type{border-radius:9px 9px 0 0}
+body.cm-body.pccm-input-page .subject-row .sub-name{font-size:.95rem}
+body.cm-body.pccm-input-page .grade-form>.d-flex{align-items:center!important;gap:8px 14px!important}
+body.cm-body.pccm-input-page .grade-cell{display:flex;align-items:center;gap:7px;width:auto;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+body.cm-body.pccm-input-page .grade-cell.is-on{background:transparent;border:0;box-shadow:none}
+body.cm-body.pccm-input-page .grade-cell .form-check{display:flex;align-items:center;gap:5px;padding:0;margin:0!important;white-space:nowrap}
+body.cm-body.pccm-input-page .grade-cell .form-check-input{display:inline-block;float:none;margin:0;width:16px;height:16px;flex-shrink:0}
+body.cm-body.pccm-input-page .grade-cell .form-check-label{font-size:.84rem}
+body.cm-body.pccm-input-page .grade-cell .period-input{width:66px;min-height:32px;padding:4px 5px}
+body.cm-body.pccm-input-page .grade-sep{margin:0;height:26px;align-self:center}
+body.cm-body.pccm-input-page .hidden-box{padding:10px 12px;margin-top:16px!important}
+@media(max-width:600px){
+ body.cm-body.pccm-input-page .pccm-workflow-tabs a{min-width:0;min-height:42px}
+ body.cm-body.pccm-input-page .pccm-workflow-title span{font-size:11px}
+ body.cm-body.pccm-input-page .subject-add-toolbar form{width:100%}
+ body.cm-body.pccm-input-page .subject-add-toolbar .form-control{flex:1;width:100px;min-width:80px}
+ body.cm-body.pccm-input-page .grade-form>.d-flex{gap:8px 12px!important}
+ body.cm-body.pccm-input-page .grade-cell{justify-content:space-between;flex:0 1 138px}
+ body.cm-body.pccm-input-page .grade-sep{display:none}
+ body.cm-body.pccm-input-page .stat-card{flex-direction:column;gap:0}
+}
+
+body.cm-body.pccm-input-page .role-add .card-body>form{display:grid;grid-template-columns:minmax(180px,2fr) minmax(90px,1fr) minmax(160px,2fr) auto auto;gap:10px;align-items:center}
+body.cm-body.pccm-input-page .role-add form>div{margin:0!important}
+body.cm-body.pccm-input-page .role-entry .card-body{display:flex;align-items:end;gap:10px}
+body.cm-body.pccm-input-page .role-entry .card-body>form:first-child{flex:1;min-width:0}
+body.cm-body.pccm-input-page .role-entry .card-body>form:last-child{margin:0!important}
+@media(max-width:900px){body.cm-body.pccm-input-page .role-add .card-body>form{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){body.cm-body.pccm-input-page .role-add .card-body>form{grid-template-columns:1fr}body.cm-body.pccm-input-page .role-entry .card-body{align-items:end}}

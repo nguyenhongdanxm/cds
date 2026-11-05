@@ -234,7 +234,7 @@ function render_grade_row($subject, $data, $keys, $level, $tab) {
         <label class="form-check-label small fw-semibold" for="<?= e($id) ?>"><?= e($ik['label']) ?></label>
       </div>
       <input type="number" name="p_<?= e($k) ?>" class="form-control form-control-sm text-center period-input"
-        step="0.01" min="0" max="20" value="<?= $active ? e($val) : '' ?>" placeholder="tiết"
+        aria-label="Số tiết <?= e($subject) ?> · <?= e($ik['label']) ?>" step="0.01" min="0" max="20" value="<?= $active ? e($val) : '' ?>" placeholder="tiết"
         <?= $active ? '' : 'disabled' ?>>
     </div>
     <?php endforeach; ?>
@@ -299,29 +299,15 @@ function render_grade_row($subject, $data, $keys, $level, $tab) {
   <?php endif; ?>
 </div>
 
-<div class="row mb-3 g-3">
-  <div class="col-md-4">
-    <div class="card h-100">
-      <div class="card-header py-2">Thêm môn mới (vào <?= strtoupper($tab) ?>)</div>
-      <div class="card-body py-2">
-        <form method="post" class="d-flex gap-2">
-          <input type="hidden" name="action" value="add">
-          <input type="hidden" name="tab" value="<?= e($tab) ?>">
-          <input type="text" name="name" class="form-control form-control-sm" placeholder="Tên môn" required>
-          <button class="btn btn-primary btn-sm text-nowrap">Thêm</button>
-        </form>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-8">
-    <div class="sync-card h-100 d-flex flex-wrap align-items-center justify-content-between gap-2">
-      <div>
-        <div class="fw-bold text-primary"><i class="bi bi-arrow-left-right"></i> Đồng bộ 2 chiều</div>
-        <div class="small text-muted">Phiên bản: <strong><?= e($ver_label) ?></strong></div>
-      </div>
-      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#syncModal">Chọn hướng…</button>
-    </div>
-  </div>
+<div class="subject-add-toolbar">
+  <form method="post" class="d-flex flex-wrap align-items-center gap-2">
+    <label for="new-subject" class="fw-semibold">Thêm môn <?= strtoupper($tab) ?></label>
+    <input type="hidden" name="action" value="add">
+    <input type="hidden" name="tab" value="<?= e($tab) ?>">
+    <input id="new-subject" type="text" name="name" class="form-control form-control-sm" placeholder="Tên môn" required>
+    <button class="btn btn-primary btn-sm text-nowrap">Thêm</button>
+  </form>
+  <span class="small text-muted">Phiên bản: <strong><?= e($ver_label) ?></strong></span>
 </div>
 
 <div class="modal fade" id="syncModal" tabindex="-1">

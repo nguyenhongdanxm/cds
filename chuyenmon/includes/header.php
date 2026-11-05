@@ -83,7 +83,7 @@ body{background:#f0f4f8;font-family:'Segoe UI',system-ui,sans-serif;color:#21252
 @media (max-width:576px){.pccm-toast{left:12px;right:12px;bottom:12px;max-width:none;min-width:0}}
 </style>
 <style>.permission-disabled{display:none!important}</style></head>
-<body class="cm-body">
+<body class="cm-body<?= in_array($current, ['monhoc', 'lop', 'giaovien', 'kiemnhiem'], true) ? ' pccm-input-page' : '' ?>">
 <?php
 require_once __DIR__ . '/cds_manual_save_fix.php';
 require_once __DIR__ . '/cds_manual_delete_fix.php';

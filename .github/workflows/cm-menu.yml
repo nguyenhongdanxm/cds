@@ -8,6 +8,9 @@ on:
       - 'chuyenmon/ketqua.php'
       - 'chuyenmon/includes/pccm_workflow_view.php'
       - 'chuyenmon/assets/pccm-workflow.css'
+      - 'chuyenmon/assets/pccm-input.css'
+      - 'chuyenmon/monhoc.php'
+      - 'chuyenmon/kiemnhiem.php'
       - 'chuyenmon/assets/pccm-overview.css'
       - 'includes/chuyenmon_responsive_layout.php'
       - 'chuyenmon/includes/cds_responsive_layout.php'
@@ -35,6 +38,7 @@ jobs:
       - run: |
           php -l chuyenmon/includes/header.php
           php -l chuyenmon/kehoach.php
+          php -l chuyenmon/monhoc.php
           php -l chuyenmon/includes/cds_responsive_layout.php
           php tests/cm_menu_test.php
           CDS_PCCM_BASELINE="$RUNNER_TEMP/pccm-before.php" php tests/cm_menu_pccm_test.php

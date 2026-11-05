@@ -10,3 +10,22 @@ $root=dirname(__DIR__);$baseline=getenv('CDS_PCCM_BASELINE');if($baseline&&is_fi
 $oldOverview=file_get_contents($root.'/chuyenmon/tongquan.php');check(str_contains($oldOverview,"BASE_URL.'them.php'")&&!str_contains($oldOverview,'get_assignment_stats'),'Legacy overview redirects without duplicate statistics');
 $doc=static fn($body)=>'<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://menu.test/bootstrap.css"><style>'.file_get_contents(__DIR__.'/../chuyenmon/assets/pccm-workflow.css').'</style></head><body><main class="container">'.$body.'</main></body></html>';
 file_put_contents('/tmp/cm-menu-pccm-workflow.html',$doc(workflow('monhoc')));file_put_contents('/tmp/cm-menu-pccm-result.html',$doc(workflow('ketqua')));file_put_contents('/tmp/cm-menu-pccm-export.html',$doc(workflow('xuat_bang').'<select id="selVer"><option value="archive">Archive version</option><option value="active">Active version</option></select>'));echo "PASS PCCM workflow: four input tabs, four operations, selected-version parity, permission isolation, separate lookup, legacy redirect and unchanged version POST handlers\n";
+
+// Render the real subject controls without loading production storage or handlers.
+function is_key_active($data,$key){return $key !== '9';}
+function period_val($data,$key){return 8;}
+function get_grade($key){return $key;}
+$subjectSource=file_get_contents($root.'/chuyenmon/monhoc.php');
+$functionStart=strpos($subjectSource,'function render_grade_row(');
+$functionEnd=strpos($subjectSource,"\n?>\n\n<style>",$functionStart);
+eval(substr($subjectSource,$functionStart,$functionEnd-$functionStart));
+ob_start();render_grade_row('Toán học',[],array_map(fn($g)=>['key'=>(string)$g,'label'=>'Khối '.$g],[6,7,8,9]),'thcs','thcs');$controls=ob_get_clean();
+check(substr_count($controls,'name="on[]"')===4,'Four grade choices preserved');
+check(str_contains($controls,'name="p_9"')&&str_contains($controls,'disabled'),'Inactive grade stays disabled');
+$css=file_get_contents($root.'/chuyenmon/assets/pccm-input.css');
+$toggleStart=strpos($subjectSource,'function toggleCell(');$toggleEnd=strpos($subjectSource,'</script>',$toggleStart);
+$fixture=$doc(workflow('monhoc').'<div class="subject-row"><strong>Toán học</strong>'.$controls.'</div><script>'.substr($subjectSource,$toggleStart,$toggleEnd-$toggleStart).'</script>');
+$fixture=str_replace('</head>','<style>'.$css.'</style></head>',$fixture);
+$fixture=str_replace('<body>','<body class="cm-body pccm-input-page">',$fixture);
+file_put_contents('/tmp/cm-menu-pccm-input.html',$fixture);
+echo "PASS input controls: real grade form, names, inactive state and compact fixture\n";
