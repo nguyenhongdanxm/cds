@@ -1,5 +1,5 @@
 /* Dashboard presentation only; preserve source counts, permissions and links. */
-body.admin-dashboard .content-grid{grid-template-columns:minmax(320px,.85fr) minmax(0,1.55fr);align-items:start;gap:16px}
+body.admin-dashboard .content-grid{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);align-items:start;gap:16px}
 body.admin-dashboard .main-stack,body.admin-dashboard .side-stack{min-width:0}
 body.admin-dashboard .side-stack{grid-template-columns:minmax(0,1fr);align-items:start}
 body.admin-dashboard .side-stack>.panel,body.admin-dashboard .main-stack>.feed-panel{display:flex;flex-direction:column;height:320px;min-height:0;max-height:320px;overflow:hidden;align-self:start;grid-column:auto}
@@ -11,7 +11,7 @@ body.admin-dashboard .side-stack .feed-row,body.admin-dashboard .side-stack .doc
 body.admin-dashboard .side-stack .doc-copy strong{white-space:normal;overflow-wrap:anywhere;line-height:1.4}
 body.admin-dashboard .side-stack .doc-copy small{white-space:normal;overflow-wrap:anywhere}
 body.admin-dashboard .side-stack .feed-pagination{flex-wrap:wrap}
-body.admin-dashboard .operation-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+body.admin-dashboard .operation-grid{grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);align-items:start;gap:8px}
 body.admin-dashboard .operation-grid>article{min-height:0;padding:11px;align-items:flex-start}
 body.admin-dashboard .operation-grid .op-icon{width:34px;height:34px;flex-basis:34px;border-radius:10px;font-size:17px}
 body.admin-dashboard .operation-grid .op-copy{min-width:0}
@@ -31,3 +31,19 @@ body.admin-dashboard .side-stack [role=region]:focus-visible{outline:2px solid #
 @media(max-width:680px){body.admin-dashboard .side-stack{grid-template-columns:minmax(0,1fr)!important}body.admin-dashboard .side-stack>.panel,body.admin-dashboard .main-stack>.feed-panel{height:280px;max-height:280px}body.admin-dashboard .side-stack>.panel>.panel-head h2,body.admin-dashboard .main-stack>.feed-panel>.panel-head h2{font-size:16px}body.admin-dashboard .attendance-recent strong{min-width:66px}body.admin-dashboard .attendance-recent small{font-size:10px}}
 @media print{body.admin-dashboard .content-grid,body.admin-dashboard .side-stack{display:block}body.admin-dashboard .side-stack>.panel,body.admin-dashboard .main-stack>.feed-panel{height:auto;max-height:none;overflow:visible}body.admin-dashboard .side-stack>.panel>[role=region],body.admin-dashboard .main-stack>.feed-panel>[role=region],body.admin-dashboard .attendance-recent{overflow:visible;max-height:none}}
 @media(max-width:680px){body.admin-dashboard .operation-grid{grid-template-columns:minmax(0,1fr)!important}}
+
+/* Pair the original left/right cards by row, rather than leaving two unrelated stacks. */
+@media(min-width:1001px){
+ body.admin-dashboard .content-grid{align-items:stretch;grid-auto-rows:minmax(320px,auto)}
+ body.admin-dashboard .content-grid>.main-stack,body.admin-dashboard .content-grid>.side-stack{display:contents}
+ body.admin-dashboard .main-stack>.feed-panel{grid-column:1;grid-row:1}
+ body.admin-dashboard .main-stack>.operation-panel{grid-column:1;grid-row:2;align-self:stretch;margin:0}
+ body.admin-dashboard .side-stack>.latest-docs-panel{grid-column:2;grid-row:1}
+ body.admin-dashboard .side-stack>.leave-panel{grid-column:2;grid-row:2}
+ body.admin-dashboard .side-stack>.observation-panel{grid-column:2;grid-row:2}
+ body.admin-dashboard .content-grid:has(.observation-panel) .main-stack>.operation-panel{grid-row:2 / span 2}
+ body.admin-dashboard .content-grid:has(.observation-panel) .side-stack>.leave-panel{grid-row:3}
+ body.admin-dashboard .side-stack>.panel{height:auto;max-height:none;min-height:320px;align-self:stretch}
+ body.admin-dashboard .side-stack>.panel>[role=region]{contain:size}
+}
+@media print{body.admin-dashboard .content-grid>.main-stack,body.admin-dashboard .content-grid>.side-stack{display:block}body.admin-dashboard .side-stack>.panel>[role=region]{contain:none}body.admin-dashboard .side-stack>.panel{min-height:0}}
