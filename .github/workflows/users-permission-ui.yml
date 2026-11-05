@@ -1,0 +1,60 @@
+name: Permission presentation safety
+on:
+  pull_request:
+    paths:
+      - 'users.php'
+      - 'includes/users_permission_navigation.php'
+      - 'assets/users-permissions.*'
+      - 'tests/users_permission*'
+      - 'tests/support/users_permission_fixture.php'
+      - '.github/workflows/users-permission-ui.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, tokenizer
+      - name: Capture original UI
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: git show "$BASE_SHA:users.php" > "$RUNNER_TEMP/users-before.php"
+      - run: |
+          php -l users.php
+          php -l includes/users_permission_navigation.php
+          node --check assets/users-permissions.js
+          php tests/users_permission_ui_test.php
+          php tests/viewer_access_test.php
+          php tests/login_permissions_test.php
+          php tests/substitution_permissions_test.php
+        env:
+          CDS_USERS_BASELINE: ${{ runner.temp }}/users-before.php
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - name: Capture original UI
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: git show "$BASE_SHA:users.php" > "$RUNNER_TEMP/users-before.php"
+      - run: npm install --prefix "$RUNNER_TEMP/permission-ui" --no-package-lock playwright@1.58.2 bootstrap@5.3.3
+      - run: "$RUNNER_TEMP/permission-ui/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/users_permission_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/permission-ui/node_modules
+          CDS_USERS_BASELINE: ${{ runner.temp }}/users-before.php
