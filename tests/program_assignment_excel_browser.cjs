@@ -14,6 +14,13 @@ let server,browser;try{
  const token=await page.locator('#gdpExcelCommit [name="preview_token"]').inputValue();
  const post={action:'program_import_commit',version_id:'v1',csrf:'test-token',preview_token:token};
  for(const patch of [{csrf:'bad'},{version_id:'v2'},{preview_token:'bad'}]){const r=await page.request.post(base+'/them.php?program=1',{form:{...post,...patch}});assert.match(await r.text(),/hết hạn|đã đổi/);assert.deepEqual(await (await page.request.get(base+'/state')).json(),initial);}
+ const rosterFile=path.join(dir,'data','teachers.json'),rosterText=fs.readFileSync(rosterFile,'utf8');
+ const changedRoster=JSON.parse(rosterText);changedRoster[0].code='changed';fs.writeFileSync(rosterFile,JSON.stringify(changedRoster));
+ const catalogConflict=await page.request.post(base+'/them.php?program=1',{form:post});assert.match(await catalogConflict.text(),/Danh mục giáo viên, lớp hoặc môn vừa thay đổi/);assert.deepEqual(await (await page.request.get(base+'/state')).json(),initial);fs.writeFileSync(rosterFile,rosterText);
+ const releaseFile=path.join(dir,'chuyenmon','data','pccm_release.php');fs.writeFileSync(releaseFile,'<?php http_response_code(404); exit; ?>\n'+JSON.stringify({locked:{v1:true}}));
+ await page.request.post(base+'/them.php?program=1',{form:post});assert.deepEqual(await (await page.request.get(base+'/state')).json(),initial,'Publication lock blocks commit');fs.unlinkSync(releaseFile);
+ const configFile=path.join(dir,'chuyenmon','data','program_assignments_v1.json'),originalConfig=fs.readFileSync(configFile,'utf8'),changed=JSON.parse(originalConfig);changed['8B'].ranges[0].teacher='Giáo viên B';fs.writeFileSync(configFile,JSON.stringify(changed));
+ const stale=await page.request.post(base+'/them.php?program=1',{form:post});assert.match(await stale.text(),/Không lưu được phân công/);assert.deepEqual(await (await page.request.get(base+'/state')).json(),changed,'Concurrent edits cannot be overwritten');fs.writeFileSync(configFile,originalConfig);
  for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Excel preview fits '+width);}
  page.once('dialog',d=>d.accept());await page.locator('#gdpExcelCommit button').click();await page.waitForURL('**/them.php?program=1');await page.waitForLoadState();
  const saved=await (await page.request.get(base+'/state')).json();assert.equal(saved['8A'].ranges[0].teacher,'Giáo viên B');assert.equal(saved['8A'].ranges[0].to,7);assert.deepEqual(saved['8B'],initial['8B'],'Unmentioned class unchanged');

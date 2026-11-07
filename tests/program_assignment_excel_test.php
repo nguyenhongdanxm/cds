@@ -17,7 +17,7 @@ try{
  gdp_excel_apply($dir,'v1',$valid['configs'],$hash);$after=load_json($file);check($after['8B']===$before['8B']&&$after['8A']===$valid['configs']['8A'],'Only file classes replaced');
  pccm_save_release_state($dir,['locked'=>['v1'=>true]]);rejects(fn()=>gdp_excel_apply($dir,'v1',$valid['configs'],hash('sha256',json_encode($after))),'Locked version cannot import');
  if(class_exists('ZipArchive')&&class_exists('DOMDocument')){
-  $target=$dir.'/template.xlsx';check(gdp_excel_template($context,$after,'Bản thử',$target),'Template exported');$parsed=gdp_excel_read($target);$roundtrip=gdp_excel_preview($parsed,$context,'GDĐP');check(!$roundtrip['errors']&&$roundtrip['configs']===$after,'Real XLSX template round-trip retains leading zeros and configurations');
+  $target=$dir.'/template.xlsx';check(gdp_excel_template($context,$after,'Bản thử',$target),'Template exported');$parsed=gdp_excel_read($target);$roundtrip=gdp_excel_preview($parsed,$context,'GDĐP');ksort($roundtrip['configs']);$expected=$after;ksort($expected);check(!$roundtrip['errors']&&$roundtrip['configs']===$expected,'Real XLSX template round-trip retains leading zeros and configurations');
   $z=new ZipArchive();$z->open($target);$sheet=$z->getFromName('xl/worksheets/sheet1.xml');check(str_contains($sheet,'numFmtId')===false&&str_contains($sheet,'02001'),'Teacher code stored as text');$z->addFromString('xl/worksheets/sheet1.xml',str_replace('<is><t xml:space="preserve">02001</t></is>','<f>1+1</f><v>2</v>',$sheet));$z->close();rejects(fn()=>gdp_excel_read($target),'Formula input rejected');
   file_put_contents($target,'invalid');rejects(fn()=>gdp_excel_read($target),'Invalid XLSX rejected');
  }else echo "SKIP XLSX round-trip: ZipArchive/DOM not installed locally; required in CI\n";
