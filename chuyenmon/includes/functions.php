@@ -746,7 +746,8 @@ function require_login() {
         $lessonBookSelfService = ($lessonBookScript === 'sodaubai.php' && in_array($action, ['save_record','save_and_sign','sign_record','upload_signature','save_weekly_review'], true))
             || ($lessonBookScript === 'sodaubai_export.php' && $action === 'export_book')
             || ($lessonBookScript === 'sodaubai_ppct_import_v2.php' && $action === 'import_curriculum');
-        $requiredLevel = ($observationSelfService || $fileCheckSelfService || $educationPlanSelfService || $supportSelfService || $clubRequestSelfService || $lessonBookSelfService)
+        $teachingHoursSelfService = basename($_SERVER['PHP_SELF'] ?? '') === 'gio_day.php';
+        $requiredLevel = ($teachingHoursSelfService || $observationSelfService || $fileCheckSelfService || $educationPlanSelfService || $supportSelfService || $clubRequestSelfService || $lessonBookSelfService)
             ? 'view'
             : (str_contains($action, 'delete') || str_contains($action, 'xoa') ? 'delete' : 'edit');
         if (!$supportSelfService && !$homeSelfService && !cds_can_feature(cds_current_page_feature(), $requiredLevel)) {

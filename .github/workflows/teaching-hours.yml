@@ -1,0 +1,41 @@
+name: Teaching hours summary
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/gio_day*.php'
+      - 'chuyenmon/includes/teaching_hours*.php'
+      - 'chuyenmon/includes/functions.php'
+      - 'chuyenmon/includes/cds_responsive_layout.php'
+      - 'includes/chuyenmon_responsive_layout.php'
+      - 'tests/teaching_hours*'
+      - '.github/workflows/teaching-hours.yml'
+  workflow_dispatch:
+jobs:
+  hours:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, zip, dom
+      - run: |
+          for f in chuyenmon/gio_day*.php chuyenmon/includes/teaching_hours*.php; do php -l "$f"; done
+          php tests/teaching_hours_test.php
+          php tests/cm_menu_pccm_test.php
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, zip, dom
+      - run: npm install --prefix "$RUNNER_TEMP/hours" --no-package-lock playwright@1.58.2 bootstrap@5.3.3
+      - run: "$RUNNER_TEMP/hours/node_modules/.bin/playwright install chromium"
+      - run: node tests/teaching_hours_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/hours/node_modules

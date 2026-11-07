@@ -2,7 +2,7 @@
 /** Presentation only: canonical codes/permissions remain in permissions.php. */
 function up_permission_navigation(array $catalog):array {
  $cm=[
- 'cm.dashboard'=>['Tổng quan / Giảng dạy','Sổ đầu bài · Số liệu Tổng quan','Một mã quyền đang dùng cho Sổ đầu bài và số liệu tuần trên Tổng quan.'],
+ 'cm.dashboard'=>['Tổng quan / Giảng dạy','Sổ đầu bài · Tổng hợp và xuất giờ dạy · Số liệu Tổng quan','Quyền xem dùng chung cho Sổ đầu bài, Tổng hợp/Xuất giờ dạy và số liệu tuần. Dữ liệu giờ dạy theo phạm vi cá nhân/tổ; cập nhật cần quản lý chuyên môn có quyền sửa phân công.'],
  'cm.tracuu'=>['Giảng dạy','Thời khóa biểu · Tra cứu phân công','Mã dùng chung với Kết quả phiên bản phân công.'],
  'cm.tkb'=>['Giảng dạy','Xếp thời khóa biểu',''],
  'cm.baocao.tiendo'=>['Giảng dạy','Tiến độ chương trình',''],
