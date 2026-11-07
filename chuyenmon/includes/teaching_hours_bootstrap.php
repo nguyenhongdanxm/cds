@@ -18,7 +18,7 @@ $thSourceVersion=(string)($_REQUEST['source_version']??get_active_version_id());
 $thSourceRoles=$thSourceVersion!==''?(array)load_json(role_assignments_file($thSourceVersion),[]):[];
 $thSourceHash=hash('sha256',json_encode($thSourceRoles));$thRates=[];foreach(get_roles()as$r)$thRates[$r['name']]=(float)($r['periods']??0);
 $thReadRecords=function()use($thFrom,$thTo){
- if(cds_lb_read_effective()){try{return cds_lb_sql_range($thFrom,$thTo);}catch(Throwable $error){error_log('[CDS hours SQL fallback] '.$error->getMessage());}}
+ if(cds_lb_read_effective()){try{return cds_lb_sql_range($thFrom,$thTo);}catch(Throwable $error){error_log('[CDS hours SQL fallback] '.$error->getMessage());$GLOBALS['th_source_warning']='Không đọc được nguồn MySQL của sổ đầu bài; đang dùng dữ liệu JSON dự phòng. Cần đối chiếu đồng bộ trước khi chốt bảng kê.';return (array)load_json(LB_RECORDS_FILE,[]);}}
  return lb_rows(LB_RECORDS_FILE);
 };
 $thNeedActual=basename($_SERVER['PHP_SELF']??'')!=='gio_day.php'||($_GET['tab']??'actual')!=='roles'||($_POST['action']??'')==='hours_category';
@@ -51,6 +51,6 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
 $thAllRoles=th_roles_range($thState['roles'],$thFrom,$thTo,$thVisible,$thCatalog);
 $thActual=array_values(array_filter($thAll['rows'],fn($r)=>($thPerson===''||$r['person']['key']===$thPerson)&&($thCategory===''||$r['category']===$thCategory)));
 $thRoles=array_values(array_filter($thAllRoles['rows'],fn($r)=>$thPerson===''||$r['person_key']===$thPerson));
-$thActualTotals=th_totals($thActual,[]);$thTotals=th_totals($thActual,$thRoles);$thWarnings=array_merge($thAll['warnings'],$thAllRoles['warnings']);
+$thActualTotals=th_totals($thActual,[]);$thTotals=th_totals($thActual,$thRoles);$thWarnings=array_merge($thAll['warnings'],$thAllRoles['warnings']);if(isset($GLOBALS['th_source_warning']))$thWarnings[]=$GLOBALS['th_source_warning'];
 $thPeople=[];foreach($thCatalog['staff']as$people)if(count($people)===1&&$thVisible($people[0],$people[0]['name']))$thPeople[$people[0]['key']]=$people[0];
 $thQuery=['from'=>$thFrom,'to'=>$thTo,'teacher'=>$thPerson,'category'=>$thCategory];
