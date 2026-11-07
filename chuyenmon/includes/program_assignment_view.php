@@ -13,6 +13,7 @@ if(!$gdpRanges)$gdpRanges=[['teacher'=>'','from'=>1,'to'=>35]];
 <p class="small text-muted">Mỗi lớp 35 tiết/năm, 1 tiết/tuần. Giao dải tiết chương trình cho giáo viên; tuần học thực hiện được xác nhận riêng khi xếp TKB.</p>
 <?php if(isset($GLOBALS['gdp_form_error'])): ?><div role="alert" class="alert alert-danger"><?=e($GLOBALS['gdp_form_error'])?></div><?php endif; ?>
 <?php if(!$gdpVersion||!$gdpSubjects): ?><div class="alert alert-warning">Cần có phiên bản phân công và môn GDĐP trong danh mục trước.</div><?php else: ?>
+<?php require __DIR__.'/program_import_view.php'; ?>
 <form action="<?=e(BASE_URL)?>them.php?program=1" method="post" class="gdp-panel" id="gdpForm">
 <input type="hidden" name="action" value="program_save"><input type="hidden" name="csrf" value="<?=e($_SESSION['gdp_csrf'])?>"><input type="hidden" name="version_id" value="<?=e($gdpVersion)?>"><input type="hidden" name="fingerprint" value="<?=e(hash('sha256',json_encode($gdpConfigs)))?>">
 <div class="d-flex align-items-center flex-wrap gap-2"><label for="gdpSubject" class="fw-semibold">Môn học</label><select name="subject" id="gdpSubject" class="form-select form-select-sm" style="max-width:280px"><?php foreach($gdpSubjects as$s): ?><option <?=($gdpExisting['subject']??($_POST['subject']??''))===$s?'selected':''?>><?=e($s)?></option><?php endforeach; ?></select><span class="small text-muted">Phiên bản: <?=e((get_version($gdpVersion))['name']??$gdpVersion)?></span></div>

@@ -8,6 +8,7 @@ on:
       - 'tkb_xep.php'
       - 'chuyenmon/them.php'
       - 'chuyenmon/includes/program*'
+      - 'chuyenmon/program_assignment_template.php'
       - 'chuyenmon/includes/functions.php'
       - 'chuyenmon/includes/lesson_book_store.php'
       - 'chuyenmon/includes/lesson_book_sign_validation.php'
@@ -26,11 +27,12 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring
+          extensions: mbstring, zip, dom
       - run: |
           for f in includes/program*.php chuyenmon/includes/program*.php includes/timetable_builder.php tkb_xep.php chuyenmon/them.php chuyenmon/includes/functions.php chuyenmon/includes/lesson_book_store.php chuyenmon/includes/lesson_book_sign_validation.php; do php -l "$f" || exit 1; done
           php tests/program_assignment_test.php
           php tests/program_assignment_controller_test.php
+          php tests/program_assignment_excel_test.php
           php tests/program_lesson_book_test.php
           php tests/timetable_workspace_copy_test.php
           php tests/lesson_book_sign_validation_test.php
@@ -42,10 +44,14 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring
+          extensions: mbstring, zip, dom
       - run: php tests/program_assignment_browser_fixture.php --empty-error
       - run: npm install --prefix "$RUNNER_TEMP/gdp" --no-package-lock playwright@1.58.2 bootstrap@5.3.3
       - run: "$RUNNER_TEMP/gdp/node_modules/.bin/playwright install chromium"
       - run: node tests/program_assignment_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/gdp/node_modules
+
+      - run: node tests/program_assignment_excel_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/gdp/node_modules

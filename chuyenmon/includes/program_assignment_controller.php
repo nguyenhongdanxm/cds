@@ -1,5 +1,6 @@
 <?php
 if(empty($_SESSION['gdp_csrf']))$_SESSION['gdp_csrf']=bin2hex(random_bytes(24));
+require __DIR__.'/program_import_controller.php';
 if(($_SERVER['REQUEST_METHOD']??'')==='POST'&&in_array((string)($_POST['action']??''),['program_save','program_disable'],true)){
     try{
         if(!hash_equals($_SESSION['gdp_csrf'],(string)($_POST['csrf']??'')))throw new RuntimeException('Phiên thao tác hết hạn, hãy tải lại trang.');
