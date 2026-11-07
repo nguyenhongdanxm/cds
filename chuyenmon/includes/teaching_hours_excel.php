@@ -1,5 +1,12 @@
 <?php
 require_once __DIR__.'/lesson_book_excel.php';
+function th_personal_ranges(array $actual,string $personKey):array{
+ $selected=array_values(array_filter($actual,fn($r)=>$r['person']['key']===$personKey));usort($selected,fn($a,$b)=>[$a['subject']??'',$a['class']??'',$a['category'],(int)($a['ppct_period']??0),$a['date']]<=>[$b['subject']??'',$b['class']??'',$b['category'],(int)($b['ppct_period']??0),$b['date']]);$out=[];
+ foreach($selected as$r){$period=(int)($r['ppct_period']??0);$key=implode('|',[$r['subject']??'',$r['class']??'',$r['category']]);$last=count($out)-1;
+ if($last>=0&&$period>0&&$r['quantity']===1.0&&$out[$last]['simple']&&$out[$last]['key']===$key&&$out[$last]['to']+1===$period){$out[$last]['to']=$period;$out[$last]['quantity']+=1;$out[$last]['date_from']=min($out[$last]['date_from'],$r['date']);$out[$last]['date_to']=max($out[$last]['date_to'],$r['date']);}
+ else $out[]=['key'=>$key,'subject'=>$r['subject']??'','class'=>$r['class']??'','category'=>$r['category'],'from'=>$period>0?$period:'','to'=>$period>0?$period:'','quantity'=>$r['quantity'],'simple'=>$period>0&&$r['quantity']===1.0,'date_from'=>$r['date'],'date_to'=>$r['date']];
+ }return $out;
+}
 function th_export_sheets(array $actual,array $roles,array $totals,string $format):array{
  $groups=[];$teacher=[];$i=0;
  foreach($totals as$t){$p=$t['person'];$extra=$t['tn']+$t['vao10']+$t['hsg'];$teacher[]=[++$i,$p['code'],$p['name'],$p['group'],$t['main'],$t['roles'],$extra,$t['other'],$t['total'],'','','',''];$g=$p['group']?:'Chưa xác định tổ';if(!isset($groups[$g]))$groups[$g]=array_fill(0,6,0);foreach([$t['main'],$t['roles'],$extra,$t['other'],$t['total'],$t['actual']]as$k=>$v)$groups[$g][$k]+=$v;}
@@ -7,6 +14,9 @@ function th_export_sheets(array $actual,array $roles,array $totals,string $forma
  $roleRows=[];$i=0;foreach($roles as$r)$roleRows[]=[++$i,$r['code'],$r['teacher'],$r['role'],$r['scope'],$r['rate'],$r['weeks'],$r['quantity'],$r['from'],$r['to'],$r['note']];
  $training=[];$i=0;foreach($totals as$t)$training[]=[++$i,$t['person']['code'],$t['person']['name'],$t['tn'],$t['vao10'],$t['hsg'],$t['other'],$t['tn']+$t['vao10']+$t['hsg']];
  $details=[];foreach($actual as$r)$details[]=[$r['date'],$r['person']['code'],$r['teacher'],$r['actual_teacher']??'',$r['subject']??'',$r['class']??'',$r['session']??'',$r['period']??'',$r['ppct_period']??'',$r['lesson_title']??'',th_categories()[$r['category']],$r['quantity'],$r['signed_at'],$r['report_id']];
+ $sum=fn($key)=>array_sum(array_column($totals,$key));
+ if($totals){$groupRows[]=['','Tổng cộng',$sum('main'),$sum('roles'),$sum('tn')+$sum('vao10')+$sum('hsg'),$sum('other'),$sum('total'),'','',''];$teacher[]=['','','Tổng cộng','',$sum('main'),$sum('roles'),$sum('tn')+$sum('vao10')+$sum('hsg'),$sum('other'),$sum('total'),'','','',''];$training[]=['','','Tổng cộng',$sum('tn'),$sum('vao10'),$sum('hsg'),$sum('other'),$sum('tn')+$sum('vao10')+$sum('hsg')];}
+ if($roles)$roleRows[]=['','','Tổng cộng','','','','',array_sum(array_column($roles,'quantity')),'','',''];
  $sheets=[
  ['name'=>'Phụ lục 1','title'=>'BIỂU TỔNG HỢP KÊ KHAI KHỐI LƯỢNG GIẢNG DẠY','heads'=>['TT','Tổ/nhóm chuyên môn','Tiết thực dạy chính khóa','Tiết kiêm nhiệm','Ôn TN, vào 10, HSG','Chưa phân loại / khác','Tổng tiết thực hiện','Định mức/năm','Vượt định mức','Ghi chú'],'widths'=>[7,28,17,15,20,20,18,16,16,30],'rows'=>$groupRows],
  ['name'=>'Phụ lục 2','title'=>'BIỂU KÊ KHAI CHI TIẾT THEO GIÁO VIÊN','heads'=>['TT','Mã GV','Họ và tên GV','Tổ/nhóm','Tiết thực dạy chính khóa','Tiết kiêm nhiệm','Ôn TN, vào 10, HSG','Chưa phân loại / khác','Tổng tiết thực hiện','Định mức/năm','Vượt định mức','Bù trừ','Được thanh toán'],'widths'=>[7,18,30,22,17,15,20,20,18,16,16,14,18],'rows'=>$teacher],
@@ -14,7 +24,7 @@ function th_export_sheets(array $actual,array $roles,array $totals,string $forma
  ['name'=>'Ôn thi riêng','title'=>'TỔNG HỢP RIÊNG ÔN THI TỐT NGHIỆP, VÀO 10, HỌC SINH GIỎI','heads'=>['TT','Mã GV','Giáo viên','Ôn thi TN','Ôn thi vào 10','Ôn HSG','Chưa phân loại / khác','Tổng ôn thi'],'widths'=>[7,18,30,16,18,16,23,18],'rows'=>$training],
  ['name'=>'Đối chiếu sổ ký','title'=>'CHI TIẾT TIẾT THỰC DẠY ĐÃ KÝ SỔ','heads'=>['Ngày dạy','Mã GV','Người ký','GV thực tế','Môn','Lớp','Buổi','Tiết TKB','Tiết PPCT','Nội dung','Nhóm','Số tiết thực tế','Thời gian ký','Mã tiết'],'widths'=>[14,18,30,30,24,12,12,12,12,55,22,15,28,40],'rows'=>$details],
  ];
- if($format==='personal'||$format==='all')foreach($totals as$t){$p=$t['person'];$rows=[];$i=0;foreach($actual as$r)if($r['person']['key']===$p['key'])$rows[]=[++$i,$r['subject']??'',$r['class']??'',$r['ppct_period']??'',$r['ppct_period']??'',$r['quantity'],'','','',th_categories()[$r['category']].' · '.$r['date']];
+ if($format==='personal'||$format==='all')foreach($totals as$t){$p=$t['person'];$rows=[];$i=0;foreach(th_personal_ranges($actual,$p['key'])as$r)$rows[]=[++$i,$r['subject'],$r['class'],$r['from'],$r['to'],$r['quantity'],'','','',th_categories()[$r['category']].' · '.$r['date_from'].($r['date_to']!==$r['date_from']?' – '.$r['date_to']:'')];
  foreach($roles as$r)if($r['person_key']===$p['key'])$rows[]=['','','','','','',$r['role'].($r['scope']?' · '.$r['scope']:''),$r['weeks'],$r['quantity'],$r['from'].' – '.$r['to'].' · '.$r['rate'].' tiết/tuần'];
  $rows[]=['Tổng','','','','',$t['actual'],'','',$t['roles'],'Tổng thực hiện: '.$t['total']];
  $sheets[]=['name'=>$p['name'],'title'=>'BẢNG KÊ CÁ NHÂN – '.$p['name'].' – '.$p['code'],'heads'=>['STT','Môn','Lớp dạy','Từ tiết PPCT','Đến tiết PPCT','Tổng tiết thực dạy','Công việc kiêm nhiệm','Số tuần','Tổng tiết kiêm nhiệm','Ghi chú'],'widths'=>[7,26,12,16,16,19,35,13,21,50],'rows'=>$rows];}
