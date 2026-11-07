@@ -1,0 +1,28 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),E=require('../assets/cds-muc-engine.js');
+class Element{
+ constructor(){this.children=[];this.listeners={};this.hidden=false;this.disabled=false;this.value='';this.checked=true;this.dataset={};this._text='';this.classList={toggle(){},add(){},remove(){}};}
+ set textContent(s){this._text=String(s);this.children=[];}get textContent(){return this._text+this.children.map(e=>e.textContent).join('');}
+ append(...els){this.children.push(...els);}replaceChildren(...els){this.children=els;this._text='';}
+ addEventListener(k,fn){(this.listeners[k]??=[]).push(fn);}setAttribute(k,v){this[k]=v;}
+ querySelectorAll(selector){return this.children.flatMap(e=>[...(selector==='input'&&e.type==='checkbox'?[e]:[]),...e.querySelectorAll(selector)]);}
+ emit(k){if(k==='click'&&this.disabled)return;for(const fn of this.listeners[k]||[])fn({key:''});}
+}
+(async()=>{
+const ids=[...fs.readFileSync(require.resolve('../hoclieu_game_muc.php'),'utf8').matchAll(/id="([^"]+)"/g)].map(m=>m[1]),nodes=Object.fromEntries(ids.map(id=>[id,new Element()])),store=new Map(),docListeners={};
+nodes.rosterData.textContent=JSON.stringify({'6A':[{id:'a',name:'Nguyễn An'},{id:'b',name:'Lê Bình'}],'10A':[{id:'c',name:'Trần Chi'}],empty:[]});nodes.duration.value='10';nodes.scene.getContext=()=>({setTransform(){}});const document={body:new Element(),hidden:false,fullscreenElement:null,documentElement:{},getElementById:id=>nodes[id],createElement:()=>new Element(),addEventListener(k,fn){docListeners[k]=fn;}};document.body.dataset.userKey='user-one';
+let raf=null,rendered=null,brokenStorage=false;
+const context={window:{CDSMucEngine:E,CDSMucScene:{ready:Promise.resolve(),render(ctx,t,state){rendered=state;}}},document,devicePixelRatio:1,matchMedia:()=>({matches:false}),localStorage:{getItem:k=>store.get(k)||null,setItem(k,v){if(brokenStorage)throw new Error('blocked');store.set(k,v);}},requestAnimationFrame:fn=>{raf=fn;},console,Set,Map,Date,JSON,Math};vm.createContext(context);vm.runInContext(fs.readFileSync(require.resolve('../assets/cds-muc.js'),'utf8'),context);await Promise.resolve();
+const click=id=>nodes[id].emit('click'),change=(id,v)=>{nodes[id].value=v;nodes[id].emit('change');},tick=t=>raf(t);
+assert.ok(nodes.start.disabled,'No class selected');change('classSelect','6A');assert.equal(nodes.selectedCount.textContent,'2/2');assert.equal(nodes.students.querySelectorAll('input').length,2);assert.equal(nodes.start.disabled,false);
+click('selectNone');assert.ok(nodes.start.disabled);click('selectAll');click('start');assert.ok(nodes.classSelect.disabled);tick(1);tick(1001);click('pause');assert.equal(nodes.pauseOverlay.hidden,false);tick(20001);assert.equal(nodes.history.textContent,'Chưa gọi bạn nào.','Paused round never completes');click('stopPaused');assert.ok(nodes.pauseOverlay.hidden);assert.ok(!nodes.classSelect.disabled);assert.equal(nodes.history.textContent,'Chưa gọi bạn nào.');
+click('start');tick(21001);tick(32001);assert.equal(nodes.result.hidden,false);assert.equal(nodes.selectedCount.textContent,'1/2');assert.ok(nodes.winnerName.textContent);assert.ok(!nodes.classSelect.disabled);const first=nodes.winnerName.textContent;assert.equal(rendered.phase,'done');
+click('next');tick(33001);tick(44001);assert.notEqual(nodes.winnerName.textContent,first);assert.equal(nodes.selectedCount.textContent,'0/2');assert.ok(nodes.start.disabled);assert.ok(nodes.next.disabled);assert.match(nodes.status.textContent,/Đã gọi hết/);
+change('classSelect','10A');assert.equal(nodes.selectedCount.textContent,'1/1');assert.equal(nodes.history.textContent,'Chưa gọi bạn nào.');change('classSelect','6A');assert.equal(nodes.selectedCount.textContent,'0/2','Class history restored separately');assert.equal(nodes.history.children.length,2);
+click('reset');assert.equal(nodes.selectedCount.textContent,'2/2');assert.equal(nodes.history.textContent,'Chưa gọi bạn nào.');click('start');tick(45001);document.hidden=true;docListeners.visibilitychange();assert.equal(nodes.pauseOverlay.hidden,false,'Hidden tab pauses automatically');document.hidden=false;click('resume');tick(55001);tick(55002);assert.equal(nodes.history.textContent,'Chưa gọi bạn nào.','Hidden time is not counted');click('end');
+change('classSelect','empty');assert.ok(nodes.start.disabled);assert.equal(nodes.selectedCount.textContent,'0/0');
+change('classSelect','10A');click('fullscreen');assert.equal(nodes.startFloating.hidden,false,'Fullscreen has a start control');click('startFloating');assert.ok(nodes.startFloating.hidden);click('end');assert.equal(nodes.startFloating.hidden,false);
+brokenStorage=true;click('selectNone');assert.match(nodes.status.textContent,/không lưu được lịch sử/);assert.ok(nodes.start.disabled);brokenStorage=false;click('selectAll');
+for(const value of store.values()){assert.ok(!value.includes('Nguyễn'),'Names are not persisted');assert.ok(!value.includes('Trần'),'Only IDs and timestamps are stored');}
+console.log('PASS Mực controller: roster/absence, pause/resume/cancel, delayed frames, no-repeat/exhaustion, class isolation, reset, hidden tab, fullscreen start and blocked storage');
+})().catch(e=>{console.error(e);process.exitCode=1;});
