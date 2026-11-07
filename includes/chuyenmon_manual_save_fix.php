@@ -5,8 +5,8 @@ if (!isset($current) || !in_array($current, ['them', 'danhsach'], true)) return;
 <script>
 (function(){
   var busy=false;
-  function findManualForm(){
-    return document.querySelector('#cdsManualAssignments form input[name="cds_manual_action"][value="save"]')?.closest('form') || null;
+  function isManualSaveForm(form){
+    return form instanceof HTMLFormElement && !!form.closest('#cdsManualAssignments') && form.elements.namedItem('cds_manual_action')?.value==='save';
   }
   async function saveManual(form){
     if(busy||!form)return;
@@ -44,18 +44,15 @@ if (!isset($current) || !in_array($current, ['them', 'danhsach'], true)) return;
   document.addEventListener('submit',function(e){
     var form=e.target;
     if(!(form instanceof HTMLFormElement))return;
-    var action=form.querySelector('input[name="cds_manual_action"][value="save"]');
-    if(!action||!form.closest('#cdsManualAssignments'))return;
+    if(!isManualSaveForm(form))return;
     e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
     saveManual(form);
   },true);
   document.addEventListener('click',function(e){
     var button=e.target.closest('#cdsManualAssignments button[type="submit"]');
     if(!button)return;
-    var form=findManualForm();
-    if(!form)return;
-    var action=form.querySelector('input[name="cds_manual_action"]');
-    if(!action||action.value!=='save')return;
+    var form=button.form;
+    if(!isManualSaveForm(form))return;
     e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
     saveManual(form);
   },true);
