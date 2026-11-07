@@ -12,6 +12,8 @@ on:
       - 'chuyenmon/includes/pccm_panel_view.php'
       - 'chuyenmon/includes/cds_manual_assignment.php'
       - 'includes/chuyenmon_manual_assignment.php'
+      - 'chuyenmon/includes/cds_manual_save_fix.php'
+      - 'includes/chuyenmon_manual_save_fix.php'
       - 'chuyenmon/includes/program_assignment_view.php'
       - 'chuyenmon/assets/pccm-workspace.css'
       - 'tests/pccm_workspace*'

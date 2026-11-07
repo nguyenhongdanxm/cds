@@ -49,6 +49,7 @@ $legacy=str_replace("  if(document.getElementById('board')?.dataset.serverManual
 file_put_contents($tmp.'/includes/legacy.php',$legacy);$pccmWorkspaceNative=false;
 ob_start();require $tmp.'/includes/legacy.php';require $tmp.'/includes/legacy.php';$legacyHtml=ob_get_clean();
 unlink($tmp.'/includes/legacy.php');unlink($tmp.'/data/manual_assignments.json');rmdir($tmp.'/includes');rmdir($tmp.'/data');rmdir($tmp);
-$body=$legacyHtml.$body;
+ob_start();require __DIR__.'/../chuyenmon/includes/cds_manual_save_fix.php';$saveAdapter=ob_get_clean();
+$body=$legacyHtml.$saveAdapter.$body;
 $doc='<!doctype html><html><head><meta charset="utf-8"><base href="https://workspace.test/chuyenmon/"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://workspace.test/bootstrap.css"><style>'.file_get_contents(__DIR__.'/../chuyenmon/assets/pccm-workspace.css').'</style></head><body class="cm-body"><main class="container py-3">'.$body.'</main><script src="https://workspace.test/bootstrap.js"></script></body></html>';
 file_put_contents('/tmp/pccm-workspace.html',$doc);echo "PASS actual workspace rendered with isolated assignments and base href\n";
