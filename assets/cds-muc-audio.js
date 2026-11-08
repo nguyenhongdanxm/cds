@@ -24,11 +24,16 @@ class MucAudio{
  isBarking(elapsed){this.barkWindows=this.barkWindows.filter(w=>w[1]>=elapsed-100);return this.barkWindows.some(w=>elapsed>=w[0]&&elapsed<=w[1]);}
  enter(phase){this.stopNodes();this.phase=phase;this.beat=-1;if(phase==='wake'){this.bark(.04);this.bark(.38);this.bark(.8);}if(phase==='chase'){this.bark();this.bark(.38);}if(phase==='catch')this.bark();}
  update(phase,elapsed,total,story={}){this.elapsed=elapsed;if(!this.enabled)return;this.voice.update(story.dialogue);if(!this.ctx||this.ctx.state!=='running')return;if(this.phase!==phase)this.enter(phase);for(const id of story.fallenIds||[]){if(!this.falls.has(id)){this.falls.add(id);this.noise(.09,.06,650);this.tone(95,.13,.06,'sine');}}
- const starts={fear:0,sneak:.1,wake:.22,chase:.28,hide:.64,stumble:.82,catch:.94},tempo={fear:510,sneak:390,chase:170,hide:160,stumble:290};if(!tempo[phase])return;
+ const starts={fear:0,sneak:.1,wake:.22,chase:.28,hide:.64,stumble:.82,catch:.94},tempo={fear:280,sneak:240,chase:170,hide:160,stumble:290};if(!tempo[phase])return;
  if(phase==='chase'||phase==='hide'){const step=Math.floor(elapsed/125);if(step!==this.stepBeat){this.stepBeat=step;this.footstep();this.footstep(.055);}const cry=Math.floor(Math.max(0,elapsed-.28*total)/1250);if(!this.cries.has(cry)){this.cries.add(cry);this.scream();}}
  const local=Math.max(0,elapsed-(starts[phase]||0)*total),beat=Math.floor(local/tempo[phase]);if(beat===this.beat)return;this.beat=beat;
- if(phase==='fear'){if(beat%2===0){this.tone(70,.12,.085,'sine');this.tone(62,.1,.05,'sine',.19);}if(beat%4===0){this.tone(220,.65,.018,'triangle');this.tone(261.63,.65,.013,'sine');}}
- if(phase==='sneak'){const notes=[220,0,261.63,0,246.94,0,196,0];if(notes[beat%8])this.tone(notes[beat%8],.09,.032,'triangle');this.noise(.035,.023,650);}
+ if(phase==='fear'||phase==='sneak'){
+  // Suspense starts on the first unlocked beat, before the dog wakes.
+  const notes=[146.83,174.61,164.81,130.81,146.83,174.61,220,164.81];
+  if(beat%2===0)this.bass(beat%8<4?73.42:65.41,.4);
+  if(beat%4===0){this.kick();this.tone(146.83,.9,.027,'triangle');this.tone(155.56,.9,.012,'sine');}
+  this.tone(notes[beat%8],.13,phase==='fear'?.022:.03,'triangle');this.noise(.025,.012,4200);if(phase==='sneak')this.noise(.035,.023,650);
+ }
  if(phase==='chase'||phase==='hide'){
   // Original D-minor chase score: sub bass, pitched kick, snare, hats and urgent ostinato.
   const bass=[73.42,73.42,65.41,65.41,58.27,58.27,69.30,65.41],ostinato=[293.66,349.23,440,349.23,293.66,261.63,233.08,261.63];

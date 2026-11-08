@@ -5,7 +5,7 @@ class MucVoice{
  cancel(){this.epoch++;try{this.synth?.cancel();}catch(e){}this.onSpeaking(false);}
  reset(){this.cancel();this.seen.clear();this.refresh();}
  setEnabled(value){this.enabled=value;if(!value)this.cancel();else this.refresh();}
- speak(text,role){if(!this.enabled||!this.voice||!this.Utterance||!this.synth)return false;this.cancel();const epoch=++this.epoch;try{const u=new this.Utterance(text.replace(/…/g,', '));u.lang='vi-VN';u.voice=this.voice;u.rate=role==='dog'?.95:1.08;u.pitch=role==='dog'?.72:1.08;u.volume=1;u.onstart=()=>{if(epoch===this.epoch)this.onSpeaking(true);};const end=()=>{if(epoch===this.epoch)this.onSpeaking(false);};u.onend=end;u.onerror=()=>{end();if(epoch===this.epoch)this.onStatus('Giọng đọc chưa phát được. Câu thoại vẫn hiện trên sân chơi.');};this.current=u;this.synth.speak(u);return true;}catch(e){this.onSpeaking(false);return false;}}
+ speak(text,role){if(!this.enabled||!this.voice||!this.Utterance||!this.synth)return false;this.cancel();const epoch=++this.epoch;try{const u=new this.Utterance(text.replace(/…/g,', ').replace(/\bko\b/gi,'không'));u.lang='vi-VN';u.voice=this.voice;u.rate=role==='dog'?.95:1.08;u.pitch=role==='dog'?.72:1.08;u.volume=1;u.onstart=()=>{if(epoch===this.epoch)this.onSpeaking(true);};const end=()=>{if(epoch===this.epoch)this.onSpeaking(false);};u.onend=end;u.onerror=()=>{end();if(epoch===this.epoch)this.onStatus('Giọng đọc chưa phát được. Câu thoại vẫn hiện trên sân chơi.');};this.current=u;this.synth.speak(u);return true;}catch(e){this.onSpeaking(false);return false;}}
  update(line){if(!line||this.seen.has(line.id))return;this.seen.add(line.id);this.speak(line.text,line.speaker);}
  test(){this.refresh();return this.speak('Suỵt, nhẹ thôi! Im lặng nhé! Chạy đi!');}
 }
