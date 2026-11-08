@@ -223,10 +223,7 @@ function lh_icon(string $kind): string {
 </style>
 </head><body>
 <?php if ($tab === 'games'): ?>
-<style>
-.games-intro{position:relative;overflow:hidden;border-radius:24px;padding:26px 30px;color:#fff;background:linear-gradient(120deg,#123e78,#135b91 58%,#146f8b);box-shadow:0 14px 34px #164e7a2a}.games-intro:after{content:'✦  ★  ✦';position:absolute;right:28px;top:8px;font-size:5rem;letter-spacing:12px;color:#ffffff18;pointer-events:none}.games-intro h2,.games-intro p{position:relative;z-index:1}.games-intro p{color:#e3f3ff;margin:0}.games-grid{--bs-gutter-x:1.1rem;--bs-gutter-y:1.1rem}.game-tile{--game:#1766a5;--game-soft:#e6f4ff;--game-ink:#12436c;position:relative;display:flex;flex-direction:column;height:100%;overflow:hidden;border:1px solid color-mix(in srgb,var(--game) 22%,white);border-radius:23px;background:linear-gradient(150deg,var(--game-soft),#fff 62%);box-shadow:0 9px 24px #173b6414;transition:transform .2s ease,box-shadow .2s ease}.game-tile:before{content:'';position:absolute;width:145px;height:145px;right:-52px;top:-58px;border-radius:50%;background:var(--game);opacity:.09}.game-tile:hover{transform:translateY(-5px);box-shadow:0 17px 34px #173b6429}.game-tile-head{display:flex;align-items:flex-start;gap:16px;padding:23px 22px 0;position:relative}.game-art{width:68px;height:68px;flex:0 0 68px;display:grid;place-items:center;border-radius:20px;background:#fff;color:var(--game);box-shadow:0 6px 17px color-mix(in srgb,var(--game) 20%,transparent);font-size:2.25rem;line-height:1}.game-art i{line-height:1}.game-art .game-emoji{font-family:Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,sans-serif;font-size:2.1rem}.game-copy{min-width:0}.game-copy h3{margin:2px 0 8px;font-size:1.2rem;line-height:1.28;font-weight:800;color:var(--game-ink)}.game-copy p{margin:0;color:#415467;font-size:.91rem;line-height:1.5}.game-tile .game-link{display:flex;align-items:center;justify-content:center;gap:9px;min-height:45px;margin:20px 22px 22px;border-radius:12px;background:var(--game);color:#fff;text-decoration:none;font-weight:750;position:relative;transition:filter .2s ease}.game-link:hover,.game-link:focus-visible{color:#fff;filter:brightness(.88)}.game-link:focus-visible{outline:3px solid var(--game-ink);outline-offset:3px}.game-rocket{--game:#6255b5;--game-soft:#f0edff;--game-ink:#42347f}.game-balldrop{--game:#8750c0;--game-soft:#f5eaff;--game-ink:#55307c}.game-clock{--game:#087f83;--game-soft:#e4faf7;--game-ink:#075d62}.game-quiz{--game:#0875bd;--game-soft:#e8f7ff;--game-ink:#075183}.game-cards{--game:#6552b6;--game-soft:#f0ecff;--game-ink:#493a8d}.game-olympia{--game:#b66a00;--game-soft:#fff3cf;--game-ink:#794500}.game-wheel{--game:#b82f72;--game-soft:#ffeaf4;--game-ink:#842454}.game-keoco{--game:#208548;--game-soft:#e8faed;--game-ink:#176337}.game-duavit{--game:#c47008;--game-soft:#fff1d8;--game-ink:#80500a}.game-loto{--game:#5444b6;--game-soft:#eeedff;--game-ink:#3e338a}.game-chopnot{--game:#ad347f;--game-soft:#ffeaf6;--game-ink:#79265c}@media(max-width:575px){.games-intro{padding:21px}.games-intro:after{font-size:3rem;right:-20px}.game-tile{min-height:0}.game-tile-head{padding:20px 18px 0;gap:13px}.game-art{width:58px;height:58px;flex-basis:58px;font-size:1.9rem}.game-tile .game-link{margin:20px 18px 18px}}
-@media(prefers-reduced-motion:reduce){.game-tile,.game-link{transition:none}.game-tile:hover{transform:none}}
-</style>
+<link rel="stylesheet" href="<?= BASE_URL ?>assets/hoclieu-games.css?v=20261108-1">
 <?php endif; ?>
 <style>.stat{padding-right:3.5rem!important}.stat>i{right:12px;bottom:12px;font-size:2rem;opacity:.16;pointer-events:none}.stat strong{display:block;line-height:1.1}.stat>span{display:block;line-height:1.35}</style>
 <?php require_once __DIR__.'/includes/module_switcher.php'; ?>
@@ -242,7 +239,7 @@ function lh_icon(string $kind): string {
 </ul>
 <div class="d-flex gap-2"><a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>"><i class="bi bi-diagram-3"></i> Hệ sinh thái</a><a class="btn btn-sm btn-light" href="<?= BASE_URL ?>logout.php"><i class="bi bi-box-arrow-right"></i></a></div>
 </div></div></header>
-<main class="container py-4"><?php show_flash(); ?>
+<main class="container py-4<?= $tab === 'games' ? ' games-page' : '' ?>"><?php show_flash(); ?>
 
 <?php if ($tab === 'dashboard'): ?>
 <div class="mb-4"><h2 class="fw-bold mb-1">Kho tri thức số nhà trường</h2><p class="text-muted">Học liệu, ngân hàng đề và các kỳ thi dùng chung cho giáo viên.</p></div>
@@ -296,14 +293,35 @@ $games = [
     ['key'=>'loto','name'=>'Quay số gọi tên','description'=>'Chọn ngẫu nhiên học sinh từ danh sách của lớp.','icon'=>'','emoji'=>'🎲','url'=>'hoclieu_game_loto.php','action'=>'Mở trò chơi'],
     ['key'=>'chopnot','name'=>'Chớp Nốt','description'=>'Khám phá khuông nhạc, trường độ và nhạc cụ qua trò chơi.','icon'=>'','emoji'=>'🎼','url'=>'hoclieu_game_chopnot.php','action'=>'Mở trò chơi'],
 ];
+$gameCovers = [
+    'muc'=>["Mực ơi\nđừng dậy!",'Gọi tên'],
+    'buzzer'=>["Bấm\nchuông!",'Hỏi đáp'],
+    'rocket'=>["Tên lửa\nhạ cánh",'Gọi tên'],
+    'balldrop'=>["Thả bóng\ngọi tên",'Gọi tên'],
+    'clock'=>["Bộ đếm\nthời gian",'Công cụ'],
+    'quiz'=>["Hỏi nhanh\nĐáp gọn",'Hỏi đáp'],
+    'cards'=>["Thẻ trả lời\nA–D",'Hỏi đáp'],
+    'olympia'=>["Đỉnh\nOlympia",'Kiến thức'],
+    'wheel'=>["Vòng quay\nmay mắn",'May mắn'],
+    'keoco'=>["Kéo co\nkiến thức",'Thi đua'],
+    'duavit'=>["Đua vịt\ngọi tên",'Gọi tên'],
+    'loto'=>["Quay số\ngọi tên",'Gọi tên'],
+    'chopnot'=>["Chớp Nốt\nÂm nhạc",'Âm nhạc'],
+];
 ?>
 <div class="row games-grid">
 <?php foreach ($games as $game):
     if (!$isAdmin && isset($gameVisibility[$game['key']]) && !$gameVisibility[$game['key']]) continue;
 ?>
-<div class="col-md-6 col-xl-4"><article class="game-tile game-<?= e($game['key']) ?>">
-    <div class="game-tile-head"><span class="game-art" aria-hidden="true"><?php if ($game['emoji'] !== ''): ?><span class="game-emoji"><?= e($game['emoji']) ?></span><?php else: ?><i class="bi <?= e($game['icon']) ?>"></i><?php endif; ?></span>
-    <div class="game-copy"><h3><?= e($game['name']) ?></h3><p><?= e($game['description']) ?></p></div></div>
+<div class="col-12 col-sm-6 col-xl-4 col-xxl-3"><article class="game-tile game-<?= e($game['key']) ?>" aria-labelledby="game-title-<?= e($game['key']) ?>">
+    <a class="game-cover" href="<?= BASE_URL . e($game['url']) ?>" aria-label="<?= e('Mở ' . $game['name']) ?>">
+        <img src="<?= BASE_URL ?>assets/game-covers/<?= e($game['key']) ?>.webp?v=20261108-1" alt="" width="720" height="405" loading="<?= $game['key'] === 'muc' ? 'eager' : 'lazy' ?>" decoding="async">
+        <span class="game-cover-shade" aria-hidden="true"></span>
+        <span class="game-category" aria-hidden="true"><?= e($gameCovers[$game['key']][1]) ?></span>
+        <span class="game-cover-icon" aria-hidden="true"><i class="bi bi-controller"></i></span>
+        <span class="game-cover-title" aria-hidden="true"><?php foreach (explode("\n", $gameCovers[$game['key']][0]) as $line): ?><span><?= e($line) ?></span><?php endforeach; ?></span>
+    </a>
+    <div class="game-copy"><h3 id="game-title-<?= e($game['key']) ?>"><?= e($game['name']) ?></h3><p><?= e($game['description']) ?></p></div>
     <a class="game-link" href="<?= BASE_URL . e($game['url']) ?>"><i class="bi <?= $game['key']==='cards'?'bi-printer':'bi-play-circle' ?>" aria-hidden="true"></i><?= e($game['action']) ?></a>
 </article></div>
 <?php endforeach; ?>
