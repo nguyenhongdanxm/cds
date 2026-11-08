@@ -72,7 +72,7 @@ Các ảnh trong `assets/muc/` được tạo mới bằng công cụ tạo ản
 - Đạo cụ mới `chaos-props-v1.webp`/`.json`: dép xanh, gà cao su vàng, giày và cốc trà sữa. Văng từ nhóm chạy, xoay theo quỹ đạo, nảy rồi nằm lại trên đường; bụi, vệt tốc độ và nước mắt theo từng nhân vật. Người nấp vẫn được vẽ theo lớp, có một bạn trèo cây. Chữ thoại trắng viền nâu, font đậm bo tròn, bỏ tiêu đề lớn che cảnh.
 - Kịch bản: sợ/khóc → rón rén → Mực thức/sủa → cả nhóm chạy sang phải, quay trái, quay phải → toán loạn tìm chỗ nấp → vấp ngã/đứng dậy → bạn không kịp đứng dậy bị bắt. Camera theo nhóm qua cảnh phố trong lúc đuổi, quay về sân trường khi nấp.
 - Với từ 2 học sinh trở lên, mỗi lượt có 2 hoặc 3 bạn vấp ngã rồi đứng dậy (giảm theo sĩ số nếu lớp quá ít bạn); sau đó người được chọn ngã sau cùng và bị bắt. Các tình huống này chỉ minh họa kết quả chọn ngẫu nhiên, không đánh giá khả năng chạy của học sinh thật.
-- Lời thoại theo mốc: Suỵt… nhẹ thôi!, Im lặng nhé!, Chạy đi!, Quay lại!, Hú hồn!, Nấp nhanh lên!, Á! Vấp rồi!, Dạ, em chưa học bài…
+- Lời thoại theo mốc: Suỵt… nhẹ thôi!, Im lặng nhé!, Chạy đi!, Quay lại!, Hú hồn!, Nấp nhanh lên!, Á! Vấp rồi!, Em ko dám trốn nữa
 - Giọng đọc dùng SpeechSynthesis và ưu tiên giọng tiếng Việt cục bộ của thiết bị. Không gửi tên học sinh vào bộ đọc, chỉ đọc các câu thoại cố định. Có bật/tắt và nút Thử lời thoại. Nếu thiết bị không có giọng Việt thì thông báo rõ và vẫn hiện phụ đề. Giảm âm lượng nhạc khi lời thoại phát; dừng đọc khi tạm dừng/hủy/đổi lớp/tắt âm.
 - Thời lượng 24/32/44 giây để đủ thời gian cho đuổi nhóm, ngã/đứng dậy và nấp. Giữ nguyên cách lấy CSDL, ID học sinh, xác suất chọn, không gọi lặp và lưu lịch sử.
 
@@ -89,3 +89,10 @@ Bộ đạo cụ tạo bằng công cụ tạo ảnh tích hợp: atlas trong su
 
 - Bốn giây cuối trong thời lượng đã chọn dành cho đoạn Mực bắt được bạn: cả nhóm dừng chạy, quay về phía bạn và run/sợ/lo lắng; bước ra trước vật che để nhìn rõ mặt. Mực đứng nghiêm và nói đúng câu “Tôi sẽ báo cô giáo”. Bóng thoại gắn với Mực, dùng giọng Việt của thiết bị ở cao độ trầm hơn. Thiết bị thiếu giọng Việt vẫn hiện lời thoại như trước. Chỉ sau đoạn phản ứng mới hiện bảng kết quả; giữ nguyên thời điểm ghi lịch sử khi hết lượt.
 - Bước chân nện trầm và tiếng sột soạt chạy độc lập với nhịp nhạc; tiếng la “á” hoạt hình tổng hợp qua các bộ lọc formant, không phụ thuộc giọng Việt. Tất cả dừng theo pause/mute. Bỏ hợp âm ăn mừng để giữ cảm giác lo lắng khi kết thúc.
+
+## Rà soát hình/chữ/nhạc 20261108-7
+
+- Giữ khung 16:9 và phản ứng lo lắng. Mực nói “Tôi sẽ báo cô giáo”, sau đó học sinh đáp đúng chữ “Em ko dám trốn nữa”. Bộ đọc phát âm “ko” thành “không”; không đọc hoặc gửi tên học sinh.
+- Nhạc Rê thứ, bass và kick bắt đầu từ nhịp đầu tiên sau khi bấm chơi; phần rón rén tăng nhịp rồi chuyển sang rượt đuổi. Không tự phát trước thao tác người dùng.
+- Đóng gói font Nunito biến thiên có đủ chữ Việt trong assets/muc/nunito-v1.woff (Google Fonts, giấy phép OFL trong nunito-OFL.txt). Canvas chờ font, dùng cùng font với giao diện để chữ Việt nhất quán. Nguồn: https://github.com/google/fonts/tree/main/ofl/nunito .
+- Bảng kết quả nền kem viền nâu, nhãn đỏ nhô lên, tên cam lớn, nút Gọi tiếp/Danh sách. Tên dài xuống dòng; giữ bố cục gọn trên màn nhỏ. Danh sách mở bảng họ tên, không thay đổi học sinh được chọn.
