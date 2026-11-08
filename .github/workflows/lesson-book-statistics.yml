@@ -56,6 +56,7 @@ jobs:
           php tests/lesson_book_team_statistics_test.php
           php tests/lesson_book_statistics_excel_test.php
           php tests/progress_slots_test.php
+          php tests/lesson_book_candidate_index_test.php
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 10
