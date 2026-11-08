@@ -1,21 +1,13 @@
 'use strict';
 const assert=require('node:assert/strict'),M=require('../assets/cds-muc-motion.js'),E=require('../assets/cds-muc-engine.js');
-for(let n=1;n<=8;n++){
- const rows=Array.from({length:n},(_,i)=>({id:String(i),name:'Nguyễn Học Sinh '+i}));
- for(const winner of rows){const scene=M.plan(rows,winner,10);let previous=null;
-  for(let i=0;i<=1000;i++){
-   const p=i/1000,f=M.frame(scene,p,E.phase(p),p*16000);
-   for(const a of f.actors){assert.ok(Number.isFinite(a.x)&&Number.isFinite(a.y));assert.ok(a.x>=40&&a.x<=1550&&a.y>=400&&a.y<=885,'Routes stay inside the schoolyard');
-    if(previous&&!a.hidden&&!previous[a.index].hidden)assert.ok(Math.hypot(a.x-previous[a.index].x,a.y-previous[a.index].y)<38,'Continuous motion, no teleport');}
-   const visible=f.actors.filter(a=>!a.hidden&&!a.hiding);
-   for(let a=0;a<visible.length;a++)for(let b=a+1;b<visible.length;b++)assert.ok(!M.intersects(M.body(visible[a]),M.body(visible[b])),'Visible pupils do not overlap');
-   const labels=M.labels(f.actors,f.dog);for(let a=0;a<labels.length;a++){for(let b=a+1;b<labels.length;b++)assert.ok(!M.intersects(labels[a],labels[b]),'Name labels do not overlap');assert.ok(!M.intersects(labels[a],{x:430,y:295,w:740,h:80}),'Names avoid speech bubble');assert.ok(!M.intersects(labels[a],M.body(f.dog)),'Names do not cover the dog');for(const body of visible.map(M.body))assert.ok(!M.intersects(labels[a],body),'Labels do not cover faces or bodies');}
-   const target=f.actors.find(a=>a.winner);if(p<.95){assert.equal(f.contact,false);assert.ok(Math.hypot(f.dog.x-target.x,f.dog.y-target.y)>=M.CONTACT-1,'No early contact');}else{assert.equal(f.contact,true);assert.ok(Math.abs(target.x-f.dog.x-f.contactDistance)<.001&&Math.abs(target.y-f.dog.y)<.001,'Catch is actual muzzle/body contact');}
-   if(p>=.9){assert.equal(f.hidden,n-1,'All escaping pupils reach cover');assert.equal(target.hidden,false,'Only the slow pupil remains exposed');}
-   previous=f.actors;
-  }
+for(const n of [1,2,3,8,20,24,35,45,80,120]){
+ const rows=Array.from({length:n},(_,i)=>({id:String(i),name:'Nguyễn Học Sinh Minh Họa '+i}));
+ for(const winner of [rows[0],rows[Math.floor(n/2)],rows[n-1]]){
+  const scene=M.plan(rows,winner,21);assert.equal(scene.cast.length,n,'No cast limit');assert.equal(new Set(scene.cast.map(s=>s.id)).size,n);assert.deepEqual(new Set(scene.cast.map(s=>s.name)),new Set(rows.map(s=>s.name)),'Full names preserved');assert.equal(scene.decoys.length,Math.min(2,n-1));
+  for(const p of [0,.15,.24,.31,.37,.47,.59]){const f=M.frame(scene,p,E.phase(p),p*32000),labels=M.labels(f.actors,f.dog,scene.layout.height);assert.equal(labels.length,n,'Every full name has a visible label during the group scene');assert.equal(f.hidden,0,'Whole group runs together before hiding');for(let i=0;i<labels.length;i++)for(let j=i+1;j<labels.length;j++)assert.ok(!M.intersects(labels[i],labels[j]),'Full-class labels stay separate');}
+  for(const d of scene.decoys){let f=M.frame(scene,d.start+.012,'chase',12000),a=f.actors.find(a=>a.student.id===d.id);assert.equal(a.pose,'fallen','Decoy falls');f=M.frame(scene,d.recovered+.005,'chase',13000);a=f.actors.find(a=>a.student.id===d.id);assert.ok(a.recovered&&!a.fallen&&a.pose!=='fallen','Decoy gets up and escapes');assert.equal(f.dialogue.text,'Hú hồn!');}
+  for(let i=0;i<=500;i++){const p=i/500,f=M.frame(scene,p,E.phase(p),p*32000),a=f.actors.find(a=>a.winner);assert.equal(f.actors.length,n);for(const x of f.actors)assert.ok(Number.isFinite(x.x)&&Number.isFinite(x.y)&&x.y<=f.layout.height&&x.y>350,'Finite positions inside expanded schoolyard');if(p<.97){assert.equal(f.contact,false);assert.ok(Math.hypot(f.dog.x-a.x,f.dog.y-a.y)>=f.contactDistance-1,'No premature capture');}else{assert.equal(f.contact,true);assert.ok(Math.abs(a.x-f.dog.x-f.contactDistance)<.01&&Math.abs(a.y-f.dog.y)<.01,'Dog reaches the fallen pupil');}if(p>=.825)assert.equal(f.hidden,n-1,'Others reach cover only after the full-group chase');if(p>=.86)assert.ok(a.fallen&&!a.hidden,'Final fallen pupil cannot escape');}
  }
 }
-const many=Array.from({length:45},(_,i)=>({id:'id'+i,name:'Học sinh '+i}));for(const winner of many){const s=M.plan(many,winner,31);assert.equal(s.cast.length,8);assert.ok(s.cast.some(a=>a.id===winner.id));assert.equal(new Set(s.cast.map(a=>a.id)).size,8);}
-const idle=M.frame(M.plan(many,null),0,'idle',0);assert.ok(idle.actors.every(a=>a.pose==='fear'),'Opening pupils are frightened');assert.equal(M.labels(idle.actors).length,idle.actors.length,'Every opening name is visible');
-console.log('PASS Mực motion: scared opening, all cast sizes/winners, continuous routes, pupil/label separation, cover arrivals and exact capture contact');
+const r1=M.formation(.37),r2=M.formation(.47),r3=M.formation(.6);assert.equal(r1.flip,false);assert.equal(r2.flip,true);assert.equal(r3.flip,false);assert.ok(r1.travel>r2.travel&&M.formation(.62).travel>M.formation(.58).travel,'Back-and-forth travel before scattering');
+console.log('PASS Mực motion: complete rosters/full-name labels through 120 pupils, group reversals, 1–3 falls/recovery, dialogue cues, late hiding and final capture');

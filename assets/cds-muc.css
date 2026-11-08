@@ -5,3 +5,9 @@
 @media(max-width:480px){.intro{top:14%;padding:6px}.intro h2{font-size:24px}.intro p{font-size:8px}.intro small{font-size:6px}.intro button{font-size:10px;padding:6px 8px}}
 
 .test-bark{width:100%;margin:0 0 4px;background:#e5efe0;color:#285b36;border-color:#ccdfc6;font-size:12px}.test-bark+.help{margin:0 0 14px}.scene-caption{font-size:clamp(16px,1.8vw,30px)}
+
+.stage{aspect-ratio:var(--muc-scene-ratio,1.77778)}.theater .stage{width:min(100vw,calc(100dvh * var(--muc-scene-ratio,1.77778)))}.name-wall{margin:12px 0;border:1px solid #d4e0cd;background:#fffdf7;border-radius:12px;padding:12px}.name-wall summary{font-weight:800;font-size:13px;cursor:pointer}.cast-names{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:7px;margin-top:10px}.cast-name{padding:8px 10px;background:#eff4e9;border-radius:9px;display:flex;flex-direction:column;gap:4px;min-width:0}.cast-name strong{font-size:12px;overflow-wrap:anywhere}.cast-name small{font-size:10px;color:#748368}.cast-name.safe,.cast-name.recovered{background:#deefd9}.cast-name.caught{background:#ffdfba;outline:2px solid #e68a30}.cast-name.fallen{background:#fff0d1}.voice-option{display:flex;align-items:center;gap:6px;font-size:12px;margin:12px 0}.theater .name-wall{display:none}.scene-caption{top:12%;font-size:clamp(15px,1.6vw,29px)}.scene-bottom{font-size:10px}@media(max-width:480px){.cast-names{grid-template-columns:repeat(2,minmax(0,1fr))}.scene-caption{font-size:14px}.scene-bottom{font-size:6px}}
+
+.theater.show-name-wall .name-wall{display:block;position:fixed;right:2vw;top:10dvh;width:min(440px,95vw);max-height:80dvh;overflow:auto;z-index:8;box-shadow:0 12px 40px #142c3066}.theater .scene-top{gap:5px}.theater .scene-controls{max-width:75%}
+
+.scene-caption{top:var(--muc-caption-top,12%)}

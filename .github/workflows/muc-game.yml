@@ -16,5 +16,5 @@ jobs:
         with:
           node-version: '22'
       - run: php -l hoclieu.php && php -l hoclieu_game_muc.php && php tests/cds_muc_roster_test.php && php tests/staff_evaluation_deploy_test.php
-      - run: node --check assets/cds-muc.js && node --check assets/cds-muc-scene.js && node --check assets/cds-muc-motion.js && node --check assets/cds-muc-audio.js
-      - run: node tests/cds_muc_engine_test.cjs && node tests/cds_muc_controller_test.cjs && node tests/cds_muc_motion_test.cjs && node tests/cds_muc_audio_test.cjs
+      - run: node --check assets/cds-muc.js && node --check assets/cds-muc-scene.js && node --check assets/cds-muc-motion.js && node --check assets/cds-muc-audio.js && node --check assets/cds-muc-voice.js
+      - run: node tests/cds_muc_engine_test.cjs && node tests/cds_muc_controller_test.cjs && node tests/cds_muc_motion_test.cjs && node tests/cds_muc_audio_test.cjs && node tests/cds_muc_voice_test.cjs
