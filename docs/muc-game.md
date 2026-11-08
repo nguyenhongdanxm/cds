@@ -84,3 +84,8 @@ Bộ đạo cụ tạo bằng công cụ tạo ảnh tích hợp: atlas trong su
 - Mực chạy há miệng sủa, nhíu mày, dựng lông; chuyển mục tiêu qua 2–3 bạn tụt lại ở đuôi nhóm. Các bạn ngã, vùng dậy và tăng tốc thoát; cuối lượt mới có một bạn bị bắt. Quỹ đạo chuyển mục tiêu và quay đầu được nội suy để tránh nhảy vị trí.
 - Nhạc gốc tạo bằng Web Audio, gam Rê thứ: sub bass, kick hạ tần 125 → 42 Hz, snare, hi-hat và ostinato dồn dập. Có compressor và giảm âm lượng khi có lời thoại. Tiếng sủa ghi âm lặp theo nhịp khi chạy; bass/nhạc/bước chân dừng theo tạm dừng hoặc tắt âm.
 - Atlas mới tạo bằng công cụ tạo ảnh tích hợp, nền alpha, 2 cột × 3 hàng: hai dáng chó đen nâu vừa chạy vừa sủa hung dữ; hai dáng học sinh nam và hai dáng nữ áo trắng khăn đỏ vừa chạy vừa khóc, giơ tay. Đóng gói WebP nguyên kênh alpha, JSON ghi vùng từng hình. Không tải giọng/nhạc hoặc ảnh từ dịch vụ ngoài lúc chơi.
+
+## Đoạn kết 20261108-6
+
+- Bốn giây cuối trong thời lượng đã chọn dành cho đoạn Mực bắt được bạn: cả nhóm dừng chạy, quay về phía bạn và run/sợ/lo lắng; bước ra trước vật che để nhìn rõ mặt. Mực đứng nghiêm và nói đúng câu “Tôi sẽ báo cô giáo”. Bóng thoại gắn với Mực, dùng giọng Việt của thiết bị ở cao độ trầm hơn. Thiết bị thiếu giọng Việt vẫn hiện lời thoại như trước. Chỉ sau đoạn phản ứng mới hiện bảng kết quả; giữ nguyên thời điểm ghi lịch sử khi hết lượt.
+- Bước chân nện trầm và tiếng sột soạt chạy độc lập với nhịp nhạc; tiếng la “á” hoạt hình tổng hợp qua các bộ lọc formant, không phụ thuộc giọng Việt. Tất cả dừng theo pause/mute. Bỏ hợp âm ăn mừng để giữ cảm giác lo lắng khi kết thúc.
