@@ -13,7 +13,7 @@ $gdpRecords=gdp_week_records($gdpCtx);
 <tr><td><?=e($c)?></td><td><?=$suggest>35?'Hoàn thành':$suggest?></td><td><input class="form-control form-control-sm" style="width:85px" type="number" min="1" max="36" step="1" required name="program_period[<?=e($c)?>]" value="<?=$value?>" aria-label="Tiết chương trình lớp <?=e($c)?>" data-gdp-ranges="<?=e(json_encode($config['ranges'],JSON_UNESCAPED_UNICODE))?>"></td><td data-gdp-teacher><?=e($value>35?'Hoàn thành':gdp_teacher($config,$value))?><?php if($value!==$suggest): ?> <span class="text-warning">· khác tiến độ đề xuất</span><?php endif; ?></td></tr>
 <?php endforeach; ?></tbody></table></div>
 <button class="btn btn-primary btn-sm">Xác nhận tiết và giáo viên tuần <?=e($gdpCtx['key'])?></button>
-<?php if(!empty($GLOBALS['gdp_builder_error'])): ?><span class="text-danger small ms-2"><?=e($GLOBALS['gdp_builder_error'])?></span><?php else: ?><span class="small text-success ms-2">Đã xác nhận. Xếp lại nếu cần cập nhật phương án.</span><?php endif; ?>
+<?php if(!empty($GLOBALS['gdp_builder_error'])): ?><span class="text-danger small ms-2"><?=e($GLOBALS['gdp_builder_error'])?></span><?php else: ?><span class="small text-success ms-2">Đã xác nhận. Với phương án sao chép, bấm xác nhận lại để liên kết tiết đang xếp đúng giáo viên; giữ nguyên vị trí TKB.</span><?php endif; ?>
 </form>
 <?php endif; ?></section>
 <script>document.querySelectorAll('[data-gdp-ranges]').forEach(input=>input.addEventListener('input',()=>{const p=Number(input.value),ranges=JSON.parse(input.dataset.gdpRanges),found=ranges.find(r=>p>=r.from&&p<=r.to);input.closest('tr').querySelector('[data-gdp-teacher]').textContent=p===36?'Hoàn thành':found?found.teacher:'Chưa phân công';}));</script>
