@@ -65,15 +65,22 @@ Các ảnh trong `assets/muc/` được tạo mới bằng công cụ tạo ản
 - `street.webp`: phố Việt Nam hoạt hình 2D ngang 16:9, nhà xanh/vàng/hồng, ban công hoa, mái hiên sọc, dây điện; đường xám trống phía dưới; không nhân vật, chữ hoặc giao diện.
 - `sprites.webp`: atlas nền trong suốt 4 cột × 3 hàng; hàng 1 chó đen vàng nâu, vòng cổ đỏ chuông vàng ở tư thế ngủ/giận/chạy/vui; hàng 2 học sinh nam và hàng 3 học sinh nữ với áo trắng khăn đỏ/quần hoặc váy xanh ở tư thế rón rén/chạy/ăn mừng/sợ hãi; nét viền đậm, chibi, không chữ và không nền.
 
-## Bản hoạt hình 20261108-4
+## Bản hoạt hình 20261108-5
 
 - Hiện toàn bộ học sinh được tích chọn, không giới hạn 8 nhân vật. Nhãn họ tên giữ nguyên đầy đủ, tự chia tối đa 2 dòng; có bảng tên cập nhật trạng thái và nút Đủ họ tên ở chế độ toàn màn hình.
 - Giữ sân cố định 16:9 ở mọi sĩ số và toàn màn hình. Thu tỷ lệ nhân vật theo sĩ số, xếp so le và vẽ theo độ sâu: người trước che một phần thân người sau. Bảng Đủ họ tên luôn giữ đủ chữ cho lớp đông.
 - Đạo cụ mới `chaos-props-v1.webp`/`.json`: dép xanh, gà cao su vàng, giày và cốc trà sữa. Văng từ nhóm chạy, xoay theo quỹ đạo, nảy rồi nằm lại trên đường; bụi, vệt tốc độ và nước mắt theo từng nhân vật. Người nấp vẫn được vẽ theo lớp, có một bạn trèo cây. Chữ thoại trắng viền nâu, font đậm bo tròn, bỏ tiêu đề lớn che cảnh.
 - Kịch bản: sợ/khóc → rón rén → Mực thức/sủa → cả nhóm chạy sang phải, quay trái, quay phải → toán loạn tìm chỗ nấp → vấp ngã/đứng dậy → bạn không kịp đứng dậy bị bắt. Camera theo nhóm qua cảnh phố trong lúc đuổi, quay về sân trường khi nấp.
-- Với từ 2 học sinh trở lên, mỗi lượt có 1 hoặc 2 bạn ngã giả rồi đứng dậy; sau đó người được chọn ngã sau cùng và bị bắt. Các tình huống này chỉ minh họa kết quả chọn ngẫu nhiên, không đánh giá khả năng chạy của học sinh thật.
+- Với từ 2 học sinh trở lên, mỗi lượt có 2 hoặc 3 bạn vấp ngã rồi đứng dậy (giảm theo sĩ số nếu lớp quá ít bạn); sau đó người được chọn ngã sau cùng và bị bắt. Các tình huống này chỉ minh họa kết quả chọn ngẫu nhiên, không đánh giá khả năng chạy của học sinh thật.
 - Lời thoại theo mốc: Suỵt… nhẹ thôi!, Im lặng nhé!, Chạy đi!, Quay lại!, Hú hồn!, Nấp nhanh lên!, Á! Vấp rồi!, Dạ, em chưa học bài…
 - Giọng đọc dùng SpeechSynthesis và ưu tiên giọng tiếng Việt cục bộ của thiết bị. Không gửi tên học sinh vào bộ đọc, chỉ đọc các câu thoại cố định. Có bật/tắt và nút Thử lời thoại. Nếu thiết bị không có giọng Việt thì thông báo rõ và vẫn hiện phụ đề. Giảm âm lượng nhạc khi lời thoại phát; dừng đọc khi tạm dừng/hủy/đổi lớp/tắt âm.
 - Thời lượng 24/32/44 giây để đủ thời gian cho đuổi nhóm, ngã/đứng dậy và nấp. Giữ nguyên cách lấy CSDL, ID học sinh, xác suất chọn, không gọi lặp và lưu lịch sử.
 
 Bộ đạo cụ tạo bằng công cụ tạo ảnh tích hợp: atlas trong suốt 2 × 2, dép xanh/gà cao su vàng/giày trắng xanh/cốc trà sữa, nét viền nâu đậm và màu chibi tươi sáng; không chữ/nền. Đóng gói nguyên atlas thành WebP và JSON ghi vùng sprite, giữ kênh alpha.
+
+## Rượt đuổi hoảng loạn 20261108-5
+
+- Sau khi Mực tỉnh, từng học sinh chuyển từ đội hình mở đầu sang đám đông hình mây không đều. Mỗi ID có pha chạy, độ trễ đổi hướng và đường lách riêng; không dịch chuyển nguyên hàng. Các bạn sợ, nhắm mắt khóc, giơ tay và chạy bằng hai khung chân riêng trong atlas `panic-v1.webp`/`.json`.
+- Mực chạy há miệng sủa, nhíu mày, dựng lông; chuyển mục tiêu qua 2–3 bạn tụt lại ở đuôi nhóm. Các bạn ngã, vùng dậy và tăng tốc thoát; cuối lượt mới có một bạn bị bắt. Quỹ đạo chuyển mục tiêu và quay đầu được nội suy để tránh nhảy vị trí.
+- Nhạc gốc tạo bằng Web Audio, gam Rê thứ: sub bass, kick hạ tần 125 → 42 Hz, snare, hi-hat và ostinato dồn dập. Có compressor và giảm âm lượng khi có lời thoại. Tiếng sủa ghi âm lặp theo nhịp khi chạy; bass/nhạc/bước chân dừng theo tạm dừng hoặc tắt âm.
+- Atlas mới tạo bằng công cụ tạo ảnh tích hợp, nền alpha, 2 cột × 3 hàng: hai dáng chó đen nâu vừa chạy vừa sủa hung dữ; hai dáng học sinh nam và hai dáng nữ áo trắng khăn đỏ vừa chạy vừa khóc, giơ tay. Đóng gói WebP nguyên kênh alpha, JSON ghi vùng từng hình. Không tải giọng/nhạc hoặc ảnh từ dịch vụ ngoài lúc chơi.
