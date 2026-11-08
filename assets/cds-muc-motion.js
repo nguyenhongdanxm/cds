@@ -25,7 +25,8 @@ function plan(candidates,winner,seed=0){const cast=candidates.slice().sort((a,b)
  ...decoys.map((d,i)=>({id:'safe-'+i,start:d.recovered,end:d.recovered+.035,text:'Hú hồn!',speakerId:d.id})),
  {id:'hide',start:.66,end:.72,text:'Nấp nhanh lên!',speakerId:speaker?.id},
  {id:'trip',start:.846,end:.886,text:'Á! Vấp rồi!',speakerId:winner?.id},
- {id:'dog-report',start:.973,end:1.1,text:'Tôi sẽ báo cô giáo',speaker:'dog'}
+ {id:'dog-caught',start:.86,end:.975,text:'Bắt được rồi nhé',speaker:'dog'},
+ {id:'student-apology',start:.975,end:1.1,text:'Em ko dám trốn nữa',speakerId:winner?.id}
  ];const cloud=cast.map((s,i)=>{const angle=i*2.399963+(seed%31)*.13,r=Math.sqrt((i+.45)/Math.max(1,cast.length));return {x:800+Math.cos(angle)*r*410,y:725+Math.sin(angle)*r*120,delay:(hash(s.id+':turn:'+seed)%100)*.00022,phase:(hash(s.id+':panic:'+seed)%628)/100};});return {cast,winnerId:winner?.id||null,seed,layout:l,covers,decoys,events,cloud,climber:cast.findIndex((s,i)=>i%2===0&&s.id!==winner?.id)};}
 function dialogue(scene,p){return scene.events.filter(e=>p>=e.start&&p<e.end).at(-1)||null;}
 function origin(l,index){const col=index%l.cols,row=Math.floor(index/l.cols),rowCount=Math.min(l.cols,Math.max(1,l.count-row*l.cols)),shift=row%2?.5:0;return {x:800+(col-(rowCount-1)/2+shift-.25)*l.cell,y:620+row*l.gap};}
@@ -41,21 +42,21 @@ function frame(scene,p,phase,time=0,reduced=false,endingElapsed=0){if(phase==='d
    const run=panic(scene,index,p,reduced);x=run.x;y=run.y;flip=run.flip;pose=run.skidding?'fear':'run';
    const d=scene.decoys.find(d=>d.id===student.id);if(d&&p>=d.start&&p<d.end){const at=panic(scene,index,d.start,reduced);flip=at.flip;x=at.x;y=at.y;const falling=smooth((p-d.start)/.009),rising=smooth((p-d.fallenEnd)/(d.end-d.fallenEnd));rotation=(flip?-1:1)*1.14*falling*(1-rising);pose=p<d.fallenEnd?'fallen':'rise';fallen=p<d.fallenEnd;x=lerp(at.x,run.x,rising);y=lerp(at.y,run.y,rising)+12*falling*(1-rising);}if(d&&p>=d.recovered&&p<d.recovered+.035){recovered=true;const leap=Math.sin(Math.PI*clamp((p-d.recovered)/.035));x+=(flip?-1:1)*leap*48;y-=leap*24;}
   }else if(['hide','stumble','catch','done'].includes(phase)){
-   const escape=panic(scene,index,.64,reduced);if(winner){const u=smooth((p-.64)/.18);x=lerp(escape.x,820,u);y=lerp(escape.y,790,u);pose=p<.835?'run':p<.855?'stumble':'fallen';fallen=p>=.855;rotation=p>=.835?.95*smooth((p-.835)/.025):0;}
+   const escape=panic(scene,index,.64,reduced);if(winner){const u=smooth((p-.64)/.18);x=lerp(escape.x,820,u);y=lerp(escape.y,790,u);pose=p<.835?'run':p<.855?'stumble':p<.92?'fallen':p<.965?'rise':'standingFear';fallen=p>=.855&&p<.92;rotation=p>=.835?.95*smooth((p-.835)/.025)*(1-smooth((p-.92)/.045)):0;}
    else{const k=Math.floor(index/2),sideCount=Math.ceil(l.count/2),cc=Math.min(4,Math.ceil(Math.sqrt(sideCount))),rr=Math.floor(k/cc),nRows=Math.ceil(sideCount/cc),step=Math.min(88,310/(cc-.5)),targetX=(side?1160:105)+((k%cc)+(rr%2)*.5)*step,targetY=650+rr*Math.min(62,190/Math.max(1,nRows-1)),delay=(hash(student.id+scene.seed)%11)*.0007,u=smooth((p-.64-delay)/(.18-delay));x=lerp(escape.x,targetX,u);y=lerp(escape.y,targetY,u)+(reduced?0:Math.sin(Math.PI*u)*Math.sin(index*2.1)*42);flip=side===0;pose='run';hidden=p>=.82;hiding=u>.91;if(hiding)pose='fear';
     climbing=index===scene.climber; if(climbing){x=lerp(escape.x,220,u);y=lerp(escape.y,390,u);hidden=p>=.82;hiding=u>.9;}
    }
   }
   if(pose==='run'&&!reduced){y-=Math.abs(Math.sin(clock/75))*7;rotation+=Math.sin(clock/75)*.035;squash=1+Math.sin(clock/75)*.025;}
   const reacting=p>=.97&&!winner;if(reacting){const peek=smooth((p-.97)/.018);pose='fear';flip=x>820;x+=(x<820?20:-20)*peek;y+=climbing?0:12*peek;rotation=reduced?0:Math.sin(clock/43)*.018;}
-  const hideScale=hidden||hiding?.78:1,w=l.w*depth*hideScale,h=l.h*depth*hideScale;
+  const hideScale=hidden||hiding?.78:1,growth=winner?lerp(1,Math.max(1.3,170/(l.h*depth)),smooth((p-.92)/.045)):1,w=l.w*depth*hideScale*growth,h=l.h*depth*hideScale*growth;
   actors.push({student,index,col,row,x,y,w,h,labelW:hidden?Math.min(l.labelW,74):l.labelW,labelH:hidden?26:l.labelH,font:hidden?Math.min(12,l.font):l.font,pose,stride,flip,rotation,squash,winner,hidden,hiding,cover,recovered,fallen,climbing,reacting,lookAt:reacting?{x:820,y:790}:null});
  });
  const target=actors.find(a=>a.winner),scale=Math.max(.85,Math.min(1.15,l.scale)),front=880;let dog={x:280,y:front,w:250*scale,h:210*scale,pose:'sleep',stride:Math.floor(time/85)%2,contact:false,flip:false};
  if(phase==='wake')dog.pose='bark';
  if(phase==='chase'&&scene.cast.length){const hunt=hunter(scene,p,reduced);dog={...dog,...hunt,pose:'run',angry:true};}
- if(['hide','stumble','catch','done'].includes(phase)&&target){const scaleGap=(160-15*smooth((p-.97)/.03))*scale,t=smooth((p-.82)/.15),at=hunter(scene,.64,reduced),follow=smooth((p-.64)/.055),gap=p<.82?175:lerp(175,scaleGap,t);dog.x=lerp(at.x,target.x-gap,follow);dog.y=lerp(at.y,target.y+21*(1-t),follow);dog.pose=p<.97?'run':'alert';dog.angry=true;dog.flip=false;dog.contact=p>=.97;dog.contactDistance=scaleGap;}
- const line=p>=.97&&endingElapsed>=1800?{id:'student-apology',text:'Em ko dám trốn nữa',speakerId:scene.winnerId}:dialogue(scene,p);return {actors,dog,covers:scene.covers,layout:l,dialogue:line,contact:!!target&&dog.contact,hidden:actors.filter(a=>a.hidden).length,contactDistance:dog.contactDistance||160*scale,props:debris(scene,p)};
+ if(['hide','stumble','catch','done'].includes(phase)&&target){const scaleGap=160*scale,t=smooth((p-.82)/.035),at=hunter(scene,.64,reduced),follow=smooth((p-.64)/.055),gap=p<.82?175:lerp(175,scaleGap,t);dog.x=lerp(at.x,target.x-gap,follow);dog.y=lerp(at.y,target.y+21*(1-t),follow);dog.pose=p<.855?'run':'alert';dog.angry=true;dog.flip=false;dog.contact=p>=.97;dog.contactDistance=scaleGap;}
+ const line=dialogue(scene,p);return {actors,dog,covers:scene.covers,layout:l,dialogue:line,contact:!!target&&dog.contact,hidden:actors.filter(a=>a.hidden).length,contactDistance:dog.contactDistance||160*scale,props:debris(scene,p)};
 }
 // Launch once from a runner's feet, tumble, bounce and settle. Deterministic under pause/resume.
 function debris(scene,p){const out=[];if(p<.29)return out;const l={...scene.layout,count:scene.cast.length},count=Math.min(15,Math.max(5,Math.ceil(l.count/3)));for(let i=0;i<count;i++){const index=hash('prop:'+i+scene.seed)%Math.max(1,l.count),a=origin(l,index),start=.29+i*.019,u=clamp((p-start)/.12);if(p<start)continue;const direction=i%2?1:-1,x=lerp(a.x+formation(start).offset,180+(hash('land:'+i+scene.seed)%1240),u),floor=820+(i%3)*22,y=lerp(a.y-12,floor,u)-Math.sin(Math.PI*u)*(90+i%4*20)-(u>.8?Math.abs(Math.sin((u-.8)*Math.PI*10))*12*(1-u)*5:0);out.push({kind:i===1?1:i%7===4?2:i%7===5?3:0,x,y,rotation:direction*u*Math.PI*(2+i%3),size:i===1?66:i%7===5?40:46,airborne:u<1});}return out;}
