@@ -10,7 +10,7 @@ function rejects($fn,$m){try{$fn();}catch(RuntimeException $e){return;}throw new
 function load_json($file,$default=[]){return cds_json_load($file,$default);}
 function save_json($file,$data){return cds_json_save($file,$data);}
 $dir=sys_get_temp_dir().'/cds-gdp-'.bin2hex(random_bytes(6));mkdir($dir,0700);define('DATA_PATH',$dir);define('PCCM_DATA_PATH',$dir);define('BASE_PATH',dirname(__DIR__));define('TKB_WEEKS_FILE',$dir.'/weeks.json');
-function cds_school_week_calendar(){return [['key'=>'1','start'=>'2026-09-07','end'=>'2026-09-13'],['key'=>'9','start'=>'2026-11-02','end'=>'2026-11-08']];}
+function cds_school_week_calendar(){return [['key'=>'1','start'=>'2026-09-07','end'=>'2026-09-13'],['key'=>'9','start'=>'2026-11-02','end'=>'2026-11-08'],['key'=>'10','start'=>'2026-11-09','end'=>'2026-11-15']];}
 function cds_lb_read_effective(){return false;}
 function tkb_subject_canonical($s){return $s;}
 function tkb_weeks(){return $GLOBALS['weeks']??[];}
@@ -66,6 +66,28 @@ try{
  $bad=$plan;$bad['entries'][]=['activity_id'=>'math','teacher'=>'A','subject'=>'Toán','classes'=>['8B'],'day'=>2,'session'=>'Sáng','period'=>1];rejects(fn()=>gdp_publish_periods($data,$bad,'9','2026-11-02'),'Teacher collision blocked even incomplete publishing');
  $bad=$plan;$bad['entries']=[];rejects(fn()=>gdp_publish_periods($data,$bad,'9','2026-11-02'),'Missing configured class cannot silently publish');
  $result=ttb_publish($plan,'Tuần 9','2026-11-02','2026-11-08',['name'=>'fixture'],false,'9');check(!empty($result['ok']),'Real publish succeeds');check($GLOBALS['weeks'][0]['slots'][0]['program_period']===7&&$GLOBALS['weeks'][0]['slots'][0]['teacher_raw']==='A','Published slot freezes teacher and program period');
+
+ // Copy week 9 -> 10: source ID is period 9, same teacher B, target explicitly confirms period 10.
+ $copied=$data;$copied['_workspace_id']='w10';$copied['_workspace']=['week_key'=>'10','copied_from'=>'w9'];
+ $copied['program_week']['week_key']='10';$copied['program_week']['classes']['8A']=['period'=>10,'teacher'=>'B','hash'=>gdp_hash($configs['8A'])];
+ $copied['program_week']['progress_hash']=gdp_progress_hash($configs,gdp_week_context($copied),[]);
+ $sourceId='gdpw_'.substr(hash('sha256','v1|8A|9|B'),0,24).'_1';
+ $copiedPlan=$plan;$copiedPlan['id']='copied';$copiedPlan['entries'][0]['activity_id']=$sourceId;$copiedPlan['entries'][0]['teacher']='B';
+ $copiedPlan['entries'][0]['locked']=true;$copiedPlan['entries'][0]['room_id']='room1';
+ $beforeCopy=$copied;$beforePlan=$copiedPlan;$beforeWeeks=$GLOBALS['weeks'];
+ $periods=gdp_publish_periods($copied,$copiedPlan,'10','2026-11-09');check($periods[$sourceId]===10,'Copied source ID binds to explicitly confirmed target period');
+ check($copied===$beforeCopy&&$copiedPlan===$beforePlan&&$GLOBALS['weeks']===$beforeWeeks,'Validation does not change drafts, source weeks, rooms or locks');
+ $plain=$copied;unset($plain['_workspace']['copied_from']);rejects(fn()=>gdp_publish_periods($plain,$copiedPlan,'10','2026-11-09'),'Stale ID without copy provenance still rejected');
+ foreach(['unknown','gdpw_'.substr(hash('sha256','v2|8A|9|B'),0,24).'_1','gdpw_'.substr(hash('sha256','v1|8B|9|B'),0,24).'_1']as$invalidId){$bad=$copiedPlan;$bad['entries'][0]['activity_id']=$invalidId;rejects(fn()=>gdp_publish_periods($copied,$bad,'10','2026-11-09'),'Unknown, other-version and other-class IDs rejected');}
+ $bad=$copiedPlan;$bad['entries'][0]['teacher']='A';rejects(fn()=>gdp_publish_periods($copied,$bad,'10','2026-11-09'),'Copy crossing teacher range still blocked');
+ $bad=$copiedPlan;$bad['entries'][]=$bad['entries'][0];rejects(fn()=>gdp_publish_periods($copied,$bad,'10','2026-11-09'),'Duplicate copied lesson blocked');
+ $bad=$copiedPlan;$bad['entries'][]=['activity_id'=>'math','teacher'=>'B','subject'=>'Toán','classes'=>['8B'],'day'=>2,'session'=>'Sáng','period'=>1];rejects(fn()=>gdp_publish_periods($copied,$bad,'10','2026-11-09'),'Copied teacher collision blocked');
+ rejects(fn()=>gdp_publish_periods($copied,$copiedPlan,'9','2026-11-02'),'Copied target must match confirmed week');
+ $GLOBALS['CDS_TTB_CURRENT_DATA']=$copied;
+ $result=ttb_publish($copiedPlan,'Tuần 10','2026-11-09','2026-11-14',['name'=>'fixture'],false,'10');check(!empty($result['ok']),'Real copied week publish succeeds without re-scheduling');
+ $slot=$result['version']['slots'][0];check($slot['program_period']===10&&$slot['teacher_raw']==='B'&&$slot['day']===2&&$slot['session']==='Sáng'&&$slot['period']===1&&$slot['room_id']==='room1','Published copy retains slot/teacher/room and pins target period 10');
+ check($GLOBALS['weeks'][0]['slots']===$beforeWeeks[0]['slots'],'Publishing copy preserves source week lessons');
+ $GLOBALS['weeks']=$beforeWeeks;$GLOBALS['CDS_TTB_CURRENT_DATA']=$data;
 
  $data['_workspace_id']='w9';$user=['name'=>'Fixture'];$_POST=['program_workspace'=>'w9','program_week_key'=>'9','program_version'=>'v1','program_hash'=>hash('sha256',json_encode($configs)),'program_period'=>['8A'=>'8']];
  require __DIR__.'/../includes/program_week_confirm.php';

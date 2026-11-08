@@ -78,6 +78,18 @@ function gdp_builder_configs(): array {
     return ['version'=>$version,'configs'=>gdp_load($dir,$version)];
 }
 function gdp_builder_ready(array $data): void {$source=gdp_builder_configs();if($source['configs'])gdp_week_rows($data,$source['configs'],$source['version']);}
+/** A copied week may retain the source period's ID while its confirmed teacher stays the same. */
+function gdp_copied_activity_matches(array $data,array $entry,string $class,string $version): bool {
+    if(empty($data['_workspace']['copied_from']))return false;
+    $id=(string)($entry['activity_id']??'');$teacher=(string)($entry['teacher']??'');
+    // Only recognize genuine GDĐP activity IDs from this assignment version/class/teacher.
+    // Do not rewrite draft IDs: room assignments, locks and constraints still refer to them.
+    for($period=1;$period<=35;$period++){
+        $sourceId='gdpw_'.substr(hash('sha256',$version.'|'.$class.'|'.$period.'|'.$teacher),0,24).'_1';
+        if($id===$sourceId)return true;
+    }
+    return false;
+}
 /** Match stored plan entries, never silently change teachers in an existing plan. */
 function gdp_publish_periods(array $data,array $plan,string $weekKey,string $from): array {
     $source=gdp_builder_configs();$configs=$source['configs'];if(!$configs)return [];
@@ -85,7 +97,10 @@ function gdp_publish_periods(array $data,array $plan,string $weekKey,string $fro
     if(($data['program_week']['progress_hash']??'')!==gdp_progress_hash($configs,$ctx,gdp_week_records($ctx)))throw new RuntimeException('Tiến độ GDĐP đã thay đổi sau lần xác nhận (có thể do ký sổ muộn). Hãy kiểm tra và xác nhận lại tại Khối lượng; phương án chưa bị thay đổi.');
     $rows=gdp_week_rows($data,$configs,$source['version']);$byClass=[];foreach($rows as$r)$byClass[$r['class']]=$r;$found=[];$periods=[];
     foreach((array)($plan['entries']??[])as$e)foreach((array)($e['classes']??[])as$class){if(!gdp_subject((string)($e['subject']??''))||!isset($configs[$class]))continue;$r=$byClass[$class]??null;
-        if(!$r||($e['activity_id']??'')!==$r['id'].'_1'||($e['teacher']??'')!==$r['teacher']||isset($found[$class]))throw new RuntimeException('GDĐP lớp '.$class.': phương án cũ hoặc sai giáo viên/tiết. Hãy xếp lại và kiểm tra trước khi công bố.');
+        if(!$r)throw new RuntimeException('GDĐP lớp '.$class.': đã xác nhận hoàn thành chương trình nhưng phương án vẫn còn tiết. Hãy kiểm tra lại.');
+        if(($e['teacher']??'')!==$r['teacher'])throw new RuntimeException('GDĐP lớp '.$class.': tiết chương trình '.$r['program_period'].' cần giáo viên '.$r['teacher'].'; phương án đang xếp '.(string)($e['teacher']??'').'. Hãy sửa riêng tiết này trước khi công bố.');
+        if(isset($found[$class]))throw new RuntimeException('GDĐP lớp '.$class.': phương án có nhiều hơn 1 tiết. Hãy kiểm tra tiết trùng.');
+        if(($e['activity_id']??'')!==$r['id'].'_1'&&!gdp_copied_activity_matches($data,$e,(string)$class,$source['version']))throw new RuntimeException('GDĐP lớp '.$class.': mã tiết trong phương án không khớp lần xác nhận hiện tại. Hãy xếp lại riêng tiết GDĐP và kiểm tra trước khi công bố.');
         $found[$class]=true;$periods[$e['activity_id']]=$r['program_period'];
     }
     foreach($byClass as$class=>$r)if(!isset($found[$class]))throw new RuntimeException('GDĐP lớp '.$class.' chưa được xếp đủ 1 tiết.');
