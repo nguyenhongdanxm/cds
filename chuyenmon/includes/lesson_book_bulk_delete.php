@@ -13,7 +13,7 @@ function lb_bulk_delete_signed(array $week,string $json,string $reason,string $c
         if(isset($expected[$choice['id']])&&$expected[$choice['id']]!==$choice)return ['ok'=>false,'message'=>'Dữ liệu lựa chọn không nhất quán.'];
         $expected[$choice['id']]=$choice;
     }
-    $shadowEnabled=cds_lb_shadow_enabled();$hadPending=(bool)cds_lb_pending_status();$marked=false;
+    $shadowEnabled=cds_lb_shadow_enabled()&&!(function_exists('cds_lb_primary_enabled')&&cds_lb_primary_enabled());$hadPending=(bool)cds_lb_pending_status();$marked=false;
     if($shadowEnabled&&!$hadPending){if(!cds_lb_pending_mark('bulk_delete_signed'))return ['ok'=>false,'message'=>'Chưa chuẩn bị được đồng bộ; chưa xóa tiết nào.'];$marked=true;}
     $deleted=[];$error='';
     $ok=cds_json_update(LB_RECORDS_FILE,function($rows)use($week,$expected,&$deleted,&$error){

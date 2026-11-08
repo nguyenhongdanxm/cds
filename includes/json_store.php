@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/json_rows.php';
 require_once __DIR__ . '/json_fields.php';
+require_once __DIR__ . '/lesson_book_primary.php';
 /**
  * Đọc/ghi JSON dùng chung cho toàn bộ CDS.
  *
@@ -11,6 +12,7 @@ require_once __DIR__ . '/json_fields.php';
 
 if (!function_exists('cds_json_load')) {
     function cds_json_load(string $file, $default = []) {
+        if (cds_lb_primary_routes($file)) return cds_lb_primary_rows();
         if (!is_file($file)) return $default;
         $raw = file_get_contents($file);
         if ($raw === false) return $default;
@@ -22,6 +24,7 @@ if (!function_exists('cds_json_load')) {
 /** A write must never turn an unreadable/corrupt existing file into an empty store. */
 if (!function_exists('cds_json_load_for_update')) {
     function cds_json_load_for_update(string $file, $default = []) {
+        if (cds_lb_primary_routes($file)) return cds_lb_primary_rows();
         if (!file_exists($file)) return $default;
         $raw = @file_get_contents($file);
         if ($raw === false) throw new RuntimeException('Không đọc được tệp dữ liệu: ' . basename($file));
@@ -36,6 +39,8 @@ if (!function_exists('cds_json_load_for_update')) {
 if (!function_exists('cds_json_save')) {
     function cds_json_save(string $file, $data): bool {
         if (function_exists('cds_is_viewer') && cds_is_viewer()) return false;
+        if (cds_lb_primary_routes($file)) return is_array($data) && cds_lb_primary_replace($data);
+        if (cds_lb_primary_is_store($file) && empty($GLOBALS['cds_json_write_lock'][$file])) return cds_json_update($file, static fn()=>$data, []);
         $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
         if ($json === false) return false;
 
@@ -70,9 +75,14 @@ if (!function_exists('cds_json_update')) {
             return false;
         }
         try {
+            if (cds_lb_primary_routes($file)) return cds_lb_primary_update($update);
             $current = cds_json_load_for_update($file, $default);
             $next = $update($current);
-            return $next === false ? false : cds_json_save($file, $next);
+            if ($next === false) return false;
+            $prior = $GLOBALS['cds_json_write_lock'][$file] ?? false;
+            $GLOBALS['cds_json_write_lock'][$file] = true;
+            try { return cds_json_save($file, $next); }
+            finally { if ($prior) $GLOBALS['cds_json_write_lock'][$file] = $prior; else unset($GLOBALS['cds_json_write_lock'][$file]); }
         } catch (RuntimeException $e) {
             error_log('[CDS JSON update] ' . $e->getMessage());
             return false;
