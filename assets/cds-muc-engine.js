@@ -11,7 +11,7 @@ function randomIndex(length,cryptoSource){
 function normalize(rows){const seen=new Set();return (Array.isArray(rows)?rows:[]).filter(s=>{if(!s||typeof s.id!=='string'||typeof s.name!=='string'||!s.id||!s.name.trim()||seen.has(s.id))return false;seen.add(s.id);return true;}).map(s=>({id:s.id,name:s.name,gender:typeof s.gender==='string'?s.gender:''}));}
 function pool(students,selected,called,noRepeat){return students.filter(s=>selected.has(s.id)&&(!noRepeat||!called.has(s.id)));}
 function restore(students,data){const ids=new Set(students.map(s=>s.id));data=data&&typeof data==='object'?data:{};return {selected:new Set(Array.isArray(data.selected)?data.selected.filter(id=>ids.has(id)):ids),called:new Set(Array.isArray(data.called)?data.called.filter(id=>ids.has(id)):[]),history:(Array.isArray(data.history)?data.history:[]).filter(h=>h&&ids.has(h.id)&&Number.isFinite(h.time)).slice(-200),noRepeat:data.noRepeat!==false};}
-function phase(progress){return progress<.34?'sneak':progress<.44?'wake':progress<.89?'chase':'catch';}
+function phase(progress){return progress<.14?'fear':progress<.36?'sneak':progress<.46?'wake':progress<.76?'chase':progress<.9?'hide':'catch';}
 class Game{
  constructor(rows,state){this.students=normalize(rows);Object.assign(this,restore(this.students,state));this.round=null;}
  available(){return pool(this.students,this.selected,this.called,this.noRepeat);}
