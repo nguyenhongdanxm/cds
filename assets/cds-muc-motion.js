@@ -25,7 +25,7 @@ function plan(candidates,winner,seed=0){const cast=candidates.slice().sort((a,b)
  ...decoys.map((d,i)=>({id:'safe-'+i,start:d.recovered,end:d.recovered+.035,text:'Hú hồn!',speakerId:d.id})),
  {id:'hide',start:.66,end:.72,text:'Nấp nhanh lên!',speakerId:speaker?.id},
  {id:'trip',start:.846,end:.886,text:'Á! Vấp rồi!',speakerId:winner?.id},
- {id:'caught',start:.972,end:1.1,text:'Dạ, em chưa học bài…',speakerId:winner?.id}
+ {id:'dog-report',start:.973,end:1.1,text:'Tôi sẽ báo cô giáo',speaker:'dog'}
  ];const cloud=cast.map((s,i)=>{const angle=i*2.399963+(seed%31)*.13,r=Math.sqrt((i+.45)/Math.max(1,cast.length));return {x:800+Math.cos(angle)*r*410,y:725+Math.sin(angle)*r*120,delay:(hash(s.id+':turn:'+seed)%100)*.00022,phase:(hash(s.id+':panic:'+seed)%628)/100};});return {cast,winnerId:winner?.id||null,seed,layout:l,covers,decoys,events,cloud,climber:cast.findIndex((s,i)=>i%2===0&&s.id!==winner?.id)};}
 function dialogue(scene,p){return scene.events.filter(e=>p>=e.start&&p<e.end).at(-1)||null;}
 function origin(l,index){const col=index%l.cols,row=Math.floor(index/l.cols),rowCount=Math.min(l.cols,Math.max(1,l.count-row*l.cols)),shift=row%2?.5:0;return {x:800+(col-(rowCount-1)/2+shift-.25)*l.cell,y:620+row*l.gap};}
@@ -47,13 +47,14 @@ function frame(scene,p,phase,time=0,reduced=false){if(phase==='done')p=1;p=clamp
    }
   }
   if(pose==='run'&&!reduced){y-=Math.abs(Math.sin(clock/75))*7;rotation+=Math.sin(clock/75)*.035;squash=1+Math.sin(clock/75)*.025;}
+  const reacting=p>=.97&&!winner;if(reacting){const peek=smooth((p-.97)/.018);pose='fear';flip=x>820;x+=(x<820?20:-20)*peek;y+=climbing?0:12*peek;rotation=reduced?0:Math.sin(clock/43)*.018;}
   const hideScale=hidden||hiding?.78:1,w=l.w*depth*hideScale,h=l.h*depth*hideScale;
-  actors.push({student,index,col,row,x,y,w,h,labelW:hidden?Math.min(l.labelW,74):l.labelW,labelH:hidden?26:l.labelH,font:hidden?Math.min(12,l.font):l.font,pose,stride,flip,rotation,squash,winner,hidden,hiding,cover,recovered,fallen,climbing});
+  actors.push({student,index,col,row,x,y,w,h,labelW:hidden?Math.min(l.labelW,74):l.labelW,labelH:hidden?26:l.labelH,font:hidden?Math.min(12,l.font):l.font,pose,stride,flip,rotation,squash,winner,hidden,hiding,cover,recovered,fallen,climbing,reacting,lookAt:reacting?{x:820,y:790}:null});
  });
  const target=actors.find(a=>a.winner),scale=Math.max(.85,Math.min(1.15,l.scale)),front=880;let dog={x:280,y:front,w:250*scale,h:210*scale,pose:'sleep',stride:Math.floor(time/85)%2,contact:false,flip:false};
  if(phase==='wake')dog.pose='bark';
  if(phase==='chase'&&scene.cast.length){const hunt=hunter(scene,p,reduced);dog={...dog,...hunt,pose:'run',angry:true};}
- if(['hide','stumble','catch','done'].includes(phase)&&target){const scaleGap=(160-15*smooth((p-.97)/.03))*scale,t=smooth((p-.82)/.15),at=hunter(scene,.64,reduced),follow=smooth((p-.64)/.055),gap=p<.82?175:lerp(175,scaleGap,t);dog.x=lerp(at.x,target.x-gap,follow);dog.y=lerp(at.y,target.y+21*(1-t),follow);dog.pose=p<.97?'run':p<.99?'bark':'happy';dog.angry=p<.99;dog.flip=false;dog.contact=p>=.97;dog.contactDistance=scaleGap;}
+ if(['hide','stumble','catch','done'].includes(phase)&&target){const scaleGap=(160-15*smooth((p-.97)/.03))*scale,t=smooth((p-.82)/.15),at=hunter(scene,.64,reduced),follow=smooth((p-.64)/.055),gap=p<.82?175:lerp(175,scaleGap,t);dog.x=lerp(at.x,target.x-gap,follow);dog.y=lerp(at.y,target.y+21*(1-t),follow);dog.pose=p<.97?'run':'alert';dog.angry=true;dog.flip=false;dog.contact=p>=.97;dog.contactDistance=scaleGap;}
  const line=dialogue(scene,p);return {actors,dog,covers:scene.covers,layout:l,dialogue:line,contact:!!target&&dog.contact,hidden:actors.filter(a=>a.hidden).length,contactDistance:dog.contactDistance||160*scale,props:debris(scene,p)};
 }
 // Launch once from a runner's feet, tumble, bounce and settle. Deterministic under pause/resume.
