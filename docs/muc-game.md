@@ -102,3 +102,7 @@ Bộ đạo cụ tạo bằng công cụ tạo ảnh tích hợp: atlas trong su
 - Bạn cuối ngã → Mực dừng hẳn tại chỗ → nói “Bắt được rồi nhé” → học sinh đứng dậy trên hai chân, khóc/run/sợ, đáp “Em ko dám trốn nữa”. Cả nhóm vẫn quay nhìn và lo lắng; giữ khung 16:9.
 - Bổ sung standing-fear-v1.webp/.json: hai hình nam/nữ đứng thẳng, tay bên má, mắt sợ/khóc, nhìn về chó; tạo mới bằng công cụ tạo ảnh tích hợp trên nền alpha, áo trắng khăn đỏ/quần hoặc váy xanh/dép xanh. Đóng gói nguyên alpha thành WebP.
 - Tiếng nói đặt volume 0.14; nhạc giữ gain 0.65 và không tự giảm khi nói. Nhạc hồi hộp có bass từ đầu vẫn chạy trong đoạn kết. Dừng tiếng sủa theo nhịp khi Mực đã đứng lại. Giọng Việt dùng cơ chế thiết bị như trước.
+
+## Biển tên cổng trường 20261108-9
+
+Ảnh `assets/muc/school-xin-man-v1.webp` thay nền trường khi tải game, giữ ảnh gốc `school.webp`. Tạo bằng chỉnh sửa ảnh tích hợp từ nền trường cũ: chỉ thêm biển đỏ sẫm viền vàng gắn trên hai trụ cổng, chữ kem đậm hai dòng “TRƯỜNG PTDTNT” / “XÍN MẦN”; giữ khung 16:9, cây phượng/xe đạp/quầy hàng/đường trống và phong cách hoạt hình. Không đổi chuyển động hoặc dữ liệu lớp.
