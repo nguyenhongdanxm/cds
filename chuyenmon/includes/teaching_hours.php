@@ -1,6 +1,19 @@
 <?php
 /** Read-only lesson aggregation; all report-only annotations live separately. */
-function th_categories():array{return ['main'=>'Dạy chính khóa','tn'=>'Ôn thi TN','vao10'=>'Ôn thi vào 10','hsg'=>'Ôn HSG','other'=>'Chưa phân loại / khác'];}
+function th_categories():array{return ['main'=>'Môn không có chữ Ôn','tn'=>'Ôn thi TN','vao10'=>'Ôn thi vào 10','hsg'=>'Ôn HSG','on'=>'Ôn khác','other'=>'Chưa phân loại / khác'];}
+function th_on_subject(string $subject):bool{
+ $subject=str_replace(["o\u{0302}","O\u{0302}"],['ô','Ô'],$subject);
+ return preg_match('/(?<![\p{L}\p{N}])ôn(?![\p{L}\p{N}])/ui',$subject)===1;
+}
+function th_subject_category(array $row,array $saved):string{
+ if(!th_on_subject((string)($row['subject']??'')))return 'main';
+ $s=mb_strtolower((string)$row['subject'],'UTF-8');$matches=[];
+ if(preg_match('/\bhsg\b|học sinh giỏi/ui',$s))$matches[]='hsg';
+ if(preg_match('/vào\s+(?:lớp\s+)?10|tuyển sinh\s+(?:lớp\s+)?10/ui',$s))$matches[]='vao10';
+ if(preg_match('/\btn\b|tốt nghiệp/ui',$s))$matches[]='tn';
+ if(count($matches)===1)return $matches[0];
+ $manual=(string)($saved[$row['slot_id']??$row['id']??'']??$row['teaching_category']??'');return in_array($manual,['tn','vao10','hsg','on'],true)?$manual:'on';
+}
 function th_key(string $s):string{return mb_strtolower(preg_replace('/\s+/u',' ',trim($s)),'UTF-8');}
 function th_name_key(string $name):string{
  // Preserve T/V as distinct identities; only normalize the same suffix's parentheses.
@@ -40,14 +53,14 @@ function th_signed_rows(array $rows,string $from,string $to,array $categories,ar
  $adminActor=!$person&&in_array(th_key($name),['quản trị hệ thống','admin','administrator'],true);
  if($adminActor){$actual=trim((string)($r['actual_teacher']??''));$person=th_person($actual,$catalog);if($person)$attribution='admin_signed_actual';}
  if(!$visible($person,$person?$person['name']:$name))continue;
- if(!$person){$warn('unmatched|'.th_name_key($name),'Chưa ghép được mã giáo viên duy nhất: '.$name.($adminActor?'; cần đối chiếu giáo viên thực tế đã lưu trên tiết học':''),$r);continue;}
+ if(!$person){$label=$adminActor?trim((string)($r['actual_teacher']??'')):$name;$label=$label!==''?$label:'Chưa xác định giáo viên';$warn('unmatched|'.th_name_key($name),'Chưa ghép được mã giáo viên duy nhất: '.$name.'; vẫn cộng vào tổng, chưa gán cho giáo viên trong CSDL',$r);$person=['key'=>'unresolved:'.hash('sha256',th_name_key($label)),'code'=>'','id'=>'','name'=>$label.' [chưa đối chiếu]','group'=>'Chưa đối chiếu mã','unresolved'=>true];$attribution='unresolved';}
  $qty=isset($r['actual_periods'])?(float)$r['actual_periods']:1.0;if(!is_finite($qty)||$qty<=0){$warn('quantity|'.$person['key'],$person['name'].': số tiết thực tế không hợp lệ',$r);continue;}
  if($legacy)$warn('legacy|'.$person['key'],$person['name'].': thiếu tên người ký; tạm lấy giáo viên thực tế',$r);
  if($attribution==='admin_signed_actual')$adminSigned++;
- elseif(!empty($r['actual_teacher'])&&th_name_key($r['actual_teacher'])!==th_name_key($name))$warn('mismatch|'.$person['key'].'|'.th_name_key($r['actual_teacher']),$person['name'].': người ký khác giáo viên thực tế '.$r['actual_teacher'],$r);
+ elseif($attribution!=='unresolved'&&!empty($r['actual_teacher'])&&th_name_key($r['actual_teacher'])!==th_name_key($name))$warn('mismatch|'.$person['key'].'|'.th_name_key($r['actual_teacher']),$person['name'].': người ký khác giáo viên thực tế '.$r['actual_teacher'],$r);
  $physicalKey=implode('|',[$person['key'],$r['date']??'',$r['session']??'',$r['period']??'',$r['class']??'']);
  if(!empty($r['period'])&&isset($physical[$physicalKey])){$warn('duplicate|'.$person['key'],$person['name'].': bỏ dòng trùng cùng giáo viên, ngày, buổi, tiết và lớp',$r);continue;}$physical[$physicalKey]=true;
- $kind=(string)($categories[$id]??$r['teaching_category']??'');if(!isset(th_categories()[$kind]))$kind=($r['book_type']??'main')==='session2'?'other':'main';
+ $kind=th_subject_category($r,$categories);
  $out[]=array_merge($r,['report_id'=>$id,'person'=>$person,'teacher'=>$person['name'],'category'=>$kind,'quantity'=>$qty,'attribution'=>$attribution]);
  }usort($out,fn($a,$b)=>[$a['date'],$a['person']['name'],$a['period']??0]<=>[$b['date'],$b['person']['name'],$b['period']??0]);foreach($groups as$g)$warnings[]=$g['message'].' — '.$g['count'].' dòng. Ví dụ: '.implode('; ',$g['examples']).'.';return ['rows'=>$out,'warnings'=>$warnings,'warning_groups'=>array_values($groups),'notices'=>$adminSigned?['Đã đối chiếu '.$adminSigned.' dòng do tài khoản quản trị ký theo giáo viên thực tế ghi trên tiết học. Tên người ký gốc vẫn giữ nguyên trong bảng chi tiết và Excel.']:[]];
 }
@@ -69,8 +82,8 @@ function th_roles_range(array $roles,string $from,string $to,callable $visible,a
  }return ['rows'=>$out,'warnings'=>$warnings];
 }
 function th_totals(array $actual,array $roles):array{
- $out=[];$add=function($p)use(&$out){$k=$p['key'];if(!isset($out[$k]))$out[$k]=['person'=>$p,'main'=>0.0,'tn'=>0.0,'vao10'=>0.0,'hsg'=>0.0,'other'=>0.0,'roles'=>0.0,'actual'=>0.0,'total'=>0.0];return $k;};
- foreach($actual as$r){$k=$add($r['person']);$out[$k][$r['category']]+=$r['quantity'];$out[$k]['actual']+=$r['quantity'];}
+ $out=[];$add=function($p)use(&$out){$k=$p['key'];if(!isset($out[$k]))$out[$k]=['person'=>$p,'main'=>0.0,'tn'=>0.0,'vao10'=>0.0,'hsg'=>0.0,'on'=>0.0,'on_total'=>0.0,'other'=>0.0,'roles'=>0.0,'actual'=>0.0,'total'=>0.0];return $k;};
+ foreach($actual as$r){$k=$add($r['person']);$out[$k][$r['category']]+=$r['quantity'];$out[$k]['actual']+=$r['quantity'];if(th_on_subject((string)($r['subject']??'')))$out[$k]['on_total']+=$r['quantity'];}
  foreach($roles as$r){$k=$add($r['person']);$out[$k]['roles']+=$r['quantity'];}
  foreach($out as&$r)$r['total']=$r['actual']+$r['roles'];unset($r);uasort($out,fn($a,$b)=>strnatcasecmp($a['person']['name'],$b['person']['name']));return $out;
 }

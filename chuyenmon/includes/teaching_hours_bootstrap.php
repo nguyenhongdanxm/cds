@@ -29,8 +29,8 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
   if(!hash_equals($thCsrf,(string)($_POST['csrf']??'')))throw new RuntimeException('Phiên thao tác hết hạn. Hãy tải lại trang.');
   $revision=filter_var($_POST['revision']??'',FILTER_VALIDATE_INT);if($revision===false)throw new RuntimeException('Thiếu phiên bản dữ liệu.');$action=(string)($_POST['action']??'');
   if($action==='hours_category'){
-   $cat=(string)($_POST['category_value']??'');if(!isset(th_categories()[$cat]))throw new RuntimeException('Chọn nhóm giờ dạy.');
-   $ids=array_values(array_unique(array_filter((array)($_POST['record_ids']??[]),'is_string')));if(!$ids||count($ids)>1000)throw new RuntimeException('Chọn từ 1 đến 1.000 tiết đã ký.');$allowed=array_column($thAll['rows'],null,'report_id');foreach($ids as$id)if(!isset($allowed[$id]))throw new RuntimeException('Có tiết nằm ngoài phạm vi đang xem.');
+   $cat=(string)($_POST['category_value']??'');if(!in_array($cat,['tn','vao10','hsg','on'],true))throw new RuntimeException('Chọn loại ôn.');
+   $ids=array_values(array_unique(array_filter((array)($_POST['record_ids']??[]),'is_string')));if(!$ids||count($ids)>1000)throw new RuntimeException('Chọn từ 1 đến 1.000 tiết đã ký.');$allowed=array_column($thAll['rows'],null,'report_id');foreach($ids as$id)if(!isset($allowed[$id]))throw new RuntimeException('Có tiết nằm ngoài phạm vi đang xem.');elseif(!th_on_subject((string)($allowed[$id]['subject']??'')))throw new RuntimeException('Chỉ gán loại ôn cho tiết có chữ Ôn trong tên môn.');
    th_write($thFile,$revision,function($data)use($ids,$cat){foreach($ids as$id)$data['categories'][$id]=$cat;return $data;},lb_teacher_name());
   }elseif($action==='hours_role_add'){
    $new=th_role_validate($_POST,$thCatalog);th_write($thFile,$revision,function($data)use($new){$data['roles']=th_role_add($data['roles'],$new);return $data;},lb_teacher_name());
@@ -54,3 +54,5 @@ $thRoles=array_values(array_filter($thAllRoles['rows'],fn($r)=>$thPerson===''||$
 $thActualTotals=th_totals($thActual,[]);$thTotals=th_totals($thActual,$thRoles);$thWarnings=array_merge($thAll['warnings'],$thAllRoles['warnings']);$thNotices=$thAll['notices']??[];if(isset($GLOBALS['th_source_warning']))$thWarnings[]=$GLOBALS['th_source_warning'];
 $thPeople=[];foreach($thCatalog['staff']as$people)if(count($people)===1&&$thVisible($people[0],$people[0]['name']))$thPeople[$people[0]['key']]=$people[0];
 $thQuery=['from'=>$thFrom,'to'=>$thTo,'teacher'=>$thPerson,'category'=>$thCategory];
+
+foreach($thAll['rows']as$row)if(!empty($row['person']['unresolved']))$thPeople[$row['person']['key']]=$row['person'];
