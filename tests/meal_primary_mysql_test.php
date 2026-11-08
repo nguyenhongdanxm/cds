@@ -24,7 +24,7 @@ load_functions(__DIR__.'/../includes/noitru_store.php',[
  'noitru_meal_write','noitru_meal_read_cache_clear','noitru_meals_all','noitru_meals_for_date','noitru_meals_for_range',
  'noitru_meal_submission_save','noitru_meal_upsert','noitru_meal_upsert_unlocked','noitru_meal_upsert_many','noitru_meal_upsert_many_unlocked','noitru_meals_replace_rows',
  'noitru_meals_lock_day','noitru_meals_lock_day_unlocked','noitru_meal_target_key','noitru_meal_deleted_targets','noitru_meal_deleted_targets_save','noitru_meal_deleted_targets_save_unlocked',
- 'noitru_meal_report_snapshot','noitru_meal_report_upsert','noitru_meal_report_upsert_unlocked','noitru_meal_reports_data','noitru_meal_reports_save','noitru_meal_reports_save_unlocked','noitru_meal_state','noitru_meal_state_set','noitru_meal_state_set_unlocked',
+ 'noitru_meal_settings','noitru_meal_report_snapshot','noitru_meal_report_upsert','noitru_meal_report_upsert_unlocked','noitru_meal_reports_data','noitru_meal_reports_save','noitru_meal_reports_save_unlocked','noitru_meal_state','noitru_meal_state_set','noitru_meal_state_set_unlocked',
  'noitru_meal_period_summary','noitru_meal_status_index','noitru_meal_status_day','noitru_rice_usage_summary','noitru_meal_report_effective_counts','noitru_student_is_active_on_date',
 ]);
 require __DIR__.'/support/meal_summary_reference.php';
