@@ -14,8 +14,7 @@ function noitru_meal_report_meta(): array {
         catch(Throwable$e){cds_meal_sql_fallback('report_meta',$e);$data=null;}
     }
     if(!isset($data)){
-        $fields=cds_json_fields(NOITRU_MEAL_REPORTS);$data=[];
-        foreach(['states','settings']as$key){$data[$key]=isset($fields[$key])?json_decode(file_get_contents(NOITRU_MEAL_REPORTS,false,null,$fields[$key][0],$fields[$key][1]),true):[];}
+        $data=[];foreach(['states','settings']as$key)$data[$key]=cds_json_field_value(NOITRU_MEAL_REPORTS,$key,[]);
     }
     $data['states']=$data['states']??[];
     $data['settings']=array_merge(['sang_lock_time'=>'20:00','trua_lock_time'=>'09:00','toi_lock_time'=>'15:00'],$data['settings']??[]);
@@ -27,7 +26,7 @@ function noitru_meal_report_visible(array$row,array$deletedIds,array$deletedTarg
     return !isset($deletedIds[(string)($row['id']??'')])&&!isset($deletedTargets[noitru_meal_target_key($row['date']??'',$row['class_name']??'',$row['meal']??'')]);
 }
 
-function noitru_meal_report_rows($date=null):Generator{
+function noitru_meal_report_rows($date=null,$from=null,$to=null):Generator{
     $handle=null;
     if(empty($GLOBALS['noitru_meal_write_active'])){
         noitru_ensure_dir();$handle=fopen(NOITRU_DIR.'/.meal-write.lock','c');
@@ -37,15 +36,17 @@ function noitru_meal_report_rows($date=null):Generator{
         unset($GLOBALS['cds_meal_sql_read_status_cache']);
         $deletedIds=array_fill_keys(array_map('strval',(array)load_json(NOITRU_DIR.'/meal_history_deleted.json',[])),true);
         $deletedTargets=noitru_meal_deleted_targets();
-        $rows=cds_meal_sql_read_effective()?cds_meal_sql_report_rows($date):cds_json_field_rows(NOITRU_MEAL_REPORTS,'reports');
+        $rows=cds_meal_sql_read_effective()?cds_meal_sql_report_rows($date,$from,$to):cds_json_field_rows(NOITRU_MEAL_REPORTS,'reports');
         foreach($rows as$row){
             if($date!==null&&($row['date']??'')!==$date)continue;
+            if(($from!==null&&($row['date']??'')<$from)||($to!==null&&($row['date']??'')>$to))continue;
             if(noitru_meal_report_visible($row,$deletedIds,$deletedTargets))yield$row;
         }
     }finally{if(is_resource($handle)){flock($handle,LOCK_UN);fclose($handle);}}
 }
 
 function noitru_meal_reports_flush_sql():void{
+    if(function_exists('cds_meal_primary_enabled')&&cds_meal_primary_enabled())return;
     $data=noitru_meal_report_meta();$data['reports']=cds_json_field_rows(NOITRU_MEAL_REPORTS,'reports');
     if(!cds_meal_shadow_reports_data($data))cds_meal_shadow_notify_failure();
 }
@@ -55,8 +56,7 @@ function noitru_meal_reports_mutate(?callable$reports=null,?array$meta=null):boo
     $meta=$meta??noitru_meal_report_meta();
     if($reports!==null&&!cds_json_field_save(NOITRU_MEAL_REPORTS,'reports',$reports))return false;
     foreach(['states','settings']as$key){
-        $fields=cds_json_fields(NOITRU_MEAL_REPORTS);
-        $current=isset($fields[$key])?json_decode(file_get_contents(NOITRU_MEAL_REPORTS,false,null,$fields[$key][0],$fields[$key][1]),true):null;
+        $current=cds_json_field_value(NOITRU_MEAL_REPORTS,$key,null);
         $next=$meta[$key]??[];
         if($current!==$next&&!cds_json_field_save(NOITRU_MEAL_REPORTS,$key,static fn($old)=>$next,true))return false;
     }
@@ -75,7 +75,8 @@ function noitru_meal_report_upsert_many(array$updates):bool{
             unset($deletedAfter[noitru_meal_target_key($row['date']??'',$row['class_name']??'',$row['meal']??'')]);
         }
         // Publish source first. If the later tombstone write fails, inflight recovery keeps SQL blocked.
-        $ok=noitru_meal_reports_mutate(static function($rows)use($pending,$deletedIds,$deletedBefore){
+        $primary=function_exists('cds_meal_primary_enabled')&&cds_meal_primary_enabled();
+        $ok=$primary?cds_meal_primary_report_upsert($pending,$deletedIds,$deletedBefore):noitru_meal_reports_mutate(static function($rows)use($pending,$deletedIds,$deletedBefore){
             $found=[];
             foreach($rows as$row){
                 if(!noitru_meal_report_visible($row,$deletedIds,$deletedBefore))continue;
@@ -89,4 +90,16 @@ function noitru_meal_report_upsert_many(array$updates):bool{
         if($deletedAfter!==$deletedBefore&&!noitru_meal_deleted_targets_save($deletedAfter))return false;
         return true;
     },false);
+}
+
+/** Read only the requested days; retain source order and exact downstream PHP rules. */
+function noitru_meal_daily_rows_range(string $from,string $to):Generator {
+    if(function_exists('cds_meal_primary_enabled')&&cds_meal_primary_enabled()){
+        yield from cds_meal_primary_rows('daily',$from,$to);return;
+    }
+    if(cds_meal_sql_read_effective()){
+        try {yield from cds_meal_sql_daily_for_range($from,$to);return;}
+        catch(Throwable $e){cds_meal_sql_fallback('daily_range',$e);}
+    }
+    foreach(cds_json_rows(NOITRU_MEALS)as $position=>$row)if(($row['date']??'')>=$from&&($row['date']??'')<=$to)yield $position=>$row;
 }

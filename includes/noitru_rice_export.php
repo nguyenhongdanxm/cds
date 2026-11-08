@@ -73,7 +73,7 @@ function nt_rice_build_detail($from, $to, array $riceData) {
 
     $validReports = [];
     $stateCache = [];
-    foreach (noitru_meal_report_rows() as $report) {
+    foreach (noitru_meal_report_rows(null,(string)$from,(string)$to) as $report) {
         $date = (string)($report['date'] ?? '');
         $meal = (string)($report['meal'] ?? '');
         $className = trim((string)($report['class_name'] ?? '')) ?: '(Chưa lớp)';
@@ -84,7 +84,7 @@ function nt_rice_build_detail($from, $to, array $riceData) {
         $validReports[$date . '|' . $className . '|' . $meal] = true;
     }
 
-    foreach (cds_json_rows(NOITRU_MEALS) as $mealRow) {
+    foreach (noitru_meal_daily_rows_range((string)$from,(string)$to) as $mealRow) {
         $date = (string)($mealRow['date'] ?? '');
         $studentId = trim((string)($mealRow['student_id'] ?? ''));
         if ($date < $from || $date > $to || !isset($studentsById[$studentId])) continue;

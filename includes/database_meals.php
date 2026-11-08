@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/meal_primary.php';
 
 function cds_meal_json($value)
 {
@@ -60,7 +61,15 @@ function cds_meal_shadow_enabled()
     }
 }
 
-function cds_meal_shadow_set($enabled, $actor)
+function cds_meal_shadow_set($enabled, $actor) {
+    $lock=null;
+    try {
+        if(empty($GLOBALS['noitru_meal_write_active']))$lock=cds_meal_domain_lock();
+        if(cds_meal_primary_enabled())throw new RuntimeException('MySQL đang là nguồn chính. Hãy xuất mới nhất và quay về JSON trước.');
+        return cds_meal_shadow_set_unlocked($enabled,$actor);
+    } finally { if(is_resource($lock)){flock($lock,LOCK_UN);fclose($lock);} }
+}
+function cds_meal_shadow_set_unlocked($enabled, $actor)
 {
     if ($enabled) {
         $status = cds_meal_compare_snapshot();
@@ -215,7 +224,15 @@ function cds_meal_batch_add(PDO $pdo, string $sql, array &$batch, array $params)
     $batch[] = $params;
 }
 
-function cds_meal_import_snapshot($actor = array(), $sourceData = null, $streaming = false)
+function cds_meal_import_snapshot($actor = array(), $sourceData = null, $streaming = false) {
+    $lock=null;
+    try {
+        if(empty($GLOBALS['noitru_meal_write_active']))$lock=cds_meal_domain_lock();
+        if(cds_meal_primary_enabled())throw new RuntimeException('MySQL đang là nguồn chính. Hãy xuất mới nhất và quay về JSON trước.');
+        return cds_meal_import_snapshot_unlocked($actor,$sourceData,$streaming);
+    } finally { if(is_resource($lock)){flock($lock,LOCK_UN);fclose($lock);} }
+}
+function cds_meal_import_snapshot_unlocked($actor = array(), $sourceData = null, $streaming = false)
 {
     if ($streaming) {
         // Recovery runs under the meal domain lock. Keep historical snapshots on disk.
@@ -350,6 +367,7 @@ function cds_meal_compare_snapshot($sourceData = null)
 
 function cds_meal_shadow_sync($scope = 'all')
 {
+    if(cds_meal_primary_enabled())return true;
     if (!cds_meal_shadow_enabled()) return true;
     if (!cds_meal_pending_mark($scope)) return false;
     try { $result = cds_meal_import_snapshot(function_exists('current_user')?(array)current_user():array(), null, true); return !empty($result['is_match']); }
@@ -370,6 +388,7 @@ function cds_meal_shadow_notify_failure()
 
 function cds_meal_shadow_daily_rows(array $rows, $date)
 {
+    if(cds_meal_primary_enabled())return true;
     if (!cds_meal_shadow_enabled()) return true;
     if (is_array(cds_meal_pending_status())) return cds_meal_shadow_sync('daily_rows_recovery');
     if (!cds_meal_pending_mark('daily_rows')) return false;
@@ -411,6 +430,7 @@ function cds_meal_shadow_daily_rows(array $rows, $date)
 
 function cds_meal_shadow_daily_row(array $row)
 {
+    if(cds_meal_primary_enabled())return true;
     if (!cds_meal_shadow_enabled()) return true;
     if (is_array(cds_meal_pending_status())) return cds_meal_shadow_sync('daily_recovery');
     if (!cds_meal_pending_mark('daily_row')) return false;
@@ -430,6 +450,7 @@ function cds_meal_shadow_daily_row(array $row)
 
 function cds_meal_shadow_reports_data(array $data)
 {
+    if(cds_meal_primary_enabled())return true;
     if (!cds_meal_shadow_enabled()) return true;
     if (is_array(cds_meal_pending_status())) return cds_meal_shadow_sync('reports_recovery');
     if (!cds_meal_pending_mark('reports')) return false;

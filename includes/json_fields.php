@@ -3,6 +3,7 @@ require_once __DIR__ . '/json_rows.php';
 
 /** Locate top-level object fields without materializing their values. */
 function cds_json_fields(string $file): array {
+    if(function_exists('cds_meal_primary_routes')&&cds_meal_primary_routes($file))throw new RuntimeException('Không dùng vị trí tệp JSON cũ khi MySQL là nguồn chính.');
     if (!file_exists($file)) return [];
     $handle=@fopen($file,'rb');if(!$handle)throw new RuntimeException('Không đọc được '.basename($file));
     $phase='root';$key='';$keyRaw='';$escaped=false;$string=false;$depth=0;$start=0;$offset=0;$entries=[];
@@ -65,11 +66,20 @@ function cds_json_fields(string $file): array {
 }
 
 function cds_json_field_value(string $file,string $name,$default=[]){
+    if(function_exists('cds_meal_primary_routes')&&cds_meal_primary_routes($file)) {
+        if(cds_meal_primary_key($file)!=='reports')throw new RuntimeException('Kho đối tượng không hợp lệ.');
+        return $name==='reports'?iterator_to_array(cds_meal_primary_rows('reports'),false):(cds_meal_primary_meta('reports')[$name]??$default);
+    }
     $fields=cds_json_fields($file);if(!isset($fields[$name]))return$default;
     [$at,$length]=$fields[$name];return json_decode(file_get_contents($file,false,null,$at,$length),true);
 }
 
 function cds_json_field_rows(string $file,string $name):Generator{
+    if(function_exists('cds_meal_primary_routes')&&cds_meal_primary_routes($file)) {
+        if(cds_meal_primary_key($file)!=='reports')throw new RuntimeException('Kho đối tượng không hợp lệ.');
+        if($name==='reports')yield from cds_meal_primary_rows('reports');else yield from (cds_meal_primary_meta('reports')[$name]??[]);
+        return;
+    }
     $fields=cds_json_fields($file);if(!isset($fields[$name]))return;
     [$at,$length]=$fields[$name];
     if(trim((string)file_get_contents($file,false,null,$at,min($length,4)))==='null')return;
@@ -78,6 +88,12 @@ function cds_json_field_rows(string $file,string $name):Generator{
 
 /** Replace only one field; preserve all other source bytes and unknown properties. */
 function cds_json_field_save(string $file,string $name,callable $build,bool $valueMode=false):bool{
+    if(function_exists('cds_is_viewer')&&cds_is_viewer())return false;
+    if(function_exists('cds_meal_primary_key')&&cds_meal_primary_key($file)!==null&&empty($GLOBALS['noitru_meal_write_active'])&&function_exists('noitru_meal_write'))return noitru_meal_write(static fn()=>cds_json_field_save($file,$name,$build,$valueMode),false);
+    if(function_exists('cds_meal_primary_routes')&&cds_meal_primary_routes($file)) {
+        if(cds_meal_primary_key($file)!=='reports')return false;
+        return cds_meal_primary_field_save($name,$build,$valueMode);
+    }
     $arrayTmp=null;$objectTmp=null;$in=null;$out=null;
     try{
         $fields=cds_json_fields($file);$dir=dirname($file);

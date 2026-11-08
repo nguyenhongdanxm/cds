@@ -1,6 +1,10 @@
 <?php
 /** Incremental JSON-list I/O. Existing files are published only after full validation. */
 function cds_json_rows(string $file, int $at = 0, ?int $length = null): Generator {
+    if (function_exists('cds_meal_primary_routes') && cds_meal_primary_routes($file)) {
+        if($at!==0||$length!==null||cds_meal_primary_key($file)!=='daily')throw new RuntimeException('Không đọc vùng JSON cũ khi MySQL đang là nguồn chính.');
+        yield from cds_meal_primary_rows('daily');return;
+    }
     if (!file_exists($file)) return;
     $handle = @fopen($file, 'rb');
     if (!$handle) throw new RuntimeException('Không đọc được dữ liệu: ' . basename($file));
@@ -55,6 +59,12 @@ function cds_json_rows(string $file, int $at = 0, ?int $length = null): Generato
 
 /** Caller holds the domain write lock for the complete read/transform/publish sequence. */
 function cds_json_rows_save(string $file, iterable $rows): bool {
+    if (function_exists('cds_is_viewer') && cds_is_viewer()) return false;
+    if (function_exists('cds_meal_primary_key') && cds_meal_primary_key($file)!==null && empty($GLOBALS['noitru_meal_write_active']) && function_exists('noitru_meal_write')) return noitru_meal_write(static fn()=>cds_json_rows_save($file,$rows),false);
+    if (function_exists('cds_meal_primary_routes') && cds_meal_primary_routes($file)) {
+        if(cds_meal_primary_key($file)!=='daily')return false;
+        return cds_meal_primary_replace_rows('daily',$rows);
+    }
     $dir = dirname($file);
     if (!is_dir($dir) && !@mkdir($dir, 0750, true) && !is_dir($dir)) return false;
     $tmp = @tempnam($dir, basename($file) . '.tmp.');
