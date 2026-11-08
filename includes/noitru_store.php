@@ -315,7 +315,11 @@ function noitru_student_away_on_date($studentId, $date) {
 function noitru_meal_write(callable $write, $failure = false) {
     if(function_exists('cds_is_viewer')&&cds_is_viewer())return $failure;
     static $depth = 0;
-    if ($depth > 0) return $write();
+    if ($depth > 0) {
+        $result=$write();
+        if($result===false&&!empty($GLOBALS['cds_meal_primary_transaction']))$GLOBALS['cds_meal_primary_failed']=true;
+        return $result;
+    }
     noitru_ensure_dir();
     $handle = @fopen(NOITRU_DIR . '/.meal-write.lock', 'c');
     if (!$handle || !@flock($handle, LOCK_EX)) {
@@ -537,6 +541,17 @@ function noitru_meals_for_range($from, $to) {
         if ($date >= $from && $date <= $to) $out[] = $row;
     }
     return $out;
+}
+/** Publish daily flags and class reports together; primary history joins the same transaction. */
+function noitru_meal_submission_save(array $daily,array $reports): bool {
+    return noitru_meal_write(static function()use($daily,$reports){
+        if(!noitru_meal_upsert_many($daily,true)||!noitru_meal_report_upsert_many($reports))return false;
+        if(function_exists('cds_meal_primary_enabled')&&cds_meal_primary_enabled()&&isset($GLOBALS['nt_meal_history_pending_context'])&&function_exists('nt_meal_history_append_from_change')){
+            $GLOBALS['nt_meal_history_handled']=true;
+            nt_meal_history_append_from_change($GLOBALS['nt_meal_history_pending_context']);
+        }
+        return true;
+    },false);
 }
 function noitru_meal_upsert(array $row) {
     return noitru_meal_write(static function () use ($row) {

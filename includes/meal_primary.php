@@ -93,10 +93,20 @@ function cds_meal_primary_meta(string $key) {
 function cds_meal_primary_meta_save(string $key,$value): void {
     cds_db()->prepare('INSERT INTO cds_meal_primary_meta(store_key,raw_json) VALUES(?,?) ON DUPLICATE KEY UPDATE raw_json=VALUES(raw_json)')->execute([$key,cds_meal_primary_json($value)]);
 }
+function cds_meal_primary_report_object(array $reports): array {
+    $meta=cds_meal_primary_meta('reports');$out=[];
+    foreach(cds_meal_primary_meta('report_order')as $name){
+        if($name==='reports')$out[$name]=$reports;
+        elseif(array_key_exists($name,$meta))$out[$name]=$meta[$name];
+    }
+    foreach($meta as $name=>$value)if(!array_key_exists($name,$out))$out[$name]=$value;
+    if(!array_key_exists('reports',$out))$out['reports']=$reports;
+    return $out;
+}
 function cds_meal_primary_load(string $file) {
     $key=cds_meal_primary_key($file);
     if($key==='daily')return iterator_to_array(cds_meal_primary_rows('daily'),false);
-    if($key==='reports'){$meta=cds_meal_primary_meta('reports');$meta['reports']=iterator_to_array(cds_meal_primary_rows('reports'),false);return $meta;}
+    if($key==='reports')return cds_meal_primary_report_object(iterator_to_array(cds_meal_primary_rows('reports'),false));
     return cds_meal_primary_meta($key);
 }
 /** Nested failures doom the whole meal operation, even if an old caller ignores false. */
@@ -154,6 +164,7 @@ function cds_meal_primary_save(string $file,$data): bool {
         if($key==='daily')return cds_meal_primary_replace_rows('daily',$data);
         if($key==='reports'){
             if(!cds_meal_primary_replace_rows('reports',$data['reports']??[]))return false;
+            cds_meal_primary_meta_save('report_order',array_keys($data));
             unset($data['reports']);
         }
         cds_meal_primary_meta_save($key,$data);return true;
@@ -217,6 +228,7 @@ function cds_meal_primary_switch(bool $enabled): void {
             $meta=[];$fields=cds_json_fields($files['reports']);
             foreach($fields as $name=>[$at,$length])if($name!=='reports')$meta[$name]=cds_meal_primary_decode(file_get_contents($files['reports'],false,null,$at,$length));
             cds_meal_primary_meta_save('reports',$meta);
+            cds_meal_primary_meta_save('report_order',array_keys($fields));
             foreach(['history','deleted','targets']as $key)cds_meal_primary_meta_save($key,cds_json_load_for_update($files[$key],[]));
             foreach(['daily','reports']as $kind){
                 $rows=$kind==='daily'?cds_json_rows($files[$kind]):cds_json_field_rows($files[$kind],'reports');
@@ -234,7 +246,7 @@ function cds_meal_primary_switch(bool $enabled): void {
                     if(!cds_json_rows_save($tmp,cds_meal_primary_rows('daily'))||cds_meal_primary_digest(cds_json_rows($tmp))!==cds_meal_primary_digest(cds_meal_primary_rows('daily')))throw new RuntimeException('Không đối chiếu được báo ăn cá nhân mới nhất.');
                 }elseif($key==='reports'){
                     $meta=cds_meal_primary_meta('reports');
-                    if(!cds_json_save($tmp,$meta?:new stdClass())||!cds_json_field_save($tmp,'reports',static fn()=>cds_meal_primary_rows('reports')))throw new RuntimeException('Không xuất được phiếu báo ăn mới nhất.');
+                    if(!cds_json_save($tmp,cds_meal_primary_report_object([]))||!cds_json_field_save($tmp,'reports',static fn()=>cds_meal_primary_rows('reports')))throw new RuntimeException('Không xuất được phiếu báo ăn mới nhất.');
                     $out=cds_json_load_for_update($tmp,[]);unset($out['reports']);
                     if($out!==$meta||cds_meal_primary_digest(cds_json_field_rows($tmp,'reports'))!==cds_meal_primary_digest(cds_meal_primary_rows('reports')))throw new RuntimeException('Phiếu báo ăn mới nhất chưa khớp.');
                 }else{

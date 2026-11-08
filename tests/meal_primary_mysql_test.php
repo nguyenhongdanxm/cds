@@ -22,7 +22,7 @@ function noitru_meal_effective_student_context(){return ['students'=>['p1'=>['id
 $GLOBALS['fixture_uid']=1;
 load_functions(__DIR__.'/../includes/noitru_store.php',[
  'noitru_meal_write','noitru_meal_read_cache_clear','noitru_meals_all','noitru_meals_for_date','noitru_meals_for_range',
- 'noitru_meal_upsert','noitru_meal_upsert_unlocked','noitru_meal_upsert_many','noitru_meal_upsert_many_unlocked','noitru_meals_replace_rows',
+ 'noitru_meal_submission_save','noitru_meal_upsert','noitru_meal_upsert_unlocked','noitru_meal_upsert_many','noitru_meal_upsert_many_unlocked','noitru_meals_replace_rows',
  'noitru_meals_lock_day','noitru_meals_lock_day_unlocked','noitru_meal_target_key','noitru_meal_deleted_targets','noitru_meal_deleted_targets_save','noitru_meal_deleted_targets_save_unlocked',
  'noitru_meal_report_snapshot','noitru_meal_report_upsert','noitru_meal_report_upsert_unlocked','noitru_meal_reports_data','noitru_meal_reports_save','noitru_meal_reports_save_unlocked','noitru_meal_state','noitru_meal_state_set','noitru_meal_state_set_unlocked',
  'noitru_meal_period_summary','noitru_meal_status_index','noitru_meal_status_day','noitru_rice_usage_summary','noitru_meal_report_effective_counts','noitru_student_is_active_on_date',
@@ -76,10 +76,15 @@ try{
  $students=[['id'=>'p1','class_name'=>'6A'],['id'=>'p2','class_name'=>'7A']];
  exact(noitru_meal_period_summary('2026-10-15','2026-10-17',$students),reference_noitru_meal_period_summary('2026-10-15','2026-10-17',$students),'Period totals unchanged');
  $rice=['settings'=>['sang_grams'=>100,'trua_grams'=>180,'toi_grams'=>175]];exact(noitru_rice_usage_summary('2026-10-15','2026-10-17',$rice),reference_noitru_rice_usage_summary('2026-10-15','2026-10-17',$rice),'Rice totals and rounding unchanged');
+ load_functions(__DIR__.'/../chuyenmon/includes/classroom_home_store.php',['cmhome_meal_summary']);
+ $home=cmhome_meal_summary('6A',['p1'],'2026-10');check(is_array($home[0]['p1']),'Homeroom reads current SQL source');
  // Nested caller ignores false, nevertheless the entire outer operation must be rolled back.
  $oldHash=cds_meal_primary_digest(cds_meal_primary_rows('daily'));
  check(!noitru_meal_write(static function(){noitru_meal_upsert(['date'=>'2026-10-16','student_id'=>'abort','sang'=>'yes']);cds_json_rows_save(NOITRU_MEALS,(static function(){yield ['date'=>'2026-10-16','student_id'=>'abort'];throw new RuntimeException('Injected stream failure');})());return true;}),'Injected mid-write failure');
  exact(cds_meal_primary_digest(cds_meal_primary_rows('daily')),$oldHash,'Whole transaction rolled back');
+ $oldHash=cds_meal_primary_digest(cds_meal_primary_rows('daily'));
+ check(!noitru_meal_submission_save([['date'=>'2026-10-16','student_id'=>'bad-submission','sang'=>'yes']],[['date'=>'invalid','class_name'=>'6A','meal'=>'sang']]),'Whole submission refuses invalid report');
+ exact(cds_meal_primary_digest(cds_meal_primary_rows('daily')),$oldHash,'Failed report rolls back daily flags');
  // Auxiliary changes and source deletes are in the same transaction.
  check(noitru_meal_write(static function(){save_json(NOITRU_DIR.'/meal_history_deleted.json',['r1']);save_json(NOITRU_DIR.'/meal_history_deleted_targets.json',['2026-10-15|6A|sang']);return noitru_meal_report_upsert(['date'=>'2026-10-15','class_name'=>'6A','meal'=>'sang','eat_count'=>2]);}),'Tombstones/reactivation');
  check(!isset(noitru_meal_deleted_targets()['2026-10-15|6A|sang']),'Reactivation removes target tombstone');
