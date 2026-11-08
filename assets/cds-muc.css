@@ -11,3 +11,6 @@
 .theater.show-name-wall .name-wall{display:block;position:fixed;right:2vw;top:10dvh;width:min(440px,95vw);max-height:80dvh;overflow:auto;z-index:8;box-shadow:0 12px 40px #142c3066}.theater .scene-top{gap:5px}.theater .scene-controls{max-width:75%}
 
 .scene-caption{top:var(--muc-caption-top,12%)}
+
+/* Fixed cinematic 16:9, including full classes. Only lower bodies overlap in depth. */
+.stage{aspect-ratio:16/9}.theater .stage{width:min(100vw,177.7778dvh);height:auto;aspect-ratio:16/9}.theater{padding-bottom:0}.scene-caption{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.scene-controls button{font-weight:850;border-radius:15px}.class-badge{max-width:35%}
