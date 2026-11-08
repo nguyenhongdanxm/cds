@@ -16,7 +16,7 @@ $processes=[];for($i=0;$i<8;$i++){$pipes=[];$processes[]=proc_open([PHP_BINARY,_
 file_put_contents(VANBAN_VIEWS_FILE,'{broken');reject(fn()=>vb_mark_documents_seen(['d1'],$user,$docs));check(file_get_contents(VANBAN_VIEWS_FILE)==='{broken','Corrupt data not overwritten');cds_json_save(VANBAN_VIEWS_FILE,$all);
 // Exercise the actual POST dispatcher with an isolated auth/data environment.
 $site=$dir.'/site';mkdir($site.'/includes',0700,true);copy(__DIR__.'/../vanban.php',$site.'/vanban.php');
-foreach(['vanban_views.php','json_store.php','json_rows.php','json_fields.php'] as $file)symlink(realpath(__DIR__.'/../includes/'.$file),$site.'/includes/'.$file);
+foreach(['vanban_views.php','json_store.php','lesson_book_primary.php','json_rows.php','json_fields.php'] as $file)symlink(realpath(__DIR__.'/../includes/'.$file),$site.'/includes/'.$file);
 file_put_contents($site.'/includes/auth.php','<?php define("DATA_PATH",'.var_export($dir,true).');define("BASE_URL","/");$_SESSION=["vb_csrf"=>"fixture"];function require_login(){}function current_user(){return ["username"=>"alice","name"=>"Alice","role"=>"gv"];}function can_perm_level(...$a){return false;}function can_module(...$a){return false;}function load_json($f,$d=[]){return cds_json_load($f,$d);}function flash(...$a){}');
 file_put_contents($site.'/includes/vanban_store.php','<?php define("VANBAN_DOCUMENTS_FILE",DATA_PATH."/docs.json");function vb_rows($f){return load_json($f,[]);}');
 file_put_contents($site.'/includes/vanban_engagement.php','<?php function vb_engagement_actions(){return [];}');file_put_contents($site.'/includes/push_notifications.php','<?php');cds_json_save($dir.'/docs.json',$docs);

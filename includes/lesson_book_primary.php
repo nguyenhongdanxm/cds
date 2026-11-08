@@ -41,7 +41,7 @@ function cds_lb_primary_update(callable $change):bool{
   $release=$pdo->prepare('UPDATE cds_lesson_book_records SET ppct_period=NULL WHERE slot_id=?');foreach($changed as$id=>$r)$release->execute([$id]);
   $delete=$pdo->prepare('DELETE FROM cds_lesson_book_records WHERE slot_id=?');foreach($old as$id=>$r)if(!isset($new[$id]))$delete->execute([$id]);
   foreach($changed as$r)cds_lb_primary_put($pdo,$r);$pdo->commit();return true;
- }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+ }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();if($e instanceof RuntimeException)throw $e;throw new RuntimeException('Dữ liệu SQL không hợp lệ; chưa thay đổi sổ.',0,$e);}
 }
 function cds_lb_primary_replace(array $rows):bool{return cds_json_update(cds_lb_primary_file(),static fn()=>array_values($rows),[]);}
 function cds_lb_snapshot_publish(array $rows):void{
