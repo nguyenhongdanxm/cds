@@ -16,9 +16,9 @@ Quản trị ẩn/hiện game trong phần cài đặt trò chơi hiện có. Qu
 
 - Dùng `csdl_classes_all()` và `csdl_students_all()`, chỉ lấy học sinh đang hoạt động; hỗ trợ tên lớp hoặc `class_id`, `name/ho_ten`, ID/mã và giới tính. Không sửa dữ liệu CSDL, sổ đầu bài hay trò chơi khác.
 - Mỗi ID được tích chọn có xác suất bằng nhau. `crypto.getRandomValues` kết hợp rejection sampling tránh lệch phép chia dư; chọn kết quả trước hoạt hình, chỉ ghi lịch sử sau khi hoàn tất. Học sinh trùng họ tên vẫn được phân biệt bằng ID.
-- Với hơn 24 ứng viên, hoạt hình minh họa tối đa 24 nhân vật (luôn có người được chọn). Thuật toán vẫn xét toàn bộ ứng viên. Số lượng ứng viên thật được ghi trên sân khấu.
+- Với hơn 8 ứng viên, hoạt hình minh họa tối đa 8 nhân vật (luôn có người được chọn). Thuật toán vẫn xét toàn bộ ứng viên. Số lượng ứng viên thật được ghi trên sân khấu.
 - Lịch sử và tích chọn dùng localStorage với khóa riêng tài khoản/lớp `cds.muc.v1.<user-hash>.<class>`. Chỉ lưu ID, thời điểm, tùy chọn; không lưu tên. Không đồng bộ giữa thiết bị, không dùng chung lịch sử với game khác.
-- Đồ họa mới theo hình ảnh tham khảo; hai phông trường/phố và atlas 12 tư thế, chuyển động Canvas 2D. Không phải mã nguồn hoặc bản sao từng khung hình của sản phẩm tham khảo. Âm thanh dùng Web Audio, không tải nhạc bên ngoài.
+- Đồ họa mới theo hình ảnh tham khảo; phông sân trường cố định, atlas 24 hình (6 tư thế chó, 12 tư thế học sinh, 6 vật che), chuyển động Canvas 2D theo đường chạy và xếp lớp trước/sau vật che. Không phải mã nguồn hoặc bản sao từng khung hình của sản phẩm tham khảo. Tiếng sủa dùng mẫu ghi âm CC0 được đóng gói tại `assets/muc/dog-bark.mp3` (nguồn trong `assets/muc/audio-sources.md`); nhạc và tiếng bước chân dùng Web Audio, chạy theo từng cảnh, không tải nhạc bên ngoài.
 
 ## Triển khai
 
@@ -29,8 +29,10 @@ Quản trị ẩn/hiện game trong phần cài đặt trò chơi hiện có. Qu
 - `assets/cds-muc.css`
 - `assets/cds-muc-engine.js`
 - `assets/cds-muc-scene.js`
+- `assets/cds-muc-motion.js`
+- `assets/cds-muc-audio.js`
 - `assets/cds-muc.js`
-- Cả thư mục `assets/muc/` (3 ảnh WebP, tổng khoảng 1 MB).
+- Cả thư mục `assets/muc/` (gồm ảnh WebP, bản đồ atlas JSON và tiếng sủa MP3).
 
 Nếu dùng cPanel Git Version Control: chọn repository CDS → Manage → Pull or Deploy → Update from Remote, sau đó Deploy HEAD Commit. Script `tools/deploy_cds.php` phải có `hoclieu_game_muc.php` trong `$rootFiles`; nếu thiếu mục này thì menu có thể đã cập nhật nhưng trang game vẫn báo 404. Toàn bộ `assets/` được script sao chép tự động.
 
@@ -46,6 +48,8 @@ php -l hoclieu_game_muc.php
 php tests/cds_muc_roster_test.php
 node tests/cds_muc_engine_test.cjs
 node tests/cds_muc_controller_test.cjs
+node tests/cds_muc_motion_test.cjs
+node tests/cds_muc_audio_test.cjs
 node --check assets/cds-muc-scene.js
 ```
 
@@ -58,3 +62,13 @@ Các ảnh trong `assets/muc/` được tạo mới bằng công cụ tạo ản
 - `school.webp`: minh họa hoạt hình 2D ngang 16:9, trường vàng/cửa sổ xanh/cổng đỏ, hoa phượng bên trái, xe đạp/chậu cây/xe bán hàng; đường xám trống phía dưới; không nhân vật, chữ hoặc giao diện.
 - `street.webp`: phố Việt Nam hoạt hình 2D ngang 16:9, nhà xanh/vàng/hồng, ban công hoa, mái hiên sọc, dây điện; đường xám trống phía dưới; không nhân vật, chữ hoặc giao diện.
 - `sprites.webp`: atlas nền trong suốt 4 cột × 3 hàng; hàng 1 chó đen vàng nâu, vòng cổ đỏ chuông vàng ở tư thế ngủ/giận/chạy/vui; hàng 2 học sinh nam và hàng 3 học sinh nữ với áo trắng khăn đỏ/quần hoặc váy xanh ở tư thế rón rén/chạy/ăn mừng/sợ hãi; nét viền đậm, chibi, không chữ và không nền.
+
+## Bản hoạt hình 20261108-2
+
+- Mở đầu sợ/khóc → rón rén → Mực thức/sủa → chạy → nấp → bạn chậm/vấp bị bắt trúng.
+- Tư thế đi/chạy thay hai khung chân, có nhún người, đổi hướng và cúi nấp.
+- Đường chạy tránh chó đang ngủ và bạn còn đứng giữa sân; hàng sau chờ hàng trước rời vị trí. Các bạn đã nấp được vẽ sau vật che và không còn nhãn tên nổi phía trước.
+- Mực đuổi theo vị trí bạn chạy chậm và chỉ có tín hiệu bắt khi mõm chạm vùng nhân vật. Việc này là hoạt hình minh họa kết quả ngẫu nhiên, không đánh giá khả năng chạy của học sinh thật.
+- Giới hạn 8 nhân vật minh họa để có đủ khoảng trống cho cả người và tên. Mọi học sinh được tích chọn vẫn có cơ hội như nhau; người được chọn luôn có trong hoạt hình của lượt.
+- `actors-v2.webp` được tạo mới theo nhân vật tham khảo: lưới 6 cột × 4 hàng, chó ngủ/cảnh giác/sủa/chạy A/chạy B/vui; nam và nữ khóc/đi A/đi B/chạy A/chạy B/vấp; cây/chậu/ghế/bụi cây/xe hàng/trụ cổng. `actors-v2.json` lưu vùng cắt từng ô để chân không bị lệch giữa các tư thế.
+- Có nút Thử tiếng chó; nhạc đổi theo mốc cảnh, tắt nhạc lúc Mực sủa và dừng khi tạm dừng/hủy lượt.

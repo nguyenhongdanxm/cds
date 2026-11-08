@@ -21,6 +21,6 @@ const cleaned=new E.Game(rows,{selected:['a','deleted'],called:['b','deleted'],h
 assert.equal(new E.Game(rows,{selected:[]}).available().length,0,'An intentionally empty selection stays empty');
 assert.equal(new E.Game(rows,null).available().length,3);
 assert.equal(new E.Game([]).begin(rng(0)),null);
-for(const [p,phase] of [[0,'sneak'],[.34,'wake'],[.44,'chase'],[.89,'catch'],[1,'catch']])assert.equal(E.phase(p),phase);
+for(const [p,phase] of [[0,'fear'],[.14,'sneak'],[.36,'wake'],[.46,'chase'],[.76,'hide'],[.9,'catch'],[1,'catch']])assert.equal(E.phase(p),phase);
 for(let i=0;i<rows.length;i++)assert.equal(new E.Game(rows).begin(rng(i)).winner.id,rows[i].id,'Every eligible ID can be selected');
 console.log('PASS Mực engine: unbiased random, duplicate names, selection, cancel, double-start/finish, no-repeat, exhaustion, restore and phases');

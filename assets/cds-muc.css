@@ -3,3 +3,5 @@
 .floating-start{position:absolute;z-index:4;bottom:25px;left:50%;transform:translateX(-50%);background:#ff962e;border:2px solid #fff;color:#fff;box-shadow:0 5px 15px #59441c44;font-size:20px}.floating-start:hover:not(:disabled){transform:translateX(-50%) translateY(-1px)}.intro~.floating-start{display:none}.theater .floating-start:not([hidden]){display:block}@media(max-width:480px){.floating-start{bottom:17px;font-size:12px;padding:6px 14px}}
 
 @media(max-width:480px){.intro{top:14%;padding:6px}.intro h2{font-size:24px}.intro p{font-size:8px}.intro small{font-size:6px}.intro button{font-size:10px;padding:6px 8px}}
+
+.test-bark{width:100%;margin:0 0 4px;background:#e5efe0;color:#285b36;border-color:#ccdfc6;font-size:12px}.test-bark+.help{margin:0 0 14px}.scene-caption{font-size:clamp(16px,1.8vw,30px)}
