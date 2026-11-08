@@ -90,17 +90,44 @@ function gdp_copied_activity_matches(array $data,array $entry,string $class,stri
     }
     return false;
 }
+/** Bind legacy/copied draft identities only during the user's explicit weekly confirmation. */
+function gdp_plan_binding_signature(array $entry): string {
+    return hash('sha256',json_encode([(string)($entry['activity_id']??''),(string)($entry['teacher']??''),(string)($entry['subject']??''),array_values((array)($entry['classes']??[]))],JSON_UNESCAPED_UNICODE));
+}
+function gdp_confirm_plan_bindings(array $data,array $picks): array {
+    $bindings=[];
+    foreach((array)($data['plans']??[])as$plan){
+        $planId=(string)($plan['id']??'');if($planId==='')continue;
+        $classCounts=[];$idCounts=[];
+        foreach((array)($plan['entries']??[])as$entry){
+            $id=(string)($entry['activity_id']??'');$idCounts[$id]=($idCounts[$id]??0)+1;
+            if(gdp_subject((string)($entry['subject']??'')))foreach((array)($entry['classes']??[])as$class)$classCounts[$class]=($classCounts[$class]??0)+1;
+        }
+        foreach((array)($plan['entries']??[])as$entry){
+            $classes=array_values((array)($entry['classes']??[]));$id=(string)($entry['activity_id']??'');
+            if(!gdp_subject((string)($entry['subject']??''))||count($classes)!==1||$id===''||($idCounts[$id]??0)!==1)continue;
+            $class=(string)$classes[0];$pick=$picks[$class]??null;
+            if(!$pick||($classCounts[$class]??0)!==1||(int)$pick['period']>35||($entry['teacher']??'')!==$pick['teacher'])continue;
+            $bindings[$planId][$id]=['class'=>$class,'teacher'=>$pick['teacher'],'period'=>(int)$pick['period'],'signature'=>gdp_plan_binding_signature($entry)];
+        }
+    }
+    return $bindings;
+}
 /** Match stored plan entries, never silently change teachers in an existing plan. */
 function gdp_publish_periods(array $data,array $plan,string $weekKey,string $from): array {
     $source=gdp_builder_configs();$configs=$source['configs'];if(!$configs)return [];
     $ctx=gdp_week_context($data);if($ctx['key']!==$weekKey||$ctx['start']!==$from)throw new RuntimeException('GDĐP: tuần công bố phải trùng tuần đã xác nhận.');
     if(($data['program_week']['progress_hash']??'')!==gdp_progress_hash($configs,$ctx,gdp_week_records($ctx)))throw new RuntimeException('Tiến độ GDĐP đã thay đổi sau lần xác nhận (có thể do ký sổ muộn). Hãy kiểm tra và xác nhận lại tại Khối lượng; phương án chưa bị thay đổi.');
-    $rows=gdp_week_rows($data,$configs,$source['version']);$byClass=[];foreach($rows as$r)$byClass[$r['class']]=$r;$found=[];$periods=[];
+    $rows=gdp_week_rows($data,$configs,$source['version']);$byClass=[];foreach($rows as$r)$byClass[$r['class']]=$r;$found=[];$periods=[];$idCounts=[];
+    foreach((array)($plan['entries']??[])as$entry){$id=(string)($entry['activity_id']??'');$idCounts[$id]=($idCounts[$id]??0)+1;}
     foreach((array)($plan['entries']??[])as$e)foreach((array)($e['classes']??[])as$class){if(!gdp_subject((string)($e['subject']??''))||!isset($configs[$class]))continue;$r=$byClass[$class]??null;
         if(!$r)throw new RuntimeException('GDĐP lớp '.$class.': đã xác nhận hoàn thành chương trình nhưng phương án vẫn còn tiết. Hãy kiểm tra lại.');
         if(($e['teacher']??'')!==$r['teacher'])throw new RuntimeException('GDĐP lớp '.$class.': tiết chương trình '.$r['program_period'].' cần giáo viên '.$r['teacher'].'; phương án đang xếp '.(string)($e['teacher']??'').'. Hãy sửa riêng tiết này trước khi công bố.');
         if(isset($found[$class]))throw new RuntimeException('GDĐP lớp '.$class.': phương án có nhiều hơn 1 tiết. Hãy kiểm tra tiết trùng.');
-        if(($e['activity_id']??'')!==$r['id'].'_1'&&!gdp_copied_activity_matches($data,$e,(string)$class,$source['version']))throw new RuntimeException('GDĐP lớp '.$class.': mã tiết trong phương án không khớp lần xác nhận hiện tại. Hãy xếp lại riêng tiết GDĐP và kiểm tra trước khi công bố.');
+        if(($e['activity_id']??'')===''||($idCounts[(string)$e['activity_id']]??0)!==1)throw new RuntimeException('GDĐP lớp '.$class.': mã tiết bị thiếu hoặc dùng trùng trong phương án. Hãy kiểm tra trước khi công bố.');
+        $binding=$data['program_week']['plan_bindings'][(string)($plan['id']??'')][(string)($e['activity_id']??'')]??null;
+        $confirmedBinding=is_array($binding)&&($binding['class']??'')===(string)$class&&($binding['teacher']??'')===$r['teacher']&&(int)($binding['period']??0)===(int)$r['program_period']&&($binding['signature']??'')===gdp_plan_binding_signature($e);
+        if(($e['activity_id']??'')!==$r['id'].'_1'&&!gdp_copied_activity_matches($data,$e,(string)$class,$source['version'])&&!$confirmedBinding)throw new RuntimeException('GDĐP lớp '.$class.': mã tiết sao chép chưa được liên kết với tuần hiện tại. Vào Khối lượng, bấm Xác nhận tiết và giáo viên để liên kết phương án đang có; không cần xếp lại toàn bộ TKB.');
         $found[$class]=true;$periods[$e['activity_id']]=$r['program_period'];
     }
     foreach($byClass as$class=>$r)if(!isset($found[$class]))throw new RuntimeException('GDĐP lớp '.$class.' chưa được xếp đủ 1 tiết.');

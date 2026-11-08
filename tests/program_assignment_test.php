@@ -89,6 +89,32 @@ try{
  check($GLOBALS['weeks'][0]['slots']===$beforeWeeks[0]['slots'],'Publishing copy preserves source week lessons');
  $GLOBALS['weeks']=$beforeWeeks;$GLOBALS['CDS_TTB_CURRENT_DATA']=$data;
 
+ // Legacy IDs and workspaces without copy metadata require an explicit confirmation of the actual draft.
+ $originalData=$data;$legacyData=$copied;unset($legacyData['_workspace']['copied_from']);
+ $legacyPlan=$copiedPlan;$legacyPlan['entries'][0]['activity_id']='legacy_assignment_10A_1';
+ $legacyPlan['entries'][]=['activity_id'=>'other','teacher'=>'C','subject'=>'Toán','classes'=>['8A'],'day'=>3,'session'=>'Sáng','period'=>2];
+ $legacyData['plans']=[$legacyPlan];$legacyData['active_plan']=$legacyPlan['id'];
+ rejects(fn()=>gdp_publish_periods($legacyData,$legacyPlan,'10','2026-11-09'),'Unconfirmed legacy identity still blocked');
+ $data=$legacyData;$user=['name'=>'Fixture'];$_POST=['program_workspace'=>'w10','program_week_key'=>'10','program_version'=>'v1','program_hash'=>hash('sha256',json_encode($configs)),'program_period'=>['8A'=>'10']];
+ require __DIR__.'/../includes/program_week_confirm.php';
+ $confirmed=$GLOBALS['saved_workspace'];check($confirmed['plans']===$legacyData['plans'],'Real confirmation retains every draft entry, lock, room and schedule slot');
+ $periods=gdp_publish_periods($confirmed,$legacyPlan,'10','2026-11-09');check($periods['legacy_assignment_10A_1']===10,'Explicit confirmation binds legacy ID to target period 10 without copy metadata');
+ $bad=$legacyPlan;$bad['id']='different-plan';rejects(fn()=>gdp_publish_periods($confirmed,$bad,'10','2026-11-09'),'Binding cannot be replayed in another plan');
+ $bad=$legacyPlan;$bad['entries'][0]['activity_id']='different-id';rejects(fn()=>gdp_publish_periods($confirmed,$bad,'10','2026-11-09'),'Binding cannot be replayed for another activity');
+ $bad=$legacyPlan;$bad['entries'][0]['teacher']='A';rejects(fn()=>gdp_publish_periods($confirmed,$bad,'10','2026-11-09'),'Binding cannot override teacher validation');
+ $bad=$legacyPlan;$bad['entries'][]=$bad['entries'][0];rejects(fn()=>gdp_publish_periods($confirmed,$bad,'10','2026-11-09'),'Binding cannot bypass duplicate GDĐP checks');
+ $bad=$legacyPlan;$bad['entries'][1]['teacher']='B';$bad['entries'][1]['day']=2;$bad['entries'][1]['period']=1;rejects(fn()=>gdp_publish_periods($confirmed,$bad,'10','2026-11-09'),'Binding cannot bypass teacher collisions');
+ $bad=$legacyPlan;$bad['entries'][0]['classes'][]='8B';rejects(fn()=>gdp_publish_periods($confirmed,$bad,'10','2026-11-09'),'Binding signature cannot be reused after class changes');
+ $ambiguous=$legacyData;$ambiguous['plans'][0]['entries'][]=$legacyPlan['entries'][0];check(gdp_confirm_plan_bindings($ambiguous,$confirmed['program_week']['classes'])===[],'Confirmation does not bind duplicate GDĐP lessons');
+ $ambiguous=$legacyData;$ambiguous['plans'][0]['entries'][1]['activity_id']='legacy_assignment_10A_1';check(gdp_confirm_plan_bindings($ambiguous,$confirmed['program_week']['classes'])===[],'Confirmation does not bind IDs reused by other subjects');
+ rejects(fn()=>gdp_publish_periods($confirmed,$ambiguous['plans'][0],'10','2026-11-09'),'Published binding cannot leak program period to another subject reusing its ID');
+ $GLOBALS['CDS_TTB_CURRENT_DATA']=$confirmed;
+ $result=ttb_publish($legacyPlan,'Tuần 10','2026-11-09','2026-11-14',['name'=>'fixture'],false,'10');check(!empty($result['ok']),'Actual publish accepts explicitly confirmed legacy draft');
+ check($result['version']['slots'][0]['program_period']===10&&$result['version']['slots'][0]['room_id']==='room1'&&$result['version']['slots'][1]['program_period']===0,'Legacy publish pins GDĐP period and leaves other subjects untouched');
+ check($GLOBALS['weeks'][0]['slots']===$beforeWeeks[0]['slots'],'Legacy publish preserves source week lessons');
+ $data=$originalData;$GLOBALS['CDS_TTB_CURRENT_DATA']=$data;$GLOBALS['weeks']=$beforeWeeks;
+ echo "PASS explicit legacy confirmation: draft preservation, week10/period10, real publish, plan/activity/class scope, duplicates, shared IDs and teacher collisions\n";
+
  $data['_workspace_id']='w9';$user=['name'=>'Fixture'];$_POST=['program_workspace'=>'w9','program_week_key'=>'9','program_version'=>'v1','program_hash'=>hash('sha256',json_encode($configs)),'program_period'=>['8A'=>'8']];
  require __DIR__.'/../includes/program_week_confirm.php';
  check($GLOBALS['saved_workspace']['program_week']['classes']['8A']['teacher']==='B','Real weekly confirmation selects teacher B at period 8');
