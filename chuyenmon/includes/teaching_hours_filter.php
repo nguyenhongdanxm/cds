@@ -1,4 +1,4 @@
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2"><h3 class="mb-0"><?=e($page_title)?></h3><div class="d-flex gap-2"><a class="btn btn-sm btn-outline-primary" href="<?=e(BASE_URL.'gio_day.php?'.http_build_query($thQuery))?>">Tổng hợp</a><a class="btn btn-sm btn-outline-primary" href="<?=e(BASE_URL.'gio_day_xuat.php?'.http_build_query($thQuery))?>">Xuất dữ liệu</a></div></div>
+<h3 class="mb-3"><?=e($page_title)?></h3>
 <form method="get" action="<?=e(BASE_URL.basename($_SERVER['PHP_SELF']))?>" class="row g-2 align-items-end mb-3">
 <?php if(isset($thTab)): ?><input type="hidden" name="tab" value="<?=e($thTab)?>"><?php endif; ?>
 <div class="col-6 col-md-2"><label class="form-label small mb-1">Từ ngày dạy</label><input class="form-control form-control-sm" type="date" name="from" value="<?=e($thFrom)?>" required></div><div class="col-6 col-md-2"><label class="form-label small mb-1">Đến ngày dạy</label><input class="form-control form-control-sm" type="date" name="to" value="<?=e($thTo)?>" required></div>

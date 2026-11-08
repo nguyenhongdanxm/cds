@@ -35,8 +35,7 @@ $cmNavGroups = [
         ['permission'=>'cm.tracuu','pages'=>['thoikhoabieu'],'href'=>'thoikhoabieu.php','icon'=>'bi-calendar3','label'=>'Thời khóa biểu'],
         ['permission'=>'cm.tracuu','pages'=>['tracuu'],'href'=>'tracuu.php','icon'=>'bi-search','label'=>'Tra cứu phân công'],
         ['permission'=>'cm.baocao.tiendo','pages'=>['baocao'],'tab'=>'tiendo','href'=>'baocao.php?tab=tiendo','icon'=>'bi-graph-up-arrow','label'=>'Tiến độ chương trình'],
-        ['permission'=>'cm.dashboard','pages'=>['gio_day'],'href'=>'gio_day.php','icon'=>'bi-calculator','label'=>'Tổng hợp giờ dạy'],
-        ['permission'=>'cm.dashboard','pages'=>['gio_day_xuat'],'href'=>'gio_day_xuat.php','icon'=>'bi-file-earmark-excel','label'=>'Xuất dữ liệu giờ dạy'],
+        ['permission'=>'cm.dashboard','pages'=>['gio_day','gio_day_xuat'],'href'=>'gio_day.php','icon'=>'bi-calculator','label'=>'Tổng hợp giờ dạy'],
     ]],
     ['label'=>'Học tập','icon'=>'bi-mortarboard','items'=>[
         ['permission'=>'cm.support','pages'=>['boiduong'],'href'=>'boiduong.php','icon'=>'bi-mortarboard','label'=>'Bồi dưỡng học sinh'],
