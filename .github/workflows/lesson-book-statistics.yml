@@ -5,6 +5,11 @@ on:
       - 'chuyenmon/sodaubai.php'
       - 'chuyenmon/sodaubai_stats_export.php'
       - 'chuyenmon/includes/lesson_book_store.php'
+      - 'chuyenmon/includes/lesson_book_performance.php'
+      - 'tests/lesson_book_write_cache_test.php'
+      - 'tests/lesson_book_filter_parity_test.php'
+      - 'tests/lesson_book_performance_http_test.py'
+      - 'tests/support/lesson_book_statistics_filter_reference.php'
       - 'chuyenmon/includes/lesson_book_student_roster.php'
       - 'chuyenmon/includes/lesson_book_stat*.php'
       - 'chuyenmon/includes/lesson_book_attendance*.php'
@@ -58,6 +63,9 @@ jobs:
           php tests/progress_slots_test.php
           php tests/lesson_book_candidate_index_test.php
           php tests/lesson_book_curriculum_index_test.php
+          php tests/lesson_book_write_cache_test.php
+          php tests/lesson_book_filter_parity_test.php
+          python3 tests/lesson_book_performance_http_test.py
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 10
