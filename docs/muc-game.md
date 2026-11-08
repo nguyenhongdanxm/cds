@@ -96,3 +96,9 @@ Bộ đạo cụ tạo bằng công cụ tạo ảnh tích hợp: atlas trong su
 - Nhạc Rê thứ, bass và kick bắt đầu từ nhịp đầu tiên sau khi bấm chơi; phần rón rén tăng nhịp rồi chuyển sang rượt đuổi. Không tự phát trước thao tác người dùng.
 - Đóng gói font Nunito biến thiên có đủ chữ Việt trong assets/muc/nunito-v1.woff (Google Fonts, giấy phép OFL trong nunito-OFL.txt). Canvas chờ font, dùng cùng font với giao diện để chữ Việt nhất quán. Nguồn: https://github.com/google/fonts/tree/main/ofl/nunito .
 - Bảng kết quả nền kem viền nâu, nhãn đỏ nhô lên, tên cam lớn, nút Gọi tiếp/Danh sách. Tên dài xuống dòng; giữ bố cục gọn trên màn nhỏ. Danh sách mở bảng họ tên, không thay đổi học sinh được chọn.
+
+## Dừng đuổi và đứng dậy khóc 20261108-8
+
+- Bạn cuối ngã → Mực dừng hẳn tại chỗ → nói “Bắt được rồi nhé” → học sinh đứng dậy trên hai chân, khóc/run/sợ, đáp “Em ko dám trốn nữa”. Cả nhóm vẫn quay nhìn và lo lắng; giữ khung 16:9.
+- Bổ sung standing-fear-v1.webp/.json: hai hình nam/nữ đứng thẳng, tay bên má, mắt sợ/khóc, nhìn về chó; tạo mới bằng công cụ tạo ảnh tích hợp trên nền alpha, áo trắng khăn đỏ/quần hoặc váy xanh/dép xanh. Đóng gói nguyên alpha thành WebP.
+- Tiếng nói đặt volume 0.14; nhạc giữ gain 0.65 và không tự giảm khi nói. Nhạc hồi hộp có bass từ đầu vẫn chạy trong đoạn kết. Dừng tiếng sủa theo nhịp khi Mực đã đứng lại. Giọng Việt dùng cơ chế thiết bị như trước.
