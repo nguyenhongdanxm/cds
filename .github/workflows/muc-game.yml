@@ -1,9 +1,9 @@
 name: Muc school game
 on:
   push:
-    paths: ['hoclieu_game_muc.php', 'hoclieu.php', 'assets/cds-muc*', 'assets/muc/**', 'tests/cds_muc*', '.github/workflows/muc-game.yml']
+    paths: ['tools/deploy_cds.php', '.cpanel.yml', 'tests/staff_evaluation_deploy_test.php', 'hoclieu_game_muc.php', 'hoclieu.php', 'assets/cds-muc*', 'assets/muc/**', 'tests/cds_muc*', '.github/workflows/muc-game.yml']
   pull_request:
-    paths: ['hoclieu_game_muc.php', 'hoclieu.php', 'assets/cds-muc*', 'assets/muc/**', 'tests/cds_muc*', '.github/workflows/muc-game.yml']
+    paths: ['tools/deploy_cds.php', '.cpanel.yml', 'tests/staff_evaluation_deploy_test.php', 'hoclieu_game_muc.php', 'hoclieu.php', 'assets/cds-muc*', 'assets/muc/**', 'tests/cds_muc*', '.github/workflows/muc-game.yml']
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -15,6 +15,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: php -l hoclieu.php && php -l hoclieu_game_muc.php && php tests/cds_muc_roster_test.php
+      - run: php -l hoclieu.php && php -l hoclieu_game_muc.php && php tests/cds_muc_roster_test.php && php tests/staff_evaluation_deploy_test.php
       - run: node --check assets/cds-muc.js && node --check assets/cds-muc-scene.js
       - run: node tests/cds_muc_engine_test.cjs && node tests/cds_muc_controller_test.cjs

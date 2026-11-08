@@ -32,6 +32,8 @@ Quản trị ẩn/hiện game trong phần cài đặt trò chơi hiện có. Qu
 - `assets/cds-muc.js`
 - Cả thư mục `assets/muc/` (3 ảnh WebP, tổng khoảng 1 MB).
 
+Nếu dùng cPanel Git Version Control: chọn repository CDS → Manage → Pull or Deploy → Update from Remote, sau đó Deploy HEAD Commit. Script `tools/deploy_cds.php` phải có `hoclieu_game_muc.php` trong `$rootFiles`; nếu thiếu mục này thì menu có thể đã cập nhật nhưng trang game vẫn báo 404. Toàn bộ `assets/` được script sao chép tự động.
+
 Không cần tạo bảng hoặc thay đổi dữ liệu. Dùng bảng cấu hình ẩn/hiện đã có của hệ thống. Không đưa thư mục preview hoặc dữ liệu thử lên hosting. Sau tải lên, làm mới mạnh trình duyệt và mở Học liệu → Trò chơi → Mực ơi đừng dậy!.
 
 Kiểm tra với một lớp thật: đối chiếu số học sinh, bỏ một em, chơi hai lượt không lặp, tạm dừng/tiếp tục, kết thúc trước công bố, đổi lớp và thử trên điện thoại. Commit GitHub không tự xác nhận hosting đã cập nhật.
