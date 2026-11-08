@@ -1,0 +1,63 @@
+name: Authoritative lesson book store safety
+on:
+  pull_request:
+    paths:
+      - 'includes/lesson_book_primary.php'
+      - 'includes/database_lesson_book.php'
+      - 'includes/json_store.php'
+      - 'database_admin.php'
+      - 'chuyenmon/includes/lesson_book_bulk_delete.php'
+      - 'chuyenmon/includes/teaching_hours_bootstrap.php'
+      - 'tests/lesson_book_primary*'
+      - '.github/workflows/lesson-book-primary.yml'
+  workflow_dispatch:
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: |
+          php -l includes/lesson_book_primary.php
+          php -l includes/json_store.php
+          php -l includes/database_lesson_book.php
+          php -l database_admin.php
+          php tests/lesson_book_primary_guard_test.php
+          php tests/lesson_book_write_cache_test.php
+          php tests/lesson_book_bulk_delete_test.php
+  sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        database: ['mysql:8.0', 'mariadb:10.11']
+    services:
+      mysql:
+        image: ${{ matrix.database }}
+        env:
+          MYSQL_ROOT_PASSWORD: fixture-root-only-password
+          MYSQL_DATABASE: cds_disposable_test
+          MYSQL_USER: cds_fixture
+          MYSQL_PASSWORD: fixture-only-password
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_mysql
+      - name: Migration, exact signatures, concurrent saves and rollback
+        env:
+          CDS_TEST_MYSQL: disposable-ci
+          CDS_TEST_MYSQL_PORT: ${{ job.services.mysql.ports[3306] }}
+        run: php tests/lesson_book_primary_mysql.php

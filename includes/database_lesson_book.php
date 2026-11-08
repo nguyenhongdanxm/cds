@@ -20,12 +20,14 @@ function cds_lb_shadow_enabled(){return cds_lb_setting('lesson_book_shadow_write
 function cds_lb_read_configured(){return cds_lb_setting('lesson_book_sql_read');}
 function cds_lb_actor_name($actor){return(string)($actor['username']??$actor['name']??'');}
 function cds_lb_set_setting($key,$enabled,$actor){
+ $modeLock=fopen(cds_lb_records_path().'.lock','c');if(!$modeLock||!flock($modeLock,LOCK_EX))throw new RuntimeException('Không khóa được nguồn sổ đầu bài.');try{
+    if(cds_lb_primary_enabled()&&!$enabled&&in_array($key,['lesson_book_shadow_write','lesson_book_sql_read'],true))throw new RuntimeException('Hãy xuất và quay về JSON trước khi tắt cấu hình MySQL.');
     $pdo=cds_db();$pdo->beginTransaction();try{
         $s=$pdo->prepare("INSERT INTO cds_runtime_settings(setting_key,setting_value,updated_by,updated_at) VALUES(?,?,?,NOW()) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_by=VALUES(updated_by),updated_at=NOW()");
         $s->execute([$key,$enabled?'1':'0',cds_lb_actor_name((array)$actor)]);$pdo->commit();
     }catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     $GLOBALS['cds_lb_setting_'.$key]=(bool)$enabled;unset($GLOBALS['cds_lb_read_status']);
-}
+}finally{flock($modeLock,LOCK_UN);fclose($modeLock);}}
 
 function cds_lb_normalize($value){
     $value=mb_strtolower(trim((string)$value),'UTF-8');$ascii=@iconv('UTF-8','ASCII//TRANSLIT//IGNORE',$value);if(is_string($ascii))$value=$ascii;
@@ -64,7 +66,7 @@ function cds_lb_upsert(PDO $pdo,array $row){
     $claimedPeriod=cds_lb_claims_ppct($row)?(int)$row['ppct_period']:null;
     $pdo->prepare($sql)->execute([$slot,$row['school_year_key'],(string)($row['week_key']??''),(string)($row['date']??''),(string)($row['session']??''),(int)($row['period']??0),$row['class_key'],(string)($row['class']??''),$row['subject_key'],(string)($row['subject']??''),$claimedPeriod,(string)($row['status']??'pending'),(string)($row['scheduled_teacher']??''),(string)($row['actual_teacher']??''),cds_lb_datetime($row['signed_at']??''),cds_lb_datetime($row['updated_at']??$row['created_at']??''),cds_lb_json($row)]);
 }
-function cds_lb_source_rows(){return array_values(array_filter((array)cds_json_load(cds_lb_records_path(),[]),'is_array'));}
+function cds_lb_source_rows(){return array_values(array_filter(cds_lb_snapshot_rows(),'is_array'));}
 function cds_lb_sql_rows($where='',$values=[]){$s=cds_db()->prepare('SELECT raw_json FROM cds_lesson_book_records '.$where);$s->execute($values);$out=[];while($db=$s->fetch(PDO::FETCH_ASSOC)){$r=json_decode((string)$db['raw_json'],true);if(!is_array($r))throw new RuntimeException('MySQL có bản ghi Sổ đầu bài không hợp lệ.');$out[]=$r;}return$out;}
 function cds_lb_sql_all(){return cds_lb_sql_rows('ORDER BY lesson_date,session_code,timetable_period,class_name');}
 function cds_lb_sql_range($from,$to){
@@ -73,28 +75,41 @@ function cds_lb_sql_range($from,$to){
     if((string)$to!==''){$where[]='lesson_date<=?';$values[]=(string)$to;}
     return cds_lb_sql_rows(($where?'WHERE '.implode(' AND ',$where).' ':'').'ORDER BY lesson_date,session_code,timetable_period,class_name',$values);
 }
+/** Exact prefilter for teaching-hours reports; final PHP rules still apply. */
+function cds_lb_sql_report_range($from,$to){
+ $where=[];$values=[];if((string)$from!==''){$where[]='lesson_date>=?';$values[]=(string)$from;}if((string)$to!==''){$where[]='lesson_date<=?';$values[]=(string)$to;}
+ $where[]="status_code IN ('taught','substitute','makeup','online','fill')";
+ // Include unusual legacy nonempty signature values too; never silently omit them.
+ $where[]="(signed_at IS NOT NULL OR JSON_UNQUOTE(JSON_EXTRACT(raw_json,'$.signed_at')) NOT IN ('','0'))";
+ return cds_lb_sql_rows('WHERE '.implode(' AND ',$where).' ORDER BY lesson_date,session_code,timetable_period,class_name',$values);
+}
 function cds_lb_sql_until($schoolYear,$date){return cds_lb_sql_rows('WHERE school_year_key=? AND lesson_date<=? ORDER BY lesson_date,session_code,timetable_period,class_name',[(string)$schoolYear,(string)$date]);}
 
 function cds_lb_hash_map(array $rows){$out=[];foreach($rows as$r){$r=cds_lb_enrich($r);$id=(string)($r['slot_id']??'');if($id==='')continue;ksort($r);$out[$id]=hash('sha256',cds_lb_json($r));}ksort($out);return$out;}
 function cds_lb_compare(){try{$json=cds_lb_source_rows();$sql=cds_lb_sql_all();$a=cds_lb_hash_map($json);$b=cds_lb_hash_map($sql);return['is_match'=>$a===$b,'json_count'=>count($a),'mysql_count'=>count($b)];}catch(Throwable$e){return['is_match'=>false,'json_count'=>count(cds_lb_source_rows()),'mysql_count'=>0,'error'=>$e->getMessage()];}}
 function cds_lb_import_snapshot($actor=[]){
+    $lock=fopen(cds_lb_records_path().'.lock','c');if(!$lock||!flock($lock,LOCK_EX))throw new RuntimeException('Không khóa được nguồn sổ đầu bài.');try{
+    if(cds_lb_primary_enabled())throw new RuntimeException('MySQL đang là nguồn chính; không nhập đè bản JSON cũ.');
     $rows=cds_lb_source_rows();$seen=[];$claims=[];foreach($rows as$i=>$row){$row=cds_lb_enrich($row);$id=trim((string)($row['slot_id']??''));if($id===''||($row['date']??'')===''||$row['class_key']===''||$row['subject_key']==='')throw new RuntimeException('Bản ghi '.($i+1).' thiếu khóa chuẩn.');if(isset($seen[$id]))throw new RuntimeException('Trùng mã tiết '.$id.'.');$seen[$id]=true;if(cds_lb_claims_ppct($row)){$claim=$row['school_year_key'].'|'.$row['class_key'].'|'.$row['subject_key'].'|'.(int)$row['ppct_period'];if(isset($claims[$claim]))throw new RuntimeException('Phát hiện hai tiết đã ký cùng năm học–lớp–môn–tiết PPCT. Hãy xử lý bản trùng trước khi chuyển MySQL.');$claims[$claim]=true;}}
     $pdo=cds_db();$pdo->beginTransaction();try{$pdo->exec('DELETE FROM cds_lesson_book_records');foreach($rows as$row)cds_lb_upsert($pdo,$row);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     cds_lb_pending_clear();$result=cds_lb_compare();if(empty($result['is_match']))throw new RuntimeException('Đã nhập nhưng đối chiếu chi tiết chưa khớp.');return$result;
-}
+}finally{flock($lock,LOCK_UN);fclose($lock);}}
 function cds_lb_shadow_set($enabled,$actor){if($enabled){$c=cds_lb_compare();if(empty($c['is_match']))throw new RuntimeException('Bản sao MySQL chưa khớp JSON.');if(cds_lb_pending_status())throw new RuntimeException('Còn đồng bộ Sổ đầu bài đang chờ.');}cds_lb_set_setting('lesson_book_shadow_write',$enabled,$actor);}
 function cds_lb_read_status(){
+    if(cds_lb_primary_enabled())return ['configured'=>true,'effective'=>true,'reason'=>'MySQL là nguồn chính; không tự đọc JSON cũ khi lỗi.'];
     if(isset($GLOBALS['cds_lb_read_status']))return$GLOBALS['cds_lb_read_status'];
     if(!cds_lb_read_configured())return$GLOBALS['cds_lb_read_status']=['configured'=>false,'effective'=>false,'reason'=>'Chưa bật đọc MySQL Sổ đầu bài.'];
     if(!cds_lb_shadow_enabled())return$GLOBALS['cds_lb_read_status']=['configured'=>true,'effective'=>false,'reason'=>'Ghi bản sao MySQL đang tắt.'];
     if(cds_lb_pending_status())return$GLOBALS['cds_lb_read_status']=['configured'=>true,'effective'=>false,'reason'=>'Còn đồng bộ Sổ đầu bài đang chờ.'];
     try{cds_db()->query('SELECT 1 FROM cds_lesson_book_records LIMIT 1');return$GLOBALS['cds_lb_read_status']=['configured'=>true,'effective'=>true,'reason'=>''];}catch(Throwable$e){return$GLOBALS['cds_lb_read_status']=['configured'=>true,'effective'=>false,'reason'=>'MySQL Sổ đầu bài chưa sẵn sàng.'];}
 }
-function cds_lb_read_effective(){return empty($GLOBALS['cds_force_json_lb_read'])&&!empty(cds_lb_read_status()['effective']);}
+function cds_lb_read_effective(){if(cds_lb_primary_enabled())return true;return empty($GLOBALS['cds_force_json_lb_read'])&&!empty(cds_lb_read_status()['effective']);}
 function cds_lb_read_set($enabled,$actor){if($enabled){if(!cds_lb_shadow_enabled())throw new RuntimeException('Cần bật ghi bản sao trước.');if(cds_lb_pending_status())throw new RuntimeException('Còn đồng bộ đang chờ.');if(empty(cds_lb_compare()['is_match']))throw new RuntimeException('JSON và MySQL chưa khớp.');}cds_lb_set_setting('lesson_book_sql_read',$enabled,$actor);}
 
-function cds_lb_shadow_upsert(array $row){if(!cds_lb_shadow_enabled())return true;if(!cds_lb_pending_mark('upsert'))return false;try{$pdo=cds_db();$pdo->beginTransaction();cds_lb_upsert($pdo,$row);$pdo->commit();return cds_lb_pending_clear();}catch(Throwable$e){if(isset($pdo)&&$pdo instanceof PDO&&$pdo->inTransaction())$pdo->rollBack();error_log('[CDS lesson book shadow] '.$e->getMessage());return false;}}
-function cds_lb_shadow_delete($slotId){if(!cds_lb_shadow_enabled())return true;if(!cds_lb_pending_mark('delete'))return false;try{$s=cds_db()->prepare('DELETE FROM cds_lesson_book_records WHERE slot_id=?');$s->execute([(string)$slotId]);return cds_lb_pending_clear();}catch(Throwable$e){error_log('[CDS lesson book shadow delete] '.$e->getMessage());return false;}}
+function cds_lb_shadow_upsert(array $row){
+ $modeLock=fopen(cds_lb_records_path().'.lock','c');if(!$modeLock||!flock($modeLock,LOCK_EX))throw new RuntimeException('Không khóa được nguồn sổ đầu bài.');try{if(cds_lb_primary_enabled())return true;if(!cds_lb_shadow_enabled())return true;if(!cds_lb_pending_mark('upsert'))return false;try{$pdo=cds_db();$pdo->beginTransaction();cds_lb_upsert($pdo,$row);$pdo->commit();return cds_lb_pending_clear();}catch(Throwable$e){if(isset($pdo)&&$pdo instanceof PDO&&$pdo->inTransaction())$pdo->rollBack();error_log('[CDS lesson book shadow] '.$e->getMessage());return false;}}finally{flock($modeLock,LOCK_UN);fclose($modeLock);}}
+function cds_lb_shadow_delete($slotId){
+ $modeLock=fopen(cds_lb_records_path().'.lock','c');if(!$modeLock||!flock($modeLock,LOCK_EX))throw new RuntimeException('Không khóa được nguồn sổ đầu bài.');try{if(cds_lb_primary_enabled())return true;if(!cds_lb_shadow_enabled())return true;if(!cds_lb_pending_mark('delete'))return false;try{$s=cds_db()->prepare('DELETE FROM cds_lesson_book_records WHERE slot_id=?');$s->execute([(string)$slotId]);return cds_lb_pending_clear();}catch(Throwable$e){error_log('[CDS lesson book shadow delete] '.$e->getMessage());return false;}}finally{flock($modeLock,LOCK_UN);fclose($modeLock);}}
 
 function cds_lb_mutate_json($operation,$slotId,array $row=[]){
     $error='';$result=null;$ok=cds_json_update(cds_lb_records_path(),function($rows)use($operation,$slotId,$row,&$result,&$error){$rows=array_values(array_filter(is_array($rows)?$rows:[],'is_array'));$found=false;$next=[];foreach($rows as$current){if((string)($current['slot_id']??'')!==(string)$slotId){$next[]=$current;continue;}$found=true;$result=$current;if($operation==='delete')continue;$result=array_merge($current,$row);$next[]=$result;}if(!$found&&$operation==='upsert'){$result=$row;$next[]=$row;}if(!$found&&$operation!=='upsert')return false;

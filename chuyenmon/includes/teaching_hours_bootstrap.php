@@ -18,7 +18,7 @@ $thSourceVersion=(string)($_REQUEST['source_version']??get_active_version_id());
 $thSourceRoles=$thSourceVersion!==''?(array)load_json(role_assignments_file($thSourceVersion),[]):[];
 $thSourceHash=hash('sha256',json_encode($thSourceRoles));$thRates=[];foreach(get_roles()as$r)$thRates[$r['name']]=(float)($r['periods']??0);
 $thReadRecords=function()use($thFrom,$thTo){
- if(cds_lb_read_effective()){try{return cds_lb_sql_range($thFrom,$thTo);}catch(Throwable $error){error_log('[CDS hours SQL fallback] '.$error->getMessage());$GLOBALS['th_source_warning']='Không đọc được nguồn MySQL của sổ đầu bài; đang dùng dữ liệu JSON dự phòng. Cần đối chiếu đồng bộ trước khi chốt bảng kê.';return (array)load_json(LB_RECORDS_FILE,[]);}}
+ if(cds_lb_read_effective()){try{return function_exists('cds_lb_sql_report_range')?cds_lb_sql_report_range($thFrom,$thTo):cds_lb_sql_range($thFrom,$thTo);}catch(Throwable $error){error_log('[CDS hours SQL fallback] '.$error->getMessage());$GLOBALS['th_source_warning']='Không đọc được nguồn MySQL của sổ đầu bài; đang dùng dữ liệu JSON dự phòng. Cần đối chiếu đồng bộ trước khi chốt bảng kê.';return (array)load_json(LB_RECORDS_FILE,[]);}}
  return lb_rows(LB_RECORDS_FILE);
 };
 $thNeedActual=basename($_SERVER['PHP_SELF']??'')!=='gio_day.php'||($_GET['tab']??'actual')!=='roles'||($_POST['action']??'')==='hours_category';

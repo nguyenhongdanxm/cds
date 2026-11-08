@@ -202,6 +202,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (($_POST['action'] ?? '') === 'set_lesson_book_primary') {
+        try { $enabled=($_POST['enabled']??'')==='1';cds_lb_primary_switch($enabled);flash($enabled?'Đã chuyển nguồn ghi chính sổ đầu bài sang MySQL. JSON trước chuyển được giữ nguyên.':'Đã xuất dữ liệu mới nhất, đối chiếu và quay về JSON.','success'); }
+        catch(Throwable $e){flash('Chưa đổi nguồn sổ đầu bài: '.$e->getMessage(),'danger');}
+    }
+
     if (($_POST['action'] ?? '') === 'import_lesson_book_snapshot') {
         try { $r=cds_lb_import_snapshot(current_user());flash('Đã sao chép và đối chiếu '.(int)$r['json_count'].' bản ghi Sổ đầu bài vào MySQL.','success'); }
         catch(Throwable $e){flash('Không thể nhập bản sao Sổ đầu bài: '.$e->getMessage(),'danger');}
@@ -246,7 +251,7 @@ $mealComparison = null;
 $mealPending = null;
 $mealReadReady = false;
 $mealReadStatus = array('configured'=>false,'effective'=>false,'ready'=>false,'reason'=>'Chưa cài đặt bản nâng cấp.');
-$lessonBookReady=false;$lessonBookComparison=null;$lessonBookShadow=false;$lessonBookReadStatus=['configured'=>false,'effective'=>false,'reason'=>'Chưa cài đặt bản nâng cấp.'];$lessonBookPending=null;
+$lessonBookPrimary=cds_lb_primary_enabled();$lessonBookReady=false;$lessonBookComparison=null;$lessonBookShadow=false;$lessonBookReadStatus=['configured'=>false,'effective'=>false,'reason'=>'Chưa cài đặt bản nâng cấp.'];$lessonBookPending=null;
 $healthSqlReady=false;$healthComparison=null;$healthShadow=false;$healthSqlRead=false;$healthPending=false;
 $sqlReadStatus = array(
     'configured' => false,
@@ -951,6 +956,7 @@ include __DIR__ . '/includes/nav_top.php';
   <?php endif; ?>
 
   <?php if ($lessonBookReady): ?>
+  <?php if(!$lessonBookPrimary): ?>
   <section class="status-card p-3 mt-3 border border-success-subtle">
     <div class="d-flex flex-wrap justify-content-between gap-2">
       <div><h5 class="mb-1"><i class="bi bi-journal-check"></i> Giai đoạn 4A – Sổ đầu bài MySQL</h5>
@@ -971,6 +977,16 @@ include __DIR__ . '/includes/nav_top.php';
     <div class="d-flex flex-wrap justify-content-between gap-2"><div><h5 class="mb-1"><i class="bi bi-speedometer2"></i> Giai đoạn 4B – đọc Sổ đầu bài từ MySQL</h5><p class="text-muted small mb-0">Đọc, thống kê và tra PPCT bằng chỉ mục MySQL; tự quay về JSON khi lỗi hoặc còn đồng bộ chờ.</p></div><span class="badge <?= !empty($lessonBookReadStatus['effective'])?'text-bg-primary':'text-bg-secondary' ?>"><?= !empty($lessonBookReadStatus['effective'])?'Đang đọc MySQL':'Đang đọc JSON' ?></span></div>
     <?php if(!empty($lessonBookReadStatus['configured'])&&empty($lessonBookReadStatus['effective'])): ?><div class="alert alert-warning mt-3 mb-0"><?= e($lessonBookReadStatus['reason']) ?></div><?php endif; ?>
     <form method="post" class="mt-3"><input type="hidden" name="csrf_token" value="<?= e($_SESSION['cds_db_csrf']) ?>"><input type="hidden" name="action" value="set_lesson_book_sql_read"><input type="hidden" name="enabled" value="<?= !empty($lessonBookReadStatus['configured'])?'0':'1' ?>"><button class="btn <?= !empty($lessonBookReadStatus['configured'])?'btn-outline-secondary':'btn-primary' ?>" <?= empty($lessonBookReadStatus['configured'])&&(!$lessonBookShadow||empty($lessonBookComparison['is_match'])||$lessonBookPending)?'disabled':'' ?>><?= !empty($lessonBookReadStatus['configured'])?'Quay về đọc JSON':'Bật đọc MySQL có kiểm soát' ?></button></form>
+  </section>
+  <?php endif; ?>
+  <section class="status-card p-3 mt-3 border border-primary-subtle">
+    <h5>Sổ đầu bài – nguồn ghi chính</h5>
+    <p class="small">MySQL ghi từng bản ghi trong giao dịch, giữ kiểm tra PPCT và nội dung đã ký. Mặc định chưa bật. Chỉ bật khi bản JSON và MySQL đối chiếu khớp, đã bật đọc và ghi bản sao, không còn đồng bộ chờ.</p>
+    <?php if($lessonBookPrimary): ?><div class="alert alert-info">Đang ghi chính vào MySQL. JSON là bản trước chuyển, không dùng làm nguồn dự phòng tự động. Khi MySQL lỗi, hệ thống báo lỗi để tránh đọc hoặc ghi dữ liệu cũ.</div><?php endif; ?>
+    <form method="post" onsubmit="return confirm('<?= $lessonBookPrimary?'Xuất toàn bộ dữ liệu MySQL mới nhất, kiểm tra và quay về JSON?':'Chuyển nguồn ghi chính sổ đầu bài sang MySQL sau khi đối chiếu? JSON trước chuyển được giữ nguyên.' ?>')">
+      <input type="hidden" name="csrf_token" value="<?=e($_SESSION['cds_db_csrf'])?>"><input type="hidden" name="action" value="set_lesson_book_primary"><input type="hidden" name="enabled" value="<?=$lessonBookPrimary?'0':'1'?>">
+      <button class="btn btn-outline-primary" <?=!$lessonBookPrimary&&(!$lessonBookShadow||empty($lessonBookReadStatus['effective'])||empty($lessonBookComparison['is_match'])||$lessonBookPending)?'disabled':''?>><?=$lessonBookPrimary?'Xuất mới nhất và quay về JSON':'Bật nguồn ghi chính MySQL'?></button>
+    </form>
   </section>
   <?php endif; ?>
   <?php if ($healthSqlReady): ?>

@@ -33,7 +33,7 @@ try{
  check(cds_viewer_request_allowed('GET','chuyenmon/sodaubai.php',['tab'=>'daily','week'=>'6','class'=>'6A']),'Lesson-book read route');
  check(!cds_viewer_request_allowed('GET','thidua.php',['score_view'=>'settings']),'Configuration mode blocked');
  // Execute the actual root/CM bootstrap with isolated configuration and hostile session.
- foreach(['includes/pccm_release.php','includes/program_assignment.php','includes/auth.php','includes/viewer_access.php','includes/session_user.php','includes/json_store.php','includes/json_rows.php','includes/json_fields.php','includes/global_ui.php','chuyenmon/includes/functions.php']as$p)copy(__DIR__.'/../'.$p,$tmp.'/'.$p);
+ foreach(['includes/pccm_release.php','includes/program_assignment.php','includes/auth.php','includes/viewer_access.php','includes/session_user.php','includes/json_store.php','includes/lesson_book_primary.php','includes/json_rows.php','includes/json_fields.php','includes/global_ui.php','chuyenmon/includes/functions.php']as$p)copy(__DIR__.'/../'.$p,$tmp.'/'.$p);
  file_put_contents($tmp.'/includes/config.php','<?php define("BASE_URL","/");define("DATA_PATH",dirname(__DIR__)."/data");define("USERS_FILE",DATA_PATH."/users.json");');
  file_put_contents($tmp.'/chuyenmon/includes/config.php','<?php define("BASE_PATH",dirname(__DIR__));define("BASE_URL","/chuyenmon/");define("DATA_PATH",BASE_PATH."/data");');
  foreach(['chuyenmon_permission_runtime.php','school_week_calendar.php']as$p)file_put_contents($tmp.'/includes/'.$p,'<?php ');

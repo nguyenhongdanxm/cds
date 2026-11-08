@@ -4,7 +4,7 @@ function wipe($dir){foreach(scandir($dir)as$f){if($f==='.'||$f==='..')continue;$
 $root=sys_get_temp_dir().'/cds_online_home_'.bin2hex(random_bytes(5));foreach(['chuyenmon/includes','chuyenmon/data','includes','data','sessions']as$d)mkdir($root.'/'.$d,0700,true);
 try{
 foreach(['activities.php','includes/online_learning.php','includes/online_homeroom_access.php']as$p)copy(__DIR__.'/../chuyenmon/'.$p,$root.'/chuyenmon/'.$p);
-foreach(['json_store.php','json_rows.php','json_fields.php']as$p)copy(__DIR__.'/../includes/'.$p,$root.'/includes/'.$p);
+foreach(['json_store.php','lesson_book_primary.php','json_rows.php','json_fields.php']as$p)copy(__DIR__.'/../includes/'.$p,$root.'/includes/'.$p);
 file_put_contents($root.'/chuyenmon/includes/header.php','<?php');file_put_contents($root.'/chuyenmon/includes/footer.php','<?php');
 $bootstrap= <<<'BOOT'
 <?php

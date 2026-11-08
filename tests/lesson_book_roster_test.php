@@ -9,7 +9,7 @@ file_put_contents($dir.'/chuyenmon/includes/roster.php',"<?php\n".substr($source
 copy(__DIR__.'/../chuyenmon/includes/functions.php',$dir.'/chuyenmon/includes/functions.php');
 copy(__DIR__.'/../includes/pccm_release.php',$dir.'/includes/pccm_release.php');
 copy(__DIR__.'/../includes/program_assignment.php',$dir.'/includes/program_assignment.php');
-copy(__DIR__.'/../includes/json_store.php',$dir.'/includes/json_store.php');copy(__DIR__.'/../includes/json_rows.php',$dir.'/includes/json_rows.php');copy(__DIR__.'/../includes/json_fields.php',$dir.'/includes/json_fields.php');
+copy(__DIR__.'/../includes/json_store.php',$dir.'/includes/json_store.php');copy(__DIR__.'/../includes/lesson_book_primary.php',$dir.'/includes/lesson_book_primary.php');copy(__DIR__.'/../includes/json_rows.php',$dir.'/includes/json_rows.php');copy(__DIR__.'/../includes/json_fields.php',$dir.'/includes/json_fields.php');
 file_put_contents($dir.'/chuyenmon/includes/config.php', <<<'CONFIG'
 <?php
 define('DATA_PATH',dirname(__DIR__).'/data');define('BASE_URL','/chuyenmon/');
