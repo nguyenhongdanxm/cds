@@ -51,6 +51,6 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
 $thAllRoles=th_roles_range($thState['roles'],$thFrom,$thTo,$thVisible,$thCatalog);
 $thActual=array_values(array_filter($thAll['rows'],fn($r)=>($thPerson===''||$r['person']['key']===$thPerson)&&($thCategory===''||$r['category']===$thCategory)));
 $thRoles=array_values(array_filter($thAllRoles['rows'],fn($r)=>$thPerson===''||$r['person_key']===$thPerson));
-$thActualTotals=th_totals($thActual,[]);$thTotals=th_totals($thActual,$thRoles);$thWarnings=array_merge($thAll['warnings'],$thAllRoles['warnings']);if(isset($GLOBALS['th_source_warning']))$thWarnings[]=$GLOBALS['th_source_warning'];
+$thActualTotals=th_totals($thActual,[]);$thTotals=th_totals($thActual,$thRoles);$thWarnings=array_merge($thAll['warnings'],$thAllRoles['warnings']);$thNotices=$thAll['notices']??[];if(isset($GLOBALS['th_source_warning']))$thWarnings[]=$GLOBALS['th_source_warning'];
 $thPeople=[];foreach($thCatalog['staff']as$people)if(count($people)===1&&$thVisible($people[0],$people[0]['name']))$thPeople[$people[0]['key']]=$people[0];
 $thQuery=['from'=>$thFrom,'to'=>$thTo,'teacher'=>$thPerson,'category'=>$thCategory];
