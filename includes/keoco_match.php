@@ -9,7 +9,7 @@ function kc_new(array $rows,array $settings,float $now): array {
  $names=[];foreach(['b','r']as$s){$name=is_string($settings[$s]??null)?trim($settings[$s]):'';preg_match('/^.{0,60}/us',$name,$parts);$names[$s]=($parts[0]??'')?:($s==='b'?'Đội Xanh':'Đội Đỏ');}
  $order=range(0,count($rows)-1);shuffle($order);$other=$order; // Same difficulty pool, different starting question for split mode.
  $other[]=array_shift($other);
- return ['expires'=>$now+7200,'phase'=>'waiting','mode'=>($settings['mode']??'')==='shared'?'shared':'split','names'=>$names,'winBy'=>max(2,min(30,(int)($settings['winBy']??5))),'duration'=>max(60,min(3600,(int)($settings['duration']??180))),'seconds'=>max(0,min(300,(int)($settings['seconds']??30))),'freeze'=>max(0,min(30,(int)($settings['freeze']??5))),'loop'=>!empty($settings['loop']),'bank'=>$rows,'order'=>['b'=>$order,'r'=>$other],'cursor'=>['b'=>0,'r'=>0],'serial'=>['b'=>1,'r'=>1],'score'=>['b'=>0,'r'=>0],'ready'=>['b'=>0,'r'=>0],'due'=>['b'=>0,'r'=>0],'feedback'=>['b'=>null,'r'=>null],'tokens'=>['host'=>bin2hex(random_bytes(32)),'b'=>bin2hex(random_bytes(32)),'r'=>bin2hex(random_bytes(32))],'end'=>0,'winner'=>null,'version'=>0,'last_action'=>null,'events'=>[]];
+ return ['expires'=>$now+7200,'phase'=>'waiting','mode'=>($settings['mode']??'')==='shared'?'shared':'split','names'=>$names,'winBy'=>max(2,min(30,(int)($settings['winBy']??5))),'duration'=>max(60,min(3600,(int)($settings['duration']??180))),'seconds'=>max(0,min(300,(int)($settings['seconds']??30))),'freeze'=>max(0,min(30,(int)($settings['freeze']??5))),'loop'=>!empty($settings['loop']),'bank'=>$rows,'order'=>['b'=>$order,'r'=>$other],'cursor'=>['b'=>0,'r'=>0],'serial'=>['b'=>1,'r'=>1],'score'=>['b'=>0,'r'=>0],'ready'=>['b'=>0,'r'=>0],'due'=>['b'=>0,'r'=>0],'feedback'=>['b'=>null,'r'=>null],'tokens'=>['host'=>bin2hex(random_bytes(32)),'screen'=>bin2hex(random_bytes(32)),'b'=>bin2hex(random_bytes(32)),'r'=>bin2hex(random_bytes(32))],'end'=>0,'winner'=>null,'version'=>0,'last_action'=>null,'events'=>[]];
 }
 function kc_actor(array $m,string $token): string {foreach($m['tokens']as$role=>$secret)if($token!==''&&hash_equals($secret,$token))return $role;throw new RuntimeException('Liên kết phòng không hợp lệ hoặc đã hết hạn.',403);}
 function kc_current(array $m,string $s): ?array {$i=$m['cursor'][$s];if(!$m['loop']&&$i>=count($m['order'][$s]))return null;return $m['bank'][$m['order'][$s][$i%count($m['order'][$s])]];}
@@ -22,6 +22,7 @@ function kc_advance(array &$m,float $now): void {
 }
 function kc_command(array &$m,string $role,string $action,array $input,float $now): void {
  kc_advance($m,$now);
+ if($role==='screen')throw new RuntimeException('Màn hình trình chiếu chỉ được xem trận đấu.',403);
  if($action==='begin'||$action==='stop'){
   if($role!=='host')throw new RuntimeException('Chỉ giáo viên điều khiển trận.',403);
   if($action==='stop'){$m['phase']='ended';$m['winner']=$m['score']['b']===$m['score']['r']?null:($m['score']['b']>$m['score']['r']?'b':'r');return;}
@@ -45,6 +46,7 @@ function kc_command(array &$m,string $role,string $action,array $input,float $no
 }
 function kc_view(array $m,string $role,float $now): array {
  $v=array_intersect_key($m,array_flip(['phase','mode','names','winBy','score','winner','version','last_action','events']));$v['remaining']=max(0,(int)ceil($m['end']-$now));$v['teams']=[];
+ if($role==='screen')return $v;
  foreach($role==='host'?['b','r']:[$role]as$s){$q=kc_current($m,$s);if($q)unset($q['correct_option']);$v['teams'][$s]=['serial'=>$m['serial'][$s],'question'=>$m['phase']==='playing'&&$now>=$m['ready'][$s]?$q:null,'wait'=>max(0,(int)ceil($m['ready'][$s]-$now)),'seconds'=>$m['due'][$s]?max(0,(int)ceil($m['due'][$s]-$now)):null,'feedback'=>($m['feedback'][$s]['until']??0)>$now?$m['feedback'][$s]:null];}return $v;
 }
 function kc_dir(): string {$dir=sys_get_temp_dir().'/cds-keoco-'.substr(hash('sha256',__DIR__),0,16);if(!is_dir($dir)&&!mkdir($dir,0700,true)&&!is_dir($dir))throw new RuntimeException('Không tạo được thư mục phòng.');return $dir;}
@@ -55,5 +57,5 @@ function kc_create_file(array $m): string {
 function kc_room(string $code,string $token,string $action,array $input=[]): array {
  if(!preg_match('/^[a-f0-9]{12}$/D',$code))throw new RuntimeException('Mã phòng không hợp lệ.',404);
  $path=kc_dir().'/'.$code.'.json';$f=@fopen($path,'r+');if(!$f)throw new RuntimeException('Phòng không tồn tại hoặc đã hết hạn.',404);
- try{if(!flock($f,LOCK_EX))throw new RuntimeException('Phòng đang bận.');$m=json_decode(stream_get_contents($f),true,32,JSON_THROW_ON_ERROR);$now=microtime(true);if(($m['expires']??0)<$now)throw new RuntimeException('Phòng đã hết hạn. Tạo phòng mới.',410);$role=kc_actor($m,$token);kc_advance($m,$now);if($action!=='state')kc_command($m,$role,$action,$input,$now);$json=json_encode($m,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);rewind($f);if(fwrite($f,$json)!==strlen($json))throw new RuntimeException('Không lưu được trạng thái.');ftruncate($f,strlen($json));fflush($f);return kc_view($m,$role,$now);}finally{flock($f,LOCK_UN);fclose($f);}
+ try{if(!flock($f,LOCK_EX))throw new RuntimeException('Phòng đang bận.');$m=json_decode(stream_get_contents($f),true,32,JSON_THROW_ON_ERROR);$now=microtime(true);if(($m['expires']??0)<$now)throw new RuntimeException('Phòng đã hết hạn. Tạo phòng mới.',410);$role=kc_actor($m,$token);kc_advance($m,$now);if($action==='projection'){if($role!=='host')throw new RuntimeException('Chỉ giáo viên được mở màn hình chung.',403);if(empty($m['tokens']['screen']))$m['tokens']['screen']=bin2hex(random_bytes(32));}elseif($action!=='state')kc_command($m,$role,$action,$input,$now);$json=json_encode($m,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);rewind($f);if(fwrite($f,$json)!==strlen($json))throw new RuntimeException('Không lưu được trạng thái.');ftruncate($f,strlen($json));fflush($f);return ($action==='projection'?['projection_token'=>$m['tokens']['screen']]:[])+kc_view($m,$role==='host'&&($input['view']??'')==='screen'?'screen':$role,$now);}finally{flock($f,LOCK_UN);fclose($f);}
 }
