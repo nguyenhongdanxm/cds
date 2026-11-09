@@ -1,5 +1,11 @@
 # TRIỂN KHAI CDS CHO TRƯỜNG MỚI
 
+> Trước khi nhân bản, đọc [báo cáo mức độ sẵn sàng bộ khung](CDS_FRAMEWORK_READINESS.md).
+> Hiện còn các điểm chặn về cách ly cấu hình, khởi tạo quản trị và đóng gói/deploy.
+> Không copy thư mục của trường đang vận hành để làm bộ cài mới. Mỗi trường phải
+> có cấu hình ngoài web root, database, dữ liệu và tích hợp riêng; không dùng chung
+> đường dẫn cấu hình mặc định giữa các bản cài cạnh nhau.
+
 CDS dùng **một bộ cấu hình hợp nhất** cho mỗi trường. Người quản trị không cần
 sửa PHP, JavaScript, YAML hoặc nhiều file cấu hình riêng.
 
