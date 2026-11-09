@@ -14,6 +14,7 @@ with tempfile.TemporaryDirectory() as directory:
     bootstrap=r'''<?php
     error_reporting(E_ALL); define('BASE_URL','/chuyenmon/');define('DATA_PATH','/fixture/cm');define('CM_DOCS_FILE','/fixture/cm/cm_docs.json');define('SCHOOL_NAME','Trường thử nghiệm');
     $case=json_decode(file_get_contents($argv[1]),true);$_GET=$case['get']??[];$_POST=$case['post']??[];$_SERVER['REQUEST_METHOD']=$_POST?'POST':'GET';$rows=$case['rows']??[];$actor=$case['user']??['name'=>'An','groups'=>['totruong']];
+    function school_place(){return 'Địa danh thử nghiệm';}
     function cds_user(){return $GLOBALS['actor'];}function cds_user_has_group($u,$g){return in_array($g,$u['groups']??[],true)||($u['role']??'')===$g;}
     function cds_can_feature($f,$l){return true;}function cds_drive_csrf_token(){return 'token';}function get_teachers_sorted(){return ['An','Bình','Chi'];}function get_teacher_group($n){return $n==='Chi'?'Tổ B':'Tổ A';}
     function cm_docs_by_section($section){return array_values(array_filter($GLOBALS['rows'],fn($r)=>($r['section']??'')===$section));}function cm_docs_all(){return $GLOBALS['rows'];}function cm_doc_uid(){return 'new_report';}
@@ -32,6 +33,7 @@ with tempfile.TemporaryDirectory() as directory:
         assert 'Warning:' not in result.stdout,result.stdout
         return json.loads((work/'result.json').read_text()),result.stdout
     state,out=run({})
+    assert 'Địa danh thử nghiệm' in out
     assert 'id="pr-form"' in out and out.count('data-rich')==5 and 'Tổ A' in out and 'name="csrf" value="token"' in out
     post={'action':'periodic_save','csrf':'token','id':'','report_group':'Tổ B','month':'2026-10','next_month':'2026-11','date':'2026-10-07','school':'Trường thử nghiệm','place':'Xín Mần','number':'01/BC','recipient':'BGH','signer':'An','report_sections':{'results':'<p><b>Kết quả</b></p>'}}
     state,_=run({'post':post});saved=state['rows'][0]

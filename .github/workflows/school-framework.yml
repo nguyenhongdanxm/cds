@@ -13,6 +13,7 @@ on:
       - 'tools/**'
       - '.htaccess'
       - 'tests/school_framework_test.py'
+      - 'tests/periodic_report_controller_test.py'
       - 'tests/support/meal_month_sheet_reference.php'
       - '.github/workflows/school-framework.yml'
   workflow_dispatch:
@@ -40,6 +41,7 @@ jobs:
           php tests/meal_month_export_test.php
           php tests/lesson_book_print_homeroom_test.php
           php tests/periodic_report_test.php
+          python3 tests/periodic_report_controller_test.py
           php tests/meal_primary_guard_test.php
           php tests/lesson_book_primary_guard_test.php
           php tests/staff_evaluation_deploy_test.php
