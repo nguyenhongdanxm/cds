@@ -4,7 +4,7 @@ function cds_release_path_allowed(string $path): bool
 {
     $path = str_replace('\\','/',$path);
     if ($path==='' || $path[0]==='/' || preg_match('#(?:^|/)\.\.(?:/|$)#',$path)) return false;
-    if (preg_match('#(?:^|/)(?:data|uploads|cache|logs|vendor|node_modules|cds_private|\.git)(?:/|$)#i',$path)) return false;
+    if (preg_match('#(?:^|/)(?:data|uploads|cache|logs|vendor|node_modules|cds_private|tests|\.github|\.git)(?:/|$)#i',$path)) return false;
     if (preg_match('#(?:^|/)(?:instance_binding\.php|\.env(?:\..*)?|\.user\.ini|error_log|release-manifest\.json)$#i',$path)) return false;
     if (preg_match('/\.(?:conf|sql|bak|log|pem|key|zip)$/i',$path)) return false;
     return true;

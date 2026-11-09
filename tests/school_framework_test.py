@@ -163,6 +163,7 @@ with tempfile.TemporaryDirectory(prefix='cds-schools-') as scratch:
     listing=php(source,"require 'includes/release_manifest.php'; echo json_encode(cds_release_manifest(getcwd()));").stdout
     allowed=json.loads(listing)
     assert 'includes/instance_binding.php' not in allowed and not any(p.startswith(('data/','chuyenmon/data/')) for p in allowed)
+    assert not any(p.startswith(('tests/','.github/')) for p in allowed), 'release excludes executable test fixtures and CI files'
     assert '.htaccess' in allowed and 'includes/form_profile.php' in allowed
     target=tmp/'hosting';(target/'data').mkdir(parents=True);(target/'includes').mkdir()
     (target/'.htaccess').write_text('# Hosting-specific rules\nOptions -Indexes\n')
