@@ -51,7 +51,7 @@ try{
  foreach(['history'=>[['id'=>'h1','changes'=>[['student_id'=>'old']]]],'deleted'=>[],'targets'=>[]]as $key=>$value)cds_json_save(cds_meal_primary_files()[$key],$value);
  check(!cds_meal_primary_enabled(),'Default off');
  assert_throws(static fn()=>cds_meal_primary_switch(true),'Activation without comparison refused');
- check(cds_meal_import_snapshot(current_user())['is_match'],'Initial mirror');cds_meal_shadow_set(true,current_user());cds_meal_sql_read_set(true,current_user());
+ check(cds_meal_import_snapshot(current_user())['is_match'],'Initial mirror');$pdo->exec("UPDATE cds_meal_reports SET id='old-recreated-id' WHERE id='r1'");check(cds_meal_import_snapshot(current_user())['is_match'],'Mirror replaces old id for same target');cds_meal_shadow_set(true,current_user());cds_meal_sql_read_set(true,current_user());
  // Import parity is insufficient when original duplicate keys were collapsed: do not silently merge.
  $before=file_get_contents(NOITRU_MEALS);file_put_contents(NOITRU_MEALS,json_encode(array_merge($daily,[$daily[0]])));
  assert_throws(static fn()=>cds_meal_primary_switch(true),'Duplicate source activation refused');exact(file_get_contents(NOITRU_MEALS),json_encode(array_merge($daily,[$daily[0]])),'Failed activation did not rewrite source');file_put_contents(NOITRU_MEALS,$before);

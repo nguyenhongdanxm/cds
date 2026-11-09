@@ -273,11 +273,10 @@ function cds_meal_import_snapshot_unlocked($actor = array(), $sourceData = null,
         cds_meal_batch_flush($pdo, $dailySql, $dailyBatch);
         cds_meal_delete_missing($pdo, 'cds_meal_daily', $dailyKeys, array('meal_date','student_id'));
 
+        $pdo->exec('DELETE FROM cds_meal_reports');
         $reportSql = "INSERT INTO cds_meal_reports
             (id,meal_date,class_name,meal_code,student_count,absent_count,raw_json,source_updated_at,imported_at)
-            VALUES (?,?,?,?,?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE meal_date=VALUES(meal_date),class_name=VALUES(class_name),
-            meal_code=VALUES(meal_code),student_count=VALUES(student_count),absent_count=VALUES(absent_count),
-            raw_json=VALUES(raw_json),source_updated_at=VALUES(source_updated_at),imported_at=NOW()";
+            VALUES (?,?,?,?,?,?,?,?,NOW())";
         $reportBatch = array(); $reportIds = array(); $reportTargets = array();
         foreach ($data['reports'] as $row) {
             $id = cds_meal_report_id($row);
@@ -314,7 +313,7 @@ function cds_meal_import_snapshot_unlocked($actor = array(), $sourceData = null,
             // Detect keys that the SQL collation folds together before committing recovery.
             foreach (array('daily'=>'cds_meal_daily','reports'=>'cds_meal_reports') as $kind=>$table) {
                 if ((int)$pdo->query('SELECT COUNT(*) FROM '.$table)->fetchColumn() !== $counts[$kind]) {
-                    throw new RuntimeException('Số bản ghi SQL không khớp nguồn; hủy khôi phục.');
+                    throw new RuntimeException('Số bản ghi SQL không khớp nguồn '.$kind.'; hủy khôi phục.');
                 }
             }
         }
@@ -505,11 +504,10 @@ function cds_meal_shadow_reports_data(array $data)
     $pdo=null;
     try {
         $pdo=cds_db();$pdo->beginTransaction();
+        $pdo->exec('DELETE FROM cds_meal_reports');
         $reportSql="INSERT INTO cds_meal_reports
             (id,meal_date,class_name,meal_code,student_count,absent_count,raw_json,source_updated_at,imported_at)
-            VALUES (?,?,?,?,?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE meal_date=VALUES(meal_date),class_name=VALUES(class_name),
-            meal_code=VALUES(meal_code),student_count=VALUES(student_count),absent_count=VALUES(absent_count),
-            raw_json=VALUES(raw_json),source_updated_at=VALUES(source_updated_at),imported_at=NOW()";
+            VALUES (?,?,?,?,?,?,?,?,NOW())";
         $batch=array();$ids=array();foreach(($data['reports']??array())as$row){
             $id=cds_meal_report_id($row);$ids[]=$id;
             cds_meal_batch_add($pdo,$reportSql,$batch,array($id,(string)($row['date']??''),(string)($row['class_name']??''),(string)($row['meal']??''),
