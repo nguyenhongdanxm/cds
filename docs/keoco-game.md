@@ -13,7 +13,7 @@ Mở Học liệu → Trò chơi → Kéo co. Đặt tên hai đội, tổng th�
 
 **Chơi trên màn hình này:** chọn đáp án trực tiếp trên máy giáo viên hoặc máy chiếu.
 
-**Tạo phòng · mở màn hình đội:** gửi đúng liên kết xanh/đỏ, mở trên điện thoại hoặc máy tính khác rồi bấm **Bắt đầu trận trong phòng**. Các đội có thể bấm A–D hoặc chạm đáp án. Máy giáo viên hiển thị sân kéo co và điểm đồng bộ.
+**Tạo phòng · mở màn hình đội:** gửi đúng liên kết xanh/đỏ, mở trên điện thoại hoặc máy tính khác rồi bấm **Bắt đầu trận trong phòng**. Các đội có thể bấm A–D hoặc chạm đáp án. Khi thi đấu bằng máy riêng, máy giáo viên hiển thị sân kéo co và điểm đồng bộ, không hiện câu hỏi. Bấm **Mở màn hình chung ↗** để mở một cửa sổ riêng hoặc gửi liên kết màn hình chung tới máy chiếu/TV. Màn hình chung chỉ có hai đội kéo co, tỷ số, đồng hồ, bảng diễn biến đúng/sai và ăn mừng; câu hỏi và lựa chọn chỉ có trên máy của từng đội. Có thể bật âm thanh và toàn màn hình ngay trên cửa sổ trình chiếu.
 
 **Kết thúc trận:** dừng trận và hiển thị kết quả cho các đội. Nếu phòng cũ không còn dùng được, tạo phòng mới.
 

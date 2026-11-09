@@ -3,7 +3,7 @@
 $root=dirname(__DIR__);$tmp=sys_get_temp_dir().'/kc-http-'.bin2hex(random_bytes(6));mkdir($tmp);mkdir($tmp.'/includes');$proc=null;$roomFile=null;
 function kc_http_assert($ok,$msg){if(!$ok)throw new RuntimeException($msg);}
 try{
- foreach(['hoclieu_game_keoco_api.php','hoclieu_game_keoco_match.php','hoclieu_game_keoco_team.php']as$f)copy($root.'/'.$f,$tmp.'/'.$f);
+ foreach(['hoclieu_game_keoco_api.php','hoclieu_game_keoco_match.php','hoclieu_game_keoco_team.php','hoclieu_game_keoco_screen.php']as$f)copy($root.'/'.$f,$tmp.'/'.$f);
  copy($root.'/includes/keoco_match.php',$tmp.'/includes/keoco_match.php');
  file_put_contents($tmp.'/includes/auth.php', <<<'AUTH'
 <?php
@@ -28,10 +28,14 @@ AUTH
  [$status]=$request('hoclieu_game_keoco_match.php?code='.$code);kc_http_assert($status===403,'Missing token accepted');
  [$status]=$request('hoclieu_game_keoco_match.php','POST',['code'=>$code,'action'=>'begin'],$auth('b'));kc_http_assert($status===403,'Team started room');
  [$status]=$request('hoclieu_game_keoco_match.php','POST',['code'=>$code,'action'=>'begin'],$auth('host'));kc_http_assert($status===200,'Host start failed');
+ [$status,$public,$raw]=$request('hoclieu_game_keoco_match.php?code='.$code,'GET',null,$auth('screen'));kc_http_assert($status===200&&$public['state']['teams']===[]&&!str_contains($raw,'question_text')&&!str_contains($raw,'option_a'),'Projector question leak');
+ foreach(['begin','stop','answer','projection']as$act){[$status]=$request('hoclieu_game_keoco_match.php','POST',['code'=>$code,'action'=>$act,'serial'=>1,'answer'=>1],$auth('screen'));kc_http_assert($status===403,'Projector mutation accepted: '.$act);}
+ [$status,$hostView]=$request('hoclieu_game_keoco_match.php','POST',['code'=>$code,'action'=>'state','view'=>'screen'],$auth('host'));kc_http_assert($status===200&&$hostView['state']['teams']===[],'Host projection view leaked questions');
  [$status,$state,$raw]=$request('hoclieu_game_keoco_match.php?code='.$code,'GET',null,$auth('b'));kc_http_assert($status===200&&!str_contains($raw,'correct_option')&&!isset($state['state']['teams']['r']),'Team state leaked secrets');
  [$status,$result]=$request('hoclieu_game_keoco_match.php','POST',['code'=>$code,'action'=>'answer','side'=>'r','serial'=>1,'answer'=>1],$auth('b'));kc_http_assert($status===200&&$result['state']['score']['b']===1&&$result['state']['score']['r']===0,'Team impersonation or answer failed');
  [$status]=$request('hoclieu_game_keoco_match.php','POST',['code'=>$code,'action'=>'answer','serial'=>1,'answer'=>1],$auth('b'));kc_http_assert($status===409,'Replay accepted');
  [$status]=$request('hoclieu_game_keoco_match.php?code='.$code.'&action=stop','GET',null,$auth('host'));kc_http_assert($status===405,'GET stop accepted');
+ [$status,$unused,$page]=$request('hoclieu_game_keoco_screen.php');kc_http_assert($status===200&&!str_contains($page,'id="questionList"')&&!str_contains($page,'id="qBlue"'),'Public projector contains question UI');
  [$status]=$request('hoclieu_game_keoco_team.php');kc_http_assert($status===200,'Team screen requires login');
  echo "PASS: actual HTTP endpoints enforce login, CSRF, permissions, POST mutations, team token scope, no answer leakage and replay protection\n";
 }finally{if(is_resource($proc)){proc_terminate($proc);proc_close($proc);}if($roomFile){@unlink($roomFile);@rmdir(dirname($roomFile));}foreach(glob($tmp.'/includes/*')?:[]as$f)unlink($f);foreach(glob($tmp.'/*')?:[]as$f)if(is_file($f))unlink($f);@rmdir($tmp.'/includes');@rmdir($tmp);}
