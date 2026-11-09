@@ -47,3 +47,7 @@ data/           ← users.json (tự tạo khi chạy)
 ## Triển khai cho trường khác
 
 Dùng [hướng dẫn bộ cài trường mới](docs/CAI_DAT_TRUONG_MOI.md). Không sao chép dữ liệu đang vận hành hoặc dùng chung tài khoản quản trị ban đầu.
+
+## Lịch xuất Excel lên Drive
+
+Quản trị đặt lịch, bộ lọc và thư mục tại `excel_schedules.php`; mặc định 00:00–05:00 giờ Việt Nam. Cần migration và Cron Jobs một lần theo [hướng dẫn](docs/EXCEL_DRIVE_SCHEDULES.md). Mặc định tắt, không tự gửi dữ liệu khi vừa cập nhật mã.

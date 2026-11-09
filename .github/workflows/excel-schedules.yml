@@ -1,0 +1,71 @@
+name: Scheduled Excel Drive exports
+on:
+  pull_request:
+    paths:
+      - 'includes/excel_schedule*'
+      - 'includes/database_migrations.php'
+      - 'includes/page_navigation.php'
+      - 'assets/excel-schedule-links.js'
+      - 'excel_schedules.php'
+      - 'tools/excel_export_worker.php'
+      - 'bin/excel-drive-cron.php'
+      - 'tests/excel_schedule*'
+      - '.github/workflows/excel-schedules.yml'
+  workflow_dispatch:
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, tokenizer, zip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          for file in includes/excel_schedule*.php excel_schedules.php tools/excel_export_worker.php bin/excel-drive-cron.php; do php -l "$file"; done
+          php tests/excel_schedule_test.php
+          php tests/excel_schedule_drive_test.php
+          python3 tests/excel_schedule_worker_test.py
+          php tests/meal_primary_guard_test.php
+          php tests/lesson_book_primary_guard_test.php
+          python3 tests/page_navigation_coverage_test.py
+      - run: npm install --prefix "$RUNNER_TEMP/excel-dom" --no-package-lock jsdom@26.1.0
+      - run: NODE_PATH="$RUNNER_TEMP/excel-dom/node_modules" node tests/excel_schedule_links_test.cjs
+  sql:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: ['mysql:8.0', 'mariadb:10.11']
+    services:
+      mysql:
+        image: ${{ matrix.database }}
+        env:
+          MYSQL_ROOT_PASSWORD: fixture-root-only-password
+          MYSQL_DATABASE: cds_disposable_test
+          MYSQL_USER: cds_fixture
+          MYSQL_PASSWORD: fixture-only-password
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring
+      - name: Disposable scheduler database
+        env:
+          CDS_TEST_MYSQL: disposable-ci
+          CDS_TEST_MYSQL_PORT: ${{ job.services.mysql.ports[3306] }}
+        run: php tests/excel_schedule_mysql_test.php
