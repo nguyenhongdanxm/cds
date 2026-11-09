@@ -17,6 +17,7 @@ if (!function_exists('cds_instance_config_path')) {
             if (!is_string($path) || $path === '' || $path[0] !== '/') throw new RuntimeException('Invalid CDS instance binding.');
             return $path;
         }
+        if (is_file(dirname(__DIR__) . '/data/.cds-school')) throw new RuntimeException('Missing school configuration binding. Restore instance_binding.php or set CDS_INSTANCE_CONFIG.');
         // Existing installations retain their historical configuration location.
         if (!is_file(dirname(__DIR__) . '/data/users.json')) {
             $root = realpath(dirname(__DIR__)) ?: dirname(__DIR__);

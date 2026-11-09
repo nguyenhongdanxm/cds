@@ -93,6 +93,13 @@ with tempfile.TemporaryDirectory(prefix='cds-schools-') as scratch:
         again = php(school, "require 'includes/instance_config.php'; $caught=0; for($i=0;$i<2;$i++){try{cds_instance_config();}catch(Throwable $e){$caught++;}} echo $caught;")
         assert again.stdout=='2', 'invalid configuration must fail closed on repeated reads'
         cfg.write_bytes(backup)
+    # Losing the local binding must stop the new school, never select legacy defaults.
+    binding=schools[0]/'includes/instance_binding.php'
+    binding_bytes=binding.read_bytes()
+    binding.unlink()
+    assert php(schools[0], "require 'includes/school_config.php'; echo school_name();", ok=False).returncode
+    binding.write_bytes(binding_bytes)
+    binding.chmod(0o600)
     # A/B branding and database settings remain independent after edits.
     cfg_b = tmp/'private-1/instance.json'
     before_b = digest(cfg_b)

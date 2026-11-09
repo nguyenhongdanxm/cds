@@ -51,6 +51,9 @@ try {
         if (!is_dir($dataDir) && !mkdir($dataDir,0700,true)) throw new RuntimeException('Cannot create data directory.');
         if (file_put_contents($dataDir.'/.htaccess',"Require all denied\n", LOCK_EX) === false) throw new RuntimeException('Cannot protect data directory.');
     }
+    $marker=$root.'/data/.cds-school';
+    if(file_put_contents($marker,"school\n",LOCK_EX)===false)throw new RuntimeException('Cannot save installation profile.');
+    chmod($marker,0600);$created[]=$marker;
     $users = [['id'=>'u1','username'=>$admin,'password_hash'=>password_hash($password,PASSWORD_DEFAULT),'name'=>'Quản trị hệ thống','role'=>'admin','modules'=>['chuyenmon'=>'admin','csdl'=>'admin','noitru'=>'admin','vanban'=>'admin','thidua'=>'admin'],'perms'=>[],'classes'=>[],'active'=>true,'created_at'=>date('c')]];
     $file=$root.'/data/users.json';$tmp=$file.'.tmp.'.bin2hex(random_bytes(5));
     if (file_put_contents($tmp,json_encode($users,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX)===false) throw new RuntimeException('Cannot save admin.');
