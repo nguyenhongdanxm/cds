@@ -12,6 +12,7 @@ require_once __DIR__ . '/lesson_book_primary.php';
 
 if (!function_exists('cds_json_load')) {
     function cds_json_load(string $file, $default = []) {
+        if (function_exists('cds_meal_primary_routes') && cds_meal_primary_routes($file)) return cds_meal_primary_load($file);
         if (cds_lb_primary_routes($file)) return cds_lb_primary_rows();
         if (!is_file($file)) return $default;
         $raw = file_get_contents($file);
@@ -24,6 +25,7 @@ if (!function_exists('cds_json_load')) {
 /** A write must never turn an unreadable/corrupt existing file into an empty store. */
 if (!function_exists('cds_json_load_for_update')) {
     function cds_json_load_for_update(string $file, $default = []) {
+        if (function_exists('cds_meal_primary_routes') && cds_meal_primary_routes($file)) return cds_meal_primary_load($file);
         if (cds_lb_primary_routes($file)) return cds_lb_primary_rows();
         if (!file_exists($file)) return $default;
         $raw = @file_get_contents($file);
@@ -39,6 +41,8 @@ if (!function_exists('cds_json_load_for_update')) {
 if (!function_exists('cds_json_save')) {
     function cds_json_save(string $file, $data): bool {
         if (function_exists('cds_is_viewer') && cds_is_viewer()) return false;
+        if (function_exists('cds_meal_primary_key') && cds_meal_primary_key($file)!==null && empty($GLOBALS['noitru_meal_write_active']) && function_exists('noitru_meal_write')) return noitru_meal_write(static fn()=>cds_json_save($file,$data),false);
+        if (function_exists('cds_meal_primary_routes') && cds_meal_primary_routes($file)) return cds_meal_primary_save($file,$data);
         if (cds_lb_primary_routes($file)) return is_array($data) && cds_lb_primary_replace($data);
         if (cds_lb_primary_is_store($file) && empty($GLOBALS['cds_json_write_lock'][$file])) return cds_json_update($file, static fn()=>$data, []);
         $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
@@ -66,6 +70,11 @@ if (!function_exists('cds_json_save')) {
 
 if (!function_exists('cds_json_update')) {
     function cds_json_update(string $file, callable $update, $default = []): bool {
+        if (function_exists('cds_meal_primary_key') && cds_meal_primary_key($file)!==null && empty($GLOBALS['noitru_meal_write_active']) && function_exists('noitru_meal_write')) return noitru_meal_write(static fn()=>cds_json_update($file,$update,$default),false);
+        if (function_exists('cds_meal_primary_routes') && cds_meal_primary_routes($file)) {
+            if (function_exists('cds_is_viewer') && cds_is_viewer()) return false;
+            return cds_meal_primary_atomic(static function()use($file,$update){$next=$update(cds_meal_primary_load($file));return $next!==false&&cds_meal_primary_save($file,$next);});
+        }
         if (function_exists('cds_is_viewer') && cds_is_viewer()) return false;
         $dir = dirname($file);
         if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) return false;

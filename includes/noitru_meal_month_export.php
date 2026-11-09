@@ -107,7 +107,7 @@ function nt_xlsx_write_zip(array $files, $target) {
 function nt_xlsx_month_context(string $month): array {
     $days=(int)date('t',strtotime($month.'-01'));$from=$month.'-01';$to=sprintf('%s-%02d',$month,$days);
     $maps=[];foreach(noitru_meals_for_range($from,$to)as$row){$date=(string)($row['date']??'');if($date>=$from&&$date<=$to)$maps[$date][$row['student_id']??'']=$row;}
-    $reported=[];foreach(noitru_meal_report_rows()as$report){$date=(string)($report['date']??'');if(substr($date,0,7)===$month)$reported[$date.'|'.(string)($report['class_name']??'').'|'.(string)($report['meal']??'')]=true;}
+    $reported=[];foreach(noitru_meal_report_rows(null,$from,$to)as$report){$date=(string)($report['date']??'');if(substr($date,0,7)===$month)$reported[$date.'|'.(string)($report['class_name']??'').'|'.(string)($report['meal']??'')]=true;}
     $off=[];for($day=1;$day<=$days;$day++){$date=sprintf('%s-%02d',$month,$day);foreach(['sang','trua','toi']as$meal)$off[$date.'|'.$meal]=(noitru_meal_state($date,$meal)['status']??'open')==='off';}
     return ['maps'=>$maps,'reported'=>$reported,'off'=>$off];
 }

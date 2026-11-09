@@ -73,21 +73,27 @@ function cmhome_meal_summary(string $className,array $studentIds,string $month):
         $data=is_file($file)?json_decode((string)file_get_contents($file),true):null;
         return is_array($data)?$data:$fallback;
     };
-    $noitruDir=dirname(__DIR__,2).'/data/noitru';
+    $noitruDir=(defined('DATA_PATH')?DATA_PATH:dirname(__DIR__,2).'/data').'/noitru';
     $from=$month.'-01';$to=date('Y-m-t',strtotime($from));$members=array_fill_keys($studentIds,true);
     $result=[];foreach($members as $id=>$_)$result[$id]=['sang'=>0,'trua'=>0,'toi'=>0];
-    $reports=[];$stateRows=[];$mealSettings=[];$sqlRead=!is_file($noitruDir.'/meal_mysql_shadow_pending.json')&&cds_meal_sql_read_effective();
+    $reports=[];$stateRows=[];$mealSettings=[];$primary=cds_meal_primary_enabled();
+    $sqlRead=$primary||(!is_file($noitruDir.'/meal_mysql_shadow_pending.json')&&cds_meal_sql_read_effective());
     if($sqlRead){
         try{
             $daily=cds_meal_sql_daily_for_range($from,$to);
-            $reportRows=cds_meal_sql_decode_rows('SELECT raw_json FROM cds_meal_reports WHERE meal_date BETWEEN ? AND ? AND class_name=?',[$from,$to,$className]);
-            $stateRows=cds_meal_sql_decode_rows('SELECT raw_json FROM cds_meal_states WHERE meal_date BETWEEN ? AND ?',[$from,$to]);
-            $rawSettings=cmhome_one(cds_db(),'SELECT raw_json FROM cds_meal_settings WHERE id=1');
-            $mealSettings=json_decode((string)($rawSettings['raw_json']??''),true)?:[];
-        }catch(Throwable $ex){$sqlRead=false;}
+            if($primary){
+                $reportRows=iterator_to_array(cds_meal_primary_rows('reports',$from,$to),false);
+                $meta=cds_meal_primary_meta('reports');$stateRows=$meta['states']??[];$mealSettings=$meta['settings']??[];
+            }else{
+                $reportRows=cds_meal_sql_decode_rows('SELECT raw_json FROM cds_meal_reports WHERE meal_date BETWEEN ? AND ? AND class_name=?',[$from,$to,$className]);
+                $stateRows=cds_meal_sql_decode_rows('SELECT raw_json FROM cds_meal_states WHERE meal_date BETWEEN ? AND ?',[$from,$to]);
+                $rawSettings=cmhome_one(cds_db(),'SELECT raw_json FROM cds_meal_settings WHERE id=1');
+                $mealSettings=json_decode((string)($rawSettings['raw_json']??''),true)?:[];
+            }
+        }catch(Throwable $ex){if($primary)throw new RuntimeException('Không đọc được nguồn báo ăn MySQL hiện hành.',0,$ex);$sqlRead=false;}
     }
     if(!$sqlRead){$daily=$readJson($noitruDir.'/meals_daily.json');$stored=$readJson($noitruDir.'/meal_reports.json');$reportRows=$stored['reports']??[];$stateRows=$stored['states']??[];$mealSettings=$stored['settings']??[];}
-    $deleted=$readJson($noitruDir.'/meal_history_deleted.json');
+    $deleted=$primary?cds_meal_primary_meta('deleted'):$readJson($noitruDir.'/meal_history_deleted.json');
     if($deleted){$deleted=array_fill_keys(array_map('strval',$deleted),true);$reportRows=array_values(array_filter($reportRows,static fn($r)=>!isset($deleted[(string)($r['id']??'')])));}
     foreach($reportRows as $r){$date=(string)($r['date']??'');$meal=(string)($r['meal']??'');if($date>=$from&&$date<=$to&&($r['class_name']??'')===$className&&in_array($meal,['sang','trua','toi'],true))$reports[$date][$meal]=true;}
     $states=[];foreach($stateRows as $r){$date=(string)($r['date']??'');$meal=(string)($r['meal']??'');if($date>=$from&&$date<=$to)$states[$date][$meal]=(string)($r['status']??'');}

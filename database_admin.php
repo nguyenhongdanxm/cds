@@ -168,6 +168,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (($_POST['action'] ?? '') === 'set_meal_primary') {
+        try {
+            $enabled=($_POST['enabled']??'')==='1';cds_meal_primary_switch($enabled);
+            flash($enabled?'Đã chuyển báo ăn sang nguồn ghi chính MySQL. JSON trước chuyển được giữ nguyên.':'Đã xuất, đối chiếu dữ liệu mới nhất và quay về JSON. Bản sao MySQL cần được cập nhật lại.','success');
+        } catch(Throwable $e) {flash('Chưa đổi nguồn báo ăn: '.$e->getMessage(),'danger');}
+    }
+
     if (($_POST['action'] ?? '') === 'import_meal_snapshot') {
         try {
             $result = cds_meal_import_snapshot(current_user());
@@ -245,6 +252,7 @@ $yearWriteReadiness = array('ready' => false, 'reason' => 'Chưa cài đặt b�
 $batchWriteReady = false;
 $batchWriteEnabled = false;
 $batchWriteReadiness = array('ready' => false, 'reason' => 'Chưa cài đặt bản nâng cấp.');
+$mealPrimary=cds_meal_primary_enabled();
 $mealReady = false;
 $mealShadowEnabled = false;
 $mealComparison = null;
@@ -310,7 +318,7 @@ if ($dbStatus['connected']) {
             $mealReady = !isset($migrationStatus['pending']['20260831_009_meal_mysql_foundation']);
             if ($mealReady) {
                 $mealShadowEnabled = cds_meal_shadow_enabled();
-                $mealComparison = cds_meal_compare_snapshot();
+                $mealComparison = $mealPrimary?null:cds_meal_compare_snapshot();
                 $mealPending = cds_meal_pending_status();
                 $mealReadReady = !isset($migrationStatus['pending']['20260831_010_meal_safe_sql_read']);
                 if ($mealReadReady) $mealReadStatus = cds_meal_sql_read_status();
@@ -859,7 +867,7 @@ include __DIR__ . '/includes/nav_top.php';
   </section>
   <?php endif; ?>
 
-  <?php if ($mealReady): ?>
+  <?php if ($mealReady && !$mealPrimary): ?>
   <section class="status-card p-3 mt-3 border border-info-subtle">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
       <div>
@@ -924,7 +932,7 @@ include __DIR__ . '/includes/nav_top.php';
   </section>
   <?php endif; ?>
 
-  <?php if ($mealReadReady): ?>
+  <?php if ($mealReadReady && !$mealPrimary): ?>
   <section class="status-card p-3 mt-3 border border-primary-subtle">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
       <div>
@@ -951,6 +959,22 @@ include __DIR__ . '/includes/nav_top.php';
           <?= empty($mealReadStatus['configured']) && (!$mealComparison || empty($mealComparison['is_match']) || !$mealShadowEnabled || $mealPending) ? 'disabled' : '' ?>>
         <?= !empty($mealReadStatus['configured']) ? 'Quay về đọc JSON' : 'Bật 3B có kiểm soát' ?>
       </button>
+    </form>
+  </section>
+  <?php endif; ?>
+
+  <?php if ($mealReady): ?>
+  <section class="status-card p-3 mt-3 border border-primary-subtle">
+    <h5><i class="bi bi-database-check"></i> Báo ăn – nguồn ghi chính</h5>
+    <p class="text-muted small">Lưu theo học sinh/ngày và phiếu báo ăn; giữ nguyên cách tính, ảnh chụp học sinh, khóa bữa, nhật ký và dữ liệu đã xóa. Mặc định tắt.</p>
+    <?php if($mealPrimary): ?>
+      <div class="alert alert-info">Đang dùng MySQL làm nguồn chính. JSON là bản trước chuyển, không tự dùng lại khi SQL lỗi. Giữ file dấu hiệu chế độ cùng dữ liệu khi cập nhật/sao lưu hosting.</div>
+    <?php endif; ?>
+    <form method="post" onsubmit="return confirm('<?= $mealPrimary?'Xuất toàn bộ báo ăn MySQL mới nhất, đối chiếu và quay về JSON?':'Chuyển báo ăn sang ghi chính MySQL sau khi đối chiếu? JSON trước chuyển được giữ nguyên.' ?>')">
+      <input type="hidden" name="csrf_token" value="<?=e($_SESSION['cds_db_csrf'])?>">
+      <input type="hidden" name="action" value="set_meal_primary">
+      <input type="hidden" name="enabled" value="<?=$mealPrimary?'0':'1'?>">
+      <button class="btn btn-outline-primary" <?=!$mealPrimary&&(!$mealShadowEnabled||empty($mealReadStatus['effective'])||empty($mealComparison['is_match'])||$mealPending)?'disabled':''?>><?=$mealPrimary?'Xuất mới nhất và quay về JSON':'Bật nguồn ghi chính MySQL'?></button>
     </form>
   </section>
   <?php endif; ?>
