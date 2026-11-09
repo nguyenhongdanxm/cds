@@ -9,7 +9,7 @@ function kc_new(array $rows,array $settings,float $now): array {
  $names=[];foreach(['b','r']as$s){$name=is_string($settings[$s]??null)?trim($settings[$s]):'';preg_match('/^.{0,60}/us',$name,$parts);$names[$s]=($parts[0]??'')?:($s==='b'?'Đội Xanh':'Đội Đỏ');}
  $order=range(0,count($rows)-1);shuffle($order);$other=$order; // Same difficulty pool, different starting question for split mode.
  $other[]=array_shift($other);
- return ['expires'=>$now+7200,'phase'=>'waiting','mode'=>($settings['mode']??'')==='shared'?'shared':'split','names'=>$names,'winBy'=>max(2,min(30,(int)($settings['winBy']??5))),'duration'=>max(60,min(3600,(int)($settings['duration']??180))),'seconds'=>max(0,min(300,(int)($settings['seconds']??30))),'freeze'=>max(0,min(30,(int)($settings['freeze']??5))),'loop'=>!empty($settings['loop']),'bank'=>$rows,'order'=>['b'=>$order,'r'=>$other],'cursor'=>['b'=>0,'r'=>0],'serial'=>['b'=>1,'r'=>1],'score'=>['b'=>0,'r'=>0],'ready'=>['b'=>0,'r'=>0],'due'=>['b'=>0,'r'=>0],'feedback'=>['b'=>null,'r'=>null],'tokens'=>['host'=>bin2hex(random_bytes(32)),'b'=>bin2hex(random_bytes(32)),'r'=>bin2hex(random_bytes(32))],'end'=>0,'winner'=>null,'version'=>0];
+ return ['expires'=>$now+7200,'phase'=>'waiting','mode'=>($settings['mode']??'')==='shared'?'shared':'split','names'=>$names,'winBy'=>max(2,min(30,(int)($settings['winBy']??5))),'duration'=>max(60,min(3600,(int)($settings['duration']??180))),'seconds'=>max(0,min(300,(int)($settings['seconds']??30))),'freeze'=>max(0,min(30,(int)($settings['freeze']??5))),'loop'=>!empty($settings['loop']),'bank'=>$rows,'order'=>['b'=>$order,'r'=>$other],'cursor'=>['b'=>0,'r'=>0],'serial'=>['b'=>1,'r'=>1],'score'=>['b'=>0,'r'=>0],'ready'=>['b'=>0,'r'=>0],'due'=>['b'=>0,'r'=>0],'feedback'=>['b'=>null,'r'=>null],'tokens'=>['host'=>bin2hex(random_bytes(32)),'b'=>bin2hex(random_bytes(32)),'r'=>bin2hex(random_bytes(32))],'end'=>0,'winner'=>null,'version'=>0,'last_action'=>null,'events'=>[]];
 }
 function kc_actor(array $m,string $token): string {foreach($m['tokens']as$role=>$secret)if($token!==''&&hash_equals($secret,$token))return $role;throw new RuntimeException('Liên kết phòng không hợp lệ hoặc đã hết hạn.',403);}
 function kc_current(array $m,string $s): ?array {$i=$m['cursor'][$s];if(!$m['loop']&&$i>=count($m['order'][$s]))return null;return $m['bank'][$m['order'][$s][$i%count($m['order'][$s])]];}
@@ -38,11 +38,13 @@ function kc_command(array &$m,string $role,string $action,array $input,float $no
  $delay=$ok?.9:max(.9,$m['freeze']);kc_next($m,$s,$now,$delay);
  if($m['mode']==='shared'){$other=$s==='b'?'r':'b';kc_next($m,$other,$now,$delay);}
  $m['version']++;
+ $m['last_action']=['id'=>$m['version'],'side'=>$s,'correct'=>$ok];
+ $m['events']=array_slice(array_merge($m['events']??[],[$m['last_action']]),-12);
  if(abs($m['score']['b']-$m['score']['r'])>=$m['winBy']){$m['phase']='ended';$m['winner']=$m['score']['b']>$m['score']['r']?'b':'r';}
  kc_advance($m,$now);
 }
 function kc_view(array $m,string $role,float $now): array {
- $v=array_intersect_key($m,array_flip(['phase','mode','names','winBy','score','winner','version']));$v['remaining']=max(0,(int)ceil($m['end']-$now));$v['teams']=[];
+ $v=array_intersect_key($m,array_flip(['phase','mode','names','winBy','score','winner','version','last_action','events']));$v['remaining']=max(0,(int)ceil($m['end']-$now));$v['teams']=[];
  foreach($role==='host'?['b','r']:[$role]as$s){$q=kc_current($m,$s);if($q)unset($q['correct_option']);$v['teams'][$s]=['serial'=>$m['serial'][$s],'question'=>$m['phase']==='playing'&&$now>=$m['ready'][$s]?$q:null,'wait'=>max(0,(int)ceil($m['ready'][$s]-$now)),'seconds'=>$m['due'][$s]?max(0,(int)ceil($m['due'][$s]-$now)):null,'feedback'=>($m['feedback'][$s]['until']??0)>$now?$m['feedback'][$s]:null];}return $v;
 }
 function kc_dir(): string {$dir=sys_get_temp_dir().'/cds-keoco-'.substr(hash('sha256',__DIR__),0,16);if(!is_dir($dir)&&!mkdir($dir,0700,true)&&!is_dir($dir))throw new RuntimeException('Không tạo được thư mục phòng.');return $dir;}
