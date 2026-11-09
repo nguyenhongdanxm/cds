@@ -29,3 +29,13 @@ Prompt sân trường:
 Hoa và chim là các hình SVG nhỏ trang trí, chuyển động bằng CSS transform; không tải ảnh/clip bên ngoài. Có 22 hoa và ba chim, tắt khi reduced motion. Không chạy vòng lặp JavaScript cho từng khung hình. Hàng đợi sự kiện đúng/sai có số thứ tự để tránh phát lặp khi poll.
 
 Nhạc và cue âm thanh là tác phẩm tổng hợp bằng Web Audio, không dùng bản ghi nhạc thương mại. Bộ kiểm tra xác nhận nốt bass/trống/giai điệu, bật/tắt và vòng đời bộ lập lịch bằng AudioContext giả lập; chưa thay thế kiểm tra nghe trên thiết bị thật. Ảnh nguồn đã được xem trực tiếp. Bố cục trò chơi vẫn cần xác nhận trực quan trong trình duyệt; phiên trình duyệt hiện bị giới hạn lượt sử dụng.
+
+## Bổ sung dây, khăn và kết thúc trận
+
+Hai sheet `assets/keoco/pullers-blue-sad-v1.webp` và `assets/keoco/pullers-red-sad-v1.webp` được chỉnh bằng công cụ sinh ảnh tích hợp từ hai sheet ban đầu, giữ nền trong suốt, bố cục ba ô 1536 × 512. Chỉ đổi biểu cảm thành hơi buồn; giữ nguyên đồng phục, hình thể, điểm tay và chân. Prompt cuối:
+
+> Edit ONLY the facial expressions of ALL THREE children in this transparent game sprite sheet. They have just narrowly lost a friendly tug-of-war. Change their big open happy smiling mouths into small closed, gently downturned mouths; eyebrows slightly raised in the middle, eyes mildly disappointed looking a little downward. Gentle sadness and good sportsmanship, NOT crying, NOT misery. Keep every child identity, their hair/glasses/uniform colors, exact full-body silhouette, pose, feet position, hand grip position, scale, spacing, THREE equally sized horizontal cells and all other drawing details unchanged. Preserve true transparent alpha background. Do not add text, watermarks, props, rope, ground or shadows. Keep exact wide 3:1 sprite-sheet composition.
+
+Dây bện màu xanh đậm, lớp sợi kem, viền tương phản và hai đuôi cong được vẽ bằng SVG để bám chính xác vào sáu điểm tay. Khăn đỏ dùng các đường cong, sắc độ và chuyển động đuôi vải riêng, nút buộc giữ trên dây. Vạch giữa và vạch đích nằm cố định trên sân.
+
+Kết quả dừng thi đấu ngay; cảnh ăn mừng kéo dài 4,2 giây trước khi mở bảng chúc mừng. Có hoa tung lên từ đội thắng và hình hơi buồn cho đội còn lại. Còi khai cuộc, trống và lớp tiếng cổ vũ được tổng hợp bằng Web Audio; không sử dụng bản ghi giọng nói của học sinh.

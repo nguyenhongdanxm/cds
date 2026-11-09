@@ -28,6 +28,8 @@ jobs:
           node --check assets/cds-keoco-team.js
           node --check assets/cds-keoco-scene.js
           node --check assets/cds-keoco-sound.js
+          node --check assets/cds-keoco-rope.js
+          node --check assets/cds-keoco-finale.js
           node tests/keoco_sound_test.cjs
       - run: npm install --prefix "$RUNNER_TEMP/kc-dom" --no-audit --no-fund --ignore-scripts jsdom@26.1.0
-      - run: NODE_PATH="$RUNNER_TEMP/kc-dom/node_modules" node tests/keoco_client_test.cjs && NODE_PATH="$RUNNER_TEMP/kc-dom/node_modules" node tests/keoco_scene_test.cjs
+      - run: NODE_PATH="$RUNNER_TEMP/kc-dom/node_modules" node tests/keoco_client_test.cjs && NODE_PATH="$RUNNER_TEMP/kc-dom/node_modules" node tests/keoco_scene_test.cjs && NODE_PATH="$RUNNER_TEMP/kc-dom/node_modules" node tests/keoco_finale_test.cjs
