@@ -10,3 +10,11 @@
 **/master.key
 **/account.enc
 **/cds_private/
+
+/includes/instance_binding.php
+/release-*.zip
+
+/chuyenmon/data/
+/chuyenmon/uploads/
+/uploads/
+/includes/.school-setup.lock

@@ -1,7 +1,7 @@
 <?php
 if (defined('CDS_MODULE_SWITCHER_RENDERED') || !function_exists('is_logged_in') || !is_logged_in()) return;
 define('CDS_MODULE_SWITCHER_RENDERED', true);
-if (!defined('URL_TIN_TUC')) define('URL_TIN_TUC', 'https://noitruxinman.edu.vn');
+if (!defined('URL_TIN_TUC')) define('URL_TIN_TUC', function_exists('school_website') ? school_website() : '/');
 if (!defined('URL_CHUYEN_MON')) define('URL_CHUYEN_MON', '/chuyenmon/');
 if (!defined('URL_CSDL')) define('URL_CSDL', '/csdl.php');
 if (!defined('URL_NOITRU')) define('URL_NOITRU', '/noitru.php');

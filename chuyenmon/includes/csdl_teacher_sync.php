@@ -14,6 +14,7 @@ function pccm_csdl_teachers_path() {
         BASE_PATH . '/../data/teachers.json',
         DATA_PATH . '/../teachers.json',
     ];
+    if (function_exists('cds_instance_legacy_install') && !cds_instance_legacy_install()) $candidates = [dirname(BASE_PATH) . '/data/teachers.json'];
     foreach ($candidates as $p) {
         if (is_file($p)) return $p;
     }

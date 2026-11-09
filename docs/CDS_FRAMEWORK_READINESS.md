@@ -2,6 +2,12 @@
 
 Ngày: 09/11/2026. Mã nguồn đối chiếu: `caa314c008e1e29f1abf843bcb7c2df8a9a2e03f`.
 
+## Cập nhật sau chuẩn hóa
+
+Báo cáo dưới đây giữ nguyên bằng chứng của phiên bản rà soát ban đầu. Đợt triển khai tiếp theo đã bổ sung đường dẫn riêng/binding cho bản cài mới, profile rỗng, setup quản trị CLI riêng, manifest nguồn sạch, deploy dừng khi thiếu đích và không chép runtime, cấu hình biểu mẫu cùng các tiêu đề/file xuất phát hiện có tên cố định, quy tắc Apache và kiểm tra hai trường giả. Tài khoản/dữ liệu hiện có không bị chuyển đổi. Hướng dẫn hiện hành: [CAI_DAT_TRUONG_MOI.md](CAI_DAT_TRUONG_MOI.md).
+
+Các điều kiện vẫn cần nghiệm thu riêng: quy tắc HTTP trên hosting thực tế (đặc biệt Nginx), độ dài tên/ảnh đã vẽ sẵn và tài liệu tải lên, tính đúng nghiệp vụ của loại hình trường khác, tải đồng thời/nhiều năm, sao lưu/phục hồi đầy đủ và mô hình nhiều trường trên cùng domain. Không coi các kiểm tra fixture là chứng nhận toàn hệ thống.
+
 ## Kết luận
 
 CDS có nền tảng để tái sử dụng, nhưng **chưa nên lấy nguyên thư mục của trường đang chạy để làm bộ cài cho trường mới**. Cần chuẩn hóa đường dẫn cấu hình, khởi tạo quản trị, đóng gói và kiểm tra cách ly trước khi phát hành bộ khung.

@@ -1,10 +1,11 @@
 <?php
+require_once __DIR__ . '/form_profile.php';
 /**
  * Xuất báo cáo bữa ăn cả ngày dạng SpreadsheetML/HTML, mở trực tiếp bằng Excel.
  * Biến có sẵn: $date, $overview, $rice, $riceKg, $user, $school.
  */
 $mealLabels = ['sang' => 'BỮA SÁNG', 'trua' => 'BỮA TRƯA', 'toi' => 'BỮA TỐI'];
-$schoolName = $school ?? 'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN';
+$schoolName = $school ?? cds_form_school_name();
 $fileDate = date('d-m-Y', strtotime($date));
 
 header('Content-Type: application/vnd.ms-excel; charset=UTF-8');

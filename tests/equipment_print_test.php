@@ -9,6 +9,7 @@ $rows=[];for($i=0;$i<21;$i++)$rows[]=['batch_id'=>'fixture','borrower'=>'Nguyễ
 $GLOBALS['fixture']=['equipment_loans'=>$rows];function load_json($file,$default){if($file!=='fixture-only/library_equipment.json')throw new RuntimeException('Unexpected file');return $GLOBALS['fixture'];}
 $_GET=['batch'=>'fixture'];$before=serialize($GLOBALS['fixture']);$source=file_get_contents(__DIR__.'/../thietbi_phieu.php');
 foreach(["require_once __DIR__ . '/includes/auth.php';","require_once __DIR__ . '/includes/csdl_store.php';"]as$line)$source=str_replace($line,';',$source);
+$source=str_replace('__DIR__',var_export(realpath(dirname(__DIR__)),true),$source);
 ob_start();eval('?>'.$source);$html=ob_get_clean();
 function check($ok,$message){if(!$ok)throw new RuntimeException($message);}
 check(str_contains($html,'A4 landscape'),'Landscape page');check(substr_count($html,'class="sheet"')===2,'21 rows split into two sheets');

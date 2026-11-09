@@ -5,9 +5,16 @@ define('CDS_SKIP_DRIVE_ACTION_REGISTRATION', true);
 define('CDS_AUTH_LOGIN_ONLY', true);
 $loginStarted=hrtime(true);
 require_once __DIR__.'/includes/auth.php';
+function cds_login_home_url(): string {
+    if (function_exists('cds_instance_config')
+        && (current_user()['role'] ?? '') === 'admin'
+        && cds_instance_config('deployment.profile', '') === 'school'
+        && trim((string)cds_instance_config('database.database', '')) === '') return BASE_URL . 'instance_settings.php';
+    return BASE_URL . 'admin.php';
+}
 if (is_logged_in()) {
     session_write_close();
-    header('Location: ' . BASE_URL . 'admin.php');
+    header('Location: ' . cds_login_home_url());
     exit;
 }
 $error = '';
@@ -16,7 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user = is_string($_POST['username']??null)?trim($_POST['username']):'';
     $pass = is_string($_POST['password']??null)?$_POST['password']:'';
     if (attempt_login($user, $pass)) {
-        $next = $_GET['next'] ?? (BASE_URL . 'admin.php');
+        $home = cds_login_home_url();
+        $next = $home === BASE_URL . 'instance_settings.php' ? $home : ($_GET['next'] ?? $home);
         if (!str_starts_with($next, '/') || str_starts_with($next, '//') || str_contains($next, '://')) $next = BASE_URL . 'admin.php';
         header('Server-Timing: login;dur='.round((hrtime(true)-$loginStarted)/1e6,1));
         session_write_close();

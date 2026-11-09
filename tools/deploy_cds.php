@@ -1,6 +1,8 @@
 <?php
 $repoRoot = dirname(__DIR__);
-$legacyTarget = '/home/capnachi/cds.noitruxinman.edu.vn';
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
+require_once $repoRoot . '/includes/instance_config.php';
+require_once $repoRoot . '/includes/release_manifest.php';
 
 function cds_deploy_private_dir(): string
 {
@@ -17,9 +19,16 @@ function cds_deploy_read_json(string $path): array
 }
 function cds_deploy_read_instance(): array
 {
-    $custom = getenv('CDS_INSTANCE_CONFIG');
-    $path = (is_string($custom) && trim($custom) !== '') ? trim($custom) : cds_deploy_private_dir() . '/instance.json';
-    return cds_deploy_read_json($path);
+    $path = cds_instance_config_path();
+    if (getenv('CDS_INSTANCE_CONFIG') || is_file(dirname(__DIR__).'/includes/instance_binding.php')) {
+        if (!is_file($path) && getenv('CDS_DEPLOY_PATH')) return [];
+        if (!is_file($path)) throw new RuntimeException('Missing explicit instance configuration.');
+        return cds_instance_config();
+    }
+    if (is_file($path)) return cds_deploy_read_json($path);
+    // Existing cPanel repositories used HOME; do not use this fallback for a new school profile.
+    $legacy = cds_deploy_read_json(cds_deploy_private_dir() . '/instance.json');
+    return ($legacy['deployment']['profile'] ?? '') === 'school' ? [] : $legacy;
 }
 function cds_deploy_read_config(): array
 {
@@ -36,9 +45,21 @@ function cds_deploy_normalize_target(string $path): string
 }
 function cds_deploy_copy_file(string $source, string $target): void
 {
+    if (is_link($source) || is_link($target)) throw new RuntimeException('Symlink deploy is not allowed.');
     if (!is_file($source)) throw new RuntimeException('Missing source file: ' . $source);
     $dir = dirname($target);
+    for ($check=$dir; $check !== dirname($check); $check=dirname($check)) if (is_link($check)) throw new RuntimeException('Symlink deploy directory.');
     if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) throw new RuntimeException('Cannot create directory: ' . $dir);
+    if (basename($source) === '.htaccess' && is_file($target)) {
+        $existing = (string)file_get_contents($target);
+        $managed = (string)file_get_contents($source);
+        $begin = '# BEGIN CDS PRIVATE DATA'; $end = '# END CDS PRIVATE DATA';
+        if (str_contains($existing, $begin) !== str_contains($existing, $end)) throw new RuntimeException('Incomplete managed Apache rules; review target .htaccess.');
+        if (str_contains($existing, $begin)) $merged = preg_replace_callback('/'.preg_quote($begin,'/').'.*?'.preg_quote($end,'/').'/s', static fn()=>rtrim($managed), $existing);
+        else $merged = rtrim($existing) . "\n\n" . $managed;
+        if (!is_string($merged) || file_put_contents($target, $merged, LOCK_EX) === false) throw new RuntimeException('Cannot update managed Apache rules.');
+        return;
+    }
     if (!copy($source, $target)) throw new RuntimeException('Copy failed: ' . $source . ' -> ' . $target);
 }
 function cds_deploy_copy_tree(string $source, string $target): void
@@ -48,7 +69,11 @@ function cds_deploy_copy_tree(string $source, string $target): void
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST);
     foreach ($iterator as $item) {
         $relative = substr($item->getPathname(), strlen($source) + 1);
+        $sourceRelative = ltrim(substr($item->getPathname(), strlen(dirname(__DIR__))), '/');
+        if (!cds_release_path_allowed($sourceRelative) || (isset($GLOBALS['cdsDeployManifest']) && !$item->isDir() && !isset($GLOBALS['cdsDeployManifest'][$sourceRelative]))) continue;
+        if ($item->isLink()) throw new RuntimeException('Symlink source is not allowed.');
         $dest = $target . '/' . $relative;
+        if (is_link($dest)) throw new RuntimeException('Symlink target is not allowed.');
         if ($item->isDir()) {
             if (!is_dir($dest) && !mkdir($dest, 0755, true) && !is_dir($dest)) throw new RuntimeException('Cannot create directory: ' . $dest);
         } else {
@@ -59,15 +84,20 @@ function cds_deploy_copy_tree(string $source, string $target): void
 
 $envTarget = getenv('CDS_DEPLOY_PATH');
 $instance = cds_deploy_read_instance();
-$compatConfig = cds_deploy_read_config();
+$compatConfig = ($instance['deployment']['profile'] ?? '') === 'school' ? [] : cds_deploy_read_config();
 $instanceTarget = is_array($instance['deployment'] ?? null) ? (string)($instance['deployment']['target_path'] ?? '') : '';
-$target = is_string($envTarget) && trim($envTarget) !== '' ? trim($envTarget) : ($instanceTarget !== '' ? $instanceTarget : (string)($compatConfig['target_path'] ?? $legacyTarget));
+$target = is_string($envTarget) && trim($envTarget) !== '' ? trim($envTarget) : ($instanceTarget !== '' ? $instanceTarget : (string)($compatConfig['target_path'] ?? ''));
 $target = cds_deploy_normalize_target($target);
 if ($target === '') { fwrite(STDERR, "INVALID_DEPLOY_TARGET\n"); exit(2); }
+// Validate and display the source plan before touching the destination.
+$manifest = cds_release_manifest($repoRoot);
+$GLOBALS['cdsDeployManifest'] = array_fill_keys($manifest, true);
+if (in_array('--dry-run', $argv, true)) { echo 'CDS_DEPLOY_PLAN ' . $target . ' · ' . count($manifest) . " source files; runtime excluded\n"; exit; }
 if (!is_dir($target) && !mkdir($target, 0755, true) && !is_dir($target)) { fwrite(STDERR, "CANNOT_CREATE_DEPLOY_TARGET\n"); exit(3); }
 
 $directories = ['assets', 'includes', 'chuyenmon'];
 $rootFiles = [
+    '.htaccess','game_asset.php','notice_file.php',
     'ioffice_settings.php','bin/ioffice-vault.php','activity.php','admin.php','admin_operation_settings.php','notices.php','drive_viewer.php','public_notice.php',
     'public_drive_viewer.php','public_ktx_exit_file.php','drive_file.php','drive_settings.php',
     'hoclieu_game_muc.php','hoclieu_game_buzzer.php','hoclieu_game_buzzer_api.php','hoclieu.php','hoclieu_game_thabong.php','hoclieu_game_rocket.php','hoclieu_clock.php','hoclieu_file.php','hoclieu_game.php','hoclieu_game_keoco.php','hoclieu_game_keoco_api.php','hoclieu_game_keoco_match.php','hoclieu_game_keoco_team.php','hoclieu_game_keoco_screen.php','hoclieu_game_chopnot.php','hoclieu_game_duavit.php','hoclieu_game_loto.php','hoclieu_game_qr_trial.php','hoclieu_game_quiz.php','hoclieu_game_quiz_media.php','hoclieu_game_quiz_join.php','hoclieu_game_quiz_screen.php','vaochoi.php','chieu.php','quet.php','hoclieu_quiz_cards.php','hoclieu_game_olympia.php','hoclieu_game_olympia_sets.php','hoclieu_game_olympia_play.php','hoclieu_game_olympia_screen.php','hoclieu_game_olympia_live.php','hoclieu_game_olympia_rankings.php','olympia_stage.php','olympia_stage_api.php','olympia_san_khau_preview.html',

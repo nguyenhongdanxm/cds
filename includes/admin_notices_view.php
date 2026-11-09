@@ -29,7 +29,7 @@ function cds_notice_rows(): array {
     $out=[]; foreach(cds_notice_rows_all() as $r){ if(($r['section']??'')!=='kh_thongbao') continue; if(empty($r['field']))$r['field']='chuyenmon'; $out[]=$r; }
     usort($out,fn($a,$b)=>strcmp((string)($b['date']??''),(string)($a['date']??''))?:strcmp((string)($b['created_at']??''),(string)($a['created_at']??''))); return $out;
 }
-function cds_notice_file_url(string $path): string { if($path==='')return ''; return str_starts_with($path,'gdrive:')?BASE_URL.'admin.php?drive_file='.rawurlencode(substr($path,7)):BASE_URL.'data/'.ltrim($path,'/'); }
+function cds_notice_file_url(string $path): string { if($path==='')return ''; return str_starts_with($path,'gdrive:')?BASE_URL.'admin.php?drive_file='.rawurlencode(substr($path,7)):BASE_URL.'notice_file.php?path='.rawurlencode(ltrim($path,'/')); }
 function cds_notice_upload(string $field,string $category='plans'): string {
     $up=$_FILES[$field]??null; if(!$up||($up['error']??UPLOAD_ERR_NO_FILE)===UPLOAD_ERR_NO_FILE)return '';
     if(($up['error']??UPLOAD_ERR_OK)!==UPLOAD_ERR_OK)throw new RuntimeException('Không nhận được file tải lên. Mã lỗi '.(int)$up['error'].'.');

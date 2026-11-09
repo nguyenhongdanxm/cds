@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/includes/form_profile.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_store.php';
 require_login();
@@ -20,7 +21,7 @@ $pages=array_chunk($rows,16);
 </style></head><body>
 <div class="toolbar"><a href="<?=BASE_URL?>thuvien.php?tab=equipment_loans">Quay lại</a><button onclick="window.print()">In / Lưu PDF</button></div>
 <?php $ordinal=0;foreach($pages as$pageIndex=>$pageRows):?>
-<section class="sheet"><div class="school"><?=htmlspecialchars(SCHOOL_NAME)?> · Năm học <?=htmlspecialchars($year)?></div><h1 class="title">QUẢN LÝ SỬ DỤNG THIẾT BỊ DẠY HỌC</h1>
+<section class="sheet"><div class="school"><?=htmlspecialchars(cds_form_school_name())?> · Năm học <?=htmlspecialchars($year)?></div><h1 class="title">QUẢN LÝ SỬ DỤNG THIẾT BỊ DẠY HỌC</h1>
 <div class="info"><div class="teacher">Họ và tên giáo viên: <span class="dots"><?=htmlspecialchars($borrower)?></span></div><div class="subject">Dạy môn: <span class="dots"><?=htmlspecialchars($subject)?></span></div><div class="class">Lớp: <span class="dots"><?=htmlspecialchars(implode(', ',$classes))?></span></div></div>
 <table><colgroup><?php foreach([4,5,6,25,5,7,8,5,5,7,8,5,10]as$width):?><col style="width:<?=$width?>%"><?php endforeach;?></colgroup><thead><tr><th rowspan="2">Số<br>TT</th><th rowspan="2">Lớp</th><th rowspan="2">Tiết<br>theo<br>PPCT</th><th rowspan="2">TÊN THIẾT BỊ</th><th colspan="4">Mượn</th><th colspan="5">Trả</th></tr><tr><th>Số<br>lượng</th><th>Chất<br>lượng</th><th>Ngày<br>mượn</th><th>Ký</th><th>Số<br>lượng</th><th>Chất<br>lượng</th><th>Ngày<br>trả</th><th>Ký</th><th>Ghi chú</th></tr></thead><tbody>
 <?php foreach($pageRows as$row):$ordinal++;$returned=trim((string)($row['returned_at']??''))!=='';?><tr><td><?=$ordinal?></td><td><?=htmlspecialchars((string)($row['teaching_grade']??''))?></td><td><?=htmlspecialchars((string)($row['lesson_period']??''))?></td><td class="equipment"><?=htmlspecialchars((string)($row['equipment_name']??''))?></td><td><?=(int)($row['quantity']??0)?></td><td><?=htmlspecialchars((string)($row['condition_out']??''))?></td><td><?=htmlspecialchars(eqp_date($row['borrowed_at']??''))?></td><td></td><td><?=$returned?(int)($row['quantity']??0):''?></td><td><?=htmlspecialchars($returned?(string)($row['return_condition']??''):'')?></td><td><?=htmlspecialchars($returned?eqp_date($row['returned_at']):'')?></td><td></td><td><?=htmlspecialchars((string)($row['note']??''))?></td></tr>

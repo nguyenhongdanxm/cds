@@ -9,8 +9,8 @@ if (is_logged_in()) {
 require_once 'includes/modules.php';
 $modules = get_ecosystem_modules();
 $user = current_user();
-$logoPath = BASE_URL . 'assets/logo.png';
-$logoExists = file_exists(__DIR__ . '/assets/logo.png');
+$logoPath = school_logo();
+$logoExists = $logoPath !== '';
 $nModules = count($modules);
 $coreHref = $user
     ? BASE_URL . 'admin.php'
@@ -463,7 +463,7 @@ body::after{
 </div>
 
 <header class="hero">
-  <div class="line1">TRƯỜNG PTDTNT THCS&THPT XÍN MẦN</div>
+  <div class="line1"><?=e(school_name())?></div>
   <div class="line2">HỆ SINH THÁI QUẢN LÝ NHÀ TRƯỜNG</div>
 </header>
 <div class="stage">
@@ -548,7 +548,7 @@ body::after{
         <?php if ($logoExists): ?>
           <img src="<?= e($logoPath) ?>" alt="Logo <?= e(SCHOOL_NAME) ?>">
         <?php else: ?>
-          <div class="logo-fallback">XÍN<br>MẦN</div>
+          <div class="logo-fallback"><?=e(school_short_name())?></div>
         <?php endif; ?>
       </a>
     </div>
@@ -595,7 +595,7 @@ body::after{
 </div>
 
 <footer class="site-footer">
-  <div class="line1">Dự án chuyển đổi số trong quản lý giáo dục của trường PTDTNT THCS&THPT Xín Mần</div>
+  <div class="line1">Hệ sinh thái quản lý giáo dục · <?=e(school_name())?></div>
   <div class="line2">Thiết kế và xây dựng bởi thầy giáo <strong>Nguyễn Hồng Dân</strong></div>
 </footer>
 

@@ -34,7 +34,7 @@ function staff_card_token(string $teacherId): string {
 function staff_card_verify_url(array $teacher): string {
     $id = (string)($teacher['id'] ?? '');
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = (string)($_SERVER['HTTP_HOST'] ?? 'cds.noitruxinman.edu.vn');
+    $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
     $path = rtrim((defined('BASE_URL') ? BASE_URL : '/'), '/') . '/staff_verify.php';
     return $scheme . '://' . $host . $path . '?id=' . rawurlencode($id) . '&t=' . rawurlencode(staff_card_token($id));
 }

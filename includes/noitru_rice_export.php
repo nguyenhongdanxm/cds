@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/form_profile.php';
 /**
  * Xuất báo cáo sử dụng gạo dạng XLSX thật:
  * - Sheet đầu: tổng hợp toàn trường theo lớp.
@@ -236,7 +237,7 @@ function noitru_rice_excel(array $usage, array $meta) {
     $to = $meta['to'] ?? date('Y-m-d');
     $riceData = $meta['rice_data'] ?? noitru_rice_data();
     $detail = nt_rice_build_detail($from, $to, $riceData);
-    $school = $meta['school'] ?? 'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN';
+    $school = $meta['school'] ?? cds_form_school_name();
     $period = $meta['period'] ?? ('Từ ngày ' . date('d/m/Y', strtotime($from)) . ' đến ngày ' . date('d/m/Y', strtotime($to)));
 
     $schoolTotal = ['sang'=>0,'trua'=>0,'toi'=>0,'sang_kg'=>0.0,'trua_kg'=>0.0,'toi_kg'=>0.0,'total'=>0,'total_kg'=>0.0];

@@ -610,7 +610,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         };
         $saved = noitru_duty_report_save([
             'date'=>$reportDate,
-            'location'=>$_POST['location'] ?? 'Pà Vầy Sủ',
+            'location'=>$_POST['location'] ?? cds_form_place(),
             'shift_label'=>$_POST['shift_label'] ?? '',
             'discipline'=>$defaultReportText('discipline'),
             'hygiene'=>'', 'safety'=>'', 'health'=>'',
@@ -1151,7 +1151,7 @@ if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'kitchen') {
     header('Content-Disposition: attachment; filename="bao-an-nha-bep-' . $date . '.csv"');
     echo "\xEF\xBB\xBF";
     $fp = fopen('php://output', 'w');
-    fputcsv($fp, [$school ?? 'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN']);
+    fputcsv($fp, [$school ?? cds_form_school_name()]);
     fputcsv($fp, ['BÁO ĂN NHÀ BẾP NGÀY ' . date('d/m/Y', strtotime($date))]);
     fputcsv($fp, ['Bữa','Trạng thái','Số lớp đã báo','Lớp chưa báo','Số suất ăn','Số nghỉ']);
     $labels = ['sang'=>'Bữa sáng','trua'=>'Bữa trưa','toi'=>'Bữa tối'];
@@ -1196,7 +1196,7 @@ if ($tab === 'meal_summary' && ($_GET['export'] ?? '') === 'period_csv') {
     header('Content-Disposition: attachment; filename="tong-hop-suat-an-' . $from . '-' . $to . '.csv"');
     echo "\xEF\xBB\xBF";
     $fp = fopen('php://output', 'w');
-    fputcsv($fp, [$school ?? 'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN']);
+    fputcsv($fp, [$school ?? cds_form_school_name()]);
     fputcsv($fp, ['TỔNG HỢP SUẤT ĂN TỪ ' . date('d/m/Y', strtotime($from)) . ' ĐẾN ' . date('d/m/Y', strtotime($to))]);
     fputcsv($fp, ['Ngày', 'Bữa sáng', 'Bữa trưa', 'Bữa tối', 'Tổng suất', 'Lớp/bữa đã báo', 'Lớp/bữa chưa báo']);
     foreach ($summary['days'] as $date => $day) {
@@ -1254,7 +1254,7 @@ if ($tab === 'rice' && ($_GET['export'] ?? '') === 'excel') {
     }
     require_once __DIR__ . '/includes/noitru_rice_export.php';
     noitru_rice_excel($usage, [
-        'school'=>defined('SCHOOL_NAME')?SCHOOL_NAME:'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN',
+        'school'=>cds_form_school_name(),
         'period'=>$periodLabel,
         'manual_in'=>$manualIn,
         'manual_out'=>$manualOut,
@@ -1278,7 +1278,7 @@ if ($tab === 'stats' && ($_GET['export'] ?? '') === 'csv') {
     header('Content-Type: text/csv; charset=UTF-8');
     header('Content-Disposition: attachment; filename="bao-cao-noi-tru-thang-' . $month . '.csv"');
     echo "\xEF\xBB\xBF"; $fp=fopen('php://output','w');
-    fputcsv($fp, [defined('SCHOOL_NAME')?SCHOOL_NAME:'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN']);
+    fputcsv($fp, [cds_form_school_name()]);
     fputcsv($fp, ['BÁO CÁO TỔNG HỢP CÔNG TÁC NỘI TRÚ THÁNG '.date('m/Y',strtotime($from))]);
     fputcsv($fp, ['Ngày','Sáng','Trưa','Tối','Có mặt','Vắng','Muộn','Có phép','Phiếu KTX','Y tế','Ca trực','Gạo (kg)']);
     foreach ($report['daily'] as $date=>$row) fputcsv($fp,[date('d/m/Y',strtotime($date)),$row['meals']['sang'],$row['meals']['trua'],$row['meals']['toi'],$row['attendance']['present'],$row['attendance']['absent'],$row['attendance']['late'],$row['attendance']['excused'],$row['exits'],$row['health'],$row['duty'],number_format($row['rice_kg'],3,'.','')]);
@@ -1769,7 +1769,7 @@ form[method="post"]:not(#dutyReportForm):not(#dutySwapRequestForm){display:none!
     $riceLunchKg = ($overview['meals']['trua']['eat']??0) * (float)($rice['settings']['trua_grams']??180) / 1000;
     $riceDinnerKg = ($overview['meals']['toi']['eat']??0) * (float)($rice['settings']['toi_grams']??180) / 1000;
     $riceDayKg = $riceLunchKg + $riceDinnerKg;
-    $dayExportData = ['school'=>$school ?? 'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN','date'=>date('d/m/Y',strtotime($date)),'reporter'=>$user['name']??'','rice_kg'=>$riceDayKg,'rice_lunch_kg'=>$riceLunchKg,'rice_dinner_kg'=>$riceDinnerKg,'meals'=>[]];
+    $dayExportData = ['school'=>$school ?? cds_form_school_name(),'date'=>date('d/m/Y',strtotime($date)),'reporter'=>$user['name']??'','rice_kg'=>$riceDayKg,'rice_lunch_kg'=>$riceLunchKg,'rice_dinner_kg'=>$riceDinnerKg,'meals'=>[]];
     foreach ($mealLabels as $mealKey=>$label) {
       $info=$overview['meals'][$mealKey];
       $dayExportData['meals'][$mealKey]=[
@@ -2097,7 +2097,7 @@ form[method="post"]:not(#dutyReportForm):not(#dutySwapRequestForm){display:none!
     <div class="stats-actions"><a class="btn btn-outline-success" href="<?= e(BASE_URL.'noitru.php?tab=stats&month='.$reportMonth.'&export=csv') ?>"><i class="bi bi-file-earmark-spreadsheet"></i> Xuất bảng dữ liệu</a><button class="btn btn-nt" type="button" onclick="window.print()"><i class="bi bi-printer"></i> In / Lưu PDF</button></div>
   </div>
 
-  <header class="stats-print-header"><div><strong><?= e(defined('SCHOOL_NAME')?SCHOOL_NAME:'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN') ?></strong></div><div><strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br>Độc lập - Tự do - Hạnh phúc</div><h2>BÁO CÁO TỔNG HỢP CÔNG TÁC NỘI TRÚ</h2><p>Tháng <?= e(date('m/Y',strtotime($from))) ?></p></header>
+  <header class="stats-print-header"><div><strong><?= e(cds_form_school_name()) ?></strong></div><div><strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br>Độc lập - Tự do - Hạnh phúc</div><h2>BÁO CÁO TỔNG HỢP CÔNG TÁC NỘI TRÚ</h2><p>Tháng <?= e(date('m/Y',strtotime($from))) ?></p></header>
 
   <div class="stats-kpis">
     <div><i class="bi bi-people"></i><strong><?= (int)$full['boarders'] ?></strong><span>Học sinh nội trú</span></div>
@@ -2118,7 +2118,7 @@ form[method="post"]:not(#dutyReportForm):not(#dutySwapRequestForm){display:none!
     <div class="stats-section"><h5>II. Học sinh nội trú theo lớp</h5><table class="table table-sm mb-0"><thead><tr><th>Lớp</th><th class="text-end">Số học sinh</th></tr></thead><tbody><?php foreach($full['classes'] as $class=>$count): ?><tr><td><?= e($class) ?></td><td class="text-end"><strong><?= $count ?></strong></td></tr><?php endforeach; ?></tbody><tfoot><tr><th>Tổng</th><th class="text-end"><?= $full['boarders'] ?></th></tr></tfoot></table></div>
     <div class="stats-section"><h5>III. Tổng hợp nghiệp vụ</h5><div class="stats-summary-list"><div><span>Điểm danh có mặt</span><strong><?= $full['attendance']['present'] ?></strong></div><div><span>Vắng</span><strong><?= $full['attendance']['absent'] ?></strong></div><div><span>Có phép</span><strong><?= $full['attendance']['excused'] ?></strong></div><div><span>Phiếu đã duyệt</span><strong><?= $full['exits']['approved'] ?></strong></div><div><span>Phiếu chờ duyệt</span><strong><?= $full['exits']['pending'] ?></strong></div><?php foreach($healthTypeLabels as $key=>$label): ?><div><span>Y tế: <?= e($label) ?></span><strong><?= $full['health_types'][$key]??0 ?></strong></div><?php endforeach; ?></div></div>
   </div>
-  <div class="stats-signatures"><div><strong>NGƯỜI LẬP BÁO CÁO</strong><small>(Ký, ghi rõ họ tên)</small></div><div><em>Pà Vầy Sủ, ngày ..... tháng ..... năm <?= date('Y',strtotime($from)) ?></em><strong>HIỆU TRƯỞNG</strong><small>(Ký, đóng dấu)</small></div></div>
+  <div class="stats-signatures"><div><strong>NGƯỜI LẬP BÁO CÁO</strong><small>(Ký, ghi rõ họ tên)</small></div><div><em><?=e(cds_form_place())?><?=cds_form_place()!==''?', ':''?>ngày ..... tháng ..... năm <?= date('Y',strtotime($from)) ?></em><strong>HIỆU TRƯỞNG</strong><small>(Ký, đóng dấu)</small></div></div>
   </section>
 
 <?php endif; ?>
@@ -2206,7 +2206,7 @@ function downloadMealImage(key){
   var card=document.getElementById('mealCard-'+key); if(!card)return;
   var canvas=document.createElement('canvas'),ctx=canvas.getContext('2d'),w=900,h=560;
   canvas.width=w;canvas.height=h;ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
-  ctx.textAlign='center';ctx.fillStyle='#64748b';ctx.font='20px Arial';ctx.fillText('TRƯỜNG PTDTNT THCS&THPT XÍN MẦN',w/2,48);
+  ctx.textAlign='center';ctx.fillStyle='#64748b';ctx.font='20px Arial';ctx.fillText(<?=cds_form_js(cds_form_school_name())?>,w/2,48);
   ctx.fillStyle='#0284c7';ctx.font='bold 34px Arial';ctx.fillText((card.dataset.mealLabel||'BỮA ĂN').toLocaleUpperCase('vi'),w/2,95);
   ctx.fillStyle='#334155';ctx.font='21px Arial';ctx.fillText(card.dataset.date||'',w/2,130);
   ctx.strokeStyle='#0ea5e9';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(80,155);ctx.lineTo(820,155);ctx.stroke();

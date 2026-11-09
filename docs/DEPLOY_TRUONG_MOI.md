@@ -1,21 +1,18 @@
 # TRIỂN KHAI CDS CHO TRƯỜNG MỚI
 
-> Trước khi nhân bản, đọc [báo cáo mức độ sẵn sàng bộ khung](CDS_FRAMEWORK_READINESS.md).
-> Hiện còn các điểm chặn về cách ly cấu hình, khởi tạo quản trị và đóng gói/deploy.
-> Không copy thư mục của trường đang vận hành để làm bộ cài mới. Mỗi trường phải
-> có cấu hình ngoài web root, database, dữ liệu và tích hợp riêng; không dùng chung
-> đường dẫn cấu hình mặc định giữa các bản cài cạnh nhau.
+> Cài mới theo [hướng dẫn cài trường mới](CAI_DAT_TRUONG_MOI.md): dùng mã sạch, cấu hình riêng và công cụ setup một lần.
+> [Báo cáo rà soát ban đầu](CDS_FRAMEWORK_READINESS.md) ghi nhận các rủi ro trước đợt chuẩn hóa; trạng thái khắc phục được cập nhật tại đầu báo cáo.
 
 CDS dùng **một bộ cấu hình hợp nhất** cho mỗi trường. Người quản trị không cần
 sửa PHP, JavaScript, YAML hoặc nhiều file cấu hình riêng.
 
 ## 1. File cấu hình duy nhất
 
-Mặc định CDS lưu cấu hình tại:
+Bản cũ có thể lưu cấu hình tại:
 
 `/home/<user>/cds_private/instance.json`
 
-File nằm ngoài web root và được đặt quyền hạn chế. Có thể đổi vị trí bằng biến
+Bản cài mới chạy setup để tạo đường dẫn riêng và binding cục bộ theo hướng dẫn; không dùng chung đường dẫn trên cho nhiều trường. File phải nằm ngoài mọi web root và được đặt quyền hạn chế. Có thể đổi vị trí bằng biến
 môi trường `CDS_INSTANCE_CONFIG`.
 
 Các nhóm cấu hình trong cùng file:
@@ -45,27 +42,9 @@ thiết lập được ghi vào cùng `instance.json`.
 Mật khẩu database và JSON Service Account không được hiển thị lại trên giao
 diện. Để trống các ô bí mật khi chỉnh sửa lần sau sẽ giữ nguyên giá trị đã lưu.
 
-## 3. Quy trình nhân bản
+## 3. Quy trình cài mới
 
-1. Tạo database và người dùng database riêng cho trường mới.
-2. Copy nguyên source CDS sang hosting/domain mới.
-3. Đăng nhập bằng tài khoản quản trị ban đầu.
-4. Mở **Cấu hình trường**.
-5. Nhập thông tin nhà trường, cấp học và các module cần dùng.
-6. Nhập database; CDS sẽ kiểm tra kết nối trước khi lưu.
-7. Chọn `Trường mới – dữ liệu rỗng` cho phần khởi tạo Chuyên môn.
-8. Nhập Drive nếu sử dụng.
-9. Nhập đúng thư mục website trên hosting.
-10. Lưu cấu hình và tải lại trang.
-11. Bấm **Tiếp tục khởi tạo dữ liệu** hoặc mở `/initial_setup.php`.
-12. Làm theo thứ tự: MySQL → năm học → giáo viên → lớp → học sinh → Chuyên môn → tài khoản và phân quyền.
-
-Trang `/initial_setup.php` chỉ đọc trạng thái và cung cấp liên kết tới từng
-chức năng. Trang không tự chạy migration, không tự nhập và không sửa dữ liệu
-vận hành hiện có.
-
-Từ lần triển khai tiếp theo, `tools/deploy_cds.php` tự đọc
-`instance.json → deployment.target_path`; không cần sửa `.cpanel.yml`.
+Theo [CAI_DAT_TRUONG_MOI.md](CAI_DAT_TRUONG_MOI.md). Không đăng nhập bằng một mật khẩu quản trị chung: chạy `tools/setup_school.php` với mã trường và đường dẫn cấu hình ngoài web root để tạo quản trị riêng và binding cục bộ. Sau đó cấu hình database, biểu mẫu và dữ liệu trên giao diện. Không chạy setup khi nâng cấp trường đang hoạt động.
 
 ## 4. Dữ liệu và tài nguyên riêng
 

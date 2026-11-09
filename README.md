@@ -43,3 +43,7 @@ data/           ← users.json (tự tạo khi chạy)
 1. SSO chung domain với PCCM  
 2. Dữ liệu lõi GV–lớp dùng chung  
 3. Lần lượt: Văn bản → Tuyên truyền → Thi đua → Nội trú  
+
+## Triển khai cho trường khác
+
+Dùng [hướng dẫn bộ cài trường mới](docs/CAI_DAT_TRUONG_MOI.md). Không sao chép dữ liệu đang vận hành hoặc dùng chung tài khoản quản trị ban đầu.

@@ -1,0 +1,15 @@
+# BEGIN CDS PRIVATE DATA
+# Application data is private. Nginx must apply the equivalent rules in its vhost.
+<IfModule mod_rewrite.c>
+RewriteEngine On
+# Keep saved media/attachment links working while blocking raw data stores.
+RewriteRule ^data/game_assets/(wheel_music|duck_race_music|olympia_stage)/([^/]+)$ game_asset.php?group=$1&name=$2 [END,NC]
+RewriteRule ^chuyenmon/data/uploads/([^/]+)$ chuyenmon/cm_file.php?path=uploads/$1 [END,NC]
+RewriteRule ^data/uploads/([^/]+)$ notice_file.php?path=uploads/$1 [END,NC]
+RewriteRule ^(?:includes|chuyenmon/includes|tools|tests|bin|data|chuyenmon/data|cds_private)(?:/|$) - [F,L,NC]
+RewriteRule (^|/)\.(?!well-known(?:/|$)) - [F,L]
+</IfModule>
+<FilesMatch "(?i)(?:\.(?:conf|sql|bak|log|pem|key)|^release-manifest\.json)$">
+Require all denied
+</FilesMatch>
+# END CDS PRIVATE DATA

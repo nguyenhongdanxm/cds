@@ -32,8 +32,10 @@ if ($role !== 'admin'
 
 $path = (string)($row['file_path'] ?? '');
 if (!str_starts_with($path, 'gdrive:')) {
-    header('Location: ' . BASE_URL . ltrim($path, '/'));
-    exit;
+    require_once dirname(__DIR__).'/includes/local_download.php';
+    $local=cds_local_upload_path(DATA_PATH,preg_replace('~^data/~','',ltrim($path,'/')));
+    if($local===''){http_response_code(404);exit;}
+    cds_stream_local_file($local);
 }
 
 $fileId = substr($path, 7);

@@ -50,5 +50,5 @@ function stage_asset(string $kind): string {
     $mime=(new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);$size=(int)$file['size'];if(!isset($allowed[$mime])||$size<1||$size>($kind==='video'?120:($kind==='sound'?25:8))*1024*1024)throw new RuntimeException('Định dạng hoặc dung lượng tệp không hợp lệ.');
     $dir=DATA_PATH.'/game_assets/olympia_stage';if(!is_dir($dir)&&!mkdir($dir,0755,true))throw new RuntimeException('Không thể tạo thư mục tài nguyên.');
     $name=bin2hex(random_bytes(16)).'.'.$allowed[$mime];if(!move_uploaded_file($file['tmp_name'],$dir.'/'.$name))throw new RuntimeException('Không lưu được tài nguyên.');
-    return BASE_URL.'data/game_assets/olympia_stage/'.$name;
+    return BASE_URL.'game_asset.php?group=olympia_stage&name='.rawurlencode($name);
 }

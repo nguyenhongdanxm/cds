@@ -3,9 +3,9 @@ function get_app_info() {
     return [
         'name' => 'Chuyên môn',
         'full_name' => 'Ứng dụng Chuyên môn',
-        'year' => '2025 – 2026',
+        'year' => function_exists('school_year') ? school_year() : '',
         'author' => 'Thầy giáo Nguyễn Hồng Dân',
-        'school' => 'Trường PTDTNT THCS&THPT Xín Mần',
+        'school' => function_exists('school_name') ? school_name() : 'Nhà trường',
         'tagline' => 'PCCM · Kế hoạch · Báo cáo',
         'version' => '3.1',
     ];

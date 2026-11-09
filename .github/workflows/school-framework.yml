@@ -1,0 +1,47 @@
+name: School framework isolation
+on:
+  pull_request:
+    paths:
+      - 'includes/**'
+      - 'chuyenmon/includes/**'
+      - 'instance_settings.php'
+      - 'game_asset.php'
+      - 'notice_file.php'
+      - 'chuyenmon/cm_file.php'
+      - '**/*export*.php'
+      - 'chuyenmon/*print*.php'
+      - 'tools/**'
+      - '.htaccess'
+      - 'tests/school_framework_test.py'
+      - 'tests/periodic_report_controller_test.py'
+      - 'tests/support/meal_month_sheet_reference.php'
+      - '.github/workflows/school-framework.yml'
+  workflow_dispatch:
+jobs:
+  schools:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, tokenizer, dom, zip
+      - run: |
+          php -l includes/instance_config.php
+          php -l includes/form_profile.php
+          php -l tools/setup_school.php
+          php -l tools/build_school_release.php
+          php -l tools/deploy_cds.php
+          python3 tests/school_framework_test.py
+          php tests/login_test.php
+          php tests/login_permissions_test.php
+          php tests/meal_month_export_test.php
+          php tests/lesson_book_print_homeroom_test.php
+          php tests/periodic_report_test.php
+          python3 tests/periodic_report_controller_test.py
+          php tests/meal_primary_guard_test.php
+          php tests/lesson_book_primary_guard_test.php
+          php tests/staff_evaluation_deploy_test.php

@@ -209,11 +209,11 @@ function csdl_io_template($entity) {
     $schema = csdl_schema_entity($entity);
     $headers = array_merge(['STT'], array_values(array_map(fn($m) => $m['label'], $schema)));
     if ($entity === 'teachers') {
-        $sample = [1, 'GV001', 'Nguyễn Văn A', '001234567890', '15/03/1985', 'Nam', 'Kinh', '0901234567', 'a@example.com', 'Hà Giang', 'Xín Mần', 'THCS&THPT', 'Toán', 'Tổ Toán', 'Giáo viên', '', '01/09/2010', '3', 'II', 'THCS', '3', '01/01/2024', '', '', '', 'Có', ''];
+        $sample = [1, 'GV001', 'Nguyễn Văn A', '001234567890', '15/03/1985', 'Nam', 'Kinh', '0901234567', 'a@example.com', 'Tỉnh/Thành phố', 'Xã/Phường', 'THCS&THPT', 'Toán', 'Tổ Toán', 'Giáo viên', '', '01/09/2010', '3', 'II', 'THCS', '3', '01/01/2024', '', '', '', 'Có', ''];
     } elseif ($entity === 'classes') {
         $sample = [1, '6A', '6', 'THCS', 'Nguyễn Văn A', 'P101', '35', 'Có', ''];
     } else {
-        $sample = [1, 'HS001', 'Lý Thị B', '001098765432', '0123456789', '6A', '01/01/2012', 'Nữ', 'Tày', 'Xín Mần', '', '', 'Phạm Văn C', '0909999999', 'Có', 'A1', '1', 'Có', date('d/m/Y'), '', '', '', ''];
+        $sample = [1, 'HS001', 'Lý Thị B', '001098765432', '0123456789', '6A', '01/01/2012', 'Nữ', 'Tày', 'Xã/Phường', '', '', 'Phạm Văn C', '0909999999', 'Có', 'A1', '1', 'Có', date('d/m/Y'), '', '', '', ''];
     }
     while (count($sample) < count($headers)) $sample[] = '';
     $sample = array_slice($sample, 0, count($headers));

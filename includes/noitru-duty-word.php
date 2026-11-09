@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/form_profile.php';
 /** DOCX lịch trực theo tháng; chỉ đọc dữ liệu, không thay đổi phân công. */
 require_once __DIR__ . '/../chuyenmon/includes/periodic_report_docx.php';
 function nt_duty_word_p(string $text, string $align='left', bool $bold=false, int $size=24, bool $keep=false): string {
@@ -10,8 +11,8 @@ function nt_duty_word(string $month, array $rows, array $managers, array $settin
  $byDate=[];foreach($rows as$r)if(str_starts_with((string)($r['date']??''),$month.'-'))$byDate[(string)$r['date']][]=$r;
  $managerMap=[];foreach($managers as$r)$managerMap[(string)($r['date']??'')]=$r;
  $upper=static fn($s)=>function_exists('mb_strtoupper')?mb_strtoupper($s,'UTF-8'):$s;
- $body=nt_duty_word_p($upper(defined('SCHOOL_SO')?SCHOOL_SO:'SỞ GIÁO DỤC VÀ ĐÀO TẠO TUYÊN QUANG'),'left',false,24,true);
- $body.=nt_duty_word_p($upper(defined('SCHOOL_NAME')?SCHOOL_NAME:'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN'),'left',true,24,true);
+ $body=nt_duty_word_p($upper(cds_form_department()),'left',false,24,true);
+ $body.=nt_duty_word_p($upper(cds_form_school_name()),'left',true,24,true);
  $body.='<w:p><w:pPr><w:ind w:left="0" w:right="6155"/><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="000000"/></w:pBdr><w:spacing w:before="0" w:after="160" w:line="20" w:lineRule="exact"/><w:keepNext/></w:pPr></w:p>';
  $body.=nt_duty_word_p('DANH SÁCH PHÂN CÔNG TRỰC NỘI TRÚ','center',true,28,true);
  $body.=nt_duty_word_p('Tháng '.$start->format('m').' năm '.$start->format('Y'),'center',true,26,true);

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/form_profile.php';
 /**
  * Xuất sổ theo dõi bữa ăn theo tháng dạng XLSX thật, mỗi lớp một sheet.
  * Dữ liệu đầu vào: $exportStudents, $exportMonth, $exportType, $exportUser.
@@ -140,7 +141,7 @@ function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYe
         : 'BẢNG THEO DÕI HỌC SINH NỘI TRÚ ĂN TẬP TRUNG (BỮA TRƯA, BỮA TỐI) TẠI TRƯỜNG';
     $totalLabel = $type === 'breakfast' ? 'Tổng số bữa ăn sáng trong tháng' : 'Tổng số bữa ăn trưa, tối trong tháng';
     $rows = [];
-    $rows[] = '<row r="1" ht="22">' . nt_xlsx_text_cell('A1', 'Trường PTDT nội trú THCS&THPT Xín Mần', 1) . nt_xlsx_text_cell('K1', 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', 3) . nt_xlsx_text_cell('AH1', 'Mẫu số: 04', 3) . '</row>';
+    $rows[] = '<row r="1" ht="22">' . nt_xlsx_text_cell('A1', cds_form_school_name(), 1) . nt_xlsx_text_cell('K1', 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', 3) . nt_xlsx_text_cell('AH1', 'Mẫu số: 04', 3) . '</row>';
     $rows[] = '<row r="2" ht="20">' . nt_xlsx_text_cell('A2', 'Lớp: ' . $className, 1) . nt_xlsx_text_cell('K2', 'Độc lập - Tự do - Hạnh phúc', 3) . '</row>';
     $rows[] = '<row r="3" ht="8"></row>';
     $rows[] = '<row r="4" ht="26">' . nt_xlsx_text_cell('A4', $title, 2) . '</row>';
@@ -205,7 +206,7 @@ function nt_xlsx_sheet_xml($className, array $students, $month, $type, $schoolYe
     $note = $type === 'breakfast'
         ? 'Ghi chú: Học sinh ăn sáng đánh dấu x; học sinh không ăn để trống.'
         : 'Ký hiệu: x - Ăn cả bữa trưa và tối; \\ - Chỉ ăn bữa trưa; / - Chỉ ăn bữa tối; để trống - Không ăn.';
-    $rows[] = '<row r="' . $noteRow . '" ht="22">' . nt_xlsx_text_cell('A' . $noteRow, $note, 10) . nt_xlsx_text_cell('S' . $noteRow, 'Pà Vầy Sủ, ngày ..... tháng ..... năm ' . $yearNumber, 9) . '</row>';
+    $rows[] = '<row r="' . $noteRow . '" ht="22">' . nt_xlsx_text_cell('A' . $noteRow, $note, 10) . nt_xlsx_text_cell('S' . $noteRow, (cds_form_place() !== '' ? cds_form_place() . ', ' : '') . 'ngày ..... tháng ..... năm ' . $yearNumber, 9) . '</row>';
     $rows[] = '<row r="' . $signRow . '" ht="24">' . nt_xlsx_text_cell('A' . $signRow, 'Giáo viên chủ nhiệm', 3) . nt_xlsx_text_cell('S' . $signRow, 'Thủ trưởng đơn vị', 3) . '</row>';
     $rows[] = '<row r="' . $teacherRow . '" ht="22">' . nt_xlsx_text_cell('A' . $teacherRow, trim((string)$homeroomTeacherName), 3) . '</row>';
 
@@ -244,7 +245,7 @@ function nt_xlsx_school_summary_xml(array $classes, $month, $type, $schoolYear, 
     $lastDayCol = nt_xlsx_col(2 + 31);
     $totalCol = nt_xlsx_col(34);
     $rows = [];
-    $rows[] = '<row r="1" ht="22">' . nt_xlsx_text_cell('A1', 'Trường PTDT nội trú THCS&THPT Xín Mần', 1) . nt_xlsx_text_cell('K1', 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', 3) . '</row>';
+    $rows[] = '<row r="1" ht="22">' . nt_xlsx_text_cell('A1', cds_form_school_name(), 1) . nt_xlsx_text_cell('K1', 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', 3) . '</row>';
     $rows[] = '<row r="2" ht="20">' . nt_xlsx_text_cell('K2', 'Độc lập - Tự do - Hạnh phúc', 3) . '</row>';
     $rows[] = '<row r="3" ht="8"></row>';
     $title = $type === 'breakfast' ? 'TỔNG HỢP SUẤT ĂN BỮA SÁNG TOÀN TRƯỜNG' : 'TỔNG HỢP SUẤT ĂN BỮA TRƯA, BỮA TỐI TOÀN TRƯỜNG';

@@ -1,6 +1,6 @@
 </div>
 <footer class="text-center text-muted py-3 border-top bg-white">
-<small>Chuyên môn – Trường PTDTNT THCS&THPT Xín Mần &copy; 2026</small><br>
+<small><?=e(cds_form_footer() !== '' ? cds_form_footer() : 'Chuyên môn – '.school_name())?> &copy; <?=date('Y')?></small><br>
 <small class="text-secondary">Thiết kế bởi thầy giáo Nguyễn Hồng Dân</small>
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -11,7 +11,7 @@
 <?php
 $cdsSharedWeeksForTimetable=[];$cdsScriptName=basename((string)($_SERVER['SCRIPT_NAME']??''));
 if($cdsScriptName==='thoikhoabieu.php'&&(string)($_GET['tab']??'lookup')==='settings'){$sharedWeekHelper=dirname(__DIR__,2).'/includes/school_week_calendar.php';if(is_file($sharedWeekHelper)){require_once $sharedWeekHelper;if(function_exists('cds_school_week_calendar'))$cdsSharedWeeksForTimetable=cds_school_week_calendar();}}
-$tkbSo=defined('SCHOOL_SO')?SCHOOL_SO:'Sở Giáo dục và Đào tạo';$tkbSchool=defined('SCHOOL_NAME')?SCHOOL_NAME:'Trường PTDTNT THCS&THPT Xín Mần';
+$tkbSo=defined('SCHOOL_SO')?SCHOOL_SO:'Sở Giáo dục và Đào tạo';$tkbSchool=cds_form_school_name();
 ?>
 <?php if($cdsSharedWeeksForTimetable):?><script>
 (function(){var weeks=<?=json_encode($cdsSharedWeeksForTimetable,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>,labelInput=document.querySelector('form input[name="week_label"]'),startInput=document.querySelector('form input[name="start_date"]');if(!labelInput||!startInput||!weeks.length)return;var form=labelInput.closest('form');if(!form)return;var wrap=document.createElement('div'),label=document.createElement('label');label.className='form-label fw-semibold mb-1';label.textContent='Tuần áp dụng (đồng bộ từ CSDL)';var select=document.createElement('select');select.className='form-select';select.required=true;select.name='shared_week_selector';select.innerHTML='<option value="">— Chọn tuần học —</option>';weeks.forEach(function(week){var o=document.createElement('option');o.value=week.key||String(week.number||'');o.dataset.label=week.label||'';o.dataset.start=week.start||'';o.textContent=(week.label||'Tuần')+' · '+vnDate(week.start)+' – '+vnDate(week.end);select.appendChild(o);});wrap.appendChild(label);wrap.appendChild(select);var note=document.createElement('div');note.className='form-text';note.textContent='Tuần học trước 1/2 không làm thay đổi số Tuần 1 chính khóa.';wrap.appendChild(note);form.insertBefore(wrap,labelInput);labelInput.type='hidden';startInput.type='hidden';labelInput.required=true;startInput.required=true;select.addEventListener('change',function(){var o=select.options[select.selectedIndex];labelInput.value=o?(o.dataset.label||''):'';startInput.value=o?(o.dataset.start||''):'';});var today=new Date(),iso=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0'),i=weeks.findIndex(function(w){return iso>=w.start&&iso<=w.end;});if(i>=0){select.selectedIndex=i+1;select.dispatchEvent(new Event('change'));}function vnDate(v){if(!v)return'';var p=v.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:v;}})();

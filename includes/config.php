@@ -62,6 +62,7 @@ if (!defined('PCCM_DATA_PATH')) {
         BASE_PATH . '/../pccm/data',
     ];
     $resolved = '';
+    if (!cds_instance_legacy_install()) $candidates = [BASE_PATH . '/chuyenmon/data'];
     foreach ($candidates as $p) {
         if (is_dir($p)) { $resolved = $p; break; }
     }

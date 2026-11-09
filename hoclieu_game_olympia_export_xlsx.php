@@ -85,7 +85,7 @@ $studentRanks=[];$rank=0;foreach(olympia_ranking_students($weekIds) as $row)$stu
 $classRanks=[];$rank=0;foreach(olympia_ranking_classes($weekIds) as $row)$classRanks[]=[++$rank,(string)$row['class_name'],(int)$row['participants'],(int)$row['class_size'],(int)$row['correct'],(int)$row['points'],number_format((float)$row['average'],2,',','.')];
 
 $rangeLabel=trim((string)($selected[0]['week_label']??$selected[0]['title']??'')).' đến '.trim((string)($selected[count($selected)-1]['week_label']??$selected[count($selected)-1]['title']??''));
-$school=defined('SCHOOL_NAME')?SCHOOL_NAME:'Trường PTDTNT THCS&THPT Xín Mần';
+$school=cds_form_school_name();
 $sheets=[
  ['Tổng hợp câu hỏi',['STT','Tuần','Lớp','Khối','Vòng','Câu','Nội dung câu hỏi','Đáp án đúng','Điểm','Sĩ số','Đúng','Sai/không TL','Tỷ lệ đúng','Tỷ lệ sai'], $summary,[7,15,10,8,22,7,48,28,8,9,9,14,13,13],0],
  ['Chi tiết học sinh',['STT','Tuần','Lớp','Mã HS','Họ và tên','Vòng','Câu','Nội dung câu hỏi','Đáp án đúng','Kết quả','Điểm đạt','Người chấm','Thời gian'], $details,[7,15,10,14,24,22,7,48,28,23,10,20,18],10],
