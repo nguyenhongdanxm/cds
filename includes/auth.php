@@ -152,7 +152,7 @@ function refresh_current_user_session() {
 function attempt_login($username,$password){
     unset($GLOBALS['cds_login_error']);
     $raw=@file_get_contents(USERS_FILE);$users=is_string($raw)?json_decode($raw,true):null;
-    if(!is_array($users)||array_filter($users,fn($row)=>!is_array($row))){$GLOBALS['cds_login_error']='Chưa đọc được dữ liệu tài khoản. Nếu là bản cài mới, quản trị cần chạy công cụ khởi tạo trường; nếu đang sử dụng, hãy kiểm tra kho tài khoản.';error_log('[CDS login] Account store unavailable or invalid');return false;}
+    if(!is_array($users)||array_filter($users,fn($row)=>!is_array($row))){$GLOBALS['cds_login_error']='Tạm thời không đọc được dữ liệu tài khoản. Nếu là bản cài mới, quản trị cần chạy công cụ khởi tạo trường; nếu đang sử dụng, hãy kiểm tra kho tài khoản.';error_log('[CDS login] Account store unavailable or invalid');return false;}
     $u=null;foreach($users as$candidate)if(strcasecmp((string)($candidate['username']??''),(string)$username)===0){$u=$candidate;break;}
     if(!$u||empty($u['active'])||!password_verify($password,$u['password_hash']??'')){require_once __DIR__.'/audit.php';cds_audit_log('login_failed','auth',['username'=>$username],['username'=>$username]);return false;}
     session_regenerate_id(true);
