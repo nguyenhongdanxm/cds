@@ -180,7 +180,7 @@ function cds_push_vapid_headers(string $endpoint): array {
     $parts = parse_url($endpoint); if (empty($parts['scheme']) || empty($parts['host'])) return [];
     $aud = $parts['scheme'] . '://' . $parts['host'] . (!empty($parts['port']) ? ':' . $parts['port'] : '');
     $head = cds_push_b64url_encode(json_encode(['typ'=>'JWT','alg'=>'ES256']));
-    $claim = cds_push_b64url_encode(json_encode(['aud'=>$aud,'exp'=>time()+43200,'sub'=>'mailto:admin@noitruxinman.edu.vn']));
+    $claim = cds_push_b64url_encode(json_encode(['aud'=>$aud,'exp'=>time()+43200,'sub'=>(function_exists('school_email') && filter_var(school_email(), FILTER_VALIDATE_EMAIL) ? 'mailto:'.school_email() : 'https://'.preg_replace('/[^a-zA-Z0-9.:-]/', '', (string)($_SERVER['HTTP_HOST']??'localhost')))]));
     $input = $head . '.' . $claim;
     if (!openssl_sign($input, $der, $keys['private_pem'], OPENSSL_ALGO_SHA256)) return [];
     $signature = cds_push_der_signature_to_raw($der); if ($signature === '') return [];

@@ -124,7 +124,7 @@ $pushUnread = cds_push_unread_count($user);
   <meta name="theme-color" content="#123b66">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="CDS Xín Mần">
+  <meta name="apple-mobile-web-app-title" content="<?=e(school_cds_short_title())?>">
   <title>Trang chủ quản trị – <?= e(SCHOOL_SHORT) ?></title>
   <link rel="manifest" href="<?= e(BASE_URL) ?>manifest.webmanifest">
   <link rel="apple-touch-icon" href="<?= e(BASE_URL) ?>assets/icons/cds-192.png">

@@ -128,7 +128,7 @@ function cm_handle_upload($field = 'file') {
 function cm_file_url($rel) {
     if (!$rel) return '';
     if (preg_match('#^https?://#i', $rel)) return $rel;
-    return BASE_URL . 'data/' . ltrim($rel, '/');
+    return BASE_URL . 'cm_file.php?path=' . rawurlencode(ltrim($rel, '/'));
 }
 
 function cm_section_meta($section) {

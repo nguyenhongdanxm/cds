@@ -1,3 +1,5 @@
+> **Cài mới:** làm theo [CAI_DAT_TRUONG_MOI.md](CAI_DAT_TRUONG_MOI.md), có setup tài khoản riêng và binding cấu hình. Phần dưới là hướng dẫn tương thích bản cũ; không dùng mật khẩu chung hoặc sao chép dữ liệu trường đang chạy.
+
 # TRIỂN KHAI CDS SANG TRƯỜNG KHÁC KHÔNG SỬA CODE
 
 Mục tiêu: sao chép nguyên bộ source CDS sang môi trường khác và **chỉ cấu hình trên giao diện**, không chỉnh PHP/JS/YAML trong source.

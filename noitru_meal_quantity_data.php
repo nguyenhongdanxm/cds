@@ -79,7 +79,7 @@ foreach ($classes as $class => $classStudents) {
 $user = current_user() ?? [];
 echo json_encode([
     'ok' => true,
-    'school' => defined('SCHOOL_NAME') ? SCHOOL_NAME : 'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN',
+    'school' => cds_form_school_name(),
     'date' => $date,
     'date_label' => date('d/m/Y', strtotime($date)),
     'reporter' => (string)($user['name'] ?? ''),

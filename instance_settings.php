@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $modules = [];
-    foreach (['tintuc','chuyenmon','vanban','thuvien','csdl','hoclieu','noitru','thidua','yte'] as $module) {
+    foreach (['tintuc','chuyenmon','vanban','thuvien','csdl','hoclieu','noitru','thidua','trolyai','yte'] as $module) {
         $modules[$module] = instance_bool_post('module_'.$module);
     }
 
@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $next = is_array($instance) ? $instance : [];
     $next['version'] = 1;
     $next['updated_at'] = date('c');
-    $next['school'] = [
+    $next['school'] = array_replace($school, [
         'code'=>$code,
         'name'=>$name,
         'short_name'=>$short,
@@ -143,10 +143,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'icon_192'=>instance_clean('icon_192', 'assets/icons/cds-192.png'),
             'icon_512'=>instance_clean('icon_512', 'assets/icons/cds-512.png'),
         ],
-    ];
+    ]);
+    $next['school']['forms'] = array_replace((array)($school['forms'] ?? []), [
+        'school_name'=>instance_clean('form_school_name'),
+        'department'=>instance_clean('form_department'),
+        'place'=>instance_clean('form_place'),
+        'signer_name'=>instance_clean('form_signer_name'),
+        'signer_title'=>instance_clean('form_signer_title'),
+        'footer'=>instance_clean('form_footer'),
+    ]);
     $next['database'] = $dbNext;
     $next['drive'] = $driveNext;
-    $next['deployment'] = ['target_path'=>$deployTarget];
+    $next['deployment'] = array_replace($instance['deployment'], ['target_path'=>$deployTarget]);
     if (isset($next['paths']['drive_settings_file'])) unset($next['paths']['drive_settings_file']);
     if (isset($next['paths']) && !$next['paths']) unset($next['paths']);
     if (!cds_instance_save($next)) {
@@ -158,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Location: instance_settings.php?saved=1'); exit;
 }
 
-$moduleLabels = ['tintuc'=>'Tin tức','chuyenmon'=>'Chuyên môn','vanban'=>'Văn bản','thuvien'=>'Thư viện – Thiết bị','csdl'=>'Cơ sở dữ liệu','hoclieu'=>'Học liệu & thi','noitru'=>'Quản lý nội trú','thidua'=>'Đánh giá - Xếp loại','yte'=>'Y tế'];
+$moduleLabels = ['tintuc'=>'Tin tức','chuyenmon'=>'Chuyên môn','vanban'=>'Văn bản','thuvien'=>'Thư viện – Thiết bị','csdl'=>'Cơ sở dữ liệu','hoclieu'=>'Học liệu & thi','noitru'=>'Quản lý nội trú','thidua'=>'Đánh giá - Xếp loại','trolyai'=>'Trợ lý AI','yte'=>'Y tế'];
 $deployTarget = (string)($instance['deployment']['target_path'] ?? BASE_PATH);
 ?><!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cấu hình trường – CDS</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"><style>body{background:#f4f7fb}.card{border:0;box-shadow:0 .25rem 1rem rgba(0,0,0,.06)}.section-title{font-weight:800;color:#1f4e79}.form-text{font-size:.82rem}</style></head><body>
@@ -168,6 +176,10 @@ $deployTarget = (string)($instance['deployment']['target_path'] ?? BASE_PATH);
 <?php foreach ($settingsWarnings as $warning): ?><div class="alert alert-warning"><?=e($warning)?></div><?php endforeach; ?>
 <div class="alert alert-success"><strong>Không cần sửa code.</strong> Cấu hình được lưu ngoài web root tại <code><?=e(cds_instance_config_path())?></code>. Nếu chưa tạo bộ cấu hình này, bản Xín Mần tiếp tục dùng cơ chế cũ như hiện tại.</div>
 <form method="post"><input type="hidden" name="csrf" value="<?=e($csrf)?>">
+<div class="card mb-4"><div class="card-body p-4"><details><summary class="section-title">Biểu mẫu, bản in và file xuất</summary><p class="form-text mt-2">Để trống tên trường/cơ quan để dùng thông tin nhà trường ở trên. Chỉ áp dụng khi tạo hoặc xuất mới; không sửa hồ sơ đã lưu. Người ký được nhập riêng trên phiếu sẽ được giữ nguyên.</p><div class="row g-2">
+<?php foreach (['school_name'=>'Tên trường trên biểu mẫu','department'=>'Cơ quan trên biểu mẫu','place'=>'Địa danh ghi ngày tháng','signer_name'=>'Người ký mặc định (gợi ý)','signer_title'=>'Chức danh người ký (gợi ý)','footer'=>'Thông tin chân trang'] as $formKey=>$formLabel): ?><div class="col-md-6"><label class="form-label"><?=e($formLabel)?></label><input class="form-control" name="form_<?=e($formKey)?>" value="<?=e((string)($school['forms'][$formKey]??($formKey==='place'?cds_form_place():'')))?>"></div><?php endforeach; ?>
+</div></details></div></div>
+
 <div class="card mb-4"><div class="card-body p-4"><h5 class="section-title mb-3">1. Thông tin nhà trường</h5><div class="row g-3">
 <div class="col-md-3"><label class="form-label">Mã trường *</label><input class="form-control" name="school_code" required value="<?=e((string)($school['code']??''))?>"></div>
 <div class="col-md-6"><label class="form-label">Tên trường *</label><input class="form-control" name="school_name" required value="<?=e((string)($school['name']??''))?>"></div>

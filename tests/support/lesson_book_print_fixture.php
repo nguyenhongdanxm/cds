@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__,2).'/includes/form_profile.php';
 // No application bootstrap, database credentials or operating school data.
 $_GET=['scope'=>$argv[1]??'class','class'=>$argv[2]??'6A','teacher'=>'GV bộ môn','paper'=>$argv[3]??'a4_pair','from_week'=>'w1','to_week'=>'w1'];
 define('BASE_URL','/chuyenmon/');

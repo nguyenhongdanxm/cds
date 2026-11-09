@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "CDS - Trường PTDTNT THCS&THPT Xín Mần",
-  "short_name": "CDS Xín Mần",
+  "name": "CDS - Hệ sinh thái quản lý nhà trường",
+  "short_name": "CDS",
   "description": "Hệ sinh thái quản lý nhà trường",
   "start_url": "/admin.php?source=pwa",
   "scope": "/",

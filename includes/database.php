@@ -12,7 +12,7 @@ function cds_db_config_path()
 {
     $custom = getenv('CDS_DB_CONFIG');
     if (is_string($custom) && $custom !== '') return $custom;
-    return dirname(__DIR__, 2) . '/cds_private/database.conf';
+    return cds_instance_private_path('database.conf');
 }
 
 function cds_db_read_config()

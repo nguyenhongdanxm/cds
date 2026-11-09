@@ -1,9 +1,10 @@
 <?php
+require_once __DIR__.'/form_profile.php';
 // Only included after login and staff-scope checks in thidua_danhgia.php.
 if(!defined('SE_MONTH_PRINT_CONTEXT')||!isset($record)){http_response_code(404);exit;}
 $summary=se_form_summary($record);$locked=($record['status']??'')==='locked';$points=[];foreach(['self_scores','review_scores','approved_scores']as$stage)$points[$stage]=se_group_points($record,$stage);
 $people=['review'=>['name'=>'','at'=>''],'approve'=>['name'=>'','at'=>'']];foreach($record['history']??[]as$event)if(isset($people[$event['action']??'']))$people[$event['action']]=['name'=>$event['name'],'at'=>$event['at']];
-$school=defined('SCHOOL_NAME')?SCHOOL_NAME:'Tên cơ quan, tổ chức, đơn vị';
+$school=cds_form_school_name();
 function se_print_value($value):string{return $value===null?'Chưa đủ căn cứ':seh($value);}
 ?>
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Phiếu đánh giá tháng <?=seh($record['month'].' · '.$record['name'])?></title><link rel="stylesheet" href="/assets/staff-evaluation-print.css"></head><body>

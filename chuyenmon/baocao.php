@@ -836,7 +836,7 @@ function viewDoc(it){
   document.getElementById('viewContent').textContent=it.content||'(Không có nội dung)';
   var links='';
   if(it.link) links+='<a class="btn btn-sm btn-outline-primary me-2" href="'+it.link+'" target="_blank">Link</a>';
-  if(it.file_path) links+='<a class="btn btn-sm btn-outline-success" href="<?= BASE_URL ?>data/'+it.file_path+'" target="_blank">File</a>';
+  if(it.file_path) links+='<a class="btn btn-sm btn-outline-success" href="<?= BASE_URL ?>cm_file.php?path='+encodeURIComponent(it.file_path)+'" target="_blank">File</a>';
   document.getElementById('viewLinks').innerHTML=links||'<span class="text-muted">Không có file/link</span>';
   new bootstrap.Modal(document.getElementById('viewModal')).show();
 }

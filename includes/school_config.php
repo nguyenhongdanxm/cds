@@ -29,7 +29,7 @@ if (!function_exists('cds_school_config_path')) {
     {
         $custom = getenv('CDS_SCHOOL_CONFIG');
         if (is_string($custom) && trim($custom) !== '') return trim($custom);
-        return dirname(__DIR__, 2) . '/cds_private/school.json';
+        return cds_instance_private_path('school.json');
     }
 }
 
@@ -38,6 +38,7 @@ if (!function_exists('cds_school_load_override')) {
     {
         $legacy = [];
         $path = cds_school_config_path();
+        if (!cds_instance_legacy_install() && !getenv('CDS_SCHOOL_CONFIG')) $path = '';
         if ($path !== '' && is_file($path) && is_readable($path)) {
             $raw = @file_get_contents($path);
             $decoded = is_string($raw) ? json_decode($raw, true) : null;
@@ -96,6 +97,14 @@ if (!function_exists('cds_school_config')) {
                 ],
             ];
 
+            if (!cds_instance_legacy_install()) {
+                $config = cds_school_array_merge($config, [
+                    'code'=>'', 'name'=>'Nhà trường', 'short_name'=>'CDS', 'department'=>'',
+                    'school_year'=>'', 'website'=>'', 'cds_title'=>'CDS', 'cds_short_title'=>'CDS', 'logo'=>'assets/icons/cds-192.png',
+                    'chuyenmon'=>['seed_profile'=>'empty','defaults_file'=>''],
+                    'modules'=>['noitru'=>false,'yte'=>false],
+                ]);
+            }
             $override = cds_school_load_override();
             if ($override) $config = cds_school_array_merge($config, $override);
         }
@@ -156,3 +165,5 @@ if (!function_exists('school_has_level')) {
 if (!function_exists('school_module_enabled')) {
     function school_module_enabled(string $module): bool { return (bool)cds_school_config('modules.' . strtolower($module), true); }
 }
+
+require_once __DIR__ . '/form_profile.php';

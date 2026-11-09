@@ -38,8 +38,8 @@ define('LEGACY_ROLE_ASSIGNMENTS_FILE', DATA_PATH . '/role_assignments.json');
 define('DEFAULT_QUOTA_THCS', 17);
 define('DEFAULT_QUOTA_THPT', 15);
 
-if (!defined('SCHOOL_SO')) define('SCHOOL_SO', function_exists('school_department') ? school_department() : 'Sở GD&ĐT Tuyên Quang');
-if (!defined('SCHOOL_NAME')) define('SCHOOL_NAME', function_exists('school_name') ? school_name() : 'Trường PTDTNT THCS&THPT Xín Mần');
+if (!defined('SCHOOL_SO')) define('SCHOOL_SO', function_exists('school_department') ? school_department() : 'Cơ quan chủ quản');
+if (!defined('SCHOOL_NAME')) define('SCHOOL_NAME', function_exists('school_name') ? school_name() : 'Nhà trường');
 
 /*
  * Dữ liệu khởi tạo Chuyên môn được nạp qua lớp trung gian an toàn.

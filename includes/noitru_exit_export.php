@@ -1,8 +1,9 @@
 <?php
+require_once __DIR__ . '/form_profile.php';
 require_once __DIR__ . '/noitru_meal_month_export.php';
 
 function nt_exit_export_xlsx(array $rows, string $from, string $to, string $periodLabel, string $exportedBy): void {
-    $school = defined('SCHOOL_NAME') ? SCHOOL_NAME : 'TRƯỜNG PTDTNT THCS&THPT XÍN MẦN';
+    $school = cds_form_school_name();
     $sheet=[];$merges=['A1:J1','A2:J2','A3:J3','A4:J4'];
     $sheet[]='<row r="1" ht="22">'.nt_xlsx_text_cell('A1',$school,3).'</row>';
     $sheet[]='<row r="2" ht="26">'.nt_xlsx_text_cell('A2','DANH SÁCH HỌC SINH RA VÀO KHU NỘI TRÚ',2).'</row>';

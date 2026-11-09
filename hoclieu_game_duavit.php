@@ -137,7 +137,7 @@ if (function_exists('csdl_students_all')) {
 sort($classNames, SORT_NATURAL);
 $base = defined('BASE_URL') ? BASE_URL : '/';
 $school = defined('SCHOOL_NAME') ? SCHOOL_NAME : 'CDS';
-$duckRaceMusicUrl = $duckRaceMusic['default'] !== '' ? $base . 'data/game_assets/duck_race_music/' . rawurlencode($duckRaceMusic['default']) : '';
+$duckRaceMusicUrl = $duckRaceMusic['default'] !== '' ? $base . 'game_asset.php?group=duck_race_music&name=' . rawurlencode($duckRaceMusic['default']) : '';
 ?>
 <!doctype html>
 <html lang="vi">

@@ -19,7 +19,7 @@ function cds_drive_action_catalog(): array {$builtins=['page:/vanban.php'=>['lab
 function cds_drive_history(): array {$rows=is_file(CDS_DRIVE_HISTORY)?json_decode((string)file_get_contents(CDS_DRIVE_HISTORY),true):[];return is_array($rows)?$rows:[];}
 function cds_drive_history_add(array $row): void {cds_json_prepend_bounded(CDS_DRIVE_HISTORY,array_merge(['at'=>date('c'),'by'=>$_SESSION['cds_user']['name']??'Hệ thống'],$row),1000);}
 function cds_drive_http(string $url,string $method='GET',array $headers=[],string $body=''): array {if(!function_exists('curl_init'))return ['ok'=>false,'status'=>0,'body'=>'','error'=>'Hosting chưa bật PHP cURL.'];$ch=curl_init($url);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CUSTOMREQUEST=>$method,CURLOPT_HTTPHEADER=>$headers,CURLOPT_TIMEOUT=>90,CURLOPT_CONNECTTIMEOUT=>15]);if($body!=='')curl_setopt($ch,CURLOPT_POSTFIELDS,$body);$response=curl_exec($ch);$error=curl_error($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);return ['ok'=>$response!==false&&$status>=200&&$status<300,'status'=>$status,'body'=>(string)$response,'error'=>$error];}
-function cds_drive_redirect_uri(): string {return 'https://'.($_SERVER['HTTP_HOST']??'cds.noitruxinman.edu.vn').BASE_URL.'admin.php?view=drive&oauth=callback';}
+function cds_drive_redirect_uri(): string {return 'https://'.($_SERVER['HTTP_HOST']??'localhost').BASE_URL.'admin.php?view=drive&oauth=callback';}
 function cds_drive_oauth_url(array $settings): string {$oauth=(array)($settings['oauth']??[]);$state=bin2hex(random_bytes(20));$_SESSION['cds_drive_oauth_state']=$state;return 'https://accounts.google.com/o/oauth2/v2/auth?'.http_build_query(['client_id'=>$oauth['client_id']??'','redirect_uri'=>cds_drive_redirect_uri(),'response_type'=>'code','scope'=>'https://www.googleapis.com/auth/drive','access_type'=>'offline','prompt'=>'consent','include_granted_scopes'=>'true','state'=>$state]);}
 function cds_drive_oauth_exchange(array &$settings,string $code): array {$oauth=(array)($settings['oauth']??[]);$res=cds_drive_http('https://oauth2.googleapis.com/token','POST',['Content-Type: application/x-www-form-urlencoded'],http_build_query(['code'=>$code,'client_id'=>$oauth['client_id']??'','client_secret'=>$oauth['client_secret']??'','redirect_uri'=>cds_drive_redirect_uri(),'grant_type'=>'authorization_code']));$json=json_decode($res['body'],true);if(!$res['ok']||empty($json['access_token']))return ['ok'=>false,'message'=>$json['error_description']??'Không đổi được mã kết nối Google.'];if(!empty($json['refresh_token']))$settings['oauth']['refresh_token']=$json['refresh_token'];$settings['provider']='oauth';cds_drive_save_settings($settings);return ['ok'=>true];}
 function cds_drive_b64url(string $value): string {return rtrim(strtr(base64_encode($value),'+/','-_'),'=');}
@@ -118,24 +118,9 @@ function save_json($file, $data) {
 }
 
 function init_users() {
-    if (!file_exists(USERS_FILE)) {
-        $users = [[
-            'id' => 'u1',
-            'username' => DEFAULT_ADMIN_USER,
-            'password_hash' => password_hash(DEFAULT_ADMIN_PASS, PASSWORD_DEFAULT),
-            'name' => 'Quản trị hệ thống',
-            'role' => 'admin',
-            'modules' => [
-                'chuyenmon' => 'admin', 'csdl' => 'admin', 'noitru' => 'admin',
-                'vanban' => 'admin', 'thidua' => 'admin',
-            ],
-            'perms' => [],
-            'classes' => [],
-            'active' => true,
-            'created_at' => date('c'),
-        ]];
-        save_json(USERS_FILE, $users);
-    }
+    // Provision a fresh school with tools/setup_school.php. Never recreate accounts
+    // using a shared password when an existing account store is missing.
+    return;
 }
 
 function get_users() { init_users(); return load_json(USERS_FILE, []); }
@@ -167,7 +152,7 @@ function refresh_current_user_session() {
 function attempt_login($username,$password){
     unset($GLOBALS['cds_login_error']);
     $raw=@file_get_contents(USERS_FILE);$users=is_string($raw)?json_decode($raw,true):null;
-    if(!is_array($users)||array_filter($users,fn($row)=>!is_array($row))){$GLOBALS['cds_login_error']='Tạm thời không đọc được dữ liệu tài khoản. Vui lòng thử lại sau; nếu lặp lại hãy báo quản trị.';error_log('[CDS login] Account store unavailable or invalid');return false;}
+    if(!is_array($users)||array_filter($users,fn($row)=>!is_array($row))){$GLOBALS['cds_login_error']='Chưa đọc được dữ liệu tài khoản. Nếu là bản cài mới, quản trị cần chạy công cụ khởi tạo trường; nếu đang sử dụng, hãy kiểm tra kho tài khoản.';error_log('[CDS login] Account store unavailable or invalid');return false;}
     $u=null;foreach($users as$candidate)if(strcasecmp((string)($candidate['username']??''),(string)$username)===0){$u=$candidate;break;}
     if(!$u||empty($u['active'])||!password_verify($password,$u['password_hash']??'')){require_once __DIR__.'/audit.php';cds_audit_log('login_failed','auth',['username'=>$username],['username'=>$username]);return false;}
     session_regenerate_id(true);

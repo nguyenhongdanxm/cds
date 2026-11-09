@@ -138,7 +138,7 @@ if (function_exists('csdl_students_all')) {
 }
 $school = defined('SCHOOL_NAME') ? SCHOOL_NAME : 'CDS';
 $base = defined('BASE_URL') ? BASE_URL : '/';
-$wheelMusicUrl = $wheelMusic['default'] !== '' ? $base . 'data/game_assets/wheel_music/' . rawurlencode($wheelMusic['default']) : '';
+$wheelMusicUrl = $wheelMusic['default'] !== '' ? $base . 'game_asset.php?group=wheel_music&name=' . rawurlencode($wheelMusic['default']) : '';
 ?>
 <!doctype html>
 <html lang="vi">
@@ -223,7 +223,7 @@ canvas{display:block;filter:drop-shadow(0 0 18px #ffd36a88) drop-shadow(0 0 42px
     <?php if ($wheelMusicNotice): ?><div class="music-notice <?= htmlspecialchars((string)$wheelMusicNotice['type']) ?>"><?= htmlspecialchars((string)$wheelMusicNotice['message']) ?></div><?php endif; ?>
     <form class="music-form" method="post" enctype="multipart/form-data"><input type="hidden" name="csrf" value="<?= htmlspecialchars($wheelMusicCsrf) ?>"><input type="hidden" name="music_action" value="upload"><input type="file" name="music_file" accept=".mp3,.ogg,.wav,audio/mpeg,audio/ogg,audio/wav" required><button type="submit">Tải nhạc lên</button><small>MP3, OGG hoặc WAV · tối đa 20 MB</small></form>
     <form class="music-form" method="post"><input type="hidden" name="csrf" value="<?= htmlspecialchars($wheelMusicCsrf) ?>"><input type="hidden" name="music_action" value="default"><select name="default_track"><option value="">Nhạc tổng hợp của vòng quay</option><?php foreach ($wheelMusic['tracks'] as $track): ?><option value="<?= htmlspecialchars($track['file']) ?>"<?= $wheelMusic['default'] === $track['file'] ? ' selected' : '' ?>><?= htmlspecialchars($track['name']) ?> (<?= number_format($track['size'] / 1048576, 1) ?> MB)</option><?php endforeach; ?></select><button type="submit">Đặt làm mặc định</button></form>
-    <?php foreach ($wheelMusic['tracks'] as $track): ?><form class="music-form" method="post"><input type="hidden" name="csrf" value="<?= htmlspecialchars($wheelMusicCsrf) ?>"><input type="hidden" name="music_action" value="delete"><input type="hidden" name="track" value="<?= htmlspecialchars($track['file']) ?>"><strong><?= htmlspecialchars($track['name']) ?></strong><audio controls preload="none" src="<?= htmlspecialchars($base . 'data/game_assets/wheel_music/' . rawurlencode($track['file'])) ?>"></audio><button class="danger" type="submit" onclick="return confirm('Xóa bản nhạc này?')">Xóa</button></form><?php endforeach; ?>
+    <?php foreach ($wheelMusic['tracks'] as $track): ?><form class="music-form" method="post"><input type="hidden" name="csrf" value="<?= htmlspecialchars($wheelMusicCsrf) ?>"><input type="hidden" name="music_action" value="delete"><input type="hidden" name="track" value="<?= htmlspecialchars($track['file']) ?>"><strong><?= htmlspecialchars($track['name']) ?></strong><audio controls preload="none" src="<?= htmlspecialchars($base . 'game_asset.php?group=wheel_music&name=' . rawurlencode($track['file'])) ?>"></audio><button class="danger" type="submit" onclick="return confirm('Xóa bản nhạc này?')">Xóa</button></form><?php endforeach; ?>
     <small>Nhạc mặc định sẽ bắt đầu khi người dùng bấm QUAY; trình duyệt không cho phép tự phát âm thanh trước thao tác đầu tiên.</small>
   </div>
 </dialog>

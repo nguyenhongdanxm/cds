@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__).'/includes/form_profile.php';
 require_once 'includes/functions.php';
 require_login();
 
@@ -201,8 +202,8 @@ table.data td.center{text-align:center}
 <table class="header-table">
 <tr>
   <td class="header-left">
-    <div class="so"><?= htmlspecialchars(SCHOOL_SO) ?></div>
-    <div class="truong"><?= htmlspecialchars(SCHOOL_NAME) ?></div>
+    <div class="so"><?= htmlspecialchars(cds_form_department()) ?></div>
+    <div class="truong"><?= htmlspecialchars(cds_form_school_name()) ?></div>
   </td>
   <td></td>
   <td class="header-right">
@@ -217,7 +218,7 @@ table.data td.center{text-align:center}
 
 <div class="main-title">
   <h1>DANH SÁCH GIÁO VIÊN</h1>
-  <div class="sub"><?= htmlspecialchars(SCHOOL_NAME) ?></div>
+  <div class="sub"><?= htmlspecialchars(cds_form_school_name()) ?></div>
   <div class="sub">Năm học / Phiên bản: <?= htmlspecialchars($title_lan) ?> (<?= htmlspecialchars($date_display) ?>)</div>
 </div>
 

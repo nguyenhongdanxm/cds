@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/form_profile.php';
 /** Nhập trực tiếp và in Biên bản trực nội trú hằng ngày theo mẫu hành chính A4. */
 require_once __DIR__ . '/noitru_att_shifts.php';
 $reportDate = trim((string)($_GET['date'] ?? date('Y-m-d')));
@@ -131,8 +132,8 @@ $disciplineText = $entryValue('discipline', $disciplineText);
   <div class="duty-report-actions"><button class="btn btn-duty-preview" type="button" id="toggleDutyPreview"><i class="bi bi-eye"></i> Xem trước</button><button class="btn btn-duty-save" id="saveDutyReport" <?= !$canEditCurrent?'disabled':'' ?>><i class="bi bi-floppy"></i> Lưu biên bản</button><button class="btn btn-duty-print" type="button" onclick="printDutyReport()"><i class="bi bi-printer"></i> In / Xuất PDF</button></div>
   <div class="drive-save-note" id="dutySaveStatus">Khi lưu, biên bản đồng thời được tạo thành PDF đúng bản xem trước A4 và cập nhật vào Drive.</div>
   <div class="duty-report-preview-wrap"><article class="duty-report-paper">
-    <table class="report-national"><tr><td><p class="report-agency">SỞ GD&amp;ĐT TUYÊN QUANG</p><p>TRƯỜNG PTDT NỘI TRÚ<br><span class="underline">THCS&amp;THPT XÍN MẦN</span></p></td><td><p>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p><p><span class="underline">Độc lập - Tự do - Hạnh phúc</span></p></td></tr></table>
-    <div class="report-place">Pà Vầy Sủ, ngày <?= (int)date('d',strtotime($reportDate)) ?> tháng <?= (int)date('m',strtotime($reportDate)) ?> năm <?= e(date('Y',strtotime($reportDate))) ?></div>
+    <table class="report-national"><tr><td><p class="report-agency"><?=e(cds_form_department())?></p><p><?=e(cds_form_school_name())?></p></td><td><p>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p><p><span class="underline">Độc lập - Tự do - Hạnh phúc</span></p></td></tr></table>
+    <div class="report-place"><?=e(cds_form_place())?><?=cds_form_place()!==''?', ':''?>ngày <?= (int)date('d',strtotime($reportDate)) ?> tháng <?= (int)date('m',strtotime($reportDate)) ?> năm <?= e(date('Y',strtotime($reportDate))) ?></div>
     <h1>BIÊN BẢN TRỰC NỘI TRÚ HẰNG NGÀY</h1><div class="report-year">Năm học <?= e($yearLabel) ?></div>
     <div class="report-section"><div class="report-section-title">1. Thời gian và địa điểm</div><div class="report-info-line"><span class="report-info-label">Thời gian:</span><span><?= e($shiftLabel) ?>.</span></div><div class="report-info-line"><span class="report-info-label">Địa điểm:</span><span><?= e($location) ?>.</span></div></div>
     <div class="report-section"><span class="report-section-title">2. Thành phần trực:</span> <?= e(implode(', ',$participants)) ?: '<span class="report-empty">Chưa có dữ liệu phân công ngày trực</span>' ?></div>

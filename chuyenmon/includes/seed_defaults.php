@@ -69,8 +69,8 @@ if (!function_exists('cds_load_chuyenmon_seed_defaults')) {
         }
 
         $profile = function_exists('cds_school_config')
-            ? strtolower(trim((string)cds_school_config('chuyenmon.seed_profile', 'xinman')))
-            : 'xinman';
+            ? strtolower(trim((string)cds_school_config('chuyenmon.seed_profile', function_exists('cds_instance_legacy_install') && cds_instance_legacy_install() ? 'xinman' : 'empty')))
+            : 'empty';
 
         if ($profile === 'empty' || $profile === 'none') {
             return cds_empty_chuyenmon_defaults();

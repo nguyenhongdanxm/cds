@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__,2).'/includes/form_profile.php';
 $_SESSION=[];$_SERVER['REQUEST_METHOD']='GET';define('BASE_URL','/');
 function require_login(){}
 function require_perm($p){}
