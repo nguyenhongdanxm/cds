@@ -12,6 +12,7 @@ Bảng `cds_meal_primary_rows` lưu từng dòng cá nhân và phiếu, có ch�
 
 - Lưu thường ngày chỉ tra các khóa học sinh/ngày hoặc phiếu liên quan, dùng chính quy tắc PHP về khóa, giá trị mặc định, hợp nhất nội dung và dấu xóa.
 - Sinh/khóa một ngày chỉ đọc các dòng của ngày đó.
+- Bổ sung nhật ký cũ chỉ đọc phần tóm tắt phiếu, không tải ảnh chụp học sinh. Giữ nguyên quy tắc bổ sung và giới hạn 3.000 lượt của chức năng hiện có.
 - Tổng hợp khoảng ngày lọc dữ liệu ngay tại nguồn, không đổi cách tính suất ăn, học sinh hợp lệ, bữa nghỉ hoặc làm tròn gạo.
 - Các biến đổi toàn danh sách ít dùng (ví dụ xóa lịch sử) vẫn duyệt nguồn đầy đủ, nhưng phân trang giới hạn bộ nhớ và công bố trong cùng giao dịch. Bảng tạm SQL chỉ cập nhật payload thay đổi.
 - Mọi ghi liên quan trong callback báo ăn dùng một giao dịch; lỗi lồng nhau hủy cả thao tác. Không quay sang JSON cũ khi SQL lỗi.

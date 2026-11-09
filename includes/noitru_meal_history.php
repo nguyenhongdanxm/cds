@@ -120,7 +120,8 @@ function nt_meal_history_all() {
     }
     $changed = false;
     $deletedSources = nt_meal_history_deleted_sources();
-    foreach (noitru_meal_report_rows() as $report) {
+    $reports=cds_meal_primary_enabled()?cds_meal_primary_history_rows($known):noitru_meal_report_rows();
+    foreach ($reports as $report) {
         $reportId = trim((string)($report['id'] ?? ''));
         $reportKey = implode('|', [(string)($report['date']??''),(string)($report['class_name']??''),(string)($report['meal']??'')]);
         if ($reportId === '' || isset($deletedSources[$reportId]) || isset($known[$reportId]) || isset($knownKeys[$reportKey])) continue;

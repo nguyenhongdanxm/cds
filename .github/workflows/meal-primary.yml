@@ -13,6 +13,11 @@ on:
       - 'database_admin.php'
       - 'tests/meal_primary_mysql_test.php'
       - 'tests/meal_primary_guard_test.php'
+      - 'tests/support/meal_history_reference.php'
+      - 'includes/noitru_meal_history.php'
+      - 'includes/noitru_meal_month_export.php'
+      - 'chuyenmon/includes/classroom_home_store.php'
+      - 'noitru.php'
       - '.github/workflows/meal-primary.yml'
   workflow_dispatch:
 jobs:

@@ -48,12 +48,15 @@ function cds_meal_primary_schema(): void {
         id_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
         visibility_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
         raw_json LONGTEXT NOT NULL,
+        history_json LONGTEXT NULL,
         PRIMARY KEY(kind,row_key),
         KEY idx_meal_primary_id(kind,id_key),
         KEY idx_meal_primary_visibility(kind,visibility_key),
         KEY idx_meal_primary_order(kind,source_position),
         KEY idx_meal_primary_date(kind,meal_date,source_position)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin");
+    $column=cds_db()->query("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='cds_meal_primary_rows' AND column_name='history_json'")->fetchColumn();
+    if(!(int)$column)cds_db()->exec('ALTER TABLE cds_meal_primary_rows ADD COLUMN history_json LONGTEXT NULL');
     cds_db()->exec("CREATE TABLE IF NOT EXISTS cds_meal_primary_meta (
         store_key VARCHAR(32) NOT NULL PRIMARY KEY, raw_json LONGTEXT NOT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin");
@@ -136,9 +139,9 @@ function cds_meal_primary_atomic(callable $write,$failure=false) {
 function cds_meal_primary_put(string $kind,int $position,array $row,string $table='cds_meal_primary_rows'): void {
     if(!in_array($table,['cds_meal_primary_rows','cds_meal_primary_stage'],true))throw new RuntimeException('Bảng không hợp lệ.');
     $key=cds_meal_primary_identity($kind,$row);
-    $sql='INSERT INTO '.$table.'(kind,row_key,source_position,meal_date,student_id,id_key,visibility_key,raw_json) VALUES(?,?,?,?,?,?,?,?)';
-    if($table==='cds_meal_primary_rows')$sql.=' ON DUPLICATE KEY UPDATE source_position=VALUES(source_position),id_key=VALUES(id_key),visibility_key=VALUES(visibility_key),raw_json=VALUES(raw_json)';
-    cds_db()->prepare($sql)->execute([$kind,$key,$position,$row['date'],(string)($row['student_id']??''),hash('sha256',(string)($row['id']??'')),hash('sha256',implode('|',array_map('trim',[(string)($row['date']??''),(string)($row['class_name']??''),(string)($row['meal']??'')]))),cds_meal_primary_json($row)]);
+    $sql='INSERT INTO '.$table.'(kind,row_key,source_position,meal_date,student_id,id_key,visibility_key,raw_json,history_json) VALUES(?,?,?,?,?,?,?,?,?)';
+    if($table==='cds_meal_primary_rows')$sql.=' ON DUPLICATE KEY UPDATE source_position=VALUES(source_position),id_key=VALUES(id_key),visibility_key=VALUES(visibility_key),raw_json=VALUES(raw_json),history_json=VALUES(history_json)';
+    cds_db()->prepare($sql)->execute([$kind,$key,$position,$row['date'],(string)($row['student_id']??''),hash('sha256',(string)($row['id']??'')),hash('sha256',implode('|',array_map('trim',[(string)($row['date']??''),(string)($row['class_name']??''),(string)($row['meal']??'')]))),cds_meal_primary_json($row),cds_meal_primary_json(array_intersect_key($row,array_fill_keys(['id','date','class_name','meal','absent_count','student_count','reported_by','updated_at','created_at'],true)))]);
 }
 /** Rare whole-list transforms stage on SQL; unchanged payloads are not rewritten. */
 function cds_meal_primary_replace_rows(string $kind,iterable $rows): bool {
@@ -148,11 +151,11 @@ function cds_meal_primary_replace_rows(string $kind,iterable $rows): bool {
         try{
             $position=0;foreach($rows as $row){if(!is_array($row))throw new RuntimeException('Dòng báo ăn không hợp lệ.');cds_meal_primary_put($kind,$position++,$row,'cds_meal_primary_stage');}
             $stmt=$pdo->prepare('DELETE live FROM cds_meal_primary_rows live LEFT JOIN cds_meal_primary_stage stage ON live.kind=stage.kind AND live.row_key=stage.row_key WHERE live.kind=? AND stage.row_key IS NULL');$stmt->execute([$kind]);
-            $pdo->exec('INSERT INTO cds_meal_primary_rows(kind,row_key,source_position,meal_date,student_id,id_key,visibility_key,raw_json)
-                SELECT stage.kind,stage.row_key,stage.source_position,stage.meal_date,stage.student_id,stage.id_key,stage.visibility_key,stage.raw_json FROM cds_meal_primary_stage stage
+            $pdo->exec('INSERT INTO cds_meal_primary_rows(kind,row_key,source_position,meal_date,student_id,id_key,visibility_key,raw_json,history_json)
+                SELECT stage.kind,stage.row_key,stage.source_position,stage.meal_date,stage.student_id,stage.id_key,stage.visibility_key,stage.raw_json,stage.history_json FROM cds_meal_primary_stage stage
                 LEFT JOIN cds_meal_primary_rows live ON live.kind=stage.kind AND live.row_key=stage.row_key
                 WHERE live.row_key IS NULL OR live.source_position<>stage.source_position OR BINARY live.raw_json<>BINARY stage.raw_json
-                ON DUPLICATE KEY UPDATE source_position=VALUES(source_position),id_key=VALUES(id_key),visibility_key=VALUES(visibility_key),raw_json=VALUES(raw_json)');
+                ON DUPLICATE KEY UPDATE source_position=VALUES(source_position),id_key=VALUES(id_key),visibility_key=VALUES(visibility_key),raw_json=VALUES(raw_json),history_json=VALUES(history_json)');
             return true;
         }finally{$pdo->exec('DROP TEMPORARY TABLE IF EXISTS cds_meal_primary_stage');}
     });
@@ -247,7 +250,7 @@ function cds_meal_primary_switch(bool $enabled): void {
                 }elseif($key==='reports'){
                     $meta=cds_meal_primary_meta('reports');
                     if(!cds_json_save($tmp,cds_meal_primary_report_object([]))||!cds_json_field_save($tmp,'reports',static fn()=>cds_meal_primary_rows('reports')))throw new RuntimeException('Không xuất được phiếu báo ăn mới nhất.');
-                    $out=cds_json_load_for_update($tmp,[]);unset($out['reports']);
+                    $out=[];foreach(cds_json_fields($tmp)as $name=>[$at,$length])if($name!=='reports')$out[$name]=cds_meal_primary_decode(file_get_contents($tmp,false,null,$at,$length));
                     if($out!==$meta||cds_meal_primary_digest(cds_json_field_rows($tmp,'reports'))!==cds_meal_primary_digest(cds_meal_primary_rows('reports')))throw new RuntimeException('Phiếu báo ăn mới nhất chưa khớp.');
                 }else{
                     $value=cds_meal_primary_meta($key);
@@ -290,4 +293,24 @@ function cds_meal_primary_report_upsert(array $pending,array $deletedIds,array $
         }
         return true;
     });
+}
+
+/** Legacy-history synthesis uses the same fields, without loading student snapshots. */
+function cds_meal_primary_history_rows(array $knownIds): Generator {
+    $hashes=[];foreach(array_keys($knownIds)as $id)$hashes[]=hash('sha256',(string)$id);
+    $deletedIds=array_fill_keys(array_map('strval',(array)cds_meal_primary_meta('deleted')),true);
+    $deletedTargets=array_fill_keys(array_map('strval',(array)cds_meal_primary_meta('targets')),true);
+    $last=-1;
+    do{
+        $sql="SELECT source_position,history_json FROM cds_meal_primary_rows WHERE kind='reports' AND source_position>?";$values=[$last];
+        foreach(array_chunk($hashes,200)as $batch){$sql.=' AND id_key NOT IN ('.implode(',',array_fill(0,count($batch),'?')).')';array_push($values,...$batch);}
+        $stmt=cds_db()->prepare($sql.' ORDER BY source_position LIMIT 250');$stmt->execute($values);$batch=$stmt->fetchAll(PDO::FETCH_ASSOC);$stmt->closeCursor();
+        foreach($batch as $record){
+            $last=(int)$record['source_position'];
+            if($record['history_json']===null)throw new RuntimeException('Thiếu tóm tắt nhật ký báo ăn MySQL.');
+            $row=cds_meal_primary_decode($record['history_json']);
+            if(!is_array($row))throw new RuntimeException('Tóm tắt nhật ký báo ăn không hợp lệ.');
+            if(noitru_meal_report_visible($row,$deletedIds,$deletedTargets))yield $row;
+        }
+    }while(count($batch)===250);
 }

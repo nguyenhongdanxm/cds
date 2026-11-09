@@ -8,7 +8,7 @@ $worker=($argv[1]??'')==='worker';
 $root=$worker?($argv[2]??''):sys_get_temp_dir().'/cds-meal-primary-'.bin2hex(random_bytes(8));
 check(str_starts_with($root,sys_get_temp_dir().'/cds-meal-primary-')&&!str_contains($root,'..'),'Unsafe fixture');
 if(!$worker)mkdir($root.'/noitru',0700,true);
-define('DATA_PATH',$root);define('NOITRU_DIR',$root.'/noitru');define('NOITRU_MEALS',NOITRU_DIR.'/meals_daily.json');define('NOITRU_MEAL_REPORTS',NOITRU_DIR.'/meal_reports.json');
+define('DATA_PATH',$root);define('NOITRU_DIR',$root.'/noitru');define('NOITRU_MEALS',NOITRU_DIR.'/meals_daily.json');define('NOITRU_MEAL_REPORTS',NOITRU_DIR.'/meal_reports.json');define('NOITRU_MEAL_HISTORY',NOITRU_DIR.'/meal_history.json');define('NOITRU_MEAL_HISTORY_DELETED',NOITRU_DIR.'/meal_history_deleted.json');
 require __DIR__.'/../includes/json_store.php';require __DIR__.'/../includes/database_meals.php';require __DIR__.'/../includes/database_meal_read.php';require __DIR__.'/../includes/database_migrations.php';require __DIR__.'/../includes/noitru_report_stream.php';require __DIR__.'/support/load_functions.php';
 function load_json($file,$default=[]){return cds_json_load($file,$default);}
 function save_json($file,$value){return cds_json_save($file,$value);}
@@ -27,6 +27,9 @@ load_functions(__DIR__.'/../includes/noitru_store.php',[
  'noitru_meal_settings','noitru_meal_report_snapshot','noitru_meal_report_upsert','noitru_meal_report_upsert_unlocked','noitru_meal_reports_data','noitru_meal_reports_save','noitru_meal_reports_save_unlocked','noitru_meal_state','noitru_meal_state_set','noitru_meal_state_set_unlocked',
  'noitru_meal_period_summary','noitru_meal_status_index','noitru_meal_status_day','noitru_rice_usage_summary','noitru_meal_report_effective_counts','noitru_student_is_active_on_date',
 ]);
+function nt_meal_history_student_map(){return ['p1'=>['id'=>'p1','name'=>'Một','class_name'=>'6A'],'p2'=>['id'=>'p2','name'=>'Hai','class_name'=>'7A']];}
+load_functions(__DIR__.'/../includes/noitru_meal_history.php',['nt_meal_history_deleted_sources','nt_meal_history_all','nt_meal_history_save','nt_meal_history_append_from_change']);
+require __DIR__.'/support/meal_history_reference.php';
 require __DIR__.'/support/meal_summary_reference.php';
 $pdo=cds_db();check($pdo->query('SELECT DATABASE()')->fetchColumn()==='cds_disposable_test','Wrong DB');
 if($worker){
@@ -90,6 +93,14 @@ try{
  check(!isset(noitru_meal_deleted_targets()['2026-10-15|6A|sang']),'Reactivation removes target tombstone');
  check(noitru_meal_write(static fn()=>cds_json_field_save(NOITRU_MEAL_REPORTS,'reports',static function($rows){foreach($rows as $row)if($row['class_name']!=='7A')yield $row;})),'Generic report delete');
  foreach(cds_meal_primary_rows('reports')as $row)check($row['class_name']!=='7A','Deleted report not retained');
+ // Legacy history must be byte-for-byte equivalent at the PHP array level, with no student payload reads.
+ $historyBefore=cds_meal_primary_meta('history');$uid=$GLOBALS['fixture_uid'];
+ $expectedHistory=reference_nt_meal_history_all();
+ check(save_json(NOITRU_MEAL_HISTORY,$historyBefore),'Reset fixture history');$GLOBALS['fixture_uid']=$uid;
+ exact(nt_meal_history_all(),$expectedHistory,'Lightweight legacy history matches original synthesis exactly');
+ $GLOBALS['nt_meal_history_pending_context']=['dates'=>['2026-10-15'],'meals'=>['sang'],'student_ids'=>['p1'],'class_name'=>'6A','before'=>['2026-10-15'=>['p1'=>['sang'=>'yes']]],'after_lock'=>false,'submission_mode'=>'regular'];
+ check(noitru_meal_submission_save([['date'=>'2026-10-15','student_id'=>'p1','sang'=>'no']],[['date'=>'2026-10-15','class_name'=>'6A','meal'=>'sang','eat_count'=>0]]),'Submission plus actual production history');
+ $history=cds_meal_primary_meta('history');$last=end($history);exact($last['changes'][0]['from'],'yes','History before flag');exact($last['changes'][0]['to'],'no','History committed with latest source');unset($GLOBALS['nt_meal_history_pending_context']);
  // Keyset boundary and indexed save: unrelated annual rows must not be scanned for a daily change.
  check(noitru_meal_write(static function(){return cds_json_rows_save(NOITRU_MEALS,(static function(){yield from cds_meal_primary_rows('daily');for($i=0;$i<2500;$i++)yield ['id'=>'large-'.$i,'date'=>'2026-08-01','student_id'=>'large-'.$i,'sang'=>'no'];})());}),'Large synthetic source');
  $beforeSteps=scan_steps($pdo);check(noitru_meal_upsert(['date'=>'2026-10-15','student_id'=>'p1','note'=>'Indexed']),'Indexed edit');$steps=scan_steps($pdo)-$beforeSteps;check($steps<500,'Daily edit must not scan whole history: '.$steps);
