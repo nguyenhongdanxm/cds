@@ -143,6 +143,16 @@ with tempfile.TemporaryDirectory(prefix='cds-schools-') as scratch:
         for query in ['group=wheel_music&name=../users.json','group=other&name=fixture.mp3','group=wheel_music&name=users.json']:
             try: urlopen(origin+'/game_asset.php?'+query,timeout=2); raise AssertionError('unsafe media request accepted')
             except HTTPError as error: assert error.code==404
+        # First admin login goes directly to configuration, even with an admin-page next URL.
+        from http.cookiejar import CookieJar
+        from urllib.request import build_opener, HTTPCookieProcessor
+        from urllib.parse import urlencode
+        browser=build_opener(HTTPCookieProcessor(CookieJar()))
+        with browser.open(Request(origin+'/login.php?next=/admin.php', data=urlencode({'username':'admin','password':PASSWORD}).encode()),timeout=10) as response:
+            page=response.read().decode()
+            assert response.geturl()==origin+'/instance_settings.php', response.geturl()
+            assert 'Biểu mẫu, bản in và file xuất' in page and 'Tên trên phiếu A' in page
+            assert 'form_place' in page and 'form_signer_name' in page
     finally:
         server.terminate();server.wait(timeout=5)
     # Build a real Git release from school A; dirty runtime files stay out.
