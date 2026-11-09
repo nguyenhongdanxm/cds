@@ -27,8 +27,10 @@ Ngân hàng câu hỏi đã lưu được giữ nguyên. Bộ soạn có ô nộ
 
 ## Hình họa và âm thanh
 
-Sân trường có hàng phượng và biển tên **TRƯỜNG PTDTNT THCS&THPT XÍN MẦN**. Hai đội gồm sáu học sinh chibi, chân trụ rộng, tay đặt trên dây. Nhân vật nhún và ngả khi kéo, hụt lực khi sai, bật nhảy khi thắng. Hoa phượng rơi và chim vỗ cánh tạo không khí sân trường; chế độ giảm chuyển động của thiết bị sẽ tắt các hiệu ứng chuyển động.
+Sân trường có hàng phượng và biển tên **TRƯỜNG PTDTNT THCS&THPT XÍN MẦN**. Hai đội gồm sáu học sinh chibi, chân trụ rộng, tay đặt trên dây. Nhân vật nhún và ngả khi kéo, hụt lực khi sai, bật nhảy khi thắng. Dây bện xanh đậm nổi trên nền sân, có đuôi thừa uốn cong phía sau hai đội; khăn đỏ rủ mềm ở giữa. Vạch giữa và hai vạch đích có nhãn rõ ràng. Hoa phượng rơi và chim vỗ cánh tạo không khí sân trường; chế độ giảm chuyển động của thiết bị sẽ tắt các hiệu ứng chuyển động.
 
-Nhạc nền vui nhộn gồm bass, trống, vỗ tay và giai điệu. Có âm báo đúng/sai, nhịp đếm 10 giây cuối và nhạc thắng. Mở **Âm lượng ♫** để chỉnh riêng nhạc nền và hiệu ứng; dùng nút âm thanh để tắt/bật toàn bộ.
+Khai cuộc có hai hồi còi, nhịp trống và tiếng hò reo tổng hợp. Nhạc nền vui nhộn gồm bass, trống, vỗ tay và giai điệu. Có âm báo đúng/sai, nhịp đếm 10 giây cuối và nhạc thắng. Mở **Âm lượng ♫** để chỉnh riêng nhạc nền và hiệu ứng; dùng nút âm thanh để tắt/bật toàn bộ.
 
 Nhạc bắt đầu sau thao tác **Bắt đầu**. Khi trở lại phòng, có thể bấm nút âm thanh để phát lại. Màn hình đội có nút bật hiệu ứng riêng, giúp giáo viên chọn máy phát âm thanh phù hợp.
+
+Khi có đội thắng, trận dừng nhận đáp án ngay. Đội thắng nhảy ăn mừng và tung hoa trong khoảng 4 giây; đội còn lại hơi buồn nhưng được động viên. Sau đó hiện bảng chúc mừng kèm cúp, tên đội và tỷ số. Có thể bấm **Xem kết quả ngay**, **Ngắm sân ăn mừng** hoặc **Chơi lượt mới**.
