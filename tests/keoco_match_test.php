@@ -1,0 +1,27 @@
+<?php
+require dirname(__DIR__).'/includes/keoco_match.php';
+function check($ok,$message){if(!$ok)throw new RuntimeException($message);}
+function rejects(callable $fn,string $message){try{$fn();}catch(Throwable $e){return;}throw new RuntimeException($message);}
+$questions=[];for($i=0;$i<8;$i++)$questions[]=['question_text'=>'Câu '.$i,'option_a'=>'A','option_b'=>'B','option_c'=>'C','option_d'=>'D','correct_option'=>($i%4)+1];
+$m=kc_new($questions,['mode'=>'shared','winBy'=>2,'duration'=>60,'seconds'=>10,'freeze'=>5,'loop'=>true],1000);
+check(kc_actor($m,$m['tokens']['b'])==='b','Team token');rejects(fn()=>kc_actor($m,'bad'),'Invalid token accepted');
+rejects(function()use(&$m){kc_command($m,'b','begin',[],1000);},'Team started match');
+kc_command($m,'host','begin',[],1000);$view=kc_view($m,'b',1000);check(!isset($view['teams']['r']),'Other team question leaked');check(!str_contains(json_encode($view),'correct_option')&&!str_contains(json_encode($view),'tokens')&&!str_contains(json_encode($view),'bank'),'Secrets leaked');
+$serial=$m['serial']['b'];$answer=kc_current($m,'b')['correct_option']-1;kc_command($m,'b','answer',['serial'=>$serial,'answer'=>$answer],1001);check($m['score']['b']===1&&$m['serial']['r']===2,'Shared pull not atomic');
+rejects(function()use(&$m,$serial,$answer){kc_command($m,'r','answer',['serial'=>$serial,'answer'=>$answer],1001);},'Shared duplicate scored');
+rejects(function()use(&$m){kc_command($m,'b','answer',['serial'=>2,'answer'=>0],1001.1);},'Cooldown bypass');
+$wrong=kc_current($m,'r')['correct_option']%4;kc_command($m,'r','answer',['serial'=>2,'answer'=>$wrong],1002);check($m['score']['r']===0&&$m['ready']['r']===1007.0,'Wrong-answer freeze');
+$answer=kc_current($m,'b')['correct_option']-1;kc_command($m,'b','answer',['serial'=>$m['serial']['b'],'answer'=>$answer],1008);check($m['phase']==='ended'&&$m['winner']==='b','Win threshold');
+rejects(function()use(&$m){kc_command($m,'b','answer',['serial'=>$m['serial']['b'],'answer'=>0],1009);},'Ended match accepted answer');
+$m=kc_new($questions,['mode'=>'split','seconds'=>10,'duration'=>60,'loop'=>false],1000);check(kc_current($m,'b')!==kc_current($m,'r'),'Split starts with same question');kc_command($m,'host','begin',[],1000);kc_advance($m,1011);check($m['serial']['b']===2&&$m['serial']['r']===2,'Question timeout');kc_advance($m,1060);check($m['phase']==='ended'&&$m['winner']===null,'Match deadline');
+$m=kc_new($questions,['mode'=>'split','loop'=>false,'seconds'=>0,'winBy'=>30],1000);kc_command($m,'host','begin',[],1000);for($i=0;$i<8;$i++)foreach(['b','r']as$s)kc_command($m,$s,'answer',['serial'=>$m['serial'][$s],'answer'=>kc_current($m,$s)['correct_option']-1],1001+$i*2);check($m['phase']==='ended'&&$m['winner']===null,'Exhaustion did not end tied match');
+$bad=$questions;$bad[0]['correct_option']=-1;rejects(fn()=>kc_questions($bad),'Negative answer accepted');$bad[0]['correct_option']=5;rejects(fn()=>kc_questions($bad),'Out-of-range answer accepted');$bad[0]['option_a']='';rejects(fn()=>kc_questions($bad),'Blank option accepted');
+// Exercise real file locking with concurrent processes submitting the same question.
+$m=kc_new($questions,['mode'=>'shared','loop'=>true],microtime(true));kc_command($m,'host','begin',[],microtime(true));$code=kc_create_file($m);
+try{
+ $script='require '.var_export(dirname(__DIR__).'/includes/keoco_match.php',true).';try{kc_room($argv[1],$argv[2],"answer",["serial"=>1,"answer"=>(int)$argv[3]]);echo "accepted";}catch(Throwable $e){echo "rejected";}';$answer=kc_current($m,'b')['correct_option']-1;$processes=[];
+ foreach([1,2]as$i){$p=proc_open([PHP_BINARY,'-n','-r',$script,$code,$m['tokens']['b'],(string)$answer],[1=>['pipe','w'],2=>['pipe','w']],$pipes);$processes[]=[$p,$pipes];}
+ $accepted=0;foreach($processes as[$p,$pipes]){$accepted+=stream_get_contents($pipes[1])==='accepted'?1:0;$err=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);check(proc_close($p)===0&&!$err,'Child failure '.$err);}
+ check($accepted===1,'Duplicate concurrent answers accepted');$v=kc_room($code,$m['tokens']['host'],'state');check($v['score']['b']===1,'File score not atomic');rejects(fn()=>kc_room('../bad',$m['tokens']['host'],'state'),'Invalid path accepted');rejects(fn()=>kc_room($code,'invalid','state'),'Room authorization bypass');
+}finally{@unlink(kc_dir().'/'.$code.'.json');}
+echo "PASS: token scope, no answer leakage, authoritative scoring, replay protection, shared/split, freeze, deadlines, exhaustion and concurrent file lock\n";

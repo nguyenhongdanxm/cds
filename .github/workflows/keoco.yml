@@ -1,0 +1,29 @@
+name: Keo co game safety
+on:
+  push:
+    paths: ['hoclieu_game_keoco*.php', 'assets/cds-keoco*', 'assets/mau-cau-hoi-keoco.xlsx', 'includes/keoco*', 'tests/keoco*', 'tools/deploy_cds.php', '.github/workflows/keoco.yml']
+  pull_request:
+    paths: ['hoclieu_game_keoco*.php', 'assets/cds-keoco*', 'assets/mau-cau-hoi-keoco.xlsx', 'includes/keoco*', 'tests/keoco*', 'tools/deploy_cds.php', '.github/workflows/keoco.yml']
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: zip, dom, mbstring
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          for file in hoclieu_game_keoco*.php includes/keoco*.php; do php -l "$file"; done
+          php tests/keoco_match_test.php
+          php tests/keoco_http_test.php
+          php tests/quiz_ai_test.php
+          php tests/keoco_excel_test.php
+          php tests/staff_evaluation_deploy_test.php
+          node --check assets/cds-keoco-upgrade.js
+          node --check assets/cds-keoco-team.js
+      - run: npm install --prefix "$RUNNER_TEMP/kc-dom" --no-audit --no-fund --ignore-scripts jsdom@26.1.0
+      - run: NODE_PATH="$RUNNER_TEMP/kc-dom/node_modules" node tests/keoco_client_test.cjs
