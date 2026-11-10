@@ -30,7 +30,7 @@ Không dùng URL công khai chứa mật khẩu hoặc token để chạy cron. 
 
 Tài khoản quản trị có nút đồng hồ nhỏ bên cạnh các nút/link xuất được đăng ký. Bấm đồng hồ để mở mẫu lịch và giữ bộ lọc hiện tại. Các thao tác xuất thủ công vẫn giữ nguyên. CSDL “Xuất đã chọn” lấy đúng các mã đang tích; chưa chọn bản ghi sẽ không tự chuyển thành xuất tất cả.
 
-Có thể tạo lịch trực tiếp tại trang quản lý, chọn báo cáo và chỉnh bộ lọc trong phần thu gọn. Danh mục gồm các nhóm xuất hiện có: CSDL (giáo viên/lớp/học sinh/thống kê), sổ đầu bài/PPCT, phân công và giờ dạy, TKB, học online, báo ăn/gạo, điểm danh, xin ra/vào, y tế, văn bản, đánh giá, Quiz/Olympia và các mẫu Excel hiện có. CSV và các file `.xls` tương thích Excel giữ nguyên định dạng nguồn; không tự chuyển thành Google Sheets.
+Có thể tạo lịch trực tiếp tại trang quản lý, chọn báo cáo và chỉnh bộ lọc trong phần thu gọn. Danh mục gồm các nhóm xuất hiện có: CSDL (giáo viên/lớp/học sinh/thống kê), sổ đầu bài/PPCT, phân công và giờ dạy, TKB, học online, bồi dưỡng học sinh, chủ nhiệm (bữa ăn/gạo và thu chi), báo ăn/gạo, điểm danh, xin ra/vào, y tế, văn bản, đánh giá, Quiz/Olympia và các mẫu Excel hiện có. CSV và các file `.xls` tương thích Excel giữ nguyên định dạng nguồn; không tự chuyển thành Google Sheets.
 
 Mỗi lịch chọn:
 

@@ -33,3 +33,5 @@ $valid=xlsched_validate($input,'admin-id');check($valid['folder_id']==='fixture_
 fails(fn()=>xlsched_validate(array_replace($input,['folder_id'=>'https://evil.example/folders/123']),'x'));fails(fn()=>xlsched_validate(array_replace($input,['date_policy'=>'sql']),'x'));fails(fn()=>xlsched_validate(array_replace($input,['report_id'=>'attendance','date_policy'=>'today']),'x'));
 $tmp=tempnam(sys_get_temp_dir(),'excel-validation-');try{file_put_contents($tmp,'<html><form>login</form><table><tr><td>Wrong page</td></tr></table></html>');fails(fn()=>xlsched_validate_file($tmp,'xls'));file_put_contents($tmp,"\xEF\xBB\xBFcol1,col2\na,b\n");xlsched_validate_file($tmp,'csv');file_put_contents($tmp,'not an xlsx');fails(fn()=>xlsched_validate_file($tmp,'xlsx'));}finally{unlink($tmp);}
 echo "PASS schedules: registry, mutation rejection, VN/UTC windows, midnight, weekly/monthly/leap dates, real report date contracts, filters and file validation\n";
+
+foreach(['support_current','support_all','homeroom_meals','homeroom_ledger']as$id){if(!isset(xlsched_catalog()[$id]))throw new RuntimeException('Missing Excel report '.$id);}

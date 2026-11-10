@@ -15,6 +15,8 @@ function xlsched_catalog(): array {
     $add('lb_stats_csv','Sổ đầu bài · Thống kê (CSV)','chuyenmon/sodaubai_stats_export.php',['format'=>'csv'],['stats_from','stats_to','stats_teacher','stats_subject','stats_class','stats_completion'],'csv',['from'=>'stats_from','to'=>'stats_to']);
     $rows['lb_stats']['optional_fixed']=['format'];
     $add('hours','Chuyên môn · Tổng hợp giờ dạy','chuyenmon/gio_day_xuat.php',['download'=>'1'],['from','to','teacher','format'],'xlsx',['from'=>'from','to'=>'to']);
+    foreach(['current'=>'Danh sách đang xem','all'=>'Tất cả danh sách']as$key=>$label)$add('support_'.$key,'Bồi dưỡng học sinh · '.$label,'chuyenmon/boiduong.php',['export'=>$key],['tab','year','class','subject','group']);
+    foreach(['meals'=>'Bữa ăn và gạo','ledger'=>'Sổ thu chi']as$key=>$label){$add('homeroom_'.$key,'Chủ nhiệm · '.$label,'tienich_chunhiem.php',['tab'=>'meals','export'=>$key],['year','class_id','month'],'xlsx',['month'=>'month']);$rows['homeroom_'.$key]['required']=['class_id','year','month'];$rows['homeroom_'.$key]['policies']=['fixed','month','previous_month'];}
     $add('pccm','Chuyên môn · Phân công','chuyenmon/xuat.php',[],[],'csv');
     $add('online','Chuyên môn · Học online','chuyenmon/activities.php',['tab'=>'online','export'=>'list'],['class','status','q','from','to'],'csv',['from'=>'from','to'=>'to']);
     $add('tkb_plan','Thời khóa biểu · Phương án xếp','chuyenmon/tkb_print.php',['download'=>'excel'],['mode','class','teacher','workspace'],'xls');
@@ -47,6 +49,7 @@ function xlsched_catalog(): array {
     $add('gddp_template','Chuyên môn · Phân công GDĐP 1–35','chuyenmon/program_assignment_template.php',[],['class','grade','with_data','filled']);
     foreach(['month_breakfast','month_lunch_dinner']as$key)$rows['meal_'.$key]['aliases']=[['tab'=>'meals','export'=>$key]];
     foreach(['lb_class'=>['week','class'],'lb_stats'=>['stats_from','stats_to'],'lb_stats_csv'=>['stats_from','stats_to'],'hours'=>['from','to'],'tkb_template'=>['template_week_id'],'attendance'=>['period_value'],'quiz'=>['set','report'],'quiz_csv'=>['set','report'],'olympia_questions'=>['export_week_ids']]as$id=>$required)$rows[$id]['required']=$required;
+    $rows['support_current']['required']=['tab','year','subject'];$rows['support_all']['required']=['year'];
     $rows['attendance']['policies']=['fixed','week','previous_week','month','previous_month'];
     foreach(['lb_class','tkb_template']as$id)$rows[$id]['policies']=['fixed','today','yesterday','week','previous_week'];
     // Static Excel templates are also selectable, but never arbitrary files/uploads.
