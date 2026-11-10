@@ -223,7 +223,7 @@ function lh_icon(string $kind): string {
 </style>
 </head><body>
 <?php if ($tab === 'games'): ?>
-<link rel="stylesheet" href="<?= BASE_URL ?>assets/hoclieu-games.css?v=20261108-1">
+<link rel="stylesheet" href="<?= BASE_URL ?>assets/hoclieu-games.css?v=20261110-4">
 <?php endif; ?>
 <style>.stat{padding-right:3.5rem!important}.stat>i{right:12px;bottom:12px;font-size:2rem;opacity:.16;pointer-events:none}.stat strong{display:block;line-height:1.1}.stat>span{display:block;line-height:1.35}</style>
 <?php require_once __DIR__.'/includes/module_switcher.php'; ?>
@@ -294,22 +294,7 @@ $games = [
     ['key'=>'loto','name'=>'Quay số gọi tên','description'=>'Chọn ngẫu nhiên học sinh từ danh sách của lớp.','icon'=>'','emoji'=>'🎲','url'=>'hoclieu_game_loto.php','action'=>'Mở trò chơi'],
     ['key'=>'chopnot','name'=>'Chớp Nốt','description'=>'Khám phá khuông nhạc, trường độ và nhạc cụ qua trò chơi.','icon'=>'','emoji'=>'🎼','url'=>'hoclieu_game_chopnot.php','action'=>'Mở trò chơi'],
 ];
-$gameCovers = [
-    'secret'=>["Ô cửa\nbí mật!",'Thi đua'],
-    'muc'=>["Mực ơi\nđừng dậy!",'Gọi tên'],
-    'buzzer'=>["Bấm\nchuông!",'Hỏi đáp'],
-    'rocket'=>["Tên lửa\nhạ cánh",'Gọi tên'],
-    'balldrop'=>["Thả bóng\ngọi tên",'Gọi tên'],
-    'clock'=>["Bộ đếm\nthời gian",'Công cụ'],
-    'quiz'=>["Hỏi nhanh\nĐáp gọn",'Hỏi đáp'],
-    'cards'=>["Thẻ trả lời\nA–D",'Hỏi đáp'],
-    'olympia'=>["Đỉnh\nOlympia",'Kiến thức'],
-    'wheel'=>["Vòng quay\nmay mắn",'May mắn'],
-    'keoco'=>["Kéo co\nkiến thức",'Thi đua'],
-    'duavit'=>["Đua vịt\ngọi tên",'Gọi tên'],
-    'loto'=>["Quay số\ngọi tên",'Gọi tên'],
-    'chopnot'=>["Chớp Nốt\nÂm nhạc",'Âm nhạc'],
-];
+
 ?>
 <div class="row games-grid">
 <?php foreach ($games as $game):
@@ -317,11 +302,7 @@ $gameCovers = [
 ?>
 <div class="col-12 col-sm-6 col-xl-4 col-xxl-3"><article class="game-tile game-<?= e($game['key']) ?>" aria-labelledby="game-title-<?= e($game['key']) ?>">
     <a class="game-cover" href="<?= BASE_URL . e($game['url']) ?>" aria-label="<?= e('Mở ' . $game['name']) ?>">
-        <img src="<?= BASE_URL ?>assets/game-covers/<?= e($game['key']) ?>.<?= $game['key']==='secret'?'svg':'webp' ?>?v=20261110-1" alt="" width="720" height="405" loading="<?= $game['key'] === 'muc' ? 'eager' : 'lazy' ?>" decoding="async">
-        <span class="game-cover-shade" aria-hidden="true"></span>
-        <span class="game-category" aria-hidden="true"><?= e($gameCovers[$game['key']][1]) ?></span>
-        <span class="game-cover-icon" aria-hidden="true"><i class="bi bi-controller"></i></span>
-        <span class="game-cover-title" aria-hidden="true"><?php foreach (explode("\n", $gameCovers[$game['key']][0]) as $line): ?><span><?= e($line) ?></span><?php endforeach; ?></span>
+        <img src="<?= BASE_URL ?>assets/game-covers/illustrated-v2/<?= e($game['key']) ?>.webp?v=20261110-4" alt="" width="720" height="405" loading="<?= $game['key'] === 'muc' ? 'eager' : 'lazy' ?>" decoding="async">
     </a>
     <div class="game-copy"><h3 id="game-title-<?= e($game['key']) ?>"><?= e($game['name']) ?></h3><p><?= e($game['description']) ?></p></div>
     <a class="game-link" href="<?= BASE_URL . e($game['url']) ?>"><i class="bi <?= $game['key']==='cards'?'bi-printer':'bi-play-circle' ?>" aria-hidden="true"></i><?= e($game['action']) ?></a>
