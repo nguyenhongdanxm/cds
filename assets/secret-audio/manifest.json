@@ -1,0 +1,98 @@
+[
+  {
+    "file": "click.mp3",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "pack": "Interface Sounds",
+    "original": "click_001.ogg",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "mirror": "https://raw.githubusercontent.com/manuel-palacio/brickstorm/90673e14473430ef16a3b163431dc03d6adc6fd0/public/audio/ui-click.ogg",
+    "mirror_sha256": "ccfb7fa0cccdd9faec0eb16033c732b1e308d139d80f799161495d58f7adcdb9",
+    "sha256": "893bd4e0c485871365c7d76c34b45e3b89f02567bf6cefbf3ac8468c0a0266fd",
+    "changes": "Trimmed, loudness-normalized, mono MP3 transcode with ffmpeg; runtime pitch variations."
+  },
+  {
+    "file": "tick.mp3",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "pack": "Interface Sounds",
+    "original": "click_002.ogg",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "mirror": "https://raw.githubusercontent.com/manuel-palacio/brickstorm/90673e14473430ef16a3b163431dc03d6adc6fd0/public/audio/ui-move.ogg",
+    "mirror_sha256": "adcd1f4adc35f1b41bc1b5bbefeff7aa44f2f3f0d96d3199b544140c7c1e761c",
+    "sha256": "02d63df87cb46d14ffcc6955f965cb9469af64b75e0a1934b80a40c686cff1e8",
+    "changes": "Trimmed, loudness-normalized, mono MP3 transcode with ffmpeg; runtime pitch variations."
+  },
+  {
+    "file": "open.mp3",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "pack": "Interface Sounds",
+    "original": "drop_002.ogg",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "mirror": "https://raw.githubusercontent.com/manuel-palacio/brickstorm/90673e14473430ef16a3b163431dc03d6adc6fd0/public/audio/powerup-drop.ogg",
+    "mirror_sha256": "4ac4d1cef7e936965cbf795852ca2020300b9e2ba7daa59f2bf4f1f7bf416218",
+    "sha256": "d39778b5b2152d844ae681ccfce3c79f809dbac26496b129f50a44890cae3dbb",
+    "changes": "Trimmed, loudness-normalized, mono MP3 transcode with ffmpeg; runtime pitch variations."
+  },
+  {
+    "file": "correct.mp3",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "pack": "Interface Sounds",
+    "original": "confirmation_001.ogg",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "mirror": "https://raw.githubusercontent.com/manuel-palacio/brickstorm/90673e14473430ef16a3b163431dc03d6adc6fd0/public/audio/powerup-get.ogg",
+    "mirror_sha256": "063564703b6094d70718a3e787a55cc9141611e4ecd6b6637f8828f79b4a8c3a",
+    "sha256": "0353acffb94e9de3d24fbde11c5e8ec3845efc41206b1eeed0a88685fda3a295",
+    "changes": "Trimmed, loudness-normalized, mono MP3 transcode with ffmpeg; runtime pitch variations."
+  },
+  {
+    "file": "wrong.mp3",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "pack": "Music Jingles",
+    "original": "jingles_NES00.ogg",
+    "source": "https://kenney.nl/assets/music-jingles",
+    "mirror": "https://raw.githubusercontent.com/manuel-palacio/brickstorm/90673e14473430ef16a3b163431dc03d6adc6fd0/public/audio/game-over.ogg",
+    "mirror_sha256": "1010c9b566d6c090ff03a4aaaf7439e26eb4cc4f20373800d0b7e6a9057b795d",
+    "sha256": "b15ca78ff011844774ce01687950bb91b3266c8055eb7c6c60562b766e07f17c",
+    "changes": "Trimmed, loudness-normalized, mono MP3 transcode with ffmpeg; runtime pitch variations."
+  },
+  {
+    "file": "win.mp3",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "pack": "Music Jingles",
+    "original": "jingles_NES12.ogg",
+    "source": "https://kenney.nl/assets/music-jingles",
+    "mirror": "https://raw.githubusercontent.com/manuel-palacio/brickstorm/90673e14473430ef16a3b163431dc03d6adc6fd0/public/audio/level-complete.ogg",
+    "mirror_sha256": "ac678f8435036f800f4b2244e6d6b929bfdd012640698ab9815b35b86bfbcd29",
+    "sha256": "08f38242d1f3df969cb66f9e3aa8b8da075c1bc7aaa1b313d4f5be51c1eed83b",
+    "changes": "Trimmed, loudness-normalized, mono MP3 transcode with ffmpeg; runtime pitch variations."
+  },
+  {
+    "file": "loss.mp3",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "pack": "Music Jingles",
+    "original": "jingles_HIT09.ogg",
+    "source": "https://kenney.nl/assets/music-jingles",
+    "mirror": "https://raw.githubusercontent.com/manuel-palacio/brickstorm/90673e14473430ef16a3b163431dc03d6adc6fd0/public/audio/life-lost.ogg",
+    "mirror_sha256": "3114537d0d82f83c98037b4867c67dae4faa09e904405e511a9336088d022554",
+    "sha256": "bc38a416b6f21112883ba1c329742769102e71250c08f6c9226e4fa696bd8eaf",
+    "changes": "Trimmed, loudness-normalized, mono MP3 transcode with ffmpeg; runtime pitch variations."
+  },
+  {
+    "file": "sparkle.mp3",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "pack": "Music Jingles",
+    "original": "jingles_NES12.ogg",
+    "source": "https://kenney.nl/assets/music-jingles",
+    "mirror": "https://raw.githubusercontent.com/manuel-palacio/brickstorm/90673e14473430ef16a3b163431dc03d6adc6fd0/public/audio/level-complete.ogg",
+    "mirror_sha256": "ac678f8435036f800f4b2244e6d6b929bfdd012640698ab9815b35b86bfbcd29",
+    "sha256": "08f38242d1f3df969cb66f9e3aa8b8da075c1bc7aaa1b313d4f5be51c1eed83b",
+    "changes": "Trimmed, loudness-normalized, mono MP3 transcode with ffmpeg; runtime pitch variations."
+  }
+]
