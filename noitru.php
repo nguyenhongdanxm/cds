@@ -1299,7 +1299,7 @@ if ($tab === 'stats' && ($_GET['export'] ?? '') === 'csv') {
 <title>Quản lý nội trú – CDS</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<link href="<?= BASE_URL ?>includes/noitru_layout.css?v=20260801-stats1" rel="stylesheet">
+<link href="<?= BASE_URL ?>assets/noitru-layout.css?v=20261110-1" rel="stylesheet">
 <style>
 :root{--primary:#d63384;--pd:#a61e5c}
 body{background:#f8f0f4}
