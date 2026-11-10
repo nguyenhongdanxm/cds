@@ -16,10 +16,10 @@ if (count($games)!==14 || substr_count($html, '<article ')!==14) throw new Runti
 $bytes = 0;
 foreach ($games as $game) {
     $key = $game['key'];
-    $file = $root.'/assets/game-covers/illustrated-v2/'.$key.'.webp';
+    $file = $root.'/assets/game-covers/illustrated-v3/'.$key.'.webp';
     $size = getimagesize($file);
     if (!$size || $size[0]!==720 || $size[1]!==405 || $size['mime']!=='image/webp') throw new RuntimeException('Invalid illustrated cover: '.$key);
-    if(!str_contains($html,'assets/game-covers/illustrated-v2/'.$key.'.webp')) throw new RuntimeException('Catalog does not use illustrated cover: '.$key);
+    if(!str_contains($html,'assets/game-covers/illustrated-v3/'.$key.'.webp')) throw new RuntimeException('Catalog does not use illustrated cover: '.$key);
     $bytes += filesize($file);
     if (!is_file($root.'/'.$game['url']) || substr_count($html, 'href="/cds/'.e($game['url']).'"')!==2) throw new RuntimeException('Broken game route: '.$key);
     if (!str_contains($html, 'id="game-title-'.$key.'"') || !str_contains($html, e($game['name']))) throw new RuntimeException('Missing accessible title: '.$key);
