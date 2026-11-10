@@ -1,8 +1,8 @@
 {
-  "method": "Built-in image generation",
-  "reference": "User-provided Mực ơi đừng dậy illustration",
-  "format": "720 × 405 WebP exports; original generated PNGs preserved",
-  "common_prompt": "Use case: illustration-story. Asset: a polished 16:9 landscape thumbnail for a Vietnamese school game catalog, full bleed, no border. Match the attached reference's rich hand-drawn chibi cartoon art and integrated Vietnamese title lettering: oversized rounded inflated glossy letters, yellow-orange first line and cyan-blue second line, very dark thick inner contour, thick white sticker outline, offset dimensional shadow, white highlights, expressive children in white school shirts and red scarves, rich bright colors, playful rays/sparkles and layered foreground/background. This is an illustrated game cover, not a UI screenshot. Main title must dominate the upper central 45-55% and be perfectly legible at small card size, supporting illustrated scene fills lower half, with characters around edges. Keep 5% safe margins for all lettering and faces. No browser UI, no logos, no watermark, no extra text other than the exact title and short subtitle specified. A cohesive family matching the reference, while all objects and scenery fit THIS game's theme. Generate a brand new cover; input image is style reference only.",
+  "method": "Built-in image generation; original compositions without reference-image conditioning",
+  "reference": "User requested shared cartoon and lettering style only; distinct compositions, casts and expressions",
+  "format": "720 × 405 WebP exports; original PNGs preserved",
+  "common_prompt": "Use case: illustration-story. Create one brand-new premium 16:9 landscape cover illustration for a Vietnamese classroom game. Shared STYLE ONLY across the collection: polished lively chibi cartoon, clean confident dark contours, soft cel shading, glossy rounded 3D Vietnamese title letters with bright highlights, dark offset shadow and crisp white sticker edge, rich color harmony. The supplied descriptions define a completely DIFFERENT layout, cast, facial expressions and clothing for this cover. Vietnamese secondary-school students aged about 12–15 in chibi form, natural variety of faces and hairstyles, expressive eyes and believable action poses. Title must be spelled exactly, integrated into its designated area and readable at thumbnail size, 5% safe margins. NO recurring stock children, NO four smiling children at the corners, NO wooden title plaque, NO red ribbon subtitle, NO megaphone, NO copied reference composition, no watermark, no browser UI. No extra lettering beyond the exact title, subtitle and explicitly allowed game symbols. Cover fills entire canvas, no outer border. Keep artistry coherent but make this a unique editorial composition.",
   "covers": [
     {
       "key": "muc",
@@ -10,9 +10,9 @@
         "Mực ơi",
         "đừng dậy!"
       ],
-      "ribbon": "GỌI TÊN HỌC SINH",
-      "scene": "A lovable black-and-tan sleeping dog with a red collar and golden bell centered low, curled tail, Z symbols; four excited Vietnamese schoolchildren whispering and peeking around him. Yellow schoolyard and blooming red flamboyant tree. Keep the joyful cartoon energy of the reference.",
-      "file": "assets/game-covers/illustrated-v2/muc.webp"
+      "subtitle": "RÓN RÉN GỌI TÊN",
+      "scene": "Asymmetric ground-level school corridor. The large black-and-tan sleeping dog is on the lower RIGHT, seen side-on curled by a bench, little Z symbols. Only TWO students sneak single-file from LEFT toward center: a lanky boy with cropped straight hair and freckles wearing a pale-blue short-sleeve school shirt and charcoal shorts, serious pursed lips and finger over mouth; behind him a short girl with two low buns and a cream cardigan over navy skirt, wide alarmed eyes gripping her satchel. No glasses, no ponytail red bows, no cheering poses. Title stacked on open LEFT TOP in orange then turquoise, no sign behind it. Dappled morning light, tiled corridor, backpack and slippers subtly displaced, an intimate comical hush rather than party scene.",
+      "file": "assets/game-covers/illustrated-v3/muc.webp"
     },
     {
       "key": "secret",
@@ -20,19 +20,18 @@
         "Ô cửa",
         "bí mật!"
       ],
-      "ribbon": "THỬ THÁCH KIẾN THỨC",
-      "scene": "Cute schoolchildren eagerly opening jewel-colored numbered mystery doors around a glowing treasure chest, a lucky star, question symbols and confetti, small friendly cat/rabbit mascots; magical school courtyard. No written numbers needed other than simple door digits 1 2 3.",
-      "file": "assets/game-covers/illustrated-v2/secret.webp"
+      "subtitle": "MỞ Ô · KHÁM PHÁ",
+      "scene": "Overhead isometric fantasy puzzle room: a spiral arrangement of 9 jewel-colored doors around a glowing central question-mark portal. One girl explorer with short choppy hair, olive vest, mustard scarf and khaki trousers viewed from three-quarter back reaches for a door; her side-profile face shows curious raised eyebrow. A small round fox companion looks astonished. NO front-facing crowd, no school building, no treasure chest. Large title on the RIGHT against a clean midnight-teal gradient, lime-gold and coral lettering. The door spiral occupies the LEFT 60%, diagonal light beams and floating puzzle pieces.",
+      "file": "assets/game-covers/illustrated-v3/secret.webp"
     },
     {
       "key": "buzzer",
       "title_lines": [
-        "Bấm",
-        "chuông!"
+        "Bấm chuông!"
       ],
-      "ribbon": "NHANH TAY GIÀNH LƯỢT",
-      "scene": "Two excited chibi school teams with hands reaching toward an oversized shiny red quiz buzzer on a blue pedestal, golden bell and musical sound rings, cheerful classroom quiz stage, little lightning flashes.",
-      "file": "assets/game-covers/illustrated-v2/buzzer.webp"
+      "subtitle": "PHẢN XẠ THẬT NHANH",
+      "scene": "Extreme dynamic low-angle close-up of a giant glowing cyan quiz button in lower LEFT; two competitors at opposite depths. Foreground RIGHT a sporty girl with a long single braid, red athletic jersey and white sweatband, teeth gritted in focused determination, reaching toward button; upper LEFT farther away a boy with naturally curly dark hair in a violet hoodie leaning forward with surprised O-shaped mouth. No glasses, no repeated white uniform cast. Sweeping electric-yellow speed arcs across a midnight-indigo game-show arena. Title on upper RIGHT tilted along the motion, pink-gold letters, subtitle in small plain white letters below, no ribbon or plaque.",
+      "file": "assets/game-covers/illustrated-v3/buzzer.webp"
     },
     {
       "key": "rocket",
@@ -40,9 +39,9 @@
         "Tên lửa",
         "hạ cánh"
       ],
-      "ribbon": "GỌI TÊN BẤT NGỜ",
-      "scene": "Cute red-white-blue rocket landing softly among colorful toy planets, two smiling schoolchildren astronauts with clear round helmets, friendly stars and golden sparkles, rich deep blue purple outer space, rocket plume like soft clouds.",
-      "file": "assets/game-covers/illustrated-v2/rocket.webp"
+      "subtitle": "KHÁM PHÁ VŨ TRỤ",
+      "scene": "Tall rocket descends diagonally from TOP RIGHT toward an alien canyon landing pad on lower LEFT; cinematic wide view with planet rings over the horizon. One stocky boy astronaut with very short hair and a round face in a teal-and-orange spacesuit is on lower RIGHT holding a tablet, eyes narrowed in scientific concentration; a tiny square robot cheers beside him. No girl astronauts, no identical seated smiling pair, no red neckerchief. Title stacked in the open LEFT TOP star field, icy-white/cyan with magenta shadows. Magenta orange alien rocks and teal sky, angled composition, restrained rocket smoke.",
+      "file": "assets/game-covers/illustrated-v3/rocket.webp"
     },
     {
       "key": "balldrop",
@@ -50,9 +49,9 @@
         "Thả bóng",
         "gọi tên"
       ],
-      "ribbon": "AI SẼ ĐƯỢC CHỌN?",
-      "scene": "A big smiling yellow ball bouncing through a magical colorful peg board and winding transparent tubes, small marbles and stars, two schoolchildren watching delightedly at the bottom corners, lively pastel carnival laboratory.",
-      "file": "assets/game-covers/illustrated-v2/balldrop.webp"
+      "subtitle": "HÀNH TRÌNH BẤT NGỜ",
+      "scene": "Close-up cutaway view of a fantastical vertical marble machine filling RIGHT two-thirds: large pink marble cascades through zigzag pegs, curved brass rails and blue glass tubes toward tiny numbered baskets. Only a girl inventor on LEFT, asymmetrical short bob with a purple hairclip, rolled-up mint shirt and denim overalls, safety goggles pushed onto her head, astonished delighted eyes and open mouth as she turns a crank. No pair of corner children, no schoolyard. Title on LEFT TOP above inventor, lemon/coral glossy lettering. Warm cream workshop and watercolor-blue highlights, clever mechanical editorial layout.",
+      "file": "assets/game-covers/illustrated-v3/balldrop.webp"
     },
     {
       "key": "clock",
@@ -60,9 +59,9 @@
         "Bộ đếm",
         "thời gian"
       ],
-      "ribbon": "CÙNG CHINH PHỤC THỬ THÁCH",
-      "scene": "An adorable oversized alarm-clock mascot with blue bells, gold stopwatch and playful hourglass, schoolchildren timing a friendly classroom challenge, colorful clock hands and calendar motifs, mint blue and sunny yellow backdrop.",
-      "file": "assets/game-covers/illustrated-v2/clock.webp"
+      "subtitle": "SẴN SÀNG THỬ THÁCH",
+      "scene": "Playful time laboratory with a huge semi-transparent clock face angled like an arch across the background; a penguin stopwatch mascot runs across the lower foreground pulling a small hourglass wagon. A single teen girl with tightly curled shoulder-length hair and square glasses, wearing a lilac science coat and yellow sneakers, kneels at CENTER LEFT, one eyebrow lifted and lips in thoughtful smirk, adjusting a dial. No four schoolchildren, no alarm-clock face mascot, no school building. Title on RIGHT TOP within open cream space, cobalt/coral letters. White/peach/lavender palette, crisp spatial asymmetry and little motion trails.",
+      "file": "assets/game-covers/illustrated-v3/clock.webp"
     },
     {
       "key": "quiz",
@@ -70,9 +69,9 @@
         "Hỏi nhanh",
         "Đáp gọn"
       ],
-      "ribbon": "CẢ LỚP CÙNG THAM GIA",
-      "scene": "Four chibi schoolchildren happily raising colorful A B C D answer paddles around a giant question-mark trophy, a friendly teacher hosting a bright quiz classroom, books and stars. Only paddles may contain A B C D.",
-      "file": "assets/game-covers/illustrated-v2/quiz.webp"
+      "subtitle": "ĐẤU TRÍ CÙNG BẠN",
+      "scene": "Lively split-diagonal classroom debate: upper LEFT close-up of a short-haired girl with a blunt fringe and round cheeks in a mustard sweater vest over white shirt, a delighted aha expression raising one finger; lower RIGHT a tall boy with side-parted dark hair, narrow face and deep-green school jacket listens with thoughtful chin-rest pose. Between them a flying white question-mark speech bubble and colorful knowledge icons. No answer paddles, no trophy, no teacher, no repeated glasses boy. Bold title across diagonal CENTRAL band of clean deep teal negative space, warm yellow/cream and turquoise letters, subtitle small below without banner. Modern energetic composition, two contrasting expressions.",
+      "file": "assets/game-covers/illustrated-v3/quiz.webp"
     },
     {
       "key": "cards",
@@ -80,9 +79,9 @@
         "Thẻ trả lời",
         "A–D"
       ],
-      "ribbon": "GIƠ THẺ · CÙNG TRẢ LỜI",
-      "scene": "Four cheerful schoolchildren holding distinct oversized answer cards A B C D, visible stylized QR corner motifs but no actual scannable codes, bright classroom with colorful books and sparkles, crisp warm orange and blue palette.",
-      "file": "assets/game-covers/illustrated-v2/cards.webp"
+      "subtitle": "GIƠ THẺ · CÙNG CHỌN",
+      "scene": "Over-the-shoulder classroom view from behind a girl with long loose straight hair in a sky-blue sailor-collar school uniform, holding up a red A response card large in FOREGROUND LEFT. In the DISTANT RIGHT a pair of students at desks hold green C and purple D cards, small distinct profile faces showing focus; one has cropped hair and orange vest, one a messy bun and lilac blouse. A blue B card lies on desk. Large title UPPER RIGHT against an uncluttered cream blackboard area, violet/cyan and golden letters. Cards show corner QR-like motifs, not real QR codes. No frontal quartet, no big smiling faces in all corners.",
+      "file": "assets/game-covers/illustrated-v3/cards.webp"
     },
     {
       "key": "olympia",
@@ -90,9 +89,9 @@
         "Đỉnh",
         "Olympia"
       ],
-      "ribbon": "CHINH PHỤC TRI THỨC",
-      "scene": "Three chibi schoolchildren climbing a winding mountain path toward a large golden knowledge trophy and laurel, glowing summit, books as stepping stones, sunny sky and emerald mountains, heroic joyful educational adventure.",
-      "file": "assets/game-covers/illustrated-v2/olympia.webp"
+      "subtitle": "VƯƠN TỚI TRI THỨC",
+      "scene": "Heroic rear-view chibi mountaineering scene: two teen teammates on a rocky summit ridge LEFT, one boy with shaggy hair wearing an orange windbreaker and hiking backpack lifts a small flag while looking at a distant golden peak; a girl with braided crown hairstyle in a turquoise tracksuit crouches, determined side-profile, checking a map. Huge glowing laurel-shaped sun over misty mountain ranges. No trophy, no book-shaped steps, no four-corner faces. Title RIGHT half over clear deep-blue sky, white-cyan and orange-gold lettering. Panoramic depth, windswept pennants, quiet triumphant rather than constant grins.",
+      "file": "assets/game-covers/illustrated-v3/olympia.webp"
     },
     {
       "key": "wheel",
@@ -100,9 +99,9 @@
         "Vòng quay",
         "may mắn"
       ],
-      "ribbon": "VÒNG QUAY BẤT NGỜ",
-      "scene": "A huge colorful prize wheel with red pointer, treasure gifts and stars, schoolchildren cheering on either side, school funfair stage, saturated hot pink turquoise gold, wheel wedges carry simple icons instead of text.",
-      "file": "assets/game-covers/illustrated-v2/wheel.webp"
+      "subtitle": "XOAY MỘT VÒNG · THÊM NIỀM VUI",
+      "scene": "Bird's-eye carnival composition: a gigantic colorful prize wheel lies diagonally like a round stage in LEFT two-thirds, with playful gift icons and glowing pointer. On RIGHT only one schoolboy with wavy swept-up hair in a coral bomber jacket and navy trousers leans backward while pulling the wheel lever, cheeks puffed and eyebrows raised in comical effort. A tiny calico cat bats a bouncing gold star at bottom. No school facade, no group of cheering children, no wooden board. Title across upper RIGHT in sapphire/pink and golden letters against warm peach sky, modern swirling radial layout.",
+      "file": "assets/game-covers/illustrated-v3/wheel.webp"
     },
     {
       "key": "keoco",
@@ -110,9 +109,9 @@
         "Kéo co",
         "kiến thức"
       ],
-      "ribbon": "ĐẤU TRÍ · CHUNG SỨC",
-      "scene": "Two teams of three cute schoolchildren red shirts vs blue shirts pulling one continuous long rope in realistic tug-of-war posture, both hands grip rope, feet braced, red ribbon at center, golden school campus and green lawn; joyful determination.",
-      "file": "assets/game-covers/illustrated-v2/keoco.webp"
+      "subtitle": "BỀN SỨC · VỮNG TRÍ",
+      "scene": "Dynamic three-quarter perspective sports illustration: rope runs DIAGONALLY from near lower LEFT to far upper RIGHT across a green school sports field. Foreground three red-team students seen from side/back, wearing red sports jerseys and white shorts: muscular chibi girl with close-cropped hair and dark skin tone braces feet, a skinny boy with a headband squints in effort, a girl with low long ponytail laughs nervously. Three smaller blue-team students farther away pull opposite direction. All hands actually grip continuous rope, bodies lean correctly, a red center marker. No symmetrical front-view teams. Title TOP LEFT in white-gold and lime/cyan letters on clear blue sky. Grass, angled chalk lines, dust kicks and dramatic depth.",
+      "file": "assets/game-covers/illustrated-v3/keoco.webp"
     },
     {
       "key": "duavit",
@@ -120,9 +119,9 @@
         "Đua vịt",
         "gọi tên"
       ],
-      "ribbon": "CỔ VŨ CHÚ VỊT MAY MẮN",
-      "scene": "Adorable yellow duck racers with colorful headbands splashing along a blue stream toward a checkered finish arch, schoolchildren cheering from the riverbank, flowers and playful speed lines, bright summer school garden.",
-      "file": "assets/game-covers/illustrated-v2/duavit.webp"
+      "subtitle": "VỀ ĐÍCH CÙNG NHAU",
+      "scene": "Water-level close-up race scene with oversized expressive ducks taking 80% of the picture, racing from LEFT BACK toward RIGHT FOREGROUND. A white duck in green goggles and a blue life vest looks determined with one eyebrow down, a yellow duck with a red racing cap squawks in surprise behind it, a brown duck with striped bandanna splashes on the far side. NO human students at all. Floating lane flags, lily pads and a distant footbridge, aqua coral summer palette. Title on LEFT TOP over calm pale-blue sky, orange-yellow and navy-turquoise glossy letters, subtitle plain dark blue below. Strong foreshortening and exaggerated water splashes, not a standard centered duck with corner children.",
+      "file": "assets/game-covers/illustrated-v3/duavit.webp"
     },
     {
       "key": "loto",
@@ -130,9 +129,9 @@
         "Quay số",
         "gọi tên"
       ],
-      "ribbon": "AI LÀ NGƯỜI MAY MẮN?",
-      "scene": "A shiny golden lottery sphere with colorful numbered balls bouncing out, schoolchildren excitedly waiting to hear their names, big lucky clover and stars, cheerful classroom party, red gold turquoise palette; digits only on balls.",
-      "file": "assets/game-covers/illustrated-v2/loto.webp"
+      "subtitle": "ĐẾN LƯỢT AI ĐÂY?",
+      "scene": "Top-down school tabletop composition: open name-ticket box in lower RIGHT, colorful numbered balls roll in an S-curve toward upper LEFT. Only children's HANDS visible, no faces or bodies: one sleeve forest green, another orange plaid, another pink cardigan, reaching curiously for numbered balls; a lucky origami crane and notebooks around edges. Title large CENTRAL LEFT on a clear cream paper space, magenta-orange and teal-blue glossy letters. No lottery sphere, no recurring students, no frontal celebration layout. Warm wood desk as environment only, absolutely no wooden title sign or subtitle ribbon.",
+      "file": "assets/game-covers/illustrated-v3/loto.webp"
     },
     {
       "key": "chopnot",
@@ -140,9 +139,9 @@
         "Chớp Nốt",
         "âm nhạc"
       ],
-      "ribbon": "KHÁM PHÁ GIAI ĐIỆU",
-      "scene": "Happy schoolchildren singing and playing keyboard, guitar and hand drum, cute musical note mascots dancing on a flowing staff, colorful stage with spotlight rays, vibrant purple pink turquoise and yellow.",
-      "file": "assets/game-covers/illustrated-v2/chopnot.webp"
+      "subtitle": "LẮNG NGHE · KHÁM PHÁ",
+      "scene": "A curving piano-key path sweeps diagonally from lower LEFT to upper RIGHT through a dreamy purple music world. Center RIGHT a teen boy drummer with short undercut dark hair, silver stud earring, teal varsity jacket and yellow tee plays a small drum kit, eyes shut and lips puckered in rhythmic concentration. LEFT MID a teen girl singer with a very short pixie haircut, round glasses and a coral dress sways holding microphone, expressive closed-eye gentle smile. Floating notes and a friendly hummingbird, no school uniforms, no repeated four children, no keyboard/guitar school stage tableau. Title UPPER LEFT in lemon/lavender and cyan gloss, subtitle below plain white, spacious diagonal composition.",
+      "file": "assets/game-covers/illustrated-v3/chopnot.webp"
     }
   ]
 }
