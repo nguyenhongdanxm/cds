@@ -1,0 +1,30 @@
+name: Boarding mobile presentation
+on:
+  pull_request:
+    paths:
+      - 'assets/noitru-layout.css'
+      - 'includes/noitru_layout.css'
+      - 'includes/noitru_shell.php'
+      - 'includes/noitru_att_view.php'
+      - 'noitru.php'
+      - 'noitru_list.php'
+      - 'noitru_assign.php'
+      - '.htaccess'
+      - 'tests/noitru_layout_fixture.php'
+      - 'tests/noitru_mobile_layout.cjs'
+      - '.github/workflows/noitru-mobile-layout.yml'
+  workflow_dispatch:
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix "$RUNNER_TEMP/mobile" --no-package-lock playwright@1.58.2 bootstrap@5.3.3
+      - run: NODE_PATH="$RUNNER_TEMP/mobile/node_modules" "$RUNNER_TEMP/mobile/node_modules/.bin/playwright" install --with-deps chromium
+      - run: NODE_PATH="$RUNNER_TEMP/mobile/node_modules" node tests/noitru_mobile_layout.cjs
