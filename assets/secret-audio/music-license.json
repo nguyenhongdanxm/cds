@@ -1,0 +1,12 @@
+{
+  "file": "music-loop.mp3",
+  "title": "Monkeys Spinning Monkeys",
+  "author": "Kevin MacLeod",
+  "license": "CC-BY-4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "source": "https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1400011",
+  "download": "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Monkeys%20Spinning%20Monkeys.mp3",
+  "sha256": "d8ace9ea7dd74bc0621f32616ca8e11623b2de4b5390f7bdc24dae1f650e246f",
+  "source_sha256": "a5bb345c23849ad0786aa0bc5157a9f2d4039660fe00282e55754d475f36dc14",
+  "changes": "48-second excerpt beginning at 4s; loudness normalization -20 LUFS, -2 dBTP; short fades; mono 44.1kHz 64kbps MP3, looped during gameplay."
+}

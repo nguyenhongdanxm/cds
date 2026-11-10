@@ -9,7 +9,7 @@ function sd_questions($rows): array {
     $out=[];
     foreach ($rows as $i=>$r) {
         if (!is_array($r)) throw new InvalidArgumentException('Câu hỏi không hợp lệ.');
-        $q=['text'=>sd_text($r['text']??'',15000),'answer'=>sd_text($r['answer']??'',10000),'points'=>filter_var($r['points']??15,FILTER_VALIDATE_INT),'image'=>sd_text($r['image']??'',2000),'choices'=>[]];
+        $q=['text'=>sd_text($r['text']??'',15000),'answer'=>sd_text($r['answer']??'',10000),'points'=>filter_var($r['points']??15,FILTER_VALIDATE_INT),'image'=>sd_text($r['image']??'',2000),'hint'=>sd_text($r['hint']??'',6000),'choices'=>[]];
         if ($q['text']==='' || $q['answer']==='' || $q['points']<5 || $q['points']>100) throw new InvalidArgumentException('Câu '.($i+1).': cần câu hỏi, đáp án và điểm từ 5 đến 100.');
         if ($q['image']!=='' && (!filter_var($q['image'],FILTER_VALIDATE_URL) || strtolower((string)parse_url($q['image'],PHP_URL_SCHEME))!=='https' || parse_url($q['image'],PHP_URL_USER)!==null)) throw new InvalidArgumentException('Ảnh minh họa phải là liên kết HTTPS.');
         if (!is_array($r['choices']??[])) throw new InvalidArgumentException('Lựa chọn không hợp lệ.');
@@ -33,5 +33,5 @@ function sd_excel(string $path): array {
         return sd_questions($result);
     }
     if(array_map(fn($i)=>$h[$i]??'',range(0,3))!==['Câu hỏi','Đáp án','Điểm','Ảnh'])throw new InvalidArgumentException('Dùng mẫu 4 cột: Câu hỏi, Đáp án, Điểm, Ảnh; hoặc mẫu trắc nghiệm của Kéo co.');
-    $result=[];foreach($rows as $r){$v=$r['values'];$result[]=['text'=>$v[0]??'','answer'=>$v[1]??'','points'=>($v[2]??'')===''?15:$v[2],'image'=>$v[3]??''];}return sd_questions($result);
+    $result=[];foreach($rows as $r){$v=$r['values'];$result[]=['text'=>$v[0]??'','answer'=>$v[1]??'','points'=>($v[2]??'')===''?15:$v[2],'image'=>$v[3]??'','hint'=>(($h[4]??'')==='Gợi ý'?($v[4]??''):'')];}return sd_questions($result);
 }
