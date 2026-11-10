@@ -462,6 +462,39 @@ function cds_db_migrations()
             ),
         ),
 
+        '20261109_019_excel_drive_schedules' => array(
+            'description' => 'Lịch xuất Excel sang Drive, trạng thái cron và lịch sử chạy riêng',
+            'statements' => array(
+                "CREATE TABLE IF NOT EXISTS cds_excel_schedules (
+                    id CHAR(32) NOT NULL PRIMARY KEY, name VARCHAR(160) NOT NULL,
+                    report_id VARCHAR(80) NOT NULL, params_json LONGTEXT NOT NULL,
+                    folder_id VARCHAR(200) NOT NULL, frequency VARCHAR(16) NOT NULL,
+                    `day` INT NOT NULL DEFAULT 1, start_time CHAR(5) NOT NULL, end_time CHAR(5) NOT NULL,
+                    date_policy VARCHAR(32) NOT NULL, file_mode VARCHAR(16) NOT NULL,
+                    owner_id VARCHAR(100) NOT NULL, site_host VARCHAR(255) NOT NULL DEFAULT 'localhost', https TINYINT NOT NULL DEFAULT 1, enabled TINYINT NOT NULL DEFAULT 0,
+                    revision INT NOT NULL DEFAULT 1, remote_file_id VARCHAR(200) NULL,
+                    manual_requested_at DATETIME NULL, created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL, deleted_at DATETIME NULL,
+                    KEY idx_excel_schedules_enabled(enabled,deleted_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "CREATE TABLE IF NOT EXISTS cds_excel_schedule_runs (
+                    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    job_id CHAR(32) NOT NULL, period_key VARCHAR(80) NOT NULL,
+                    job_revision INT NOT NULL, status VARCHAR(20) NOT NULL,
+                    attempts INT NOT NULL DEFAULT 1, message VARCHAR(1000) NOT NULL DEFAULT '',
+                    remote_file_id VARCHAR(200) NULL, started_at DATETIME NOT NULL,
+                    finished_at DATETIME NULL, retry_after DATETIME NULL,
+                    UNIQUE KEY uq_excel_run_period(job_id,period_key),
+                    KEY idx_excel_run_history(started_at), KEY idx_excel_run_job(job_id,id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "CREATE TABLE IF NOT EXISTS cds_excel_schedule_state (
+                    id TINYINT NOT NULL PRIMARY KEY, enabled TINYINT NOT NULL DEFAULT 0,
+                    last_tick_at DATETIME NULL, last_message VARCHAR(500) NOT NULL DEFAULT ''
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "INSERT IGNORE INTO cds_excel_schedule_state(id,enabled) VALUES(1,0)"
+            )
+        ),
+
     );
 }
 

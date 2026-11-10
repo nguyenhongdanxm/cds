@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),vm=require('node:vm'),{JSDOM}=require('jsdom');
+(async()=>{
+const php=process.env.PHP_BINARY||'php',catalog=JSON.parse(cp.execFileSync(php,['-r',"require 'includes/excel_schedule_catalog.php'; echo json_encode(array_values(xlsched_catalog()));"],{encoding:'utf8'}));
+const dom=new JSDOM(`<!doctype html><html><head></head><body><a id="export" href="/chuyenmon/sodaubai_stats_export.php?stats_from=2026-11-01&stats_to=2026-11-09&stats_class=6A">Excel</a><a id="foreign" href="https://evil.example/noitru.php?tab=meal_summary&export=excel">Excel</a><form action="/chuyenmon/sodaubai_export.php" method="get"><input name="week" value="w10"><input name="class" value="6A"><button id="formExport">Xuất Excel</button></form><div class="bulk-bar" data-entity="students"><button id="selected" type="button" onclick="csdlExportSelected('students')">Xuất đã chọn</button></div></body></html>`,{url:'https://school.example/chuyenmon/sodaubai.php'});
+const w=dom.window;let selected=['s1','s2'],navigated=null,alerts=[];w.csdlGetChecked=()=>selected;
+Object.defineProperty(w.document,'currentScript',{value:{dataset:{cdsBase:'/'}}});
+const context={document:w.document,window:w,location:{origin:'https://school.example',pathname:'/chuyenmon/sodaubai.php',href:'https://school.example/chuyenmon/sodaubai.php',assign:v=>navigated=v},URL,FormData:w.FormData,MutationObserver:class{observe(){}},fetch:async()=>({ok:true,json:async()=>catalog}),setTimeout,clearTimeout,alert:v=>alerts.push(v),btoa:v=>Buffer.from(v,'binary').toString('base64'),unescape,encodeURIComponent,console};
+vm.runInNewContext(fs.readFileSync('assets/excel-schedule-links.js','utf8'),context);w.document.dispatchEvent(new w.Event('DOMContentLoaded'));await new Promise(r=>setTimeout(r,20));
+assert.equal(w.document.querySelectorAll('.cds-excel-clock').length,3,'Only reviewed local exports');
+assert.equal(w.document.getElementById('export').getAttribute('href'),'/chuyenmon/sodaubai_stats_export.php?stats_from=2026-11-01&stats_to=2026-11-09&stats_class=6A','Original action unchanged');
+w.document.getElementById('export').nextElementSibling.click();let source=JSON.parse(Buffer.from(new URL(navigated).searchParams.get('source'),'base64').toString('utf8'));assert.equal(source.report_id,'lb_stats');assert.equal(source.params.stats_class,'6A');
+w.document.getElementById('formExport').nextElementSibling.click();source=JSON.parse(Buffer.from(new URL(navigated).searchParams.get('source'),'base64').toString('utf8'));assert.equal(source.report_id,'lb_class');assert.equal(source.params.week,'w10','Correct form action, not current document URL');
+w.document.getElementById('selected').nextElementSibling.click();source=JSON.parse(Buffer.from(new URL(navigated).searchParams.get('source'),'base64').toString('utf8'));assert.deepEqual(source.params.ids,['s1','s2']);
+selected=[];navigated=null;w.document.getElementById('selected').nextElementSibling.click();assert.equal(navigated,null);assert.equal(alerts.length,1,'Empty selection never becomes all records');
+console.log('PASS schedule shortcuts: local links, GET form action and current filters, selected IDs, no foreign/mutation links, original export unchanged');
+})().catch(error=>{console.error(error);process.exitCode=1;});
