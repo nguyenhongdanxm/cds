@@ -1,0 +1,148 @@
+{
+  "method": "Built-in image generation",
+  "reference": "User-provided Mực ơi đừng dậy illustration",
+  "format": "720 × 405 WebP exports; original generated PNGs preserved",
+  "common_prompt": "Use case: illustration-story. Asset: a polished 16:9 landscape thumbnail for a Vietnamese school game catalog, full bleed, no border. Match the attached reference's rich hand-drawn chibi cartoon art and integrated Vietnamese title lettering: oversized rounded inflated glossy letters, yellow-orange first line and cyan-blue second line, very dark thick inner contour, thick white sticker outline, offset dimensional shadow, white highlights, expressive children in white school shirts and red scarves, rich bright colors, playful rays/sparkles and layered foreground/background. This is an illustrated game cover, not a UI screenshot. Main title must dominate the upper central 45-55% and be perfectly legible at small card size, supporting illustrated scene fills lower half, with characters around edges. Keep 5% safe margins for all lettering and faces. No browser UI, no logos, no watermark, no extra text other than the exact title and short subtitle specified. A cohesive family matching the reference, while all objects and scenery fit THIS game's theme. Generate a brand new cover; input image is style reference only.",
+  "covers": [
+    {
+      "key": "muc",
+      "title_lines": [
+        "Mực ơi",
+        "đừng dậy!"
+      ],
+      "ribbon": "GỌI TÊN HỌC SINH",
+      "scene": "A lovable black-and-tan sleeping dog with a red collar and golden bell centered low, curled tail, Z symbols; four excited Vietnamese schoolchildren whispering and peeking around him. Yellow schoolyard and blooming red flamboyant tree. Keep the joyful cartoon energy of the reference.",
+      "file": "assets/game-covers/illustrated-v2/muc.webp"
+    },
+    {
+      "key": "secret",
+      "title_lines": [
+        "Ô cửa",
+        "bí mật!"
+      ],
+      "ribbon": "THỬ THÁCH KIẾN THỨC",
+      "scene": "Cute schoolchildren eagerly opening jewel-colored numbered mystery doors around a glowing treasure chest, a lucky star, question symbols and confetti, small friendly cat/rabbit mascots; magical school courtyard. No written numbers needed other than simple door digits 1 2 3.",
+      "file": "assets/game-covers/illustrated-v2/secret.webp"
+    },
+    {
+      "key": "buzzer",
+      "title_lines": [
+        "Bấm",
+        "chuông!"
+      ],
+      "ribbon": "NHANH TAY GIÀNH LƯỢT",
+      "scene": "Two excited chibi school teams with hands reaching toward an oversized shiny red quiz buzzer on a blue pedestal, golden bell and musical sound rings, cheerful classroom quiz stage, little lightning flashes.",
+      "file": "assets/game-covers/illustrated-v2/buzzer.webp"
+    },
+    {
+      "key": "rocket",
+      "title_lines": [
+        "Tên lửa",
+        "hạ cánh"
+      ],
+      "ribbon": "GỌI TÊN BẤT NGỜ",
+      "scene": "Cute red-white-blue rocket landing softly among colorful toy planets, two smiling schoolchildren astronauts with clear round helmets, friendly stars and golden sparkles, rich deep blue purple outer space, rocket plume like soft clouds.",
+      "file": "assets/game-covers/illustrated-v2/rocket.webp"
+    },
+    {
+      "key": "balldrop",
+      "title_lines": [
+        "Thả bóng",
+        "gọi tên"
+      ],
+      "ribbon": "AI SẼ ĐƯỢC CHỌN?",
+      "scene": "A big smiling yellow ball bouncing through a magical colorful peg board and winding transparent tubes, small marbles and stars, two schoolchildren watching delightedly at the bottom corners, lively pastel carnival laboratory.",
+      "file": "assets/game-covers/illustrated-v2/balldrop.webp"
+    },
+    {
+      "key": "clock",
+      "title_lines": [
+        "Bộ đếm",
+        "thời gian"
+      ],
+      "ribbon": "CÙNG CHINH PHỤC THỬ THÁCH",
+      "scene": "An adorable oversized alarm-clock mascot with blue bells, gold stopwatch and playful hourglass, schoolchildren timing a friendly classroom challenge, colorful clock hands and calendar motifs, mint blue and sunny yellow backdrop.",
+      "file": "assets/game-covers/illustrated-v2/clock.webp"
+    },
+    {
+      "key": "quiz",
+      "title_lines": [
+        "Hỏi nhanh",
+        "Đáp gọn"
+      ],
+      "ribbon": "CẢ LỚP CÙNG THAM GIA",
+      "scene": "Four chibi schoolchildren happily raising colorful A B C D answer paddles around a giant question-mark trophy, a friendly teacher hosting a bright quiz classroom, books and stars. Only paddles may contain A B C D.",
+      "file": "assets/game-covers/illustrated-v2/quiz.webp"
+    },
+    {
+      "key": "cards",
+      "title_lines": [
+        "Thẻ trả lời",
+        "A–D"
+      ],
+      "ribbon": "GIƠ THẺ · CÙNG TRẢ LỜI",
+      "scene": "Four cheerful schoolchildren holding distinct oversized answer cards A B C D, visible stylized QR corner motifs but no actual scannable codes, bright classroom with colorful books and sparkles, crisp warm orange and blue palette.",
+      "file": "assets/game-covers/illustrated-v2/cards.webp"
+    },
+    {
+      "key": "olympia",
+      "title_lines": [
+        "Đỉnh",
+        "Olympia"
+      ],
+      "ribbon": "CHINH PHỤC TRI THỨC",
+      "scene": "Three chibi schoolchildren climbing a winding mountain path toward a large golden knowledge trophy and laurel, glowing summit, books as stepping stones, sunny sky and emerald mountains, heroic joyful educational adventure.",
+      "file": "assets/game-covers/illustrated-v2/olympia.webp"
+    },
+    {
+      "key": "wheel",
+      "title_lines": [
+        "Vòng quay",
+        "may mắn"
+      ],
+      "ribbon": "VÒNG QUAY BẤT NGỜ",
+      "scene": "A huge colorful prize wheel with red pointer, treasure gifts and stars, schoolchildren cheering on either side, school funfair stage, saturated hot pink turquoise gold, wheel wedges carry simple icons instead of text.",
+      "file": "assets/game-covers/illustrated-v2/wheel.webp"
+    },
+    {
+      "key": "keoco",
+      "title_lines": [
+        "Kéo co",
+        "kiến thức"
+      ],
+      "ribbon": "ĐẤU TRÍ · CHUNG SỨC",
+      "scene": "Two teams of three cute schoolchildren red shirts vs blue shirts pulling one continuous long rope in realistic tug-of-war posture, both hands grip rope, feet braced, red ribbon at center, golden school campus and green lawn; joyful determination.",
+      "file": "assets/game-covers/illustrated-v2/keoco.webp"
+    },
+    {
+      "key": "duavit",
+      "title_lines": [
+        "Đua vịt",
+        "gọi tên"
+      ],
+      "ribbon": "CỔ VŨ CHÚ VỊT MAY MẮN",
+      "scene": "Adorable yellow duck racers with colorful headbands splashing along a blue stream toward a checkered finish arch, schoolchildren cheering from the riverbank, flowers and playful speed lines, bright summer school garden.",
+      "file": "assets/game-covers/illustrated-v2/duavit.webp"
+    },
+    {
+      "key": "loto",
+      "title_lines": [
+        "Quay số",
+        "gọi tên"
+      ],
+      "ribbon": "AI LÀ NGƯỜI MAY MẮN?",
+      "scene": "A shiny golden lottery sphere with colorful numbered balls bouncing out, schoolchildren excitedly waiting to hear their names, big lucky clover and stars, cheerful classroom party, red gold turquoise palette; digits only on balls.",
+      "file": "assets/game-covers/illustrated-v2/loto.webp"
+    },
+    {
+      "key": "chopnot",
+      "title_lines": [
+        "Chớp Nốt",
+        "âm nhạc"
+      ],
+      "ribbon": "KHÁM PHÁ GIAI ĐIỆU",
+      "scene": "Happy schoolchildren singing and playing keyboard, guitar and hand drum, cute musical note mascots dancing on a flowing staff, colorful stage with spotlight rays, vibrant purple pink turquoise and yellow.",
+      "file": "assets/game-covers/illustrated-v2/chopnot.webp"
+    }
+  ]
+}
