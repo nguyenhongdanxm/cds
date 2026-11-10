@@ -22,6 +22,7 @@ const {chromium}=require('playwright'),fs=require('node:fs'),cp=require('node:ch
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'No horizontal overflow at '+width);
   for(const key of ['boarding','meals']){
    await page.locator('.nt-bottom-nav [data-nt-sheet="'+key+'"]').click();await page.locator('[data-nt-panel="'+key+'"]').waitFor({state:'visible'});
+   await page.waitForFunction(key=>getComputedStyle(document.querySelector('[data-nt-panel="'+key+'"]')).opacity==='1',key);
    assert.equal(await page.locator('.nt-sheet:visible').count(),1);assert.equal(await page.locator('[data-nt-panel="'+key+'"] a').count(),4);
    const sheet=await page.locator('[data-nt-panel="'+key+'"]').boundingBox(),nav=await page.locator('.nt-bottom-nav').boundingBox();assert.ok(sheet.y+sheet.height<=nav.y+1,'Menu stays above navigation');
    await page.locator('[data-nt-panel="'+key+'"] [data-nt-close]').click();await page.locator('[data-nt-panel="'+key+'"]').waitFor({state:'hidden'});
