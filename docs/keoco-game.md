@@ -4,7 +4,7 @@
 
 Mở Học liệu → Trò chơi → Kéo co. Đặt tên hai đội, tổng thời gian trận, số nấc cách biệt để thắng, thời gian mỗi câu (0 để tắt) và thời gian nghỉ sau khi sai.
 
-- **Câu chung:** lượt trả lời đầu tiên chốt câu và chuyển câu cho cả hai đội.
+- **Câu chung:** chỉ hiện một câu hỏi chung và một đồng hồ. Bên dưới là hai nhóm nút chọn đáp án mang tên đội Xanh/Đỏ; lượt trả lời đầu tiên chốt câu và chuyển câu cho cả hai đội.
 - **Câu riêng:** hai đội trả lời độc lập, bắt đầu khác câu.
 - Đúng được một điểm và kéo một nấc; sai không được điểm. Khi sai, đội hụt lực và dây giật ngắn về phía đối thủ, sau đó ổn định theo tỷ số.
 - Hết trận hoặc hết câu: đội nhiều điểm thắng; bằng điểm hòa.
