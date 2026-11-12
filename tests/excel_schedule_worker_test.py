@@ -29,6 +29,12 @@ with tempfile.TemporaryDirectory(prefix='cds-excel-worker-') as directory:
         assert validate.returncode==0,(report,validate.stdout,validate.stderr)
         assert b'cdsPageNavigation' not in p.stdout and b'excel-schedule-links' not in p.stdout
         assert users.read_bytes()==before and source.read_bytes()==original
+    if os.environ.get('CDS_SCHEDULE_UI_FIXTURE'):
+        script="$_SERVER['REQUEST_METHOD']='GET';$_SERVER['SCRIPT_NAME']='/excel_schedules.php';$_SERVER['HTTP_HOST']='fixture.example';session_start();require 'includes/session_user.php';$u=json_decode(file_get_contents('data/users.json'),true)[0];$_SESSION['cds_user']=cds_session_user_from_record($u);require 'excel_schedules.php';"
+        page=subprocess.run([PHP,'-r',script],cwd=site,env=ENV,capture_output=True,text=True)
+        assert page.returncode==0 and 'id="scheduleForm"' in page.stdout,(page.stdout[-800:],page.stderr)
+        Path(os.environ['CDS_SCHEDULE_UI_FIXTURE']).write_text(page.stdout)
+        assert users.read_bytes()==before and source.read_bytes()==original
     revoked=json.loads(before);revoked[0]['active']=False;users.write_text(json.dumps(revoked))
     p=subprocess.run([PHP,str(site/'tools/excel_export_worker.php'),str(payload)],env=ENV,capture_output=True)
     assert p.returncode!=0 and not p.stdout and b'OWNER_NOT_ACTIVE_ADMIN' in p.stderr

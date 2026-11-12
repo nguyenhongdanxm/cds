@@ -35,12 +35,14 @@ jobs:
           php tests/excel_schedule_test.php
           php tests/excel_schedule_drive_test.php
           php tests/document_schedule_test.php
-          python3 tests/excel_schedule_worker_test.py
+          php tests/excel_schedule_naming_test.php
+          CDS_SCHEDULE_UI_FIXTURE="$RUNNER_TEMP/schedule-hub.html" python3 tests/excel_schedule_worker_test.py
           php tests/meal_primary_guard_test.php
           php tests/lesson_book_primary_guard_test.php
           python3 tests/page_navigation_coverage_test.py
       - run: npm install --prefix "$RUNNER_TEMP/excel-dom" --no-package-lock jsdom@26.1.0
       - run: NODE_PATH="$RUNNER_TEMP/excel-dom/node_modules" node tests/excel_schedule_links_test.cjs
+      - run: NODE_PATH="$RUNNER_TEMP/excel-dom/node_modules" CDS_SCHEDULE_UI_FIXTURE="$RUNNER_TEMP/schedule-hub.html" node tests/excel_schedule_hub_test.cjs
   sql:
     runs-on: ubuntu-latest
     strategy:

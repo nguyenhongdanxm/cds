@@ -3,7 +3,7 @@
 function cds_document_archive(string $root,array $params,string $output): int {
     $collections=['all'=>['data/uploads','chuyenmon/data/uploads'],'documents'=>['data/uploads/vanban'],'academic'=>['chuyenmon/data/uploads']];
     $collection=trim((string)($params['collection']??''))?:'all';$extension=trim((string)($params['extension']??''))?:'all';
-    if(!isset($collections[$collection])||!in_array($extension,['all','pdf','doc','docx'],true))throw new InvalidArgumentException('Nhóm hoặc định dạng hồ sơ không hợp lệ.');
+    if(!isset($collections[$collection])||!in_array($extension,['all','word','pdf','doc','docx'],true))throw new InvalidArgumentException('Nhóm hoặc định dạng hồ sơ không hợp lệ.');
     $bounds=[];foreach(['from','to']as$key){$value=trim((string)($params[$key]??''));if($value==='')continue;$date=DateTimeImmutable::createFromFormat('!Y-m-d',$value,new DateTimeZone('Asia/Ho_Chi_Minh'));if(!$date||$date->format('Y-m-d')!==$value)throw new InvalidArgumentException('Ngày thay đổi tệp không hợp lệ.');$bounds[$key]=$key==='to'?$date->modify('+1 day')->getTimestamp():$date->getTimestamp();}
     if(isset($bounds['from'],$bounds['to'])&&$bounds['from']>=$bounds['to'])throw new InvalidArgumentException('Khoảng ngày không hợp lệ.');
     $root=rtrim((string)realpath($root),'/');if($root==='')throw new RuntimeException('Không tìm thấy gốc ứng dụng.');
@@ -13,7 +13,7 @@ function cds_document_archive(string $root,array $params,string $output): int {
         if(!is_dir($dir))continue;
         $it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir,FilesystemIterator::SKIP_DOTS));
         foreach($it as$file){if(++$seen>20000)throw new RuntimeException('Quá nhiều mục; chia nhỏ nhóm hồ sơ.');if($file->isLink())throw new RuntimeException('Phát hiện tệp liên kết; chưa tạo bản sao lưu.');if(!$file->isFile())continue;
-            $ext=strtolower($file->getExtension());if(!in_array($ext,['pdf','doc','docx'],true)||($extension!=='all'&&$extension!==$ext))continue;
+            $ext=strtolower($file->getExtension());if(!in_array($ext,['pdf','doc','docx'],true)||($extension==='word'?!in_array($ext,['doc','docx'],true):($extension!=='all'&&$extension!==$ext)))continue;
             $mtime=$file->getMTime();if(isset($bounds['from'])&&$mtime<$bounds['from']||isset($bounds['to'])&&$mtime>=$bounds['to'])continue;
             $size=$file->getSize();if($size>25*1024*1024)throw new RuntimeException('Có tệp vượt 25 MB; chia nhóm hoặc xử lý riêng.');$total+=$size;
             if($total>64*1024*1024||count($files)>=5000)throw new RuntimeException('Gói hồ sơ vượt 64 MB hoặc 5.000 tệp; chia nhỏ bộ lọc.');

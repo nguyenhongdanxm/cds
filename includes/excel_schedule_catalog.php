@@ -26,7 +26,7 @@ function xlsched_catalog(): array {
     $add('pccm','Chuyên môn · Phân công','chuyenmon/xuat.php',[],[],'csv');
     $add('online','Chuyên môn · Học online','chuyenmon/activities.php',['tab'=>'online','export'=>'list'],['class','status','q','from','to'],'csv',['from'=>'from','to'=>'to']);
     $add('tkb_plan','Thời khóa biểu · Phương án xếp','chuyenmon/tkb_print.php',['download'=>'excel'],['mode','class','teacher','workspace'],'xls');
-    $add('tkb_builder','Thời khóa biểu · Bản nháp','tkb_xep.php',['download'=>'excel'],['tab','view','class','teacher','week_id','workspace'],'xls');
+    $add('tkb_builder','Thời khóa biểu · Bản nháp','tkb_xep.php',['download'=>'excel'],['tab','view','class','teacher','workspace'],'xls');
     $add('tkb_template','Thời khóa biểu · Mẫu nhập có dữ liệu','chuyenmon/thoikhoabieu.php',['download_template'=>'filled'],['template_week_id'],'xlsx',['timetable_week'=>'template_week_id']);
     $add('tkb_blank','Thời khóa biểu · Mẫu nhập trống','chuyenmon/thoikhoabieu.php',['download_template'=>'blank'],[]);
     foreach(['month_breakfast'=>'Ăn sáng tháng','month_lunch_dinner'=>'Ăn trưa/tối tháng']as$key=>$label)$add('meal_'.$key,'Nội trú · '.$label,'noitru.php',['tab'=>'meal_summary','export'=>$key],['month','class'],'xlsx',['month'=>'month']);
@@ -60,11 +60,15 @@ function xlsched_catalog(): array {
     foreach(['lb_class','tkb_template']as$id)$rows[$id]['policies']=['fixed','today','yesterday','week','previous_week'];
     // Static Excel templates are also selectable, but never arbitrary files/uploads.
     foreach(glob(dirname(__DIR__).'/assets/*.xlsx')?:[]as$file){$id='asset_'.substr(hash('sha256',basename($file)),0,12);$add($id,'Mẫu Excel · '.basename($file),'assets/'.basename($file));$rows[$id]['asset']=true;}
+    $add('original_pdf','Hồ sơ · PDF gốc trên hosting (ZIP chứa PDF)','document_archive_export.php',['extension'=>'pdf'],['collection','from','to'],'zip',['from'=>'from','to'=>'to']);
+    $add('original_word','Hồ sơ · Word gốc trên hosting (ZIP chứa Word)','document_archive_export.php',['extension'=>'word'],['collection','from','to'],'zip',['from'=>'from','to'=>'to']);
+    foreach($rows as$id=>&$row){$row['file_group']=in_array($row['format'],['xlsx','xls'],true)?'excel':(['docx'=>'word','pdf'=>'pdf','zip'=>'archive','csv'=>'csv'][$row['format']]??'archive');if($id==='original_pdf')$row['file_group']='pdf';if($id==='original_word'||$id==='duty_reports_word')$row['file_group']='word';}unset($row);
     return $rows;
 }
 function xlsched_report(string $id): array { $r=xlsched_catalog()[$id]??null;if(!$r)throw new InvalidArgumentException('Báo cáo chưa được đăng ký.');return $r; }
 function xlsched_params(array $report,array $input): array {
     $out=[];
+    if(array_key_exists('__auto_name',$input)){if(!is_scalar($input['__auto_name'])||!in_array((string)$input['__auto_name'],['0','1'],true))throw new InvalidArgumentException('Chế độ đặt tên không hợp lệ.');$out['__auto_name']=(string)$input['__auto_name'];}
     foreach($report['fields'] as$key){if(!array_key_exists($key,$input))continue;$v=$input[$key];
         if(is_array($v)){if(!in_array($key,['ids','fields','export_week_ids'],true))throw new InvalidArgumentException('Bộ lọc phải là một giá trị.');if(count($v)>1000)throw new InvalidArgumentException('Danh sách lọc quá dài.');$out[$key]=[];foreach($v as$item){if(!is_scalar($item)||strlen((string)$item)>500)throw new InvalidArgumentException('Bộ lọc không hợp lệ.');$out[$key][]=trim((string)$item);}}
         else{if(!is_scalar($v)||strlen((string)$v)>1000||str_contains((string)$v,"\0"))throw new InvalidArgumentException('Bộ lọc không hợp lệ.');$out[$key]=trim((string)$v);}
@@ -73,7 +77,7 @@ function xlsched_params(array $report,array $input): array {
     return $out;
 }
 function xlsched_match(string $path,string $method,array $params): ?array {
-    $path=ltrim($path,'/');foreach(xlsched_catalog() as$r){if($r['path']!==$path||$r['method']!==strtoupper($method))continue;foreach(array_merge([$r['fixed']],$r['aliases']??[])as$fixed){$ok=true;foreach($fixed as$k=>$v){$actual=$params[$k]??(in_array($k,$r['optional_fixed']??[],true)?$v:null);if(!is_scalar($actual)||(string)$actual!==$v){$ok=false;break;}}if($ok)return$r;}}return null;
+    $path=ltrim($path,'/');$catalog=array_values(xlsched_catalog());usort($catalog,static fn($a,$b)=>count($b['fixed'])<=>count($a['fixed']));foreach($catalog as$r){if($r['path']!==$path||$r['method']!==strtoupper($method))continue;foreach(array_merge([$r['fixed']],$r['aliases']??[])as$fixed){$ok=true;foreach($fixed as$k=>$v){$actual=$params[$k]??(in_array($k,$r['optional_fixed']??[],true)?$v:null);if(!is_scalar($actual)||(string)$actual!==$v){$ok=false;break;}}if($ok)return$r;}}return null;
 }
 function xlsched_hhmm(string $value): int {if(!preg_match('/^(\d{2}):(\d{2})$/D',$value,$m)||(int)$m[1]>23||(int)$m[2]>59)throw new InvalidArgumentException('Giờ không hợp lệ.');return(int)$m[1]*60+(int)$m[2];}
 function xlsched_window(array $job,DateTimeImmutable $now): array {
