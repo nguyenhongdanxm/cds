@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'includes/excel_schedule*'
+      - 'includes/document_schedule_archive.php'
+      - 'document_archive_export.php'
+      - 'tests/document_schedule_test.php'
       - 'includes/database_migrations.php'
       - 'includes/page_navigation.php'
       - 'assets/excel-schedule-links.js'
@@ -23,7 +26,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring, tokenizer, zip
+          extensions: mbstring, tokenizer, zip, dom
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -31,6 +34,7 @@ jobs:
           for file in includes/excel_schedule*.php excel_schedules.php tools/excel_export_worker.php bin/excel-drive-cron.php; do php -l "$file"; done
           php tests/excel_schedule_test.php
           php tests/excel_schedule_drive_test.php
+          php tests/document_schedule_test.php
           python3 tests/excel_schedule_worker_test.py
           php tests/meal_primary_guard_test.php
           php tests/lesson_book_primary_guard_test.php

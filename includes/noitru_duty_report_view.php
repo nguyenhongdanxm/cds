@@ -28,7 +28,10 @@ $attendanceByShift = [];
 $absentByShiftTypeClass = [];
 $studentMap = [];
 foreach (noitru_attendance_students_all() as $student) $studentMap[(string)($student['id'] ?? '')] = $student;
-noitru_att_ensure_legacy_reports(count($studentMap));
+if(defined('CDS_EXCEL_BACKGROUND_EXPORT')&&CDS_EXCEL_BACKGROUND_EXPORT){
+    // Background exports never migrate or write attendance source records.
+    if(count($studentMap)>0){$known=[];foreach(noitru_att_reports_all()as$row)$known[($row['date']??'').'|'.($row['shift']??'')]=true;foreach(noitru_att_all()as$row){$d=(string)($row['date']??'');$s=(string)($row['shift']??'');if($d!==''&&$s!==''&&!isset($known[$d.'|'.$s]))throw new RuntimeException('Cần mở trang điểm danh để đối chiếu dữ liệu cũ trước khi đồng bộ biên bản.');}}
+}else noitru_att_ensure_legacy_reports(count($studentMap));
 $attendanceReportShifts = [];
 foreach (noitru_att_reports_all() as $attendanceReport) {
     if (($attendanceReport['date'] ?? '') !== $reportDate) continue;

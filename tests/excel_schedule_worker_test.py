@@ -18,8 +18,10 @@ with tempfile.TemporaryDirectory(prefix='cds-excel-worker-') as directory:
     original=source.read_bytes()
     catalog=json.loads(subprocess.check_output([PHP,'-r',"require 'includes/excel_schedule_catalog.php'; echo json_encode(xlsched_catalog());"],cwd=site,env=ENV,text=True))
     asset=next(key for key,row in catalog.items() if row.get('asset'))
-    for report in [asset,'pccm','equipment']:
-        payload=private/'request.json';payload.write_text(json.dumps({'owner_id':'u1','report_id':report,'params':{},'meta':str(private/'meta.json'),'site_host':'fixture.example','https':True}))
+    (site/'data/uploads/vanban').mkdir(parents=True,exist_ok=True)
+    (site/'data/uploads/vanban/fixture.pdf').write_bytes(b'%PDF-1.4\noriginal fixture bytes')
+    for report in [asset,'pccm','equipment','duty_word','duty_reports_word','original_documents']:
+        payload=private/'request.json';payload.write_text(json.dumps({'owner_id':'u1','report_id':report,'params':{'month':'2026-11','from':'2026-11-01','to':('2027-12-31' if report=='original_documents' else '2026-11-01')},'meta':str(private/'meta.json'),'site_host':'fixture.example','https':True}))
         p=subprocess.run([PHP,str(site/'tools/excel_export_worker.php'),str(payload)],env=ENV,capture_output=True)
         assert p.returncode==0,(report,p.stdout[:200],p.stderr[-1000:])
         file=private/'export.bin';file.write_bytes(p.stdout)
@@ -30,4 +32,4 @@ with tempfile.TemporaryDirectory(prefix='cds-excel-worker-') as directory:
     revoked=json.loads(before);revoked[0]['active']=False;users.write_text(json.dumps(revoked))
     p=subprocess.run([PHP,str(site/'tools/excel_export_worker.php'),str(payload)],env=ENV,capture_output=True)
     assert p.returncode!=0 and not p.stdout and b'OWNER_NOT_ACTIVE_ADMIN' in p.stderr
-print('PASS actual asset XLSX, equipment XLSX and PCCM CSV workers: isolated module paths, no HTML injection, source accounts/signed snapshots unchanged, revoked owner blocked')
+print('PASS actual Excel/CSV, duty DOCX, daily Word ZIP and original Word/PDF archive workers: isolated module paths, no HTML injection, source accounts/signed snapshots unchanged, revoked owner blocked')
