@@ -82,3 +82,12 @@ Gói tệp gốc chỉ đọc `data/uploads` và `chuyenmon/data/uploads`. Nhóm
 Giới hạn mỗi gói: 5.000 tệp, tổng dung lượng gốc 64 MB, mỗi tệp 25 MB; vượt giới hạn báo lỗi rõ ràng, không coi gói thiếu là thành công. Không theo symlink, không nhận đường dẫn thư mục tùy ý. Gói rỗng báo chưa có dữ liệu. Các tệp đã lưu thẳng trên Drive không có bản gốc tại hosting sẽ không nằm trong ZIP; chúng vốn đã ở Drive.
 
 **Giới hạn PDF:** các màn hình chỉ có “In / Lưu PDF” vẫn cần trình duyệt tạo PDF. Chức năng này không giả dạng trang HTML thành PDF và không tự dựng PDF của các màn hình in. PDF đã có tệp gốc trên hosting được giữ nguyên trong gói sao lưu.
+
+## Phân loại, định vị nguồn và tên tệp tự động
+
+- Chọn **Loại tệp** để lọc nguồn: Excel, Word/gói Word, PDF gốc (trong ZIP), ZIP hỗn hợp hoặc CSV. Danh sách lịch cũng có bộ lọc loại tệp và cột định dạng đầu ra. PDF gốc và Word gốc có nguồn sao lưu riêng; định dạng tải lên Drive vẫn là ZIP chứa các tệp đó, không giả dạng PDF/DOCX.
+- Mỗi nguồn hiển thị đúng đường dẫn xuất, phương thức và định dạng đầu ra. **Mở đúng tệp xuất** dùng các tham số xuất cố định cùng bộ lọc hiện tại, không mang CSRF/thông tin đăng nhập. Thiếu bộ lọc bắt buộc hoặc nguồn xuất bằng POST thì không hiện liên kết tải GET. Ngày động được xác định ở lượt cron. Muốn tải xem trước, chọn Giữ bộ lọc và điền các ngày cụ thể; liên kết xem trước ẩn khi đang dùng ngày động để tránh tải nhầm phạm vi.
+- **Tự đặt tên** mặc định bật cho lịch mới. Tên gồm tiền tố nội dung, lớp/khối/GV/môn nếu nguồn có bộ lọc đó, tuần hoặc kỳ/ngày dữ liệu thực tế, rồi thời điểm đồng bộ theo giờ Việt Nam. Ví dụ: `Sổ đầu bài - Lớp 6A - Tuần 10 - Đồng bộ 2026-11-12_003005.xlsx`. Không lấy số tuần hiện tại thay cho tuần/bài đã chọn. Với nguồn dùng mã lớp/báo cáo, tên có mã tương ứng để phân biệt.
+- Tên được tạo sau khi giải bộ lọc ngày động, vì vậy lịch “tuần trước” mang khoảng dữ liệu tuần trước cùng ngày giờ chạy hiện tại. Cập nhật một file vẫn giữ ID Drive, chỉ cập nhật tên/nội dung; bản riêng giữ file riêng theo kỳ/lượt.
+- Lịch cũ tiếp tục dùng cách đặt tên cũ. Vào Sửa và bật **Tự đặt tên** nếu muốn áp dụng mẫu mới. Có thể tắt để dùng tên tự nhập.
+- **Chu kỳ đồng bộ** và **Khoảng dữ liệu** là hai lựa chọn riêng: hàng ngày/tuần/tháng quy định lúc chạy; hôm qua/tuần trước/tháng trước hoặc giữ bộ lọc quy định dữ liệu được xuất. Chọn thứ hoặc ngày lặp và khung giờ, mặc định 00:00–05:00. Không cần migration hay thay cron.

@@ -55,10 +55,11 @@ function xlsched_tick(?DateTimeImmutable $now=null,int $maxJobs=10): array {
             try{
                 xlsched_live($job);$report=xlsched_report($job['report_id']);$params=json_decode($job['params_json'],true,512,JSON_THROW_ON_ERROR);$weeks=[];
                 if(array_key_exists('week',$report['date'])){require_once __DIR__.'/school_week_calendar.php';$weeks=cds_school_week_calendar();}
-                if(array_key_exists('timetable_week',$report['date'])){$raw=json_decode((string)@file_get_contents(dirname(__DIR__).'/chuyenmon/data/timetable_weeks.json'),true);foreach(is_array($raw)?$raw:[]as$w){$start=$w['start_date']??'';if(preg_match('/^\d{4}-\d{2}-\d{2}$/',$start))$weeks[]=['key'=>$w['id']??'','start'=>$start,'end'=>date('Y-m-d',strtotime($start.' +6 days'))];}}
+                if(array_key_exists('timetable_week',$report['date'])){$raw=json_decode((string)@file_get_contents(dirname(__DIR__).'/chuyenmon/data/timetable_weeks.json'),true);foreach(is_array($raw)?$raw:[]as$w){$start=$w['start_date']??'';if(preg_match('/^\d{4}-\d{2}-\d{2}$/',$start))$weeks[]=['key'=>$w['id']??'','label'=>(string)($w['label']??$w['name']??$w['id']??''),'start'=>$start,'end'=>date('Y-m-d',strtotime($start.' +6 days'))];}}
                 $params=xlsched_resolve_dates($report,$params,$job['date_policy'],$now,$weeks);
                 $remaining=$manual?300:$window['end']->getTimestamp()-time();if($remaining<40)throw new RuntimeException('Không đủ thời gian hoàn tất trước cuối khung giờ.');$deadline=time()+min(300,$remaining);
                 $file=xlsched_export($job,$report,$params,$work,max(10,min(240,$remaining-30)));xlsched_live($job);
+                $job['_resolved_params']=$params;foreach($weeks as$w){$wk=(string)($params['week']??$params['template_week_id']??'');if($wk!==''&&(string)($w['key']??$w['id']??'')===$wk){$job['_week_label']=(string)($w['label']??('Tuần '.$wk));break;}}
                 $remote=xlsched_drive_sync($job,$run,$file,$report,$deadline);
                 xlsched_mark_run((int)$run['id'],'success','Đã đồng bộ '.number_format(filesize($file)).' byte lên Drive.',$remote);
                 $messages[]=$job['name'].': thành công';

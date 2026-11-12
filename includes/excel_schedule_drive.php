@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/excel_schedule_naming.php';
 /** Drive binary uploads. No conversion/recalculation of the existing Excel export. */
 if(!function_exists('xlsched_http')){
 function xlsched_http(string $url,string $method,array $headers=[],string $body='',int $timeout=40): array {
@@ -27,7 +28,7 @@ function xlsched_drive_sync(array $job,array $run,string $path,array $report,int
     $info=xlsched_http('https://www.googleapis.com/drive/v3/files/'.rawurlencode($fileId).'?supportsAllDrives=true&fields=id,parents,appProperties,trashed','GET',['Authorization: Bearer '.$token]);$exists=$info['status']===200;
     if(!$exists&&$info['status']!==404)throw new RuntimeException('Không kiểm tra được tệp Drive (HTTP '.$info['status'].').');
     if($exists){$data=json_decode($info['body'],true);if(!is_array($data)||!empty($data['trashed'])||($data['appProperties']['cdsJob']??'')!==$job['id']||($data['appProperties']['cdsInstance']??'')!==$identity||!in_array($job['folder_id'],$data['parents']??[],true)||($job['file_mode']==='snapshot'&&($data['appProperties']['cdsPeriod']??'')!==$run['period_key']))throw new RuntimeException('Tệp Drive không còn thuộc lịch/thư mục này; không ghi đè.');}
-    $name=preg_replace('/[\\\\\/:*?"<>|\x00-\x1F]+/u','-',trim($job['name']));$name=mb_substr($name,0,140).($job['file_mode']==='snapshot'?'-'.str_replace([':', ' '],'-',$run['period_key']):'').'.'.$report['format'];
+    $name=xlsched_filename($job,$run,$report);
     $mime=['xlsx'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','xls'=>'application/vnd.ms-excel','csv'=>'text/csv','docx'=>'application/vnd.openxmlformats-officedocument.wordprocessingml.document','pdf'=>'application/pdf','zip'=>'application/zip'][$report['format']];
     $meta=['name'=>$name,'appProperties'=>['cdsJob'=>$job['id'],'cdsInstance'=>$identity,'cdsPeriod'=>$run['period_key']]];
     if(!$exists){$meta['id']=$fileId;$meta['parents']=[$job['folder_id']];}
