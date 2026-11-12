@@ -3,6 +3,12 @@
 function xlsched_catalog(): array {
     $rows=[];
     $add=static function($id,$label,$path,$fixed=[],$fields=[],$format='xlsx',$date=[])use(&$rows){$rows[$id]=compact('id','label','path','fixed','fields','format','date')+['method'=>'GET'];};
+    $add('duty_word','Nội trú · Phân công trực tháng (Word)','noitru.php',['tab'=>'duty','export'=>'word'],['month'],'docx',['month'=>'month']);
+    $rows['duty_word']['policies']=['fixed','month','previous_month'];
+    $add('duty_reports_word','Nội trú · Biên bản trực theo ngày (ZIP chứa Word)','noitru_duty_reports_zip.php',[],['from','to'],'zip',['from'=>'from','to'=>'to']);
+    $add('periodic_word','Chuyên môn · Báo cáo định kỳ đã lưu (Word)','chuyenmon/baocao.php',['tab'=>'dinhky','view'=>'download'],['id'],'docx');
+    $add('original_documents','Hồ sơ · Word/PDF gốc trên hosting (ZIP)','document_archive_export.php',[],['collection','extension','from','to'],'zip',['from'=>'from','to'=>'to']);
+    foreach(['duty_word'=>['month'],'duty_reports_word'=>['from','to'],'periodic_word'=>['id']]as$id=>$required)$rows[$id]['required']=$required;
     $range=['from','to'];$class=['class','grade','q'];
     foreach(['teachers'=>'Giáo viên','classes'=>'Lớp','students'=>'Học sinh']as$entity=>$label){
         $add('csdl_'.$entity,'CSDL · '.$label,'csdl_export_filtered_excel.php',['entity'=>$entity],['q','grade','class','status','split','gender','fields','ids'],'xls');
@@ -93,4 +99,4 @@ function xlsched_resolve_dates(array $report,array $params,string $policy,DateTi
     if($report['id']==='rice')$params['period_type']=str_contains($policy,'month')?'month':'custom';
     return$params;
 }
-function xlsched_field_label(string $key): string {return ['class'=>'Lớp','grade'=>'Khối','teacher'=>'Giáo viên','subject'=>'Môn','q'=>'Tìm kiếm','from'=>'Từ ngày','to'=>'Đến ngày','date'=>'Ngày','month'=>'Tháng','week'=>'Tuần học (mã)','stats_from'=>'Từ ngày','stats_to'=>'Đến ngày','stats_teacher'=>'Giáo viên','stats_subject'=>'Môn','stats_class'=>'Lớp','stats_completion'=>'Tình trạng ký','health_from'=>'Từ ngày','health_to'=>'Đến ngày','health_class'=>'Lớp','health_q'=>'Tìm kiếm','from_month'=>'Từ tháng','to_month'=>'Đến tháng','export_week_ids'=>'Các tuần câu hỏi đã chọn','ids'=>'Các bản ghi đã chọn','fields'=>'Các cột đã chọn','status'=>'Trạng thái','scope'=>'Phạm vi','staff_id'=>'Nhân sự','set'=>'Bộ câu hỏi','report'=>'Mã phòng/báo cáo','period_type'=>'Loại kỳ','school_year'=>'Năm học','version'=>'Phiên bản','template_week_id'=>'Tuần mẫu (mã)'][$key]??str_replace('_',' ',$key);}
+function xlsched_field_label(string $key): string {return ['class'=>'Lớp','grade'=>'Khối','teacher'=>'Giáo viên','subject'=>'Môn','q'=>'Tìm kiếm','from'=>'Từ ngày','to'=>'Đến ngày','date'=>'Ngày','month'=>'Tháng','week'=>'Tuần học (mã)','stats_from'=>'Từ ngày','stats_to'=>'Đến ngày','stats_teacher'=>'Giáo viên','stats_subject'=>'Môn','stats_class'=>'Lớp','stats_completion'=>'Tình trạng ký','health_from'=>'Từ ngày','health_to'=>'Đến ngày','health_class'=>'Lớp','health_q'=>'Tìm kiếm','from_month'=>'Từ tháng','to_month'=>'Đến tháng','export_week_ids'=>'Các tuần câu hỏi đã chọn','ids'=>'Các bản ghi đã chọn','fields'=>'Các cột đã chọn','status'=>'Trạng thái','scope'=>'Phạm vi','staff_id'=>'Nhân sự','set'=>'Bộ câu hỏi','report'=>'Mã phòng/báo cáo','period_type'=>'Loại kỳ','school_year'=>'Năm học','version'=>'Phiên bản','template_week_id'=>'Tuần mẫu (mã)','collection'=>'Nhóm hồ sơ','extension'=>'Định dạng tệp gốc','id'=>'Mã báo cáo đã lưu'][$key]??str_replace('_',' ',$key);}

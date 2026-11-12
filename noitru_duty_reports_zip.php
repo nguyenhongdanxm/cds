@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/noitru_store.php';
+require_once __DIR__ . '/includes/noitru_report_students.php';
 require_login();
 require_module('noitru', 'view');
 if (!can_perm('nt.lichtruc')) { http_response_code(403); exit('Bạn không có quyền xuất biên bản trực.'); }

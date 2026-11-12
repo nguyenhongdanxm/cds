@@ -67,3 +67,18 @@ Tạm dừng/bỏ lịch không xóa file trên Drive. Chủ lịch là tài kho
 Khi sao lưu, giữ cả các bảng `cds_excel_schedules`, `cds_excel_schedule_runs`, `cds_excel_schedule_state`, cấu hình Drive và binding bản cài. Với trường khác, tạo lịch/thư mục riêng, không sao chép lịch đang trỏ vào Drive trường cũ.
 
 Tham khảo API chính thức: [Upload file data](https://developers.google.com/workspace/drive/api/guides/manage-uploads), [Custom file properties](https://developers.google.com/workspace/drive/api/guides/properties).
+
+## Word/PDF và hồ sơ (bổ sung)
+
+Trang giữ URL cũ `excel_schedules.php`, tên mới **Đồng bộ báo cáo & hồ sơ → Drive**. Lịch Excel cũ và cron giữ nguyên; không cần migration mới. Các lịch mới dùng cùng cơ chế quyền quản trị, cửa sổ giờ Việt Nam, chống chạy trùng và lịch sử.
+
+- **Phân công trực tháng**: DOCX từ chức năng xuất Word gốc; chọn tháng cố định hoặc tháng đang chạy/tháng trước.
+- **Biên bản trực theo ngày**: ZIP chứa Word `.doc`, mỗi ngày một tệp, dùng chức năng xuất hiện có; lọc từ/đến ngày hoặc hôm qua/tuần/tháng. Nội dung lấy theo báo cáo gốc, không tự thêm chữ ký. Nếu điểm danh cũ chưa có bản tổng hợp, lịch báo cần đối chiếu trên trang điểm danh thay vì tự chuyển đổi dữ liệu trong nền.
+- **Báo cáo định kỳ đã lưu**: DOCX; chọn đúng mã báo cáo từ nút đồng hồ cạnh Tải Word. Không tự tạo hoặc sửa báo cáo.
+- **Word/PDF gốc trên hosting**: ZIP chứa tệp nguyên bản cùng `CDS-DANH-MUC.json` ghi đường dẫn, kích thước và SHA-256 để đối chiếu. Không chuyển đổi nội dung hay thêm dấu xác nhận. Giữ cấu trúc thư mục và tên lưu trên máy chủ; tên này có thể khác tên tải lên ban đầu.
+
+Gói tệp gốc chỉ đọc `data/uploads` và `chuyenmon/data/uploads`. Nhóm `all` = cả hai; `documents` = `data/uploads/vanban`; `academic` = Chuyên môn. Định dạng `all`, `pdf`, `doc`, `docx`. Để trống nhóm/định dạng = all. Từ/đến ngày lọc theo **ngày sửa tệp trên hosting**, không phải ngày ký hay ngày ban hành. Chọn Giữ bộ lọc và để trống ngày để sao lưu toàn bộ Word/PDF thuộc nhóm mỗi lượt. Tệp gốc không bị xóa.
+
+Giới hạn mỗi gói: 5.000 tệp, tổng dung lượng gốc 64 MB, mỗi tệp 25 MB; vượt giới hạn báo lỗi rõ ràng, không coi gói thiếu là thành công. Không theo symlink, không nhận đường dẫn thư mục tùy ý. Gói rỗng báo chưa có dữ liệu. Các tệp đã lưu thẳng trên Drive không có bản gốc tại hosting sẽ không nằm trong ZIP; chúng vốn đã ở Drive.
+
+**Giới hạn PDF:** các màn hình chỉ có “In / Lưu PDF” vẫn cần trình duyệt tạo PDF. Chức năng này không giả dạng trang HTML thành PDF và không tự dựng PDF của các màn hình in. PDF đã có tệp gốc trên hosting được giữ nguyên trong gói sao lưu.
