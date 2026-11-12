@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/excel_schedule_store.php';
+require_once __DIR__.'/excel_schedule_lesson_book.php';
 function xlsched_validate_file(string $path,string $format): void {
     $size=@filesize($path);if(!$size||$size>128*1024*1024)throw new RuntimeException('File xuất rỗng hoặc vượt 128 MB.');
     $stream=fopen($path,'rb');$head=fread($stream,8192);fclose($stream);
@@ -57,6 +58,7 @@ function xlsched_tick(?DateTimeImmutable $now=null,int $maxJobs=10): array {
                 if(array_key_exists('week',$report['date'])){require_once __DIR__.'/school_week_calendar.php';$weeks=cds_school_week_calendar();}
                 if(array_key_exists('timetable_week',$report['date'])){$raw=json_decode((string)@file_get_contents(dirname(__DIR__).'/chuyenmon/data/timetable_weeks.json'),true);foreach(is_array($raw)?$raw:[]as$w){$start=$w['start_date']??'';if(preg_match('/^\d{4}-\d{2}-\d{2}$/',$start))$weeks[]=['key'=>$w['id']??'','label'=>(string)($w['label']??$w['name']??$w['id']??''),'start'=>$start,'end'=>date('Y-m-d',strtotime($start.' +6 days'))];}}
                 $params=xlsched_resolve_dates($report,$params,$job['date_policy'],$now,$weeks);
+                if($report['id']==='lb_weekly')$job=array_replace($job,xlsched_lb_context($params,$now));
                 $remaining=$manual?300:$window['end']->getTimestamp()-time();if($remaining<40)throw new RuntimeException('Không đủ thời gian hoàn tất trước cuối khung giờ.');$deadline=time()+min(300,$remaining);
                 $file=xlsched_export($job,$report,$params,$work,max(10,min(240,$remaining-30)));xlsched_live($job);
                 $job['_resolved_params']=$params;foreach($weeks as$w){$wk=(string)($params['week']??$params['template_week_id']??'');if($wk!==''&&(string)($w['key']??$w['id']??'')===$wk){$job['_week_label']=(string)($w['label']??('Tuần '.$wk));break;}}

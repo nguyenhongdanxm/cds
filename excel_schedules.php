@@ -2,6 +2,7 @@
 define('CDS_AUTH_LOGIN_ONLY',true);define('CDS_SKIP_DRIVE_ACTION_REGISTRATION',true);
 require_once __DIR__.'/includes/auth.php';require_admin();
 require_once __DIR__.'/includes/excel_schedule_store.php';
+require_once __DIR__.'/includes/excel_schedule_lesson_book.php';
 if(empty($_SESSION['excel_schedule_csrf']))$_SESSION['excel_schedule_csrf']=bin2hex(random_bytes(24));$csrf=$_SESSION['excel_schedule_csrf'];
 $catalog=xlsched_catalog();$error='';$notice='';
 if(($_GET['api']??'')==='catalog'){header('Content-Type: application/json; charset=utf-8');header('Cache-Control: private, max-age=60');session_write_close();echo json_encode(array_values($catalog),JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP);exit;}
@@ -15,7 +16,10 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
  try{
     if(!hash_equals($csrf,(string)($_POST['csrf']??'')))throw new RuntimeException('Phiên làm việc hết hạn; hãy tải lại trang.');
     if(!$ready)throw new RuntimeException('Cần cập nhật schema MySQL trước.');$action=(string)($_POST['action']??'');
-    if($action==='global'){$q=cds_db()->prepare('UPDATE cds_excel_schedule_state SET enabled=? WHERE id=1');$q->execute([!empty($_POST['enabled'])?1:0]);$notice='Đã cập nhật trạng thái chạy tự động.';}
+    if($action==='lb_weekly'){
+        $count=xlsched_lb_create((array)($_POST['classes']??[]),(string)($_POST['folder_id']??''),(string)current_user()['id']);
+        $notice='Đã tạo '.$count.' lịch sổ đầu bài. Chủ nhật 23:00–23:30, mỗi lớp một Excel; lưu theo năm học → tuần. Lớp đã có lịch trong năm học được giữ nguyên. Cron hosting cần chạy mỗi 5 phút.';
+    }elseif($action==='global'){$q=cds_db()->prepare('UPDATE cds_excel_schedule_state SET enabled=? WHERE id=1');$q->execute([!empty($_POST['enabled'])?1:0]);$notice='Đã cập nhật trạng thái chạy tự động.';}
     elseif($action==='save'){
         $input=$_POST;$input['params']=[];foreach((array)($_POST['filters']??[])as$key=>$v){$isArray=in_array($key,['ids','fields','export_week_ids'],true);$input['params'][$key]=$isArray?array_values(array_filter(array_map('trim',preg_split('/\r?\n/',(string)$v)))):(string)$v;}
         $input['params']['__auto_name']=!empty($_POST['auto_name'])?'1':'0';
@@ -43,6 +47,18 @@ if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
 <section class="card"><strong>Word/PDF và biên bản</strong><p>Word: phân công trực tháng, biên bản trực (ZIP theo ngày), báo cáo định kỳ đã lưu. Hồ sơ Word/PDF trên hosting được sao lưu nguyên bản trong ZIP, có danh mục và mã kiểm tra từng tệp. Nhóm tệp: all = toàn bộ tệp tải lên; documents = Văn bản; academic = Chuyên môn. Lọc ngày theo thời gian sửa tệp. Không tự chuyển trang “In / PDF” thành PDF và không sao chép lại tệp đã lưu thẳng trên Drive.</p></section>
 <section class="card"><div class="top" style="margin:0"><form method="post"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="global"><label style="display:inline"><input type="checkbox" name="enabled" value="1" <?=!empty($state['enabled'])?'checked':''?>> Cho phép chạy tự động</label> <button>Lưu</button></form><div><small>Cron gần nhất: <?=e($formatTime($state['last_tick_at']??null))?></small></div></div><small><?=e($state['last_message']??'')?></small></section>
 <?php endif;?>
+<?php $lbClasses=xlsched_lb_classes(); ?>
+<section class="card" id="weeklyLessonBooks"><h2>Tự động lưu sổ đầu bài hằng tuần</h2>
+<p>Chủ nhật 23:00–23:30 (giờ Việt Nam), xuất tuần học hiện tại sắp kết thúc. Mỗi lớp một Excel theo mẫu sổ hiện có, lưu trong thư mục năm học → tuần. Chạy thử hoặc thử lại cập nhật cùng tệp của lớp/tuần.</p>
+<form method="post"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="lb_weekly">
+<label>Thư mục gốc Google Drive</label><input name="folder_id" list="driveFolders" required placeholder="Dán URL hoặc ID thư mục lưu sổ đầu bài" value="<?=e(($_POST['action']??'')==='lb_weekly'?($_POST['folder_id']??''):'')?>">
+<fieldset class="end"><legend>Chọn các lớp cần tự động lưu</legend><label><input type="checkbox" id="lbSelectAll"> Chọn tất cả lớp</label><div class="grid">
+<?php foreach($lbClasses as$lbClass):?><label><input type="checkbox" name="classes[]" value="<?=e($lbClass)?>" <?=in_array($lbClass,(array)($_POST['classes']??[]),true)?'checked':''?>> <?=e($lbClass)?></label><?php endforeach;?>
+</div><?php if(!$lbClasses):?><p>Chưa có lớp đang hoạt động trong CSDL. Hãy cập nhật danh mục lớp trước.</p><?php endif;?></fieldset>
+<p><small>Nút này bật đồng bộ chung và tạo lịch cho các lớp đã chọn; các lịch khác đang bật cũng sẽ được phép chạy. Lớp đã có lịch sổ đầu bài trong năm học sẽ không bị tạo trùng. Khi đổi năm học, tạo lại lịch cho danh sách lớp mới.</small></p>
+<button class="primary" <?=(!$ready||!$lbClasses)?'disabled':''?>>Bật tự động lưu sổ đầu bài</button>
+</form><script>document.getElementById('lbSelectAll').addEventListener('change',function(){document.querySelectorAll('#weeklyLessonBooks input[name="classes[]"]').forEach(input=>input.checked=this.checked);});</script>
+</section>
 <details class="card" <?=!$jobs||$editing||$source?'open':''?> id="scheduleEditor"><summary><?=$editing?'Sửa lịch: '.e($editing['name']):'＋ Thêm lịch đồng bộ'?></summary>
 <form method="post" id="scheduleForm"><input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="save"><input type="hidden" name="id" value="<?=e($form['id'])?>"><input type="hidden" name="revision" value="<?=(int)$form['revision']?>">
 <div class="grid"><div><label>Loại tệp</label><select id="fileTypeFilter"><option value="all">Tất cả loại tệp</option><?php foreach(['excel'=>'Excel (XLSX/XLS)','word'=>'Word / gói Word','pdf'=>'PDF gốc (trong ZIP)','archive'=>'Gói ZIP hỗn hợp','csv'=>'CSV']as$key=>$label):?><option value="<?=$key?>" <?=($catalog[$selected]['file_group']??'')===$key?'selected':''?>><?=e($label)?></option><?php endforeach;?></select></div><div class="two"><label>Báo cáo / hồ sơ cần đồng bộ</label><select name="report_id" id="reportSelect"><?php foreach($catalog as$r):?><option value="<?=e($r['id'])?>" <?=$selected===$r['id']?'selected':''?>><?=e($r['label'])?></option><?php endforeach;?></select></div><div class="two"><small id="sourceType"></small><br><code id="sourcePath"></code> <a id="sourceExportLink" target="_blank" rel="noopener">Mở đúng tệp xuất</a><br><small id="sourceHint"></small></div><div class="two"><label>Tên nội dung / tiền tố tên tệp</label><input name="name" id="jobName" required maxlength="150" value="<?=e($form['name'])?>"></div>

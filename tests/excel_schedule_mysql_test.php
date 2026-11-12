@@ -1,6 +1,7 @@
 <?php
 /** Real SQL only in the explicitly disposable CI database; no school configuration. */
 if(getenv('GITHUB_ACTIONS')!=='true'||getenv('CDS_TEST_MYSQL')!=='disposable-ci')throw new RuntimeException('Disposable CI only');
+function csdl_years_all(){return [['id'=>'fixture-weekly-year','label'=>'2026-2027','is_current'=>true,'start'=>'2026-09-07','end'=>'2027-05-30']];}
 function cds_instance_config($key=null,$default=null){return$key==='database'?['host'=>'127.0.0.1','port'=>getenv('CDS_TEST_MYSQL_PORT'),'database'=>'cds_disposable_test','username'=>'cds_fixture','password'=>'fixture-only-password','charset'=>'utf8mb4']:$default;}
 require __DIR__.'/../includes/database_migrations.php';require __DIR__.'/../includes/excel_schedule_store.php';require __DIR__.'/../includes/excel_schedule_runner.php';
 function check($v,$m){if(!$v)throw new RuntimeException($m);}
@@ -21,4 +22,19 @@ check(count(xlsched_history())===2,'History unique period rows');check(count(xls
 $lock='fixture_scheduler_lock';$q=$pdo->prepare('SELECT GET_LOCK(?,0)');$q->execute([$lock]);check((int)$q->fetchColumn()===1,'First lock');
 $c=cds_db_read_config();$second=new PDO('mysql:host='.$c['host'].';port='.$c['port'].';dbname='.$c['database'],$c['username'],$c['password']);$q=$second->prepare('SELECT GET_LOCK(?,0)');$q->execute([$lock]);check((int)$q->fetchColumn()===0,'Second process cannot overlap');$q=$pdo->prepare('SELECT RELEASE_LOCK(?)');$q->execute([$lock]);
 foreach($before as$table=>$n)check((int)$pdo->query('SELECT COUNT(*) FROM '.$table)->fetchColumn()===$n,'Operational table unchanged: '.$table);
-echo "PASS real MySQL/MariaDB schedule migration, default off, idempotent claims, backoff, reservation/revision, optimistic edits, history and competing locks; operational tables unchanged\n";
+// Batch presets use the same real SQL transaction/lock and source-only roster lookup.
+$fixtureDir=dirname(__DIR__).'/data';$classFile=$fixtureDir.'/classes.json';
+if(is_file($classFile))throw new RuntimeException('Refuse to overwrite a non-fixture roster');
+$madeDir=!is_dir($fixtureDir);if($madeDir)mkdir($fixtureDir,0700,true);
+try{
+    file_put_contents($classFile,json_encode([['id'=>'fixture-a','name'=>'6A','active'=>true],['id'=>'fixture-b','name'=>'7B','active'=>true],['id'=>'fixture-old','name'=>'8C','active'=>false]]));
+    $rosterHash=hash_file('sha256',$classFile);
+    check(xlsched_lb_create(['6A','7B','6A'],'fixture_folder_123','fixture-admin')===2,'One schedule per unique selected active class');
+    check(xlsched_lb_create(['6A','7B'],'fixture_folder_123','fixture-admin')===0,'Repeated preset is idempotent');
+    check((int)xlsched_state()['enabled']===1,'Explicit preset enables global scheduling');
+    $weekly=array_values(array_filter(xlsched_jobs(),fn($j)=>$j['report_id']==='lb_weekly'));check(count($weekly)===2,'Two separate persisted jobs');
+    foreach($weekly as$j){check($j['frequency']==='weekly'&&(int)$j['day']===7&&$j['start_time']==='23:00'&&$j['end_time']==='23:30','Sunday 23:00–23:30 defaults');check($j['date_policy']==='week'&&$j['file_mode']==='snapshot','Current week retained separately');}
+    $beforeJobs=count(xlsched_jobs());$invalid=false;try{xlsched_lb_create(['6A','8C'],'fixture_folder_123','fixture-admin');}catch(Throwable $e){$invalid=true;}check($invalid&&count(xlsched_jobs())===$beforeJobs,'Invalid class causes no partial creation');
+    check(hash_file('sha256',$classFile)===$rosterHash,'Preset never rewrites the school roster');
+}finally{unlink($classFile);if($madeDir)rmdir($fixtureDir);}
+echo "PASS real MySQL/MariaDB schedule migration, default off, idempotent claims, backoff, reservation/revision, optimistic edits, history and competing locks, weekly class presets/idempotence; operational tables unchanged\n";

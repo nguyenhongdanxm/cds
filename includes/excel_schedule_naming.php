@@ -3,6 +3,7 @@
 function xlsched_filename(array $job,array $run,array $report,?DateTimeImmutable $now=null): string {
     $clean=static function($v,int $limit=75):string{$s=preg_replace('/[\\\\\/:*?"<>|\x00-\x1F]+/u','-',trim((string)$v));$s=preg_replace('/\s+/u',' ',(string)$s);return trim(mb_substr($s,0,$limit),' .-');};
     $params=$job['_resolved_params']??json_decode((string)($job['params_json']??'{}'),true);$params=is_array($params)?$params:[];
+    if(($report['id']??'')==='lb_weekly')return 'Sổ đầu bài_Lớp '.$clean($params['class']??'',40).'_'.$clean($job['_week_label']??('Tuần '.($params['week']??'')),60).'.xlsx';
     if(($params['__auto_name']??'0')!=='1'){$legacy=preg_replace('/[\\\\\/:*?"<>|\x00-\x1F]+/u','-',trim((string)($job['name']??$report['label'])));return mb_substr($legacy,0,140).(($job['file_mode']??'replace')==='snapshot'?'-'.str_replace([':', ' '],'-',(string)($run['period_key']??'')):'').'.'.$report['format'];}
     $parts=[$clean($job['name']??$report['label'],80)];
     foreach(['class'=>'Lớp','stats_class'=>'Lớp','health_class'=>'Lớp','class_id'=>'Mã lớp','grade'=>'Khối','teacher'=>'GV','stats_teacher'=>'GV','subject'=>'Môn','stats_subject'=>'Môn']as$key=>$label){$v=$params[$key]??'';if(is_scalar($v)&&trim((string)$v)!==''&&$v!=='all')$parts[]=$label.' '.$clean($v,35);}

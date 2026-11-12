@@ -10,6 +10,7 @@ on:
       - 'includes/page_navigation.php'
       - 'assets/excel-schedule-links.js'
       - 'excel_schedules.php'
+      - 'chuyenmon/sodaubai.php'
       - 'tools/excel_export_worker.php'
       - 'bin/excel-drive-cron.php'
       - 'tests/excel_schedule*'
@@ -34,6 +35,7 @@ jobs:
           for file in includes/excel_schedule*.php excel_schedules.php tools/excel_export_worker.php bin/excel-drive-cron.php; do php -l "$file"; done
           php tests/excel_schedule_test.php
           php tests/excel_schedule_drive_test.php
+          php tests/excel_schedule_lesson_book_test.php
           php tests/document_schedule_test.php
           php tests/excel_schedule_naming_test.php
           CDS_SCHEDULE_UI_FIXTURE="$RUNNER_TEMP/schedule-hub.html" python3 tests/excel_schedule_worker_test.py

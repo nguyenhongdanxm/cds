@@ -91,3 +91,20 @@ Giới hạn mỗi gói: 5.000 tệp, tổng dung lượng gốc 64 MB, mỗi t�
 - Tên được tạo sau khi giải bộ lọc ngày động, vì vậy lịch “tuần trước” mang khoảng dữ liệu tuần trước cùng ngày giờ chạy hiện tại. Cập nhật một file vẫn giữ ID Drive, chỉ cập nhật tên/nội dung; bản riêng giữ file riêng theo kỳ/lượt.
 - Lịch cũ tiếp tục dùng cách đặt tên cũ. Vào Sửa và bật **Tự đặt tên** nếu muốn áp dụng mẫu mới. Có thể tắt để dùng tên tự nhập.
 - **Chu kỳ đồng bộ** và **Khoảng dữ liệu** là hai lựa chọn riêng: hàng ngày/tuần/tháng quy định lúc chạy; hôm qua/tuần trước/tháng trước hoặc giữ bộ lọc quy định dữ liệu được xuất. Chọn thứ hoặc ngày lặp và khung giờ, mặc định 00:00–05:00. Không cần migration hay thay cron.
+
+
+## Tự động lưu sổ đầu bài theo tuần
+
+1. Triển khai mã mới lên hosting. Không cần thêm thư viện PDF, Composer hoặc migration mới ngoài schema lịch đã có.
+2. Trong **Sổ đầu bài**, chọn **Tự động lưu sổ hằng tuần** (quản trị), hoặc mở `excel_schedules.php#weeklyLessonBooks`.
+3. Dán URL/ID thư mục gốc Google Drive đã kết nối, chọn các lớp (có nút chọn tất cả), bấm **Bật tự động lưu sổ đầu bài**.
+4. Kiểm tra cron hosting chạy `bin/excel-drive-cron.php` mỗi 5 phút bằng PHP CLI cùng cấu hình của website. Trang quản lý lịch hiển thị lệnh cron và lần kết nối gần nhất; có thể dùng `--check` để kiểm tra schema/trạng thái. CLI cần `proc_open`, PDO MySQL, ZipArchive, mbstring và cURL.
+5. Dùng **Chạy thử** ở một lịch lớp; yêu cầu được xử lý ở lượt cron tiếp theo. Xem lịch sử để xác nhận thành công.
+
+Mỗi lớp được tạo một lịch riêng: Chủ nhật 23:00–23:30 giờ Việt Nam, xuất **tuần học hiện tại sắp kết thúc**, theo lịch tuần chung của trường (không lấy số tuần ISO và không lùi nhầm sang tuần trước). Mẫu Excel dùng nguyên bộ xuất `chuyenmon/sodaubai_export.php`, gồm dữ liệu và nhận xét đã ký hiện có; không chỉnh sửa dữ liệu sổ.
+
+Cấu trúc lưu: thư mục gốc → `Năm học 2026-2027` → `Tuần 10 (2026-11-09 - 2026-11-15)` → `Sổ đầu bài_Lớp 6A_Tuần 10.xlsx`. Tên năm học lấy từ cấu hình thực tế. Thư mục do CDS quản lý có định danh riêng; không sửa/chiếm thư mục hoặc tệp người dùng tự tạo. Chạy thử/thử lại trong cùng tuần cập nhật cùng tệp; tuần mới tạo tệp mới và giữ tuần cũ.
+
+Bấm tạo lại không nhân đôi các lớp đã có lịch sổ đầu bài trong năm học, kể cả lịch đang tắt; bật/sửa lịch đó trực tiếp nếu cần. Nút tạo bật đồng bộ chung nên các lịch khác đang bật cũng được phép chạy. Sau khi đổi năm học, tạo lịch cho danh sách lớp mới và tắt các lịch năm cũ; lịch cũ bị chặn xuất sang năm mới. Chạy ngoài lịch tuần đã cấu hình cũng bị chặn. Nếu lớp chưa có dữ liệu/tài khoản không còn quyền xuất, lịch ghi lỗi thay vì tải một trang lỗi lên Drive.
+
+Các lịch mặc định này không chạy bù ngoài khung giờ. Nếu hosting bỏ lỡ Chủ nhật hoặc kết nối Drive lỗi kéo dài, lịch sử hiển thị lỗi/hết khung giờ; kiểm tra cron và kết nối, rồi chạy thử khi vẫn đang trong tuần học cần lưu.

@@ -7,6 +7,12 @@ $payload=json_decode((string)@file_get_contents($argv[1]??''),true);
 if(!is_array($payload)||!xlsched_admin_record((string)($payload['owner_id']??''))){fwrite(STDERR,"OWNER_NOT_ACTIVE_ADMIN\n");exit(1);}
 $report=xlsched_report((string)$payload['report_id']);$params=xlsched_params($report,(array)($payload['params']??[]));$params=array_replace($params,$report['fixed']);
 unset($params['__auto_name']);
+if($report['id']==='lb_weekly'){
+    require_once dirname(__DIR__).'/includes/excel_schedule_lesson_book.php';
+    // Check the pinned year again in the isolated worker, before the source exporter can fall back to a different week.
+    xlsched_lb_context($params,new DateTimeImmutable('now',new DateTimeZone('Asia/Ho_Chi_Minh')));
+    unset($params['school_year']);
+}
 $root=dirname(__DIR__);$entry=$root.'/'.$report['path'];
 if(!is_file($entry)||is_link($entry)){fwrite(STDERR,"EXPORT_SOURCE_MISSING\n");exit(1);}
 if(!empty($report['asset'])){readfile($entry);exit;}
