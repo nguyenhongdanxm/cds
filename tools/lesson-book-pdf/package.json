@@ -1,0 +1,9 @@
+{
+  "name": "cds-lesson-book-pdf",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local Chromium renderer for the existing CDS lesson-book print template",
+  "engines": {"node": ">=22.12.0"},
+  "dependencies": {"puppeteer": "25.17.0"},
+  "scripts": {"check": "node render.cjs --check"}
+}

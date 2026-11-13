@@ -33,7 +33,7 @@ try{
     check(xlsched_lb_create(['6A','7B'],'fixture_folder_123','fixture-admin')===0,'Repeated preset is idempotent');
     check((int)xlsched_state()['enabled']===1,'Explicit preset enables global scheduling');
     $weekly=array_values(array_filter(xlsched_jobs(),fn($j)=>$j['report_id']==='lb_weekly'));check(count($weekly)===2,'Two separate persisted jobs');
-    foreach($weekly as$j){check($j['frequency']==='weekly'&&(int)$j['day']===7&&$j['start_time']==='23:00'&&$j['end_time']==='23:30','Sunday 23:00–23:30 defaults');check($j['date_policy']==='week'&&$j['file_mode']==='snapshot','Current week retained separately');}
+    foreach($weekly as$j){$print=json_decode($j['params_json'],true);check(($print['paper']??'')==='a3'&&($print['include_cover']??'')==='1'&&xlsched_report($j['report_id'])['format']==='pdf','PDF print defaults stored per class');check($j['frequency']==='weekly'&&(int)$j['day']===7&&$j['start_time']==='23:00'&&$j['end_time']==='23:30','Sunday 23:00–23:30 defaults');check($j['date_policy']==='week'&&$j['file_mode']==='snapshot','Current week retained separately');}
     $beforeJobs=count(xlsched_jobs());$invalid=false;try{xlsched_lb_create(['6A','8C'],'fixture_folder_123','fixture-admin');}catch(Throwable $e){$invalid=true;}check($invalid&&count(xlsched_jobs())===$beforeJobs,'Invalid class causes no partial creation');
     check(hash_file('sha256',$classFile)===$rosterHash,'Preset never rewrites the school roster');
 }finally{unlink($classFile);if($madeDir)rmdir($fixtureDir);}

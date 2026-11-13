@@ -16,10 +16,10 @@ function xlsched_lb_context(array $params,DateTimeImmutable $now): array {
     $yearLabel=trim((string)($year['label']??$year['name']??''));if($yearLabel==='')$yearLabel=substr((string)$year['start'],0,4).'-'.substr((string)$year['end'],0,4);
     return['_week_label'=>$week['label'],'_archive_year'=>'Năm học '.$yearLabel,'_archive_week'=>$week['label'].' ('.$week['start'].' - '.$week['end'].')','_archive_period'=>(string)$year['id'].'|'.$week['start']];
 }
-function xlsched_lb_create(array $classes,string $folder,string $actor): int {
+function xlsched_lb_create(array $classes,string $folder,string $actor,array $print=[]): int {
     $allowed=xlsched_lb_classes();$year=cds_school_year_resolve();if(!$year||empty($year['id']))throw new RuntimeException('Chưa cấu hình năm học.');
     $selected=[];foreach($classes as$class){if(!is_string($class)||!in_array($class,$allowed,true))throw new InvalidArgumentException('Lớp không thuộc danh mục hiện tại.');$selected[$class]=true;}if(!$selected)throw new InvalidArgumentException('Hãy chọn ít nhất một lớp.');
-    $data=[];foreach(array_keys($selected)as$class)$data[]=xlsched_validate(['name'=>'Sổ đầu bài · Lớp '.$class,'report_id'=>'lb_weekly','params'=>['class'=>$class,'school_year'=>(string)$year['id']],'folder_id'=>$folder,'frequency'=>'weekly','day'=>7,'start_time'=>'23:00','end_time'=>'23:30','date_policy'=>'week','file_mode'=>'snapshot','enabled'=>1],$actor);
+    $data=[];foreach(array_keys($selected)as$class)$data[]=xlsched_validate(['name'=>'Sổ đầu bài · Lớp '.$class,'report_id'=>'lb_weekly','params'=>array_replace(['paper'=>'a3','session'=>'all','only_filled'=>'0','include_cover'=>'1'],array_intersect_key($print,array_flip(['paper','session','only_filled','include_cover'])),['class'=>$class,'school_year'=>(string)$year['id']]),'folder_id'=>$folder,'frequency'=>'weekly','day'=>7,'start_time'=>'23:00','end_time'=>'23:30','date_policy'=>'week','file_mode'=>'snapshot','enabled'=>1],$actor);
     $pdo=cds_db();$pdo->beginTransaction();try{
         // Serialize preset submissions and keep all selected classes in one atomic change.
         $pdo->query('SELECT id FROM cds_excel_schedule_state WHERE id=1 FOR UPDATE')->fetchColumn();

@@ -104,5 +104,11 @@
   "deployment": {
     "target_path": "/home/USER/example.edu.vn",
     "profile": "school"
+  },
+  "pdf": {
+    "node_binary": "/home/USER/nodevenv/lesson-book-pdf/22/bin/node",
+    "node_modules": "/home/USER/cds_private/lesson-book-pdf/node_modules",
+    "chromium_path": "",
+    "no_sandbox": false
   }
 }

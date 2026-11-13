@@ -11,7 +11,9 @@ if($report['id']==='lb_weekly'){
     require_once dirname(__DIR__).'/includes/excel_schedule_lesson_book.php';
     // Check the pinned year again in the isolated worker, before the source exporter can fall back to a different week.
     xlsched_lb_context($params,new DateTimeImmutable('now',new DateTimeZone('Asia/Ho_Chi_Minh')));
-    unset($params['school_year']);
+    $params['from_week']=$params['to_week']=$params['week'];
+    $params['paper']=$params['paper']??'a3';$params['session']=$params['session']??'all';$params['include_cover']=$params['include_cover']??'1';
+    unset($params['school_year'],$params['week']);
 }
 $root=dirname(__DIR__);$entry=$root.'/'.$report['path'];
 if(!is_file($entry)||is_link($entry)){fwrite(STDERR,"EXPORT_SOURCE_MISSING\n");exit(1);}

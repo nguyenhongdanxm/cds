@@ -42,3 +42,5 @@ fails(fn()=>xlsched_validate(array_replace($weeklyInput,['day'=>1]),'fixture-adm
 fails(fn()=>xlsched_validate(array_replace($weeklyInput,['file_mode'=>'replace']),'fixture-admin'));
 fails(fn()=>xlsched_validate(array_replace($weeklyInput,['date_policy'=>'previous_week']),'fixture-admin'));
 echo "PASS weekly preset validation: current week, Sunday, per-week archive; no replacement of previous weeks\n";
+
+fails(fn()=>xlsched_validate(array_replace($weeklyInput,['params'=>['class'=>'6A','school_year'=>'fixture-year','paper'=>'bogus']]),'fixture-admin'));

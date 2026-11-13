@@ -11,6 +11,10 @@ on:
       - 'assets/excel-schedule-links.js'
       - 'excel_schedules.php'
       - 'chuyenmon/sodaubai.php'
+      - 'chuyenmon/sodaubai_print.php'
+      - 'tools/lesson-book-pdf/**'
+      - 'bin/lesson-book-pdf-check.php'
+      - 'tools/deploy_cds.php'
       - 'tools/excel_export_worker.php'
       - 'bin/excel-drive-cron.php'
       - 'tests/excel_schedule*'
@@ -77,3 +81,21 @@ jobs:
           CDS_TEST_MYSQL: disposable-ci
           CDS_TEST_MYSQL_PORT: ${{ job.services.mysql.ports[3306] }}
         run: php tests/excel_schedule_mysql_test.php
+
+  pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, tokenizer, zip, dom
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: sudo apt-get update -qq && sudo apt-get install -y poppler-utils fonts-liberation
+      - run: PUPPETEER_SKIP_DOWNLOAD=true npm ci --prefix tools/lesson-book-pdf
+      - run: npx --prefix tools/lesson-book-pdf puppeteer browsers install chrome-headless-shell
+      - run: CDS_PDF_NO_SANDBOX=1 npm run check --prefix tools/lesson-book-pdf
+      - run: node tests/excel_schedule_pdf_test.cjs
+      - run: CDS_TEST_PDF_RENDER=1 python3 tests/excel_schedule_worker_test.py

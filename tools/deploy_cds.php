@@ -97,7 +97,8 @@ if (!is_dir($target) && !mkdir($target, 0755, true) && !is_dir($target)) { fwrit
 
 $directories = ['assets', 'includes', 'chuyenmon'];
 $rootFiles = [
-    '.htaccess','document_archive_export.php','game_asset.php','notice_file.php','excel_schedules.php','tools/excel_export_worker.php','bin/excel-drive-cron.php',
+    '.htaccess','document_archive_export.php','game_asset.php','notice_file.php','excel_schedules.php','tools/excel_export_worker.php','bin/excel-drive-cron.php','bin/lesson-book-pdf-check.php',
+    'tools/lesson-book-pdf/render.cjs','tools/lesson-book-pdf/package.json','tools/lesson-book-pdf/package-lock.json',
     'ioffice_settings.php','bin/ioffice-vault.php','activity.php','admin.php','admin_operation_settings.php','notices.php','drive_viewer.php','public_notice.php',
     'public_drive_viewer.php','public_ktx_exit_file.php','drive_file.php','drive_settings.php',
     'hoclieu_game_muc.php','hoclieu_game_buzzer.php','hoclieu_game_buzzer_api.php','hoclieu.php','hoclieu_game_thabong.php','hoclieu_game_rocket.php','hoclieu_clock.php','hoclieu_file.php','hoclieu_game.php','hoclieu_game_secret.php','hoclieu_game_secret_api.php','hoclieu_game_keoco.php','hoclieu_game_keoco_api.php','hoclieu_game_keoco_match.php','hoclieu_game_keoco_team.php','hoclieu_game_keoco_screen.php','hoclieu_game_chopnot.php','hoclieu_game_duavit.php','hoclieu_game_loto.php','hoclieu_game_qr_trial.php','hoclieu_game_quiz.php','hoclieu_game_quiz_media.php','hoclieu_game_quiz_join.php','hoclieu_game_quiz_screen.php','vaochoi.php','chieu.php','quet.php','hoclieu_quiz_cards.php','hoclieu_game_olympia.php','hoclieu_game_olympia_sets.php','hoclieu_game_olympia_play.php','hoclieu_game_olympia_screen.php','hoclieu_game_olympia_live.php','hoclieu_game_olympia_rankings.php','olympia_stage.php','olympia_stage_api.php','olympia_san_khau_preview.html',

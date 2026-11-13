@@ -16,7 +16,7 @@ fails(fn()=>xlsched_lb_context(array_replace($p,['school_year'=>'old-year']),$no
 fails(fn()=>xlsched_lb_context(array_replace($p,['week'=>'9']),$now));
 fails(fn()=>xlsched_lb_context($p,new DateTimeImmutable('2027-08-01')));
 $job=array_replace(['id'=>str_repeat('a',32),'folder_id'=>'fixture_root_123','file_mode'=>'snapshot','name'=>'Sổ đầu bài','params_json'=>json_encode($p),'_resolved_params'=>$p],$context);
-check(xlsched_filename($job,['period_key'=>'manual:test'],$r)==='Sổ đầu bài_Lớp 6A_Tuần 10.xlsx','Readable, stable class/week filename');
+check(xlsched_filename($job,['period_key'=>'manual:test'],$r)==='Sổ đầu bài_Lớp 6A_Tuần 10.pdf','Readable, stable class/week filename');
 check(xlsched_window(['id'=>$job['id'],'frequency'=>'weekly','day'=>7,'start_time'=>'23:00','end_time'=>'23:30'],$now)['due'],'Sunday 23:20 VN is in window');
 check(!xlsched_window(['id'=>$job['id'],'frequency'=>'weekly','day'=>7,'start_time'=>'23:00','end_time'=>'23:30'],new DateTimeImmutable('2026-11-16 23:20:00+07:00'))['due'],'Monday cannot trigger weekly archive');
 function cds_drive_settings(){return ['enabled'=>true];}function cds_drive_token($s){return ['ok'=>true,'token'=>'fixture-only'];}
@@ -41,7 +41,7 @@ $tmp=tempnam(sys_get_temp_dir(),'weekly-sdb-');file_put_contents($tmp,'fixture X
 try{
     $run=['id'=>1,'period_key'=>'2026-11-15'];$first=xlsched_drive_sync($job,$run,$tmp,$r,time()+60);check(count($GLOBALS['files'])===3,'Creates year folder, week folder and one class workbook');
     $again=xlsched_drive_sync($job,['id'=>2,'period_key'=>'manual:2026-11-15'],$tmp,$r,time()+60);check($again===$first&&count($GLOBALS['files'])===3,'Manual retry updates the same class/week without duplicate folders or files');
-    check($GLOBALS['files'][$first]['name']==='Sổ đầu bài_Lớp 6A_Tuần 10.xlsx','Upload uses stable workbook name');
+    check($GLOBALS['files'][$first]['name']==='Sổ đầu bài_Lớp 6A_Tuần 10.pdf','Upload uses stable workbook name');
     $GLOBALS['badIdentity']=true;fails(fn()=>xlsched_drive_sync($job,['id'=>3,'period_key'=>'retry','remote_file_id'=>$first],$tmp,$r,time()+60));$GLOBALS['badIdentity']=false;
     $GLOBALS['duplicate']=true;fails(fn()=>xlsched_drive_sync($job,$run,$tmp,$r,time()+60));$GLOBALS['duplicate']=false;
     $next=array_replace($job,['_archive_week'=>'Tuần 11 (2026-11-16 - 2026-11-22)','_archive_period'=>'year-fixture|2026-11-16','_week_label'=>'Tuần 11']);$next['_resolved_params']['week']='11';

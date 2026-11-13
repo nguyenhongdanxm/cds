@@ -93,18 +93,10 @@ Giới hạn mỗi gói: 5.000 tệp, tổng dung lượng gốc 64 MB, mỗi t�
 - **Chu kỳ đồng bộ** và **Khoảng dữ liệu** là hai lựa chọn riêng: hàng ngày/tuần/tháng quy định lúc chạy; hôm qua/tuần trước/tháng trước hoặc giữ bộ lọc quy định dữ liệu được xuất. Chọn thứ hoặc ngày lặp và khung giờ, mặc định 00:00–05:00. Không cần migration hay thay cron.
 
 
-## Tự động lưu sổ đầu bài theo tuần
+## Tự động lưu PDF sổ đầu bài theo tuần
 
-1. Triển khai mã mới lên hosting. Không cần thêm thư viện PDF, Composer hoặc migration mới ngoài schema lịch đã có.
-2. Trong **Sổ đầu bài**, chọn **Tự động lưu sổ hằng tuần** (quản trị), hoặc mở `excel_schedules.php#weeklyLessonBooks`.
-3. Dán URL/ID thư mục gốc Google Drive đã kết nối, chọn các lớp (có nút chọn tất cả), bấm **Bật tự động lưu sổ đầu bài**.
-4. Kiểm tra cron hosting chạy `bin/excel-drive-cron.php` mỗi 5 phút bằng PHP CLI cùng cấu hình của website. Trang quản lý lịch hiển thị lệnh cron và lần kết nối gần nhất; có thể dùng `--check` để kiểm tra schema/trạng thái. CLI cần `proc_open`, PDO MySQL, ZipArchive, mbstring và cURL.
-5. Dùng **Chạy thử** ở một lịch lớp; yêu cầu được xử lý ở lượt cron tiếp theo. Xem lịch sử để xác nhận thành công.
+Mở **Sổ đầu bài → Tự động lưu sổ hằng tuần**, chọn nhiều/tất cả lớp, thư mục Drive và tùy chọn bản in. Chủ nhật 23:00–23:30, hệ thống xuất tuần hiện tại sắp kết thúc bằng **chính trang In sổ**, tạo mỗi lớp một PDF. Tệp lưu theo năm học → tuần, giữ tuần cũ và không tạo trùng khi chạy lại. Mẫu A3 ngang/hai trang A4, chữ ký và nhận xét được giữ theo bản in; không chuyển từ Excel.
 
-Mỗi lớp được tạo một lịch riêng: Chủ nhật 23:00–23:30 giờ Việt Nam, xuất **tuần học hiện tại sắp kết thúc**, theo lịch tuần chung của trường (không lấy số tuần ISO và không lùi nhầm sang tuần trước). Mẫu Excel dùng nguyên bộ xuất `chuyenmon/sodaubai_export.php`, gồm dữ liệu và nhận xét đã ký hiện có; không chỉnh sửa dữ liệu sổ.
+Cần cài Node.js/Chromium một lần và chạy kiểm tra trước khi bật lịch. Xem **[Hướng dẫn cPanel PDF](LESSON_BOOK_PDF.md)**. Dùng lại schema và cron PHP mỗi 5 phút hiện có, không cần cron Node riêng. Chưa có bộ tạo PDF hoạt động thì lịch báo lỗi, không tải HTML hoặc PDF rỗng lên Drive.
 
-Cấu trúc lưu: thư mục gốc → `Năm học 2026-2027` → `Tuần 10 (2026-11-09 - 2026-11-15)` → `Sổ đầu bài_Lớp 6A_Tuần 10.xlsx`. Tên năm học lấy từ cấu hình thực tế. Thư mục do CDS quản lý có định danh riêng; không sửa/chiếm thư mục hoặc tệp người dùng tự tạo. Chạy thử/thử lại trong cùng tuần cập nhật cùng tệp; tuần mới tạo tệp mới và giữ tuần cũ.
-
-Bấm tạo lại không nhân đôi các lớp đã có lịch sổ đầu bài trong năm học, kể cả lịch đang tắt; bật/sửa lịch đó trực tiếp nếu cần. Nút tạo bật đồng bộ chung nên các lịch khác đang bật cũng được phép chạy. Sau khi đổi năm học, tạo lịch cho danh sách lớp mới và tắt các lịch năm cũ; lịch cũ bị chặn xuất sang năm mới. Chạy ngoài lịch tuần đã cấu hình cũng bị chặn. Nếu lớp chưa có dữ liệu/tài khoản không còn quyền xuất, lịch ghi lỗi thay vì tải một trang lỗi lên Drive.
-
-Các lịch mặc định này không chạy bù ngoài khung giờ. Nếu hosting bỏ lỡ Chủ nhật hoặc kết nối Drive lỗi kéo dài, lịch sử hiển thị lỗi/hết khung giờ; kiểm tra cron và kết nối, rồi chạy thử khi vẫn đang trong tuần học cần lưu.
+Nút tạo nhiều lớp không nhân đôi lớp đã có lịch cùng năm học, kể cả lịch đang tắt; dùng Sửa/Bật để điều chỉnh lịch đó. Nút tạo bật đồng bộ chung nên các lịch khác đang bật cũng được phép chạy. Khi đổi năm học, tạo lịch cho danh sách lớp mới và tắt lịch năm cũ; lịch cũ bị chặn xuất sang năm mới. Dữ liệu sổ và chữ ký không bị thay đổi.

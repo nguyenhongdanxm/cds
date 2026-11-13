@@ -18,3 +18,5 @@ el('lbSelectAll').checked=true;el('lbSelectAll').dispatchEvent(new w.Event('chan
 el('lbSelectAll').checked=false;el('lbSelectAll').dispatchEvent(new w.Event('change'));assert.ok(classInputs.every(input=>!input.checked),'Clear all classes');
 assert.match(weekly.textContent,/23:00–23:30/);assert.match(weekly.textContent,/năm học → tuần/);
 console.log('PASS weekly preset DOM: dedicated form, class roster, select/clear all, VN schedule and archive explanation');
+
+assert.equal(weekly.querySelector('[name=lb_paper]').value,'a3');assert.equal(weekly.querySelector('[name=lb_include_cover]').checked,true);assert.match(weekly.textContent,/PDF theo mẫu In sổ/);
