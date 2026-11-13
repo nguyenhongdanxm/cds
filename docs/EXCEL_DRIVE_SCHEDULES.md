@@ -91,3 +91,12 @@ Giới hạn mỗi gói: 5.000 tệp, tổng dung lượng gốc 64 MB, mỗi t�
 - Tên được tạo sau khi giải bộ lọc ngày động, vì vậy lịch “tuần trước” mang khoảng dữ liệu tuần trước cùng ngày giờ chạy hiện tại. Cập nhật một file vẫn giữ ID Drive, chỉ cập nhật tên/nội dung; bản riêng giữ file riêng theo kỳ/lượt.
 - Lịch cũ tiếp tục dùng cách đặt tên cũ. Vào Sửa và bật **Tự đặt tên** nếu muốn áp dụng mẫu mới. Có thể tắt để dùng tên tự nhập.
 - **Chu kỳ đồng bộ** và **Khoảng dữ liệu** là hai lựa chọn riêng: hàng ngày/tuần/tháng quy định lúc chạy; hôm qua/tuần trước/tháng trước hoặc giữ bộ lọc quy định dữ liệu được xuất. Chọn thứ hoặc ngày lặp và khung giờ, mặc định 00:00–05:00. Không cần migration hay thay cron.
+
+
+## Tự động lưu PDF sổ đầu bài theo tuần
+
+Mở **Sổ đầu bài → Tự động lưu sổ hằng tuần**, chọn nhiều/tất cả lớp, thư mục Drive và tùy chọn bản in. Chủ nhật 23:00–23:30, hệ thống xuất tuần hiện tại sắp kết thúc bằng **chính trang In sổ**, tạo mỗi lớp một PDF. Tệp lưu theo năm học → tuần, giữ tuần cũ và không tạo trùng khi chạy lại. Mẫu A3 ngang/hai trang A4, chữ ký và nhận xét được giữ theo bản in; không chuyển từ Excel.
+
+Cần cài Node.js/Chromium một lần và chạy kiểm tra trước khi bật lịch. Xem **[Hướng dẫn cPanel PDF](LESSON_BOOK_PDF.md)**. Dùng lại schema và cron PHP mỗi 5 phút hiện có, không cần cron Node riêng. Chưa có bộ tạo PDF hoạt động thì lịch báo lỗi, không tải HTML hoặc PDF rỗng lên Drive.
+
+Nút tạo nhiều lớp không nhân đôi lớp đã có lịch cùng năm học, kể cả lịch đang tắt; dùng Sửa/Bật để điều chỉnh lịch đó. Nút tạo bật đồng bộ chung nên các lịch khác đang bật cũng được phép chạy. Khi đổi năm học, tạo lịch cho danh sách lớp mới và tắt lịch năm cũ; lịch cũ bị chặn xuất sang năm mới. Dữ liệu sổ và chữ ký không bị thay đổi.

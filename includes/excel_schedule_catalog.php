@@ -17,6 +17,9 @@ function xlsched_catalog(): array {
     }
     $add('csdl_stats','CSDL · Thống kê','csdl_statistics_export_xlsx.php',[],['stat_scope','stat_status','stat_team','stat_grade','stat_class']);
     $add('lb_class','Sổ đầu bài · Theo lớp/tuần','chuyenmon/sodaubai_export.php',[],['week','class'],'xlsx',['week'=>'week']);
+    $add('lb_weekly','Sổ đầu bài · PDF theo mẫu in, từng lớp/tuần → Drive','chuyenmon/sodaubai_print.php',['scope'=>'class'],['week','class','school_year','paper','session','only_filled','include_cover'],'pdf',['week'=>'week']);
+    $rows['lb_weekly']['render_pdf']=true;
+    $rows['lb_weekly']['required']=['class','school_year'];$rows['lb_weekly']['policies']=['week'];
     $add('lb_stats','Sổ đầu bài · Thống kê ký sổ','chuyenmon/sodaubai_stats_export.php',['format'=>'xlsx'],['stats_from','stats_to','stats_teacher','stats_subject','stats_class','stats_completion'],'xlsx',['from'=>'stats_from','to'=>'stats_to']);
     $add('lb_stats_csv','Sổ đầu bài · Thống kê (CSV)','chuyenmon/sodaubai_stats_export.php',['format'=>'csv'],['stats_from','stats_to','stats_teacher','stats_subject','stats_class','stats_completion'],'csv',['from'=>'stats_from','to'=>'stats_to']);
     $rows['lb_stats']['optional_fixed']=['format'];

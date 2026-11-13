@@ -16,10 +16,39 @@ function xlsched_drive_folder(string $folder,string $token): void {
     $info=xlsched_drive_json('https://www.googleapis.com/drive/v3/files/'.rawurlencode($folder).'?supportsAllDrives=true&fields=id,mimeType,trashed,capabilities(canAddChildren)',$token);
     if(($info['mimeType']??'')!=='application/vnd.google-apps.folder'||!empty($info['trashed'])||empty($info['capabilities']['canAddChildren']))throw new RuntimeException('Thư mục Drive không tồn tại hoặc tài khoản chưa có quyền thêm tệp.');
 }
+/** Resolve only CDS-owned archive folders under the configured root. The cron DB lock serializes creation. */
+function xlsched_drive_archive_folder(string $parent,string $name,string $token,array $job,int $deadline): string {
+    xlsched_live($job);if(time()>=$deadline)throw new RuntimeException('Đã hết khung giờ đồng bộ.');
+    $identity=substr(hash('sha256',cds_instance_config_path()),0,24);$key=hash('sha256',$parent.'|'.$name);
+    $escape=static fn($s)=>str_replace(["\\","'"],["\\\\","\\'"],$s);
+    $q="'".$escape($parent)."' in parents and trashed = false and mimeType = 'application/vnd.google-apps.folder' and appProperties has { key='cdsInstance' and value='".$identity."' } and appProperties has { key='cdsArchive' and value='".$key."' }";
+    $found=xlsched_drive_json('https://www.googleapis.com/drive/v3/files?'.http_build_query(['q'=>$q,'fields'=>'files(id),nextPageToken','pageSize'=>2,'supportsAllDrives'=>'true','includeItemsFromAllDrives'=>'true']),$token);
+    if(count($found['files']??[])>1||!empty($found['nextPageToken']))throw new RuntimeException('Có nhiều thư mục lưu sổ trùng định danh; cần kiểm tra Drive.');
+    $id=(string)($found['files'][0]['id']??'');
+    if($id===''){
+        $response=xlsched_http('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id','POST',['Authorization: Bearer '.$token,'Content-Type: application/json; charset=UTF-8'],json_encode(['name'=>$name,'mimeType'=>'application/vnd.google-apps.folder','parents'=>[$parent],'appProperties'=>['cdsInstance'=>$identity,'cdsArchive'=>$key]],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),max(1,min(40,$deadline-time())));
+        $id=(string)(json_decode($response['body'],true)['id']??'');if(!in_array($response['status'],[200,201],true)||!preg_match('/^[A-Za-z0-9_-]{10,200}$/D',$id))throw new RuntimeException('Không tạo được thư mục lưu sổ trên Drive.');
+    }
+    xlsched_drive_folder($id,$token);return$id;
+}
 function xlsched_drive_sync(array $job,array $run,string $path,array $report,int $deadline): string {
     $settings=cds_drive_settings();if(empty($settings['enabled']))throw new RuntimeException('Google Drive đang tắt.');$access=cds_drive_token($settings);if(empty($access['ok']))throw new RuntimeException('Chưa kết nối được tài khoản Google Drive.');$token=$access['token'];
     xlsched_drive_folder($job['folder_id'],$token);xlsched_live($job);
+    $archive=($report['id']??'')==='lb_weekly';$period=$archive?(string)($job['_archive_period']??''):(string)$run['period_key'];
+    if($archive){
+        if($period===''||empty($job['_archive_year'])||empty($job['_archive_week']))throw new RuntimeException('Chưa xác định năm học/tuần để lưu sổ.');
+        $job['folder_id']=xlsched_drive_archive_folder($job['folder_id'],$job['_archive_year'],$token,$job,$deadline);
+        $job['folder_id']=xlsched_drive_archive_folder($job['folder_id'],$job['_archive_week'],$token,$job,$deadline);
+    }
     $fileId=$job['file_mode']==='replace'?($job['remote_file_id']??''):($run['remote_file_id']??'');
+    if(!$fileId&&$archive){
+        $identity=substr(hash('sha256',cds_instance_config_path()),0,24);$escape=static fn($s)=>str_replace(["\\","'"],["\\\\","\\'"],$s);
+        $query="'".$escape($job['folder_id'])."' in parents and trashed = false and appProperties has { key='cdsJob' and value='".$escape($job['id'])."' } and appProperties has { key='cdsInstance' and value='".$identity."' } and appProperties has { key='cdsPeriod' and value='".$escape($period)."' }";
+        $found=xlsched_drive_json('https://www.googleapis.com/drive/v3/files?'.http_build_query(['q'=>$query,'fields'=>'files(id),nextPageToken','pageSize'=>2,'supportsAllDrives'=>'true','includeItemsFromAllDrives'=>'true']),$token);
+        if(count($found['files']??[])>1||!empty($found['nextPageToken']))throw new RuntimeException('Có nhiều tệp sổ trùng lớp/tuần; cần kiểm tra Drive.');
+        $fileId=(string)($found['files'][0]['id']??'');
+        if($fileId!==''){$q=cds_db()->prepare('UPDATE cds_excel_schedule_runs SET remote_file_id=? WHERE id=?');$q->execute([$fileId,$run['id']]);}
+    }
     if(!$fileId){$ids=xlsched_drive_json('https://www.googleapis.com/drive/v3/files/generateIds?count=1&space=drive',$token);$fileId=(string)($ids['ids'][0]??'');if(!preg_match('/^[A-Za-z0-9_-]{10,200}$/D',$fileId))throw new RuntimeException('Drive không cấp được mã tệp.');
         if($job['file_mode']==='replace'){$q=cds_db()->prepare('UPDATE cds_excel_schedules SET remote_file_id=? WHERE id=? AND revision=? AND deleted_at IS NULL');$q->execute([$fileId,$job['id'],$job['revision']]);if($q->rowCount()!==1)throw new RuntimeException('Lịch đã thay đổi trong lúc đồng bộ.');}
         $q=cds_db()->prepare('UPDATE cds_excel_schedule_runs SET remote_file_id=? WHERE id=?');$q->execute([$fileId,$run['id']]);
@@ -27,10 +56,10 @@ function xlsched_drive_sync(array $job,array $run,string $path,array $report,int
     $identity=substr(hash('sha256',cds_instance_config_path()),0,24);
     $info=xlsched_http('https://www.googleapis.com/drive/v3/files/'.rawurlencode($fileId).'?supportsAllDrives=true&fields=id,parents,appProperties,trashed','GET',['Authorization: Bearer '.$token]);$exists=$info['status']===200;
     if(!$exists&&$info['status']!==404)throw new RuntimeException('Không kiểm tra được tệp Drive (HTTP '.$info['status'].').');
-    if($exists){$data=json_decode($info['body'],true);if(!is_array($data)||!empty($data['trashed'])||($data['appProperties']['cdsJob']??'')!==$job['id']||($data['appProperties']['cdsInstance']??'')!==$identity||!in_array($job['folder_id'],$data['parents']??[],true)||($job['file_mode']==='snapshot'&&($data['appProperties']['cdsPeriod']??'')!==$run['period_key']))throw new RuntimeException('Tệp Drive không còn thuộc lịch/thư mục này; không ghi đè.');}
+    if($exists){$data=json_decode($info['body'],true);if(!is_array($data)||!empty($data['trashed'])||($data['appProperties']['cdsJob']??'')!==$job['id']||($data['appProperties']['cdsInstance']??'')!==$identity||!in_array($job['folder_id'],$data['parents']??[],true)||($job['file_mode']==='snapshot'&&($data['appProperties']['cdsPeriod']??'')!==$period))throw new RuntimeException('Tệp Drive không còn thuộc lịch/thư mục này; không ghi đè.');}
     $name=xlsched_filename($job,$run,$report);
     $mime=['xlsx'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','xls'=>'application/vnd.ms-excel','csv'=>'text/csv','docx'=>'application/vnd.openxmlformats-officedocument.wordprocessingml.document','pdf'=>'application/pdf','zip'=>'application/zip'][$report['format']];
-    $meta=['name'=>$name,'appProperties'=>['cdsJob'=>$job['id'],'cdsInstance'=>$identity,'cdsPeriod'=>$run['period_key']]];
+    $meta=['name'=>$name,'appProperties'=>['cdsJob'=>$job['id'],'cdsInstance'=>$identity,'cdsPeriod'=>$period]];
     if(!$exists){$meta['id']=$fileId;$meta['parents']=[$job['folder_id']];}
     $url='https://www.googleapis.com/upload/drive/v3/files'.($exists?'/'.rawurlencode($fileId):'').'?uploadType=resumable&supportsAllDrives=true&fields=id';
     $start=xlsched_http($url,$exists?'PATCH':'POST',['Authorization: Bearer '.$token,'Content-Type: application/json; charset=UTF-8','X-Upload-Content-Type: '.$mime,'X-Upload-Content-Length: '.filesize($path)],json_encode($meta,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),max(1,min(40,$deadline-time())));

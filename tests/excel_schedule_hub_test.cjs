@@ -9,3 +9,14 @@ change('fileTypeFilter','word');change('reportSelect','periodic_word');assert.eq
 change('frequency','weekly');assert.equal(w.document.querySelectorAll('#dayField select option').length,7);change('frequency','monthly');assert.equal(w.document.querySelector('#dayField input').max,'31');change('frequency','daily');assert.equal(el('dayField').hidden,true);
 change('fileTypeFilter','excel');assert.ok([...el('reportSelect').options].filter(o=>!o.disabled).every(o=>/csdl_|lb_|hours|tkb_|meal_|rice|attendance|exit|health|medicine|rooms|equipment|documents|quiz|olympia|ppct|gddp|asset|support|homeroom/.test(o.value)));
 console.log('PASS actual hub: file grouping, accurate PDF ZIP labelling, required filters, reviewed export URLs, no secret leakage, automatic-name default, daily/weekly/monthly controls');
+
+const weekly=w.document.getElementById('weeklyLessonBooks');assert.ok(weekly,'Weekly lesson-book preset is visible');
+assert.equal(weekly.querySelector('[name="action"]').value,'lb_weekly');
+const classInputs=[...weekly.querySelectorAll('input[name="classes[]"]')];assert.equal(classInputs.length,2,'Read-only school roster offers both fixture classes');
+const weeklyScript=[...w.document.scripts].find(script=>script.textContent.includes("getElementById('lbSelectAll').addEventListener"));w.eval(weeklyScript.textContent);
+el('lbSelectAll').checked=true;el('lbSelectAll').dispatchEvent(new w.Event('change'));assert.ok(classInputs.every(input=>input.checked),'Select all classes');
+el('lbSelectAll').checked=false;el('lbSelectAll').dispatchEvent(new w.Event('change'));assert.ok(classInputs.every(input=>!input.checked),'Clear all classes');
+assert.match(weekly.textContent,/23:00–23:30/);assert.match(weekly.textContent,/năm học → tuần/);
+console.log('PASS weekly preset DOM: dedicated form, class roster, select/clear all, VN schedule and archive explanation');
+
+assert.equal(weekly.querySelector('[name=lb_paper]').value,'a3');assert.equal(weekly.querySelector('[name=lb_include_cover]').checked,true);assert.match(weekly.textContent,/PDF theo mẫu In sổ/);

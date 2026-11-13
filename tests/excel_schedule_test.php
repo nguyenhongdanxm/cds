@@ -35,3 +35,12 @@ $tmp=tempnam(sys_get_temp_dir(),'excel-validation-');try{file_put_contents($tmp,
 echo "PASS schedules: registry, mutation rejection, VN/UTC windows, midnight, weekly/monthly/leap dates, real report date contracts, filters and file validation\n";
 
 foreach(['support_current','support_all','homeroom_meals','homeroom_ledger']as$id){if(!isset(xlsched_catalog()[$id]))throw new RuntimeException('Missing Excel report '.$id);}
+
+$weeklyInput=['report_id'=>'lb_weekly','name'=>'Sổ lớp 6A','params'=>['class'=>'6A','school_year'=>'fixture-year'],'folder_id'=>'fixture_folder_123','frequency'=>'weekly','day'=>7,'start_time'=>'23:00','end_time'=>'23:30','date_policy'=>'week','file_mode'=>'snapshot','enabled'=>1];
+check(xlsched_validate($weeklyInput,'fixture-admin')['report_id']==='lb_weekly','Weekly preset validates without a hard-coded week');
+fails(fn()=>xlsched_validate(array_replace($weeklyInput,['day'=>1]),'fixture-admin'));
+fails(fn()=>xlsched_validate(array_replace($weeklyInput,['file_mode'=>'replace']),'fixture-admin'));
+fails(fn()=>xlsched_validate(array_replace($weeklyInput,['date_policy'=>'previous_week']),'fixture-admin'));
+echo "PASS weekly preset validation: current week, Sunday, per-week archive; no replacement of previous weeks\n";
+
+fails(fn()=>xlsched_validate(array_replace($weeklyInput,['params'=>['class'=>'6A','school_year'=>'fixture-year','paper'=>'bogus']]),'fixture-admin'));
