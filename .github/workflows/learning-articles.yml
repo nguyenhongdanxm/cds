@@ -1,0 +1,9 @@
+name: Learning article checks
+on: [pull_request, workflow_dispatch]
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: php -l hoclieu.php && php -l hoclieu_file.php && php -l includes/learning_article.php
+      - run: node --check assets/learning-article.js
