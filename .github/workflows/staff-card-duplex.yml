@@ -1,0 +1,12 @@
+name: Staff card duplex
+on:
+  pull_request:
+    paths: ['csdl_staff_cards.php', 'tests/staff_card_duplex_test.cjs', '.github/workflows/staff-card-duplex.yml']
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: php -l csdl_staff_cards.php
+      - run: node tests/staff_card_duplex_test.cjs
