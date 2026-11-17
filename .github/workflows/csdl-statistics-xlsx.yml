@@ -1,0 +1,17 @@
+name: CSDL statistics XLSX integrity
+on:
+  pull_request:
+    paths: ['csdl_statistics_export_xlsx.php', 'tests/csdl_statistics_xlsx_test.py', '.github/workflows/csdl-statistics-xlsx.yml']
+  workflow_dispatch:
+jobs:
+  workbook:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: zip, mbstring
+      - run: php -l csdl_statistics_export_xlsx.php
+      - run: python -m pip install openpyxl
+      - run: python tests/csdl_statistics_xlsx_test.py
