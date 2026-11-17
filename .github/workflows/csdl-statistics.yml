@@ -1,0 +1,12 @@
+name: CSDL statistics filters
+on:
+  pull_request:
+    paths: ['includes/csdl_statistics_filters.php', 'includes/csdl_tab_statistics.php', 'csdl_statistics_export_xlsx.php', 'tests/csdl_statistics_filters_test.php', '.github/workflows/csdl-statistics.yml']
+  workflow_dispatch:
+jobs:
+  statistics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: php -l includes/csdl_statistics_filters.php && php -l includes/csdl_tab_statistics.php && php -l csdl_statistics_export_xlsx.php
+      - run: php tests/csdl_statistics_filters_test.php

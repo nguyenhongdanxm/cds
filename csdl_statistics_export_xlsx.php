@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_store.php';
 require_once __DIR__ . '/includes/csdl_io.php';
+require_once __DIR__ . '/includes/csdl_statistics_filters.php';
 require_login();
 require_perm('csdl.statistics');
 require_perm('csdl.export');
@@ -40,9 +41,10 @@ $filterStatus = static function(array $rows) use ($status): array {
     $want = $status === 'active';
     return array_values(array_filter($rows, fn($r) => (!empty($r['active'])) === $want));
 };
-$ft = $filterStatus($teachers);
-$fs = $filterStatus($students);
-if ($team !== '') $ft = array_values(array_filter($ft, fn($r) => trim((string)($r['to_chuyen_mon'] ?? ($r['pccm_group'] ?? ''))) === $team));
+$extraFilters=csdl_sf_filters($_GET);
+$ft = array_values(array_filter($filterStatus($teachers),fn($r)=>csdl_sf_match($r,true,$classById,$extraFilters)));
+$fs = array_values(array_filter($filterStatus($students),fn($r)=>csdl_sf_match($r,false,$classById,$extraFilters)));
+if ($team !== '') $ft = array_values(array_filter($ft, fn($r) => csdl_sf_field($r,'team') === $team));
 if ($grade !== '') {
     $fs = array_values(array_filter($fs, function($r) use ($classById, $grade) {
         $c = $classById[(string)($r['class_id'] ?? '')] ?? [];
@@ -115,6 +117,7 @@ $filterRows=[
     ['Khối học sinh',$grade!==''?'Khối '.$grade:'Tất cả'],['Lớp học sinh',$classId!==''?($classById[$classId]['name']??$classId):'Tất cả'],
     ['Số GV/CBGVNV',count($ft)],['Số học sinh',count($fs)],['Xuất lúc',date('d/m/Y H:i')]
 ];
+foreach($extraFilters as $key=>$value)if($value!=='')$filterRows[]=[csdl_sf_definitions()[$key][0]??['stat_level'=>'Cấp học','stat_q'=>'Tìm kiếm','stat_boarder'=>'Nội trú','stat_missing'=>'Hồ sơ thiếu'][$key]??$key,$value];
 $sheets[]=['name'=>sx_sheet_name('Tổng quan bộ lọc',$used),'headers'=>['Nội dung','Giá trị'],'rows'=>$filterRows,'widths'=>[28,42]];
 
 if ($scope !== 'students') {
@@ -200,3 +203,4 @@ header('Pragma: public');
 readfile($tmp);
 @unlink($tmp);
 exit;
+
