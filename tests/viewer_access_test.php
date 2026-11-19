@@ -26,7 +26,7 @@ try{
  $fixture=DATA_PATH.'/business.json';file_put_contents($fixture,'[{"id":"original"}]');$business=file_get_contents($fixture);$called=false;
  check(!cds_json_save($fixture,[]),'Save blocked');check(!cds_json_update($fixture,function()use(&$called){$called=true;return[];}),'Locked mutation blocked');check(!$called&&file_get_contents($fixture)===$business,'Mutation callback not run and source unchanged');
  $_SESSION=['cds_user'=>$admin];check(cds_json_update($fixture,fn($r)=>array_merge($r,[['id'=>'admin-update']])),'Admin still writes');check(count(cds_json_load($fixture))===2,'Admin update retained');
- foreach(cds_viewer_read_routes()as$path=>$keys){check(cds_viewer_request_allowed('GET',$path,[]),'Admitted read route');foreach(['POST','PUT','PATCH','DELETE']as$m)check(!cds_viewer_request_allowed($m,$path,[]),'All mutations denied');foreach(['action','save_drive','delete','xoa','reset','settings','oauth','token']as$key)check(!cds_viewer_request_allowed('GET',$path,[$key=>'1']),'GET mutation/secret denied');}
+ foreach(cds_viewer_read_routes()as$path=>$keys){check(cds_viewer_request_allowed('GET',$path,[]),'Admitted read route');foreach(['POST','PUT','PATCH','DELETE']as$m)check(cds_viewer_request_allowed($m,$path,[])===($m==='POST'&&$path==='login_notice.php'),'Only own announcement receipt is admitted; business mutations denied');foreach(['action','save_drive','delete','xoa','reset','settings','oauth','token']as$key)check(!cds_viewer_request_allowed('GET',$path,[$key=>'1']),'GET mutation/secret denied');}
  check(!cds_viewer_request_allowed('GET','users.php',[]),'No users/password screen');check(!cds_viewer_request_allowed('GET','database_admin.php',[]),'No database management');check(!cds_viewer_request_allowed('GET','future_endpoint.php',[]),'Unknown endpoint fails closed');
  check(!cds_viewer_request_allowed('GET','noitru.php',['tab'=>['health']]),'Array query denied');check(!cds_viewer_request_allowed('GET','trolyai.php',['settings'=>'1']),'No API key settings');
  check(cds_viewer_request_allowed('GET','noitru.php',['tab'=>'health','health_view'=>'history','class'=>'6A']),'Health real data visible');
@@ -75,3 +75,4 @@ PHP);
  file_put_contents($file,'broken json');check(str_contains($run('GET','noitru.php'),'hết hạn'),'Corrupt user store fails closed');
  echo "PASS viewer: provisioning, password hashing, duplicate safety, all-feature read caps, hostile grants, class scope, JSON no-write, actual root/CM request guards, stale sessions, lock and expiry\n";
 }finally{$_SESSION=[];$it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST);foreach($it as$f)$f->isDir()?rmdir($f->getPathname()):unlink($f->getPathname());rmdir($tmp);}
+
