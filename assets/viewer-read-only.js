@@ -5,7 +5,7 @@
     document.querySelectorAll('form').forEach(function (form) {
       if ((form.getAttribute('method') || 'get').toLowerCase() === 'get') return;
       // Acknowledge only this account's login announcement; business forms remain disabled.
-      var action = new URL(form.action, window.location.href);
+      var action = new URL(form.getAttribute('action') || window.location.href, window.location.href);
       if (form.id === 'cdsLnForm' && action.origin === window.location.origin && /\/login_notice\.php$/.test(action.pathname)) return;
       form.addEventListener('submit', function (event) { event.preventDefault(); }, true);
       form.querySelectorAll('input, select, textarea, button').forEach(function (field) {
