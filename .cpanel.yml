@@ -31,4 +31,8 @@ deployment:
     - /opt/alt/php83/usr/bin/php -l olympia_stage.php
     - /opt/alt/php83/usr/bin/php -l olympia_stage_api.php
     - /opt/alt/php83/usr/bin/php -l voice-commands-help.php
+    - /opt/alt/php83/usr/bin/php -l login_notice.php
+    - /opt/alt/php83/usr/bin/php -l includes/login_notice_store.php
+    - /opt/alt/php83/usr/bin/php -l includes/login_notice_popup.php
+    - /opt/alt/php83/usr/bin/php -l includes/login_notice_settings.php
     - /opt/alt/php83/usr/bin/php tools/deploy_cds.php
