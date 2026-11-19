@@ -24,6 +24,7 @@
         error.append(' ', reload); error.hidden = false; return;
       }
       if (!response.ok || !result.ok) throw new Error(result.message || 'Chưa lưu được trạng thái đóng. Vui lòng thử lại.');
+      if (result.more) { window.location.reload(); return; }
       finish(result.next);
     } catch (e) {
       error.textContent = 'Chưa ghi nhận được việc đóng thông báo. Kiểm tra kết nối rồi bấm Đóng để thử lại.';
@@ -49,3 +50,4 @@
     check();
   }
 })();
+

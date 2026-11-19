@@ -29,10 +29,11 @@ try{
     $clean=cds_ln_clean($unsafe);foreach(['<script','onclick','onerror','javascript:','position:','url(','<img'] as $bad)check(stripos($clean,$bad)===false,'Sanitize '.$bad);check(strpos($clean,'#123456')!==false&&strpos($clean,'📚')!==false&&strpos($clean,'<table>')!==false,'Formatting retained');
     check(!cds_ln_has_text('<p>&nbsp; </p>'),'Empty editor content');
     foreach(['https://evil.example/','//evil.example/','/\\evil.example/','/admin.php\r\nLocation: x'] as $url)check(cds_ln_safe_next($url)==='/cds/admin.php','Local redirects only');check(cds_ln_safe_next('/cds/csdl.php?tab=statistics')==='/cds/csdl.php?tab=statistics','Deep link preserved');
-    $_SESSION=['cds_user'=>['id'=>'v','role'=>'viewer']];check(cds_ln_dismiss($_SESSION['cds_user'],$third['id']),'Viewer can save own preference');check(cds_ln_pending($_SESSION['cds_user'])===null,'Viewer preference persisted');
+    $_SESSION=['cds_user'=>['id'=>'v','role'=>'viewer']];check(cds_ln_dismiss($_SESSION['cds_user'],$third['id']),'Viewer can save own preference');check(!in_array($third['id'],array_column(cds_ln_pending_all($_SESSION['cds_user']),'id'),true),'Viewer preference persisted');
     $business=$root.'/business.json';file_put_contents($business,'[]');check(!cds_json_save($business,['bad']),'Viewer business writes still blocked');
     check(cds_viewer_request_allowed('POST','login_notice.php',[]),'Exact self-receipt route');check(!cds_viewer_request_allowed('POST','admin.php',[]),'No admin writes');check(!cds_viewer_request_allowed('POST','login_notice.php',['action'=>'save']),'No extra query route');
     echo "PASS: scheduling, account isolation, persistence, new notice, edit semantics, CSRF token, sanitization, version conflict, viewer write isolation\n";
 }finally{
     $_SESSION=[];$it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST);foreach($it as $f)$f->isDir()?rmdir($f->getPathname()):unlink($f->getPathname());rmdir($root);
 }
+
