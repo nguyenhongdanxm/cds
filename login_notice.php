@@ -1,4 +1,6 @@
 <?php
+define('CDS_SKIP_DRIVE_ACTION_REGISTRATION',true);
+define('CDS_AUTH_LOGIN_ONLY',true);
 require_once __DIR__.'/includes/auth.php';
 require_once __DIR__.'/includes/login_notice_store.php';
 require_login();

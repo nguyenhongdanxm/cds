@@ -38,11 +38,14 @@
   const expires = Number(dialog.dataset.expires) * 1000;
   if (expires) {
     const check = function () {
-      if (Date.now() >= expires && !busy) {
-        // Expiration hides the dialog without falsely recording a manual dismissal.
-        if (gate) window.location.reload(); else if (typeof dialog.close === 'function') dialog.close(); else dialog.removeAttribute('open');
-      }
+      const remaining = expires - Date.now();
+      if (remaining > 0) { setTimeout(check, Math.min(remaining, 2147483647)); return; }
+      if (busy) { setTimeout(check, 500); return; }
+      // Expiration hides the dialog without falsely recording a manual dismissal.
+      if (gate) window.location.reload();
+      else if (typeof dialog.close === 'function') dialog.close();
+      else dialog.removeAttribute('open');
     };
-    check(); setInterval(check, 15000);
+    check();
   }
 })();
