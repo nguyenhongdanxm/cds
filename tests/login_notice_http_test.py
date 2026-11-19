@@ -70,6 +70,29 @@ if(is_logged_in()&&cds_is_viewer()&&!cds_viewer_request_allowed($_SERVER['REQUES
             status,_,_=b.request('/admin.php?view=login_notice');assert status==403
             admin=Client(base);status,_,body=admin.request('/admin.php?view=login_notice',user='admin');assert status==200 and 'lnSettingsForm' in body and 'lnPreview' in body
             status,_,_=admin.request('/admin.php?view=login_notice',{'csrf':'bad'});assert status==403
+            # Admin create/edit/delete use the real settings handler.
+            status,_,admin_body=admin.request('/admin.php?view=login_notice&new=1')
+            token=hidden(admin_body,'csrf')
+            draft={'csrf':token,'notice_action':'save','id':'','version':'','title':'Bản nháp HTTP','body':'<p>Nội dung</p>'}
+            status,headers,_=admin.request('/admin.php?view=login_notice&new=1',draft);assert status==302
+            draft_id=urllib.parse.parse_qs(urllib.parse.urlparse(headers['Location']).query)['edit'][0]
+            raw=json.loads((tmp/'data/login_notice.json').read_text());row=next(r for r in raw['items'] if r['id']==draft_id)
+            draft.update({'id':draft_id,'version':row['version'],'title':'Đã sửa HTTP'})
+            status,_,_=admin.request('/admin.php?view=login_notice&edit='+draft_id,draft);assert status==302
+            raw=json.loads((tmp/'data/login_notice.json').read_text());row=next(r for r in raw['items'] if r['id']==draft_id);assert row['title']=='Đã sửa HTTP'
+            status,_,_=admin.request('/admin.php?view=login_notice',{'csrf':token,'notice_action':'delete','id':draft_id,'version':row['version']});assert status==302
+            assert all(r['id']!=draft_id for r in json.loads((tmp/'data/login_notice.json').read_text())['items'])
+            # Two live notices resume the deep link only after the last independent close.
+            n1={**config,'id':'queue-one','starts_at':'','ends_at':''}
+            n2={**config,'id':'queue-two','starts_at':'2020-01-01T00:00:00+07:00','ends_at':''}
+            (tmp/'data/login_notice.json').write_text(json.dumps({'schema':2,'items':[n1,n2]}))
+            queue=Client(base)
+            status,headers,_=queue.request('/login.php?next=%2Fcsdl.php%3Ftab%3Dstatistics',{'username':'queue-user','password':'fixture-password'});assert status==302
+            for notice_id,more in [('queue-one',True),('queue-two',False)]:
+                status,_,page=queue.request('/login_notice.php');assert status==200 and hidden(page,'notice_id')==notice_id
+                status,_,payload=queue.request('/login_notice.php',{'action':'dismiss','csrf':hidden(page,'csrf'),'notice_id':notice_id,'context':'gate'},json_accept=True)
+                result=json.loads(payload);assert status==200 and result['more'] is more
+                assert result['next']==('/login_notice.php' if more else '/csdl.php?tab=statistics')
             # New publication ID becomes visible again, disabled/expired notices are skipped.
             config['id']='notice-fixture-2';config_write();status,_,body=a.request('/login_notice.php');assert status==200
             config['ends_at']='2020-01-01T00:00:00+07:00';config_write();status,_,_=a.request('/login_notice.php');assert status==302
@@ -77,3 +100,4 @@ if(is_logged_in()&&cds_is_viewer()&&!cds_viewer_request_allowed($_SERVER['REQUES
             print('PASS: actual login redirect, deep-link resume, CSRF, stale notice, cross-account isolation, cross-session persistence, viewer receipt, admin access, expiration')
         finally:
             process.terminate();process.wait(timeout=10)
+
