@@ -1,4 +1,8 @@
 <?php
+// Buffer bootstrap output so notices, whitespace and BOMs never enter the ZIP stream.
+ob_start();
+ini_set('display_errors', '0');
+ini_set('zlib.output_compression', '0');
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_store.php';
 require_once __DIR__ . '/includes/csdl_io.php';
@@ -7,10 +11,13 @@ require_login();
 require_perm('csdl.statistics');
 require_perm('csdl.export');
 
-if (!class_exists('ZipArchive')) {
+function sx_fail(string $message): void {
+    while(ob_get_level()>0)ob_end_clean();
     http_response_code(500);
-    exit('Hosting chưa bật PHP ZIP (ZipArchive), chưa thể tạo file XLSX.');
+    header('Content-Type: text/plain; charset=utf-8');
+    exit($message);
 }
+if (!class_exists('ZipArchive')) sx_fail('Hosting chưa bật PHP ZIP (ZipArchive), chưa thể tạo file XLSX.');
 
 $scope = (string)($_GET['stat_scope'] ?? 'all');
 $status = (string)($_GET['stat_status'] ?? 'active');
@@ -55,7 +62,7 @@ if ($classId !== '') $fs = array_values(array_filter($fs, fn($r) => (string)($r[
 
 function sx_xml($v): string {
     $v = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u', '', (string)$v) ?? (string)$v;
-    return htmlspecialchars($v, ENT_QUOTES | ENT_XML1, 'UTF-8');
+    return htmlspecialchars($v, ENT_QUOTES | ENT_XML1 | ENT_SUBSTITUTE, 'UTF-8');
 }
 function sx_col_name(int $n): string {
     $s=''; while($n>0){$n--; $s=chr(65+($n%26)).$s; $n=intdiv($n,26);} return $s;
@@ -99,14 +106,21 @@ function sx_sheet(array $headers, array $rows, array $widths=[]): string {
     return $xml;
 }
 function sx_sheet_name(string $name, array &$used): string {
-    $name=preg_replace('/[\\\/\?\*\[\]:]+/u',' ',trim($name)) ?: 'Sheet';
-    $name=function_exists('mb_substr')?mb_substr($name,0,31,'UTF-8'):substr($name,0,31);
+    // str_replace avoids delimiter escaping errors in the old sheet-name regex.
+    $name=str_replace(['\\','/','?','*','[',']',':'], ' ', trim($name));
+    $name=trim($name, "' ");
+    if($name==='')$name='Sheet';
+    $cut=static function(string $v,int $limit):string {
+        if(function_exists('mb_substr'))return mb_substr($v,0,$limit,'UTF-8');
+        preg_match_all('/./us',$v,$chars);
+        return implode('',array_slice($chars[0]??[],0,$limit));
+    };
+    $name=$cut($name,31);
     $base=$name;$n=2;
-    while(isset($used[$name])){
-        $suffix=' '.$n++; $limit=31-strlen($suffix);
-        $name=(function_exists('mb_substr')?mb_substr($base,0,$limit,'UTF-8'):substr($base,0,$limit)).$suffix;
+    while(isset($used[csdl_sf_lower($name)])){
+        $suffix=' '.$n++; $name=$cut($base,31-strlen($suffix)).$suffix;
     }
-    $used[$name]=true; return $name;
+    $used[csdl_sf_lower($name)]=true; return $name;
 }
 
 $sheets=[]; $used=[];
@@ -169,8 +183,10 @@ if ($scope !== 'teachers') {
 }
 
 $tmp=tempnam(sys_get_temp_dir(),'csdl_xlsx_');
+if($tmp===false)sx_fail('Không tạo được tệp tạm. Vui lòng kiểm tra dung lượng hosting.');
+register_shutdown_function(static function()use($tmp){if(is_file($tmp))@unlink($tmp);});
 $zip=new ZipArchive();
-if($zip->open($tmp,ZipArchive::CREATE|ZipArchive::OVERWRITE)!==true) exit('Không tạo được file XLSX tạm.');
+if($zip->open($tmp,ZipArchive::CREATE|ZipArchive::OVERWRITE)!==true) sx_fail('Không tạo được file XLSX tạm.');
 
 $sheetEntries=''; $rels=''; $contentOverrides='';
 foreach($sheets as $i=>$sheet){
@@ -191,16 +207,26 @@ $zip->addFromString('xl/styles.xml','<?xml version="1.0" encoding="UTF-8" standa
 $created=gmdate('Y-m-d\TH:i:s\Z');
 $zip->addFromString('docProps/core.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>CDS</dc:creator><cp:lastModifiedBy>CDS</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">'.$created.'</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">'.$created.'</dcterms:modified></cp:coreProperties>');
 $zip->addFromString('docProps/app.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>CDS</Application><DocSecurity>0</DocSecurity><ScaleCrop>false</ScaleCrop><Company></Company><LinksUpToDate>false</LinksUpToDate><SharedDoc>false</SharedDoc><HyperlinksChanged>false</HyperlinksChanged><AppVersion>1.0</AppVersion></Properties>');
-$zip->close();
+if(!$zip->close())sx_fail('Không hoàn tất được file XLSX.');
+// Validate the archive before sending attachment headers.
+$checkZip=new ZipArchive();
+if($checkZip->open($tmp,ZipArchive::CHECKCONS)!==true)sx_fail('File XLSX chưa hợp lệ, vui lòng thử lại.');
+foreach(['[Content_Types].xml','_rels/.rels','xl/workbook.xml','xl/styles.xml'] as $part){
+    if($checkZip->locateName($part)===false){$checkZip->close();sx_fail('File XLSX thiếu cấu trúc bắt buộc.');}
+}
+$checkZip->close();
 
 clearstatcache(true,$tmp);
+while(ob_get_level()>0)ob_end_clean();
 $filename='thong-ke-gv-hs-'.date('Ymd-His').'.xlsx';
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 header('Content-Disposition: attachment; filename="'.$filename.'"');
 header('Content-Length: '.filesize($tmp));
 header('Cache-Control: no-store, no-cache, must-revalidate');
-header('Pragma: public');
+header('Pragma: no-cache');
+header('X-Content-Type-Options: nosniff');
 readfile($tmp);
 @unlink($tmp);
 exit;
+
 
