@@ -16,7 +16,7 @@
     busy = true; error.hidden = true;
     buttons.forEach(button => { button.disabled = true; });
     try {
-      const response = await fetch(form.action, { method: 'POST', credentials: 'same-origin', headers: { Accept: 'application/json' }, body: new FormData(form) });
+      const response = await fetch(form.getAttribute('action'), { method: 'POST', credentials: 'same-origin', headers: { Accept: 'application/json' }, body: new FormData(form) });
       const result = await response.json();
       if (response.status === 409 || response.status === 403) {
         error.textContent = result.message || 'Phiên làm việc đã thay đổi.';

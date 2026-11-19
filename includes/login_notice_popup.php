@@ -13,5 +13,5 @@ $lnIcon=array_key_exists($loginNotice['icon']??'',cds_ln_icons())?$loginNotice['
     <footer class="cds-ln-footer"><small>Đóng để không hiện lại thông báo này.</small><button type="submit" class="cds-ln-close">Đã hiểu · Đóng</button><p class="cds-ln-error" role="alert" hidden></p></footer>
   </form>
 </dialog>
-<script src="<?=e(BASE_URL)?>assets/login-notice.js?v=20261119-1" defer></script>
+<script src="<?=e(BASE_URL)?>assets/login-notice.js?v=20261119-2" defer></script>
 <noscript><style>#cdsLoginNotice{display:block;position:relative;margin:30px auto}</style></noscript>

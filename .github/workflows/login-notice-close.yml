@@ -1,0 +1,22 @@
+name: Login notice close regression
+on:
+  pull_request:
+    paths: ['assets/login-notice.js', 'assets/viewer-read-only.js', 'includes/login_notice_popup.php', 'includes/global_ui.php', 'tests/login_notice_dom*', '.github/workflows/login-notice-close.yml']
+  workflow_dispatch:
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, mbstring
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix "$RUNNER_TEMP/notice-dom" --no-package-lock jsdom@26.1.0
+      - run: node tests/login_notice_dom_test.cjs
+        env:
+          NODE_PATH: '${{ runner.temp }}/notice-dom/node_modules'
+      - run: php tests/login_notice_test.php && python tests/login_notice_http_test.py
