@@ -25,7 +25,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (attempt_login($user, $pass)) {
         $home = cds_login_home_url();
         $next = $home === BASE_URL . 'instance_settings.php' ? $home : ($_GET['next'] ?? $home);
-        if (!str_starts_with($next, '/') || str_starts_with($next, '//') || str_contains($next, '://')) $next = BASE_URL . 'admin.php';
+        require_once __DIR__.'/includes/login_notice_store.php';
+        $next=cds_ln_safe_next($next);
+        if(cds_ln_pending(current_user())){
+            $_SESSION['cds_notice_next']=$next;
+            $next=BASE_URL.'login_notice.php';
+        }
         header('Server-Timing: login;dur='.round((hrtime(true)-$loginStarted)/1e6,1));
         session_write_close();
         header('Location: ' . $next);
@@ -121,3 +126,4 @@ background:radial-gradient(ellipse at center,#124a8a 0%,#0a2a5c 60%,#061428 100%
 </script>
 </body>
 </html>
+

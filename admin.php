@@ -10,6 +10,7 @@ require_login();
 
 $user = current_user();
 $isAdmin = ($user['role'] ?? '') === 'admin';
+if (($_GET['view'] ?? '') === 'login_notice') { require __DIR__ . '/includes/login_notice_settings.php'; exit; }
 if (($_GET['view'] ?? '') === 'profile') { require __DIR__ . '/includes/account_profile_view.php'; exit; }
 if(isset($_GET['drive_file'])){$driveId=(string)$_GET['drive_file'];$etag='"'.sha1($driveId).'"';header('Cache-Control: private, max-age=300');header('ETag: '.$etag);if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag){http_response_code(304);exit;}$file=cds_drive_download($driveId);if(empty($file['ok'])){http_response_code((int)($file['status']??404));exit;}header('Content-Type: '.$file['mime']);header('Content-Length: '.strlen($file['body']));$disposition=!empty($_GET['download'])?'attachment':'inline';header("Content-Disposition: $disposition; filename*=UTF-8''".rawurlencode($file['name']));echo $file['body'];exit;}
 if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['drive_api'])){
@@ -170,12 +171,12 @@ $pushUnread = cds_push_unread_count($user);
       <summary><i class="bi bi-grid-3x3-gap-fill"></i><span>Chuyển module</span><i class="bi bi-chevron-down"></i></summary>
       <div class="module-menu">
         <?php foreach ($modules as $module): ?><a href="<?= e($module['url']) ?>" style="--module-color:<?= e($module['color']) ?>"><i class="bi <?= e($module['icon']) ?>"></i><span><?= e($module['title']) ?></span></a><?php endforeach; ?>
-        <?php if ($isAdmin): ?><a href="excel_schedules.php" style="--module-color:#176a9b"><i class="bi bi-clock-history"></i><span>Đồng bộ báo cáo & hồ sơ → Drive</span></a><a href="initial_setup.php" style="--module-color:#176a9b"><i class="bi bi-list-check"></i><span>Khởi tạo dữ liệu</span></a><a href="users.php" style="--module-color:#7c3aed"><i class="bi bi-shield-check"></i><span>Phân quyền</span></a><a href="admin.php?view=drive" style="--module-color:#0f9d58"><i class="bi bi-cloud-check"></i><span>Kho Google Drive</span></a><a href="activity.php" style="--module-color:#475569"><i class="bi bi-activity"></i><span>Nhật ký</span></a><?php endif; ?>
+        <?php if ($isAdmin): ?><a href="excel_schedules.php" style="--module-color:#176a9b"><i class="bi bi-clock-history"></i><span>Đồng bộ báo cáo & hồ sơ → Drive</span></a><a href="initial_setup.php" style="--module-color:#176a9b"><i class="bi bi-list-check"></i><span>Khởi tạo dữ liệu</span></a><a href="admin.php?view=login_notice" style="--module-color:#2563eb"><i class="bi bi-megaphone"></i><span>Thông báo khi đăng nhập</span></a><a href="users.php" style="--module-color:#7c3aed"><i class="bi bi-shield-check"></i><span>Phân quyền</span></a><a href="admin.php?view=drive" style="--module-color:#0f9d58"><i class="bi bi-cloud-check"></i><span>Kho Google Drive</span></a><a href="activity.php" style="--module-color:#475569"><i class="bi bi-activity"></i><span>Nhật ký</span></a><?php endif; ?>
       </div>
     </details>
     <details class="user-picker">
       <summary><span class="avatar"><?= e($avatarUpper) ?></span><span class="user-copy"><strong><?= e($user['name'] ?? '') ?></strong><small><?= e($scopeText) ?></small></span><i class="bi bi-chevron-down"></i></summary>
-      <div class="user-menu"><a href="admin.php?view=profile"><i class="bi bi-person-vcard"></i>Thông tin cá nhân</a><?php if ($isAdmin): ?><a href="excel_schedules.php"><i class="bi bi-clock-history"></i>Đồng bộ báo cáo & hồ sơ → Drive</a><a href="initial_setup.php"><i class="bi bi-list-check"></i>Khởi tạo dữ liệu</a><a href="users.php"><i class="bi bi-person-gear"></i>Tài khoản và quyền</a><a href="admin.php?view=drive"><i class="bi bi-google"></i>Kho Google Drive</a><?php endif; ?><a href="logout.php" class="logout"><i class="bi bi-box-arrow-right"></i>Đăng xuất</a></div>
+      <div class="user-menu"><a href="admin.php?view=profile"><i class="bi bi-person-vcard"></i>Thông tin cá nhân</a><?php if ($isAdmin): ?><a href="excel_schedules.php"><i class="bi bi-clock-history"></i>Đồng bộ báo cáo & hồ sơ → Drive</a><a href="initial_setup.php"><i class="bi bi-list-check"></i>Khởi tạo dữ liệu</a><a href="admin.php?view=login_notice"><i class="bi bi-megaphone"></i>Thông báo khi đăng nhập</a><a href="users.php"><i class="bi bi-person-gear"></i>Tài khoản và quyền</a><a href="admin.php?view=drive"><i class="bi bi-google"></i>Kho Google Drive</a><?php endif; ?><a href="logout.php" class="logout"><i class="bi bi-box-arrow-right"></i>Đăng xuất</a></div>
     </details>
   </div>
 </header>
@@ -314,4 +315,6 @@ $voiceTargets = array_map(static function (array $command): array {
 </script>
 <script src="<?= e(BASE_URL) ?>assets/pwa-push.js?v=20260813-3" defer></script>
 <script src="<?= e(BASE_URL) ?>assets/voice-nav.js?v=20261012-4" defer></script>
+<?php require_once __DIR__.'/includes/login_notice_store.php'; $loginNotice=cds_ln_pending($user); $loginNoticeGate=false; require __DIR__.'/includes/login_notice_popup.php'; ?>
 </body></html>
+

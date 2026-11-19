@@ -1,0 +1,25 @@
+name: Login announcement popup
+on:
+  pull_request:
+    paths: ['admin.php', 'login.php', 'login_notice.php', 'includes/login_notice_*.php', 'includes/viewer_access.php', 'includes/global_ui.php', 'assets/login-notice*', 'assets/viewer-read-only.js', 'tests/login_notice*', 'tests/viewer_access_test.php', '.github/workflows/login-notice.yml']
+  workflow_dispatch:
+jobs:
+  announcement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, mbstring
+      - name: Syntax
+        run: |
+          for file in admin.php login.php login_notice.php includes/login_notice_*.php includes/viewer_access.php includes/global_ui.php; do php -l "$file"; done
+          node --check assets/login-notice.js
+          node --check assets/login-notice-settings.js
+          node --check assets/viewer-read-only.js
+      - run: php tests/login_notice_test.php
+      - run: python tests/login_notice_http_test.py
+      - run: php tests/viewer_access_test.php
+      - run: php tests/login_test.php
+      - run: php tests/login_permissions_test.php

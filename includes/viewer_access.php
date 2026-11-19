@@ -28,6 +28,7 @@ function cds_viewer_read_routes(): array {
     $routes['vanban_preview_file.php'] = 'id file kind';
     $routes['hoclieu_file.php'] = 'id';
     $routes['admin.php'] = 'date week month year';
+    $routes['login_notice.php'] = '';
     $routes['login.php'] = '';
     $routes['logout.php'] = '';
     $routes['student_photo.php'] = 'id v';
@@ -45,6 +46,8 @@ function cds_viewer_read_routes(): array {
     return $routes;
 }
 function cds_viewer_request_allowed(string $method, string $path, array $query): bool {
+    // Only the account's own announcement receipt; endpoint validates CSRF and identity.
+    if ($method === 'POST' && $path === 'login_notice.php' && $query === []) return true;
     if (!in_array($method, ['GET','HEAD'], true)) return false;
     $routes = cds_viewer_read_routes();
     if (!array_key_exists($path, $routes)) return false;
@@ -115,3 +118,4 @@ function cds_viewer_create_account(array $actor, string $username, string $passw
     if (!$ok) throw new RuntimeException('Không lưu được tài khoản.');
     return ['username'=>$username, 'password'=>$password];
 }
+
