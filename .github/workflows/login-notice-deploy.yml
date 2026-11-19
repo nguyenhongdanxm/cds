@@ -1,0 +1,15 @@
+name: Login notice hosting deployment
+on:
+  pull_request:
+    paths: ['tools/deploy_cds.php', 'tools/deploy_cpanel.sh', '.cpanel.yml', 'tests/login_notice_deploy_test.php', '.github/workflows/login-notice-deploy.yml']
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - run: php -l tools/deploy_cds.php && bash -n tools/deploy_cpanel.sh
+      - run: php tests/login_notice_deploy_test.php
