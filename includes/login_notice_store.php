@@ -2,9 +2,21 @@
 /** One scheduled announcement; per-account receipts live separately from business data. */
 function cds_ln_icons(): array { return ['📢'=>'Thông báo','🔔'=>'Nhắc nhở','📌'=>'Lưu ý','🎉'=>'Chúc mừng','📚'=>'Học tập','🗓️'=>'Lịch công tác','⚠️'=>'Quan trọng','💡'=>'Hướng dẫn']; }
 function cds_ln_path(): string { return DATA_PATH.'/login_notice.json'; }
-function cds_ln_load(): array {
-    $raw=load_json(cds_ln_path(),[]);
-    return array_merge(['id'=>'','enabled'=>false,'title'=>'Thông báo nhà trường','body'=>'','icon'=>'📢','theme'=>'blue','starts_at'=>'','ends_at'=>'','updated_at'=>'','version'=>''],$raw);
+function cds_ln_defaults(): array {
+    return ['id'=>'','enabled'=>false,'title'=>'Thông báo nhà trường','body'=>'','icon'=>'📢','theme'=>'blue','starts_at'=>'','ends_at'=>'','updated_at'=>'','version'=>''];
+}
+function cds_ln_rows(array $raw): array {
+    // Read old single-notice storage without changing its ID or existing receipts.
+    $rows=array_key_exists('items',$raw)?(is_array($raw['items'])?$raw['items']:[]):(!empty($raw['id'])?[$raw]:[]);
+    return array_values(array_map(fn($r)=>array_merge(cds_ln_defaults(),$r),array_filter($rows,'is_array')));
+}
+function cds_ln_all(): array { return cds_ln_rows(load_json(cds_ln_path(),[])); }
+function cds_ln_load(?string $id=null): array {
+    $rows=cds_ln_all();if($id!==null){foreach($rows as $r)if($r['id']===$id)return $r;return cds_ln_defaults();}
+    return $rows[0]??cds_ln_defaults();
+}
+function cds_ln_planned_count(array $rows,?int $now=null): int {
+    $now=$now??time();return count(array_filter($rows,fn($r)=>!empty($r['enabled'])&&(empty($r['ends_at'])||(strtotime($r['ends_at'])?:0)>$now)));
 }
 function cds_ln_account_key(array $user): string {
     $id=trim((string)($user['id']??''));
@@ -26,10 +38,22 @@ function cds_ln_active(array $notice,?int $now=null): bool {
     }
     return true;
 }
-function cds_ln_pending(array $user,?int $now=null): ?array {
-    if(cds_ln_account_key($user)==='username:')return null;
-    $notice=cds_ln_load();
-    return cds_ln_active($notice,$now)&&!is_file(cds_ln_receipt_path($user,(string)$notice['id']))?$notice:null;
+function cds_ln_pending_all(array $user,?int $now=null): array {
+    if(cds_ln_account_key($user)==='username:')return [];
+    $rows=array_values(array_filter(cds_ln_all(),fn($r)=>cds_ln_active($r,$now)&&!is_file(cds_ln_receipt_path($user,(string)$r['id']))));
+    usort($rows,fn($a,$b)=>(strtotime($a['starts_at'])?:0)<=>(strtotime($b['starts_at'])?:0) ?: strcmp((string)($a['created_at']??$a['updated_at']),(string)($b['created_at']??$b['updated_at'])) ?: strcmp($a['id'],$b['id']));
+    return $rows;
+}
+function cds_ln_pending(array $user,?int $now=null): ?array { return cds_ln_pending_all($user,$now)[0]??null; }
+function cds_ln_delete(string $id,string $version,array $actor): void {
+    if(($actor['role']??'')!=='admin')throw new RuntimeException('Chỉ quản trị được xóa thông báo.');
+    $ok=cds_json_update(cds_ln_path(),function($raw)use($id,$version){
+        $rows=cds_ln_rows($raw);$found=false;
+        foreach($rows as $i=>$r)if($r['id']===$id){if(!hash_equals((string)$r['version'],$version))throw new RuntimeException('Thông báo đã thay đổi.');unset($rows[$i]);$found=true;break;}
+        if(!$found)throw new RuntimeException('Không tìm thấy thông báo.');
+        return ['schema'=>2,'items'=>array_values($rows)];
+    },[]);
+    if(!$ok)throw new RuntimeException('Không xóa được thông báo hoặc nội dung đã thay đổi. Hãy tải lại trang.');
 }
 function cds_ln_dismiss(array $user,string $noticeId): bool {
     if($noticeId===''||cds_ln_account_key($user)==='username:')return false;
@@ -92,22 +116,28 @@ function cds_ln_clean(string $html): string {
 }
 function cds_ln_save(array $input,array $actor): array {
     if(($actor['role']??'')!=='admin')throw new RuntimeException('Chỉ quản trị được cài đặt thông báo.');
-    foreach(['title','body','icon','theme','starts_at','ends_at','version'] as $key)if(isset($input[$key])&&!is_string($input[$key]))throw new RuntimeException('Dữ liệu cài đặt không hợp lệ.');
+    foreach(['id','title','body','icon','theme','starts_at','ends_at','version'] as $key)if(isset($input[$key])&&!is_string($input[$key]))throw new RuntimeException('Dữ liệu cài đặt không hợp lệ.');
     $title=trim((string)($input['title']??''));$body=cds_ln_clean((string)($input['body']??''));
     if(strlen($title)>500)throw new RuntimeException('Tiêu đề quá dài.');
     if(!empty($input['enabled'])&&($title===''||!cds_ln_has_text($body)))throw new RuntimeException('Hãy nhập tiêu đề và nội dung trước khi bật thông báo.');
     $start=cds_ln_date((string)($input['starts_at']??''));$end=cds_ln_date((string)($input['ends_at']??''));
     if($start!==''&&$end!==''&&strtotime($end)<=strtotime($start))throw new RuntimeException('Thời gian kết thúc phải sau thời gian bắt đầu.');
     $saved=[];
-    $ok=cds_json_update(cds_ln_path(),function($old)use($input,$title,$body,$start,$end,&$saved){
-        if((string)($old['version']??'')!==(string)($input['version']??''))throw new RuntimeException('Cấu hình đã thay đổi.');
-        $saved=['id'=>!empty($input['new_notice'])||empty($old['id'])?'notice_'.bin2hex(random_bytes(16)):$old['id'],
+    $ok=cds_json_update(cds_ln_path(),function($raw)use($input,$title,$body,$start,$end,&$saved){
+        $rows=cds_ln_rows($raw);$id=array_key_exists('id',$input)?$input['id']:($rows[0]['id']??'');$index=null;$old=[];
+        foreach($rows as $i=>$r)if($r['id']===$id){$old=$r;$index=$i;break;}
+        if($id!==''&&$index===null)throw new RuntimeException('Thông báo đã bị xóa.');
+        if((string)($old['version']??'')!==(string)($input['version']??''))throw new RuntimeException('Thông báo đã thay đổi.');
+        $create=$id===''||!empty($input['new_notice']);
+        $saved=['id'=>$create?'notice_'.bin2hex(random_bytes(16)):$id,
             'enabled'=>!empty($input['enabled']),'title'=>$title,'body'=>$body,
             'icon'=>array_key_exists((string)($input['icon']??''),cds_ln_icons())?(string)$input['icon']:'📢',
             'theme'=>in_array($input['theme']??'',['blue','green','amber','violet'],true)?$input['theme']:'blue',
-            'starts_at'=>$start,'ends_at'=>$end,'updated_at'=>gmdate('c'),'version'=>bin2hex(random_bytes(16))];
-        return $saved;
+            'starts_at'=>$start,'ends_at'=>$end,'created_at'=>$create?gmdate('c'):($old['created_at']??$old['updated_at']??gmdate('c')),'updated_at'=>gmdate('c'),'version'=>bin2hex(random_bytes(16))];
+        if($create)array_unshift($rows,$saved);else $rows[$index]=$saved;
+        if(cds_ln_planned_count($rows)>5)throw new RuntimeException('Tối đa 5 thông báo đang bật hoặc chờ lịch.');
+        return ['schema'=>2,'items'=>array_values($rows)];
     },[]);
-    if(!$ok)throw new RuntimeException('Không lưu được thông báo hoặc cấu hình đã được người khác thay đổi. Hãy tải lại trang và thử lại.');
+    if(!$ok)throw new RuntimeException('Không lưu được: thông báo đã thay đổi hoặc đã đủ 5 thông báo đang bật/chờ lịch. Hãy tải lại trang, hoặc tắt/xóa thông báo không cần thiết.');
     return $saved;
 }

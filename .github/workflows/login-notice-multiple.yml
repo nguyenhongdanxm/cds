@@ -1,0 +1,18 @@
+name: Multiple scheduled login notices
+on:
+  pull_request:
+    paths: ['includes/login_notice_*.php', 'login_notice.php', 'assets/login-notice.js', 'tests/login_notice*', '.github/workflows/login-notice-multiple.yml']
+  workflow_dispatch:
+jobs:
+  notices:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, mbstring
+      - run: php -l includes/login_notice_store.php && php -l includes/login_notice_settings.php && php -l login_notice.php && node --check assets/login-notice.js
+      - run: php tests/login_notice_multiple_test.php
+      - run: php tests/login_notice_test.php && python tests/login_notice_http_test.py
+      - run: php tests/login_notice_deploy_test.php
