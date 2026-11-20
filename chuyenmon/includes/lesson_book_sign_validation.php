@@ -1,5 +1,10 @@
 <?php
+function lb_is_non_teaching_status(string $status): bool {
+ return in_array($status,['holiday','teacher_absent','class_absent','postponed','cancelled'],true);
+}
+
 function lb_sign_required_fields(array $row): array {
+ if(lb_is_non_teaching_status((string)($row['status']??'')))return [];
  $missing=[];if(!in_array(trim((string)($row['status']??'')),['taught','substitute','makeup','online','holiday','teacher_absent','class_absent','postponed','cancelled','fill'],true))$missing[]='trạng thái';
  if(trim((string)($row['teacher_comment']??''))==='')$missing[]='nhận xét';
  if(!in_array((string)($row['rating']??''),['Tốt','Khá','Trung bình','Yếu'],true))$missing[]='xếp loại';return $missing;
