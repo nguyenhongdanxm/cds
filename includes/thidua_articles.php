@@ -5,7 +5,7 @@ function td_article_safe_link(string $url): string {
     return preg_match('~^(https?://|mailto:|tel:|/(?!/)|\#)~i',$url)&&!preg_match('/[\x00-\x20]/',$url)?$url:'';
 }
 function td_article_style(string $style): string {
-    $allowed=explode(' ','color background-color font-family font-size font-weight font-style text-decoration text-align line-height letter-spacing vertical-align text-indent margin-left margin-right margin-top margin-bottom padding padding-left padding-right padding-top padding-bottom width height max-width min-width border border-width border-style border-color border-collapse border-spacing border-top border-bottom border-left border-right list-style-type');
+    $allowed=explode(' ','color background-color font-family font-size font-weight font-style text-decoration text-align line-height letter-spacing vertical-align text-indent display float clear margin border-radius margin-left margin-right margin-top margin-bottom padding padding-left padding-right padding-top padding-bottom width height max-width min-width border border-width border-style border-color border-collapse border-spacing border-top border-bottom border-left border-right list-style-type');
     $out=[];foreach(explode(';',$style)as$part){$pair=explode(':',$part,2);if(count($pair)!==2)continue;[$name,$value]=array_map('trim',$pair);$name=strtolower($name);
         if(!in_array($name,$allowed,true)||$value===''||preg_match('/url\s*\(|expression|@|\\\\|[<>\x00-\x08\x0b\x0c\x0e-\x1f]/i',$value))continue;
         if(!preg_match('/^[\pL\pN\s#.,%()\'"+\/-]+$/u',$value))continue;
