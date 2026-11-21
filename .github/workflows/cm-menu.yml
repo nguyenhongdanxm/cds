@@ -43,7 +43,7 @@ jobs:
           php tests/cm_menu_test.php
           CDS_PCCM_BASELINE="$RUNNER_TEMP/pccm-before.php" php tests/cm_menu_pccm_test.php
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:

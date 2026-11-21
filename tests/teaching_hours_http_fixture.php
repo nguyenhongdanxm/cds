@@ -3,7 +3,7 @@ $dir=(string)getenv('TH_TEST_DIR');if(!str_starts_with($dir,sys_get_temp_dir().'
 if(PHP_SAPI==='cli'){
  mkdir($dir.'/includes',0700,true);mkdir($dir.'/data',0700,true);mkdir($dir.'/sessions',0700,true);
  foreach(['gio_day.php','gio_day_xuat.php']as$f)copy($root.'/chuyenmon/'.$f,$dir.'/'.$f);
- foreach(glob($root.'/chuyenmon/includes/teaching_hours*.php')as$f)copy($f,$dir.'/includes/'.basename($f));copy($root.'/chuyenmon/includes/lesson_book_excel.php',$dir.'/includes/lesson_book_excel.php');
+ foreach(glob($root.'/chuyenmon/includes/teaching_hours*.php')as$f)copy($f,$dir.'/includes/'.basename($f));file_put_contents($dir.'/includes/lesson_book_excel.php',str_replace("dirname(__DIR__, 2) . '/includes/form_profile.php'",var_export($root.'/includes/form_profile.php',true),file_get_contents($root.'/chuyenmon/includes/lesson_book_excel.php')));
  $stub= <<<'STUB'
 <?php
 require_once '__ROOT__/includes/json_store.php';require_once '__ROOT__/tests/support/load_functions.php';

@@ -67,7 +67,7 @@ jobs:
           php tests/lesson_book_filter_parity_test.php
           python3 tests/lesson_book_performance_http_test.py
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
