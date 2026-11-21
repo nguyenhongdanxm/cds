@@ -42,7 +42,7 @@ jobs:
           php tests/timetable_constraints_bulk_test.php
           php tests/timetable_lesson_constraints_test.php
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
