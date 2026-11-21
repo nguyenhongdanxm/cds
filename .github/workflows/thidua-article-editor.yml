@@ -1,0 +1,30 @@
+name: Thi dua full article editor
+on:
+  pull_request:
+    paths:
+      - 'thidua.php'
+      - 'includes/thidua_articles.php'
+      - 'assets/thidua-article-editor.*'
+      - 'tests/thidua_article_editor*'
+      - '.github/workflows/thidua-article-editor.yml'
+  workflow_dispatch:
+jobs:
+  editor:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, mbstring
+      - run: |
+          php -l thidua.php
+          php -l includes/thidua_articles.php
+          php tests/thidua_article_editor_test.php
+      - run: npm install --prefix "$RUNNER_TEMP/td-editor" --no-package-lock jsdom@26.1.0
+      - run: node --check assets/thidua-article-editor.js && node tests/thidua_article_editor_dom.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/td-editor/node_modules
