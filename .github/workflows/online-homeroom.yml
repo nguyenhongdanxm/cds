@@ -28,7 +28,7 @@ jobs:
           php -l chuyenmon/includes/online_homeroom_access.php
           php tests/online_homeroom_test.php
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4

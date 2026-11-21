@@ -38,7 +38,7 @@ jobs:
         env:
           CDS_USERS_BASELINE: ${{ runner.temp }}/users-before.php
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
