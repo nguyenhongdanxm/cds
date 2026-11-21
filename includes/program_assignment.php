@@ -123,7 +123,7 @@ function gdp_assignment_warning(array $config,string $class,int $period,string $
         ? 'GDĐP lớp '.$class.', tiết PPCT '.$period.': phân công '.$expected.'; giáo viên thực tế '.$actual.'. Vui lòng kiểm tra phân công/dạy thay.' : '';
 }
 function gdp_publish_periods(array $data,array $plan,string $weekKey,string $from): array {
-    $GLOBALS['gdp_publish_warnings']=[];
+    $GLOBALS['gdp_publish_warnings']=[];$GLOBALS['gdp_publish_mismatches']=[];
     $source=gdp_builder_configs();$configs=$source['configs'];if(!$configs)return [];
     $target=$data;$target['_workspace']['week_key']=$weekKey;$ctx=gdp_week_context($target);$ctx['start']=$from;
     $records=gdp_week_records($ctx);$snap=(array)($data['program_week']??[]);$next=[];
@@ -144,7 +144,12 @@ function gdp_publish_periods(array $data,array $plan,string $weekKey,string $fro
             if(!isset($configs[$class]))continue;
             $p=$next[$class]++;$p=$p>=1&&$p<=35?$p:0;$classPeriods[]=$p;
             $warning=gdp_assignment_warning($configs[$class],(string)$class,$p,(string)($e['teacher']??''));
-            if($warning!=='')$GLOBALS['gdp_publish_warnings'][]=$warning;
+            if($warning!==''){
+                $GLOBALS['gdp_publish_warnings'][]=$warning;
+                $detail=['activity_id'=>$id,'class'=>(string)$class,'ppct_period'=>$p,'expected'=>gdp_teacher($configs[$class],$p),'actual'=>(string)($e['teacher']??''),'day'=>(int)($e['day']??0),'session'=>(string)($e['session']??''),'period'=>(int)($e['period']??0)];
+                $detail['key']=hash('sha256',json_encode($detail,JSON_UNESCAPED_UNICODE));
+                $GLOBALS['gdp_publish_mismatches'][]=$detail;
+            }
         }
         // A grouped lesson may cover classes at different progress: let each book suggest its own PPCT.
         if($classPeriods&&count(array_unique($classPeriods))===1)$periods[$id]=$classPeriods[0];
@@ -159,4 +164,19 @@ function gdp_publish_periods(array $data,array $plan,string $weekKey,string $fro
     }
     $GLOBALS['gdp_publish_warnings']=array_values(array_unique($GLOBALS['gdp_publish_warnings']));
     return $periods;
+}
+
+/** Consent is bound to the exact plan, target week, current assignments and proposed PPCT. */
+function gdp_publish_review(array $data,array $plan,string $weekKey,string $from): array {
+    $periods=gdp_publish_periods($data,$plan,$weekKey,$from);
+    $rows=(array)($GLOBALS['gdp_publish_mismatches']??[]);
+    $token=hash('sha256',json_encode([$weekKey,$from,$data['_workspace_id']??'',$plan['id']??'',$plan['entries']??[],$periods,gdp_builder_configs(),$rows],JSON_UNESCAPED_UNICODE));
+    return ['periods'=>$periods,'rows'=>$rows,'token'=>$token,'warnings'=>(array)($GLOBALS['gdp_publish_warnings']??[])];
+}
+function gdp_publish_consent_error(array $review,array $consent): string {
+    if(empty($review['rows']))return '';
+    if(!hash_equals((string)$review['token'],(string)($consent['token']??'')))return 'TKB, tuần hoặc phân công GDĐP đã thay đổi. Hãy xem lại và xác nhận từng tiết khác giáo viên trước khi công bố.';
+    $accepted=array_fill_keys(array_map('strval',array_filter((array)($consent['accepted']??[]),'is_string')),true);
+    foreach($review['rows']as$row)if(empty($accepted[$row['key']]))return 'Chưa xác nhận đủ các tiết GDĐP khác giáo viên phân công. Hãy kiểm tra bảng đối chiếu và tích xác nhận từng tiết, hoặc quay lại sửa TKB.';
+    return '';
 }

@@ -104,20 +104,27 @@ function ttb_plan_slot_error(array$plan,int$day,string$session):string{if(empty(
 function ttb_plan_remember(array &$plan,string $label='Thao tác chỉnh TKB'):void{$stack=array_values((array)($plan['undo_stack']??[]));$stack[]=['label'=>$label,'at'=>date('c'),'entries'=>array_values((array)($plan['entries']??[])),'unplaced'=>array_values((array)($plan['unplaced']??[])),'score'=>(int)($plan['score']??0),'errors'=>array_values((array)($plan['errors']??[]))];$plan['undo_stack']=array_slice($stack,-20);}
 function ttb_plan_undo(array &$plan):?array{$stack=array_values((array)($plan['undo_stack']??[]));$state=array_pop($stack);if(!is_array($state))return null;foreach(['entries','unplaced','score','errors']as$key)if(array_key_exists($key,$state))$plan[$key]=$state[$key];$plan['undo_stack']=$stack;$plan['updated_at']=date('c');return$state;}
 function ttb_replace_plan(array&$data,array$plan):void{$found=false;foreach($data['plans']as&$p)if(($p['id']??'')===($plan['id']??'')){$p=$plan;$found=true;break;}unset($p);if(!$found)$data['plans'][]=$plan;$data['active_plan']=$plan['id'];$data['plans']=array_slice($data['plans'],-12);}
-function ttb_publish(array$plan,string$name,string$from,string$to,array$user,bool$overwrite=false,string$weekKey='',bool$allowIncomplete=false,array$specialSlots=[]):array{
-    $programPeriods=[];if(function_exists('gdp_publish_periods')){try{$programPeriods=gdp_publish_periods((array)($GLOBALS['CDS_TTB_CURRENT_DATA']??[]),$plan,$weekKey,$from);}catch(RuntimeException $e){return ['ok'=>false,'message'=>$e->getMessage()];}}
+function ttb_publish(array$plan,string$name,string$from,string$to,array$user,bool$overwrite=false,string$weekKey='',bool$allowIncomplete=false,array$specialSlots=[],array$programConsent=[]):array{
+    $programPeriods=[];$programReview=['rows'=>[],'warnings'=>[]];
+    if(function_exists('gdp_publish_review')){try{
+        $programReview=gdp_publish_review((array)($GLOBALS['CDS_TTB_CURRENT_DATA']??[]),$plan,$weekKey,$from);
+        $programPeriods=$programReview['periods'];
+        $consentError=gdp_publish_consent_error($programReview,$programConsent);
+        if($consentError!=='')return ['ok'=>false,'message'=>$consentError,'needs_program_review'=>true];
+    }catch(RuntimeException $e){return ['ok'=>false,'message'=>$e->getMessage()];}}
+
     $unplacedCount=count((array)($plan['unplaced']??[]));$errorCount=count((array)($plan['errors']??[]));$roomErrors=ttb_room_conflicts((array)($plan['entries']??[]),(array)($GLOBALS['CDS_TTB_CURRENT_DATA']??[]));$errorCount+=count($roomErrors);
     if(($unplacedCount>0||$errorCount>0)&&!$allowIncomplete)return['ok'=>false,'message'=>'Phương án chưa hoàn tất. Phải xác nhận công bố phần đã xếp để tiếp tục.','needs_incomplete_confirm'=>true];
     $slots=[];$teacherMap=[];$classMap=[];
     foreach($plan['entries']as$e)foreach($e['classes']as$class){$teacher=(string)$e['teacher'];$slots[]=['day'=>(int)$e['day'],'session'=>(string)$e['session'],'period'=>(int)$e['period'],'class_raw'=>$class,'subject'=>tkb_subject_canonical((string)$e['subject']),'teacher_raw'=>$teacher,'program_period'=>(int)($programPeriods[$e['activity_id']??'']??0),'group_session_id'=>(string)($e['group_id']??''),'teacher_credit'=>($e['credit_mode']??'per_class')==='per_class'?1:1/max(1,count($e['classes'])),'room_id'=>(string)($e['room_id']??(($GLOBALS['CDS_TTB_CURRENT_DATA']['room_assignments']??[])[$e['activity_id']??'']??''))];$teacherMap[$teacher]=$teacher;$classMap[$class]=$class;}
     $weeks=tkb_weeks();$replaceAt=null;$existingId='';
     foreach($weeks as$i=>&$w){$w['active']=false;if(($weekKey!==''&&(string)($w['school_week_key']??'')===$weekKey)||(($w['start_date']??'')===$from)){$replaceAt=$i;$existingId=(string)($w['id']??'');}}unset($w);
-    $week=['id'=>$existingId?:('tkb_'.date('YmdHis').'_'.bin2hex(random_bytes(2))),'label'=>$name,'school_week_key'=>$weekKey,'start_date'=>$from,'end_date'=>$to,'active'=>true,'uploaded_at'=>date('c'),'uploaded_by'=>$user['name']??'','source'=>'builder','builder_plan_id'=>$plan['id'],'publish_status'=>($unplacedCount||$errorCount)?'incomplete':'complete','unplaced_count'=>$unplacedCount,'error_count'=>$errorCount,'slots'=>$slots,'special_slots'=>array_values(array_filter($specialSlots,'is_array')),'rooms'=>(array)($GLOBALS['CDS_TTB_CURRENT_DATA']['rooms']??[])];
+    $week=['id'=>$existingId?:('tkb_'.date('YmdHis').'_'.bin2hex(random_bytes(2))),'label'=>$name,'school_week_key'=>$weekKey,'start_date'=>$from,'end_date'=>$to,'active'=>true,'uploaded_at'=>date('c'),'uploaded_by'=>$user['name']??'','source'=>'builder','builder_plan_id'=>$plan['id'],'publish_status'=>($unplacedCount||$errorCount)?'incomplete':'complete','unplaced_count'=>$unplacedCount,'error_count'=>$errorCount,'slots'=>$slots,'special_slots'=>array_values(array_filter($specialSlots,'is_array')),'rooms'=>(array)($GLOBALS['CDS_TTB_CURRENT_DATA']['rooms']??[]),'program_assignment_review'=>empty($programReview['rows'])?null:['confirmed_at'=>date('c'),'confirmed_by'=>(string)($user['name']??''),'confirmed_user_id'=>(string)($user['id']??''),'token'=>$programReview['token'],'rows'=>$programReview['rows']]];
     if($replaceAt===null)$weeks[]=$week;else$weeks[$replaceAt]=$week;
     if(function_exists('tkb_normalize_weeks'))$weeks=tkb_normalize_weeks($weeks);
     if(!tkb_save(TKB_WEEKS_FILE,$weeks))return['ok'=>false,'message'=>'Không lưu được thời khóa biểu tuần.'];
     tkb_save_mapping($teacherMap,$classMap);
-    $warnings=(array)($GLOBALS['gdp_publish_warnings']??[]);
+    $warnings=(array)$programReview['warnings'];
     return['ok'=>true,'warnings'=>$warnings,'version'=>$week,'message'=>($warnings?'Cảnh báo: '.implode(' ',$warnings).' ':'').'Đã công bố và ghi đè TKB '.$name.' ('.count($slots).' tiết). Danh sách tuần không tạo thêm phiên bản.'];
 }
 

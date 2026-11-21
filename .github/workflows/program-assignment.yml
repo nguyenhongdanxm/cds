@@ -3,6 +3,10 @@ on:
   pull_request:
     paths:
       - 'includes/program*'
+      - 'tkb_publish.php'
+      - 'tkb_editor.php'
+      - 'assets/timetable-warnings.css'
+      - 'assets/timetable-publish-review.js'
       - 'includes/pccm_release.php'
       - 'includes/timetable_builder.php'
       - 'tkb_xep.php'
@@ -15,6 +19,7 @@ on:
       - 'tests/program_assignment*'
       - 'tests/program_lesson_book_test.php'
       - 'tests/program_flexible_sign_test.php'
+      - 'tests/program_publish_review*'
       - '.github/workflows/program-assignment.yml'
   workflow_dispatch:
 jobs:
@@ -36,6 +41,9 @@ jobs:
           php tests/program_assignment_excel_test.php
           php tests/program_lesson_book_test.php
           php tests/program_flexible_sign_test.php
+          php -l tkb_publish.php
+          php -l tkb_editor.php
+          php tests/program_publish_review_test.php
           php tests/timetable_workspace_copy_test.php
           php tests/lesson_book_sign_validation_test.php
           php tests/lesson_book_sign_performance_test.php
@@ -58,3 +66,16 @@ jobs:
         env:
           NODE_PATH: ${{ runner.temp }}/gdp/node_modules
 
+
+  review-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: npm install --prefix "$RUNNER_TEMP/review-ui" --no-package-lock jsdom@26.1.0
+      - run: node --check assets/timetable-publish-review.js && node tests/program_publish_review_dom.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/review-ui/node_modules
