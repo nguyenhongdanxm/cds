@@ -1,0 +1,43 @@
+name: Academic Drive records
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/hoso.php'
+      - 'chuyenmon/includes/academic_drive.php'
+      - 'chuyenmon/assets/academic-drive.*'
+      - 'includes/chuyenmon_permission_runtime.php'
+      - 'includes/permissions.php'
+      - 'includes/viewer_access.php'
+      - 'chuyenmon/includes/functions.php'
+      - 'tests/academic_drive*'
+      - '.github/workflows/academic-drive.yml'
+  workflow_dispatch:
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, curl
+      - run: |
+          php -l chuyenmon/hoso.php
+          php -l chuyenmon/includes/academic_drive.php
+          php tests/academic_drive_test.php
+  browser:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: npm install --prefix "$RUNNER_TEMP/academic-drive" --no-package-lock playwright@1.58.2 bootstrap@5.3.3
+      - run: "$RUNNER_TEMP/academic-drive/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/academic_drive_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/academic-drive/node_modules

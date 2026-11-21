@@ -11,8 +11,9 @@ function up_permission_navigation(array $catalog):array {
  'cm.pccm'=>['Phân công chuyên môn','Phân công · Danh sách · Đổi chéo · Rà soát',''],
  'cm.nhaplieu'=>['Phân công chuyên môn','Danh mục giáo viên · Môn học · Lớp · Kiêm nhiệm',''],
  'cm.thongke'=>['Phân công chuyên môn','Thống kê PCCM · Xuất bảng',''],
- 'cm.kehoach'=>['Báo cáo / Học tập','Kế hoạch giáo dục · CLB · Học Online','Điều hướng các mục này dùng chung cm.kehoach; gồm Thông báo và Chỉ tiêu. Từng trang vẫn áp dụng quy tắc thao tác hiện có.'],
- 'cm.baocao.dinhky'=>['Báo cáo','Báo cáo định kỳ',''],
+ 'cm.hoso'=>['Hồ sơ - Báo cáo','Hồ sơ chuyên môn','Xem thư mục/tài liệu Drive. Chỉ quản trị hệ thống được thay đổi thư mục gốc.'],
+ 'cm.kehoach'=>['Hồ sơ - Báo cáo / Học tập','Kế hoạch giáo dục · CLB · Học Online','Điều hướng các mục này dùng chung cm.kehoach; gồm Thông báo và Chỉ tiêu. Từng trang vẫn áp dụng quy tắc thao tác hiện có.'],
+ 'cm.baocao.dinhky'=>['Hồ sơ - Báo cáo','Báo cáo định kỳ',''],
  ];
  $td=['td.teacher_attendance'=>'CBGVNV / Chấm công','td.teacher_achievement'=>'CBGVNV / Thành tích','td.teacher_rating'=>'CBGVNV / Đánh giá tháng và năm','td.student_score'=>'Học sinh / Nề nếp - Học tập','td.student_profile'=>'Học sinh / Hồ sơ thi đua','td.student_room_input'=>'Phòng nội trú / Nhập liệu','td.student_room_stats'=>'Phòng nội trú / Thống kê - Xếp loại','td.student_room_settings'=>'Phòng nội trú / Cài đặt','td.stats'=>'Thống kê','td.all_data'=>'Phạm vi dữ liệu'];
  $nt=['nt.tongquan'=>'Tổng quan','nt.danhsach'=>'Danh sách học sinh','nt.chiaphong'=>'Danh sách / Chia phòng','nt.chiamam'=>'Bữa ăn / Chia mâm','nt.diemdanh'=>'Điểm danh','nt.diemdanh.quantri'=>'Điểm danh / Quản trị','nt.baoan'=>'Bữa ăn / Báo ăn','nt.buaan.tonghop'=>'Bữa ăn / Tổng hợp - Chốt','nt.gao'=>'Bữa ăn / Kho gạo','nt.ravao'=>'Xin ra vào KTX','nt.yte'=>'Y tế','nt.lichtruc'=>'Lịch trực / Biên bản trực','nt.thucdon'=>'Bữa ăn / Thực đơn','nt.thongke'=>'Thống kê'];
