@@ -56,6 +56,13 @@ try{
  $data['program_week']=['week_key'=>'9','version_id'=>'v1','classes'=>['8A'=>['period'=>7,'teacher'=>'A','hash'=>gdp_hash($configs['8A'])]]];
  $GLOBALS['CDS_TTB_CURRENT_DATA']=$data;$weekly=ttb_assignments();$gdp=array_values(array_filter($weekly,fn($r)=>isset($r['program_period'])));
  check(count($gdp)===1&&$gdp[0]['teacher']==='A'&&$gdp[0]['program_period']===7,'Weekly pick suggests teacher');
+ // All source types must honor an explicit weekly zero, including progress-generated GDĐP.
+ $savedData=$data;$gdpId=$gdp[0]['id'];$data['period_overrides']=[$gdpId=>['periods'=>0],'math'=>['periods'=>2.5]];$GLOBALS['CDS_TTB_CURRENT_DATA']=$data;
+ $withZero=ttb_assignments();$zero=array_values(array_filter($withZero,fn($r)=>$r['id']===$gdpId));
+ check(count($zero)===1&&(float)$zero[0]['periods']===0.0&&$zero[0]['base_periods']===1,'GDĐP zero stays visible and keeps its suggested/base period');
+ check(ttb_activities($zero,[])===[],'Zero GDĐP generates no timetable activities');
+ check(array_values(array_filter($withZero,fn($r)=>$r['id']==='math'))[0]['periods']===2.5,'Ordinary/fractional overrides still apply');
+ $GLOBALS['CDS_TTB_CURRENT_DATA']=$savedData;check(array_values(array_filter(ttb_assignments(),fn($r)=>$r['id']===$gdpId))[0]['periods']===1,'Another workspace without override keeps the suggested count');$data=$savedData;
  check(hash_file('sha256',$dir.'/assignments_v1.json')===$hash,'Legacy data untouched');
  $activities=ttb_activities($gdp,[]);
  $entry=['activity_id'=>'legacy_copied_id','teacher'=>'B','subject'=>'GDĐP','classes'=>['8A'],'day'=>2,'session'=>'Sáng','period'=>1,'locked'=>true,'room_id'=>'r1'];
