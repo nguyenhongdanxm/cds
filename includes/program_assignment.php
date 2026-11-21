@@ -180,3 +180,26 @@ function gdp_publish_consent_error(array $review,array $consent): string {
     foreach($review['rows']as$row)if(empty($accepted[$row['key']]))return 'Chưa xác nhận đủ các tiết GDĐP khác giáo viên phân công. Hãy kiểm tra bảng đối chiếu và tích xác nhận từng tiết, hoặc quay lại sửa TKB.';
     return '';
 }
+
+/** Same published PCCM authority for supplemental lessons, independent of a week's teacher. */
+function gdp_runtime_configs(string $dir): array {
+    require_once __DIR__.'/pccm_release.php';
+    $published=pccm_published_source($dir);if($published)return (array)$published['configs'];
+    $version=(string)((load_json($dir.'/active_version.json',[]))['id']??'');
+    if($version==='')foreach((array)load_json($dir.'/versions.json',[])as$v)if(!empty($v['id'])){$version=(string)$v['id'];break;}
+    return gdp_load($dir,$version);
+}
+function gdp_teacher_courses(string $teacher): array {
+    $out=[];foreach(gdp_runtime_configs(DATA_PATH)as$class=>$config)foreach((array)($config['ranges']??[])as$range)if(trim((string)($range['teacher']??''))===trim($teacher)){
+        $subject=(string)($config['subject']??'GDĐP');$out[$class.'|||'.$subject]=['value'=>$class.'|||'.$subject,'class'=>(string)$class,'subject'=>$subject];break;
+    }return array_values($out);
+}
+/** Optional per-slot PPCT metadata never grants permission or changes an approved teacher. */
+function gdp_registration_metadata(array $row,$value): array {
+    if(!gdp_subject((string)($row['replacement_subject']??$row['subject']??'')))return [];
+    if($value===null||$value==='')return [];
+    $period=filter_var($value,FILTER_VALIDATE_INT);
+    if($period===false||$period<1||$period>35)throw new RuntimeException('Tiết PPCT GDĐP phải là số nguyên từ 1 đến 35.');
+    $config=gdp_runtime_configs(DATA_PATH)[(string)($row['class']??'')]??[];
+    return ['program_period'=>$period,'program_expected_teacher'=>gdp_teacher($config,$period)];
+}

@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const {JSDOM}=require('jsdom');
+const source=fs.readFileSync('chuyenmon/includes/footer.php','utf8');
+const start=source.indexOf(' function installProgramPeriods('),end=source.indexOf(" loadManage('week',requestedDate);",start);
+assert(start>0&&end>start);
+const dom=new JSDOM('<section id="host"><table><tbody><tr><td><input class="tkb-sub-check" data-kind="fill" value="extra" checked type="checkbox"></td><td></td><td></td><td><select class="tkb-fill-subject" data-id="extra"><option>GDĐP</option><option>Toán</option></select></td><td></td></tr></tbody></table></section>');
+const data={csrf:'csrf',rows:[{id:'extra',subject:'GDĐP',substitute_teacher:'B',program_period:12,program_ranges:[{from:1,to:11,teacher:'A'},{from:12,to:35,teacher:'B'}]}]};
+let posted;
+const context={document:dom.window.document,manageSection:dom.window.document.getElementById('host'),manageData:data,currentMode:'manage',CSS:{escape:x=>x},URLSearchParams,manageEndpoint:'/manage',confirm:()=>true,alert:()=>{},fetch:(url,options)=>{posted=options.body;return Promise.resolve({json:()=>Promise.resolve({ok:false})})}};
+vm.createContext(context);vm.runInContext(source.slice(start,end),context);context.installProgramPeriods(data);
+let input=context.manageSection.querySelector('.tkb-program-period'),hint=context.manageSection.querySelector('.gdp-program-editor .mt-1');
+assert.equal(input.value,'12');assert.match(hint.textContent,/B/);assert(!hint.classList.contains('text-danger'));
+input.value='11';input.dispatchEvent(new dom.window.Event('input'));assert.match(hint.textContent,/A.*KHÁC GV ĐĂNG KÝ: B/);assert(hint.classList.contains('text-danger'));
+input.value='12';input.dispatchEvent(new dom.window.Event('input'));context.bulk('approve_many');assert.equal(new URLSearchParams(posted).get('program_periods[extra]'),'12');
+const select=context.manageSection.querySelector('select');select.value='Toán';select.dispatchEvent(new dom.window.Event('change'));assert(input.disabled);assert(context.manageSection.querySelector('.gdp-program-editor').hidden);
+console.log('PASS supplemental GDĐP UI: independent PPCT12/B, mismatch11/A warning, per-row approval payload and non-GDĐP exclusion');

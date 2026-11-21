@@ -4,6 +4,10 @@ on:
     paths:
       - 'includes/program*'
       - 'tkb_publish.php'
+      - 'chuyenmon/thoikhoabieu.php'
+      - 'chuyenmon/tkb_substitution_manage.php'
+      - 'chuyenmon/includes/footer.php'
+      - 'tests/program_extra_teacher*'
       - 'tkb_editor.php'
       - 'assets/timetable-warnings.css'
       - 'assets/timetable-publish-review.js'
@@ -41,6 +45,10 @@ jobs:
           php tests/program_assignment_excel_test.php
           php tests/program_lesson_book_test.php
           php tests/program_flexible_sign_test.php
+          php -l chuyenmon/thoikhoabieu.php
+          php -l chuyenmon/tkb_substitution_manage.php
+          php -l chuyenmon/includes/footer.php
+          php tests/program_extra_teacher_test.php
           php -l tkb_publish.php
           php -l tkb_editor.php
           php tests/program_publish_review_test.php
@@ -76,6 +84,6 @@ jobs:
           php-version: '8.3'
           extensions: mbstring
       - run: npm install --prefix "$RUNNER_TEMP/review-ui" --no-package-lock jsdom@26.1.0
-      - run: node --check assets/timetable-publish-review.js && node tests/program_publish_review_dom.cjs
+      - run: node --check assets/timetable-publish-review.js && node tests/program_publish_review_dom.cjs && node tests/program_extra_teacher_ui.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/review-ui/node_modules
