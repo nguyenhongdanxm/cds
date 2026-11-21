@@ -21,6 +21,7 @@ function lb_norm($v){return strtolower($v);}
 function lb_same($a,$b){return $a===$b;}
 function lb_same_subject($a,$b){return $a===$b;}
 function lb_grade($v){return '8';}
+function lb_curriculum_for(...$args){return null;}
 function lb_slot_id($w,$r){return implode('|',[$r['date'],$r['session'],$r['period'],$r['class'],$r['subject'],$r['actual_teacher']]);}
 function lb_ppct_enrich($r){return array_merge($r,['school_year_key'=>'2026','class_key'=>$r['class'],'subject_key'=>$r['subject']]);}
 function cds_lb_claims_ppct($r){return !empty($r['signed_at'])&&in_array($r['status']??'',['taught','substitute','makeup','online'],true);}
