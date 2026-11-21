@@ -28,7 +28,7 @@ try {
   $row=$GLOBALS['records'][0];check($row['ppct_period']===11&&$row['actual_teacher']==='Actual'&&!empty($row['signed_at']),'Keep actual PPCT/teacher/signature');
  }
  $GLOBALS['records']=[];$r=lb_save_record([],$input);check($r['ok'],'Save without signing allows offset');
- $r=lb_sign([],'s');check($r['ok']&&$r['type']==='warning','Separate signing path also allows offset with advisory');
+ $r=lb_sign(['key'=>'w'],'s');check($r['ok']&&$r['type']==='warning','Separate signing path also allows offset with advisory');
  $GLOBALS['authorized']=false;$before=$GLOBALS['records'];
  check(!lb_save_record([],$input,true)['ok']&&!lb_sign([],'s')['ok']&&$before===$GLOBALS['records'],'Advisory cannot bypass signing ownership');
  $GLOBALS['authorized']=true;$GLOBALS['slot']['subject']='Toán';$GLOBALS['records']=[];
