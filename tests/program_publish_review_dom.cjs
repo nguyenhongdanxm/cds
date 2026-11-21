@@ -12,7 +12,7 @@ boxes[0].checked=false;boxes[0].dispatchEvent(new w.Event('change'));assert(butt
 let event=new w.Event('submit',{cancelable:true});d.getElementById('publishForm').dispatchEvent(event);assert(event.defaultPrevented);
 boxes[0].checked=true;boxes[0].dispatchEvent(new w.Event('change'));w.confirm=()=>false;
 event=new w.Event('submit',{cancelable:true});d.getElementById('publishForm').dispatchEvent(event);assert(event.defaultPrevented,'Cancelling publication stops submit');
-let requests=0;d.getElementById('weekReviewForm').requestSubmit=()=>requests++;d.getElementById('schoolWeek').dispatchEvent(new w.Event('change'));assert.equal(requests,1,'New week requests fresh server review');
+let requests=0;d.getElementById('weekReviewForm').requestSubmit=()=>requests++;d.getElementById('schoolWeek').dispatchEvent(new w.Event('change'));assert.equal(requests,1,'New week requests fresh server review');assert(button.disabled&&boxes.every(b=>!b.checked),'Changing week immediately invalidates old consent');
 dom=render('mismatch');assert([...dom.window.document.querySelectorAll('[name="gdp_ack[]"]')].every(b=>!b.checked),'Reload never carries old consent');
 dom=render('clean');assert(!dom.window.document.getElementById('publishButton').disabled,'Matching teachers need no extra checkbox');
 for(const mode of ['error','no-week']){dom=render(mode);assert.equal(dom.window.document.getElementById('publishForm'),null,'Cannot submit without valid week/review: '+mode);}
