@@ -23,5 +23,7 @@ $week=['key'=>'9','label'=>'Tuần 9','start'=>'2026-11-02','end'=>'2026-11-08']
 function renderRows($w){unset($GLOBALS['lb_slots_cache']);return lb_slots($w,null,false,false);}
 $row=renderRows($week)[0];check($row['actual_teacher']==='GV A'&&$row['ppct_period']===7&&$row['suggested_ppct_period']===7,'Book gets pinned teacher and period 7 in week 9');
 $GLOBALS['records']=[array_merge($row,['ppct_period'=>0,'status'=>'pending','signed_at'=>''])];$row=renderRows($week)[0];check($row['ppct_period']===7,'Draft zero does not erase published program period');
+$GLOBALS['records']=[array_merge($row,['ppct_period'=>8,'status'=>'taught','signed_at'=>''])];$row=renderRows($week)[0];check($row['ppct_period']===8,'Unsigned actual PPCT survives reload when it differs from timetable suggestion');
 $GLOBALS['records']=[array_merge($row,['ppct_period'=>8,'actual_teacher'=>'GV B','status'=>'taught','signed_at'=>'2026-11-02','signed_snapshot'=>['ppct_period'=>8,'actual_teacher'=>'GV B']])];$row=renderRows($week)[0];check($row['ppct_period']===8&&$row['actual_teacher']==='GV B','Existing signed snapshot is immutable even if timetable metadata differs');
 echo "PASS lesson book program integration: published week9/period7, draft persistence and signed snapshot preservation\n";
+

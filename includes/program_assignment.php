@@ -61,13 +61,16 @@ function gdp_progress_hash(array $configs,array $ctx,array $records): string {
     $next=[];foreach($configs as$class=>$config)$next[$class]=gdp_next($records,(string)$class,$ctx['start'],$ctx['year_start']);
     return hash('sha256',json_encode($next));
 }
+/** Weekly picks suggest teachers for NEW activities; they do not lock existing lessons. */
 function gdp_week_rows(array $data,array $configs,string $version): array {
-    $ctx=gdp_week_context($data);$snap=(array)($data['program_week']??[]);
-    if($ctx['key']===''||$ctx['start']===''||($snap['week_key']??'')!==$ctx['key']||($snap['version_id']??'')!==$version)throw new RuntimeException('GDĐP: chọn tuần làm việc và xác nhận tiết chương trình tại Khối lượng.');
-    $out=[];foreach($configs as$class=>$config){$pick=(array)($snap['classes'][$class]??[]);$period=(int)($pick['period']??0);$teacher=gdp_teacher($config,$period);
-        if(($pick['hash']??'')!==gdp_hash($config)||$period<1||$period>36||($period<=35&&($teacher===''||$teacher!==($pick['teacher']??''))))throw new RuntimeException('GDĐP lớp '.$class.': phân công đã thay đổi, cần xác nhận lại tiết và giáo viên.');
+    $ctx=gdp_week_context($data);$snap=(array)($data['program_week']??[]);$records=gdp_week_records($ctx);$out=[];
+    foreach($configs as$class=>$config){
+        $pick=($snap['week_key']??'')===$ctx['key']&&($snap['version_id']??'')===$version?(array)($snap['classes'][$class]??[]):[];
+        $period=(int)($pick['period']??gdp_next($records,(string)$class,$ctx['start'],$ctx['year_start']));
+        if($period<1||$period>36)$period=1;
         if($period===36)continue;
-        $out[]=['id'=>'gdpw_'.substr(hash('sha256',$version.'|'.$class.'|'.$period.'|'.$teacher),0,24),'teacher'=>$teacher,'subject'=>$config['subject'],'class'=>$class,'periods'=>1,'base_periods'=>1,'program_period'=>$period,'note'=>'Tiết chương trình '.$period.'/35'];
+        $teacher=gdp_teacher($config,$period);if($teacher==='')continue;
+        $out[]=['id'=>'gdpw_'.substr(hash('sha256',$version.'|'.$class.'|'.$period.'|'.$teacher),0,24),'teacher'=>$teacher,'subject'=>$config['subject'],'class'=>$class,'periods'=>1,'base_periods'=>1,'program_period'=>$period,'note'=>'Gợi ý tiết chương trình '.$period.'/35; được điều chỉnh khi dạy thực tế'];
     }return $out;
 }
 function gdp_builder_configs(): array {
@@ -113,25 +116,90 @@ function gdp_confirm_plan_bindings(array $data,array $picks): array {
     }
     return $bindings;
 }
-/** Match stored plan entries, never silently change teachers in an existing plan. */
+/** Advisory only: preserve scheduled teachers, copied identities and extra lessons. */
+function gdp_assignment_warning(array $config,string $class,int $period,string $actual): string {
+    $expected=gdp_teacher($config,$period);
+    return $expected!==''&&$actual!==''&&$actual!==$expected
+        ? 'GDĐP lớp '.$class.', tiết PPCT '.$period.': phân công '.$expected.'; giáo viên thực tế '.$actual.'. Vui lòng kiểm tra phân công/dạy thay.' : '';
+}
 function gdp_publish_periods(array $data,array $plan,string $weekKey,string $from): array {
+    $GLOBALS['gdp_publish_warnings']=[];$GLOBALS['gdp_publish_mismatches']=[];
     $source=gdp_builder_configs();$configs=$source['configs'];if(!$configs)return [];
-    $ctx=gdp_week_context($data);if($ctx['key']!==$weekKey||$ctx['start']!==$from)throw new RuntimeException('GDĐP: tuần công bố phải trùng tuần đã xác nhận.');
-    if(($data['program_week']['progress_hash']??'')!==gdp_progress_hash($configs,$ctx,gdp_week_records($ctx)))throw new RuntimeException('Tiến độ GDĐP đã thay đổi sau lần xác nhận (có thể do ký sổ muộn). Hãy kiểm tra và xác nhận lại tại Khối lượng; phương án chưa bị thay đổi.');
-    $rows=gdp_week_rows($data,$configs,$source['version']);$byClass=[];foreach($rows as$r)$byClass[$r['class']]=$r;$found=[];$periods=[];$idCounts=[];
-    foreach((array)($plan['entries']??[])as$entry){$id=(string)($entry['activity_id']??'');$idCounts[$id]=($idCounts[$id]??0)+1;}
-    foreach((array)($plan['entries']??[])as$e)foreach((array)($e['classes']??[])as$class){if(!gdp_subject((string)($e['subject']??''))||!isset($configs[$class]))continue;$r=$byClass[$class]??null;
-        if(!$r)throw new RuntimeException('GDĐP lớp '.$class.': đã xác nhận hoàn thành chương trình nhưng phương án vẫn còn tiết. Hãy kiểm tra lại.');
-        if(($e['teacher']??'')!==$r['teacher'])throw new RuntimeException('GDĐP lớp '.$class.': tiết chương trình '.$r['program_period'].' cần giáo viên '.$r['teacher'].'; phương án đang xếp '.(string)($e['teacher']??'').'. Hãy sửa riêng tiết này trước khi công bố.');
-        if(isset($found[$class]))throw new RuntimeException('GDĐP lớp '.$class.': phương án có nhiều hơn 1 tiết. Hãy kiểm tra tiết trùng.');
-        if(($e['activity_id']??'')===''||($idCounts[(string)$e['activity_id']]??0)!==1)throw new RuntimeException('GDĐP lớp '.$class.': mã tiết bị thiếu hoặc dùng trùng trong phương án. Hãy kiểm tra trước khi công bố.');
-        $binding=$data['program_week']['plan_bindings'][(string)($plan['id']??'')][(string)($e['activity_id']??'')]??null;
-        $confirmedBinding=is_array($binding)&&($binding['class']??'')===(string)$class&&($binding['teacher']??'')===$r['teacher']&&(int)($binding['period']??0)===(int)$r['program_period']&&($binding['signature']??'')===gdp_plan_binding_signature($e);
-        if(($e['activity_id']??'')!==$r['id'].'_1'&&!gdp_copied_activity_matches($data,$e,(string)$class,$source['version'])&&!$confirmedBinding)throw new RuntimeException('GDĐP lớp '.$class.': mã tiết sao chép chưa được liên kết với tuần hiện tại. Vào Khối lượng, bấm Xác nhận tiết và giáo viên để liên kết phương án đang có; không cần xếp lại toàn bộ TKB.');
-        $found[$class]=true;$periods[$e['activity_id']]=$r['program_period'];
+    $target=$data;$target['_workspace']['week_key']=$weekKey;$ctx=gdp_week_context($target);$ctx['start']=$from;
+    $records=gdp_week_records($ctx);$snap=(array)($data['program_week']??[]);$next=[];
+    foreach($configs as$class=>$config){
+        $pick=($snap['week_key']??'')===$weekKey&&($snap['version_id']??'')===$source['version']?(array)($snap['classes'][$class]??[]):[];
+        $next[$class]=(int)($pick['period']??gdp_next($records,(string)$class,$from,$ctx['year_start']));
     }
-    foreach($byClass as$class=>$r)if(!isset($found[$class]))throw new RuntimeException('GDĐP lớp '.$class.' chưa được xếp đủ 1 tiết.');
-    // Do not permit a configured teacher to collide with another lesson, even on incomplete publish.
-    $busy=[];foreach((array)($plan['entries']??[])as$e){$key=($e['teacher']??'').'|'.($e['day']??'').'|'.($e['session']??'').'|'.($e['period']??'');if(isset($busy[$key])&&(isset($periods[$e['activity_id']??''])||$busy[$key]))throw new RuntimeException('Trùng lịch giáo viên GDĐP.');$busy[$key]=isset($periods[$e['activity_id']??'']);}
+    $entries=(array)($plan['entries']??[]);$idCounts=[];$periods=[];
+    foreach($entries as$e){$id=(string)($e['activity_id']??'');$idCounts[$id]=($idCounts[$id]??0)+1;}
+    usort($entries,fn($a,$b)=>[(int)($a['day']??0),($a['session']??'')==='Sáng'?0:1,(int)($a['period']??0)]<=>[(int)($b['day']??0),($b['session']??'')==='Sáng'?0:1,(int)($b['period']??0)]);
+    $gdpIds=[];
+    foreach($entries as$e){
+        if(!gdp_subject((string)($e['subject']??'')))continue;
+        $id=(string)($e['activity_id']??'');
+        if($id===''||$idCounts[$id]!==1)throw new RuntimeException('GDĐP: mã tiết bị thiếu hoặc dùng trùng trong phương án.');
+        $gdpIds[$id]=true;$classPeriods=[];
+        foreach((array)($e['classes']??[])as$class){
+            if(!isset($configs[$class]))continue;
+            $p=$next[$class]++;$p=$p>=1&&$p<=35?$p:0;$classPeriods[]=$p;
+            $warning=gdp_assignment_warning($configs[$class],(string)$class,$p,(string)($e['teacher']??''));
+            if($warning!==''){
+                $GLOBALS['gdp_publish_warnings'][]=$warning;
+                $detail=['activity_id'=>$id,'class'=>(string)$class,'ppct_period'=>$p,'expected'=>gdp_teacher($configs[$class],$p),'actual'=>(string)($e['teacher']??''),'day'=>(int)($e['day']??0),'session'=>(string)($e['session']??''),'period'=>(int)($e['period']??0)];
+                $detail['key']=hash('sha256',json_encode($detail,JSON_UNESCAPED_UNICODE));
+                $GLOBALS['gdp_publish_mismatches'][]=$detail;
+            }
+        }
+        // A grouped lesson may cover classes at different progress: let each book suggest its own PPCT.
+        if($classPeriods&&count(array_unique($classPeriods))===1)$periods[$id]=$classPeriods[0];
+    }
+    $busy=[];$classes=[];
+    foreach($entries as$e){
+        $slot=($e['day']??'').'|'.($e['session']??'').'|'.($e['period']??'');$isGdp=isset($gdpIds[$e['activity_id']??'']);
+        $key=($e['teacher']??'').'|'.$slot;
+        if(trim((string)($e['teacher']??''))!==''&&isset($busy[$key])&&($isGdp||$busy[$key]))throw new RuntimeException('Trùng lịch giáo viên GDĐP.');
+        $busy[$key]=$isGdp||($busy[$key]??false);
+        foreach((array)($e['classes']??[])as$class){$key=$class.'|'.$slot;if(isset($classes[$key])&&($isGdp||$classes[$key]))throw new RuntimeException('Trùng lịch lớp GDĐP.');$classes[$key]=$isGdp||($classes[$key]??false);}
+    }
+    $GLOBALS['gdp_publish_warnings']=array_values(array_unique($GLOBALS['gdp_publish_warnings']));
     return $periods;
+}
+
+/** Consent is bound to the exact plan, target week, current assignments and proposed PPCT. */
+function gdp_publish_review(array $data,array $plan,string $weekKey,string $from): array {
+    $periods=gdp_publish_periods($data,$plan,$weekKey,$from);
+    $rows=(array)($GLOBALS['gdp_publish_mismatches']??[]);
+    $token=hash('sha256',json_encode([$weekKey,$from,$data['_workspace_id']??'',$plan['id']??'',$plan['entries']??[],$periods,gdp_builder_configs(),$rows],JSON_UNESCAPED_UNICODE));
+    return ['periods'=>$periods,'rows'=>$rows,'token'=>$token,'warnings'=>(array)($GLOBALS['gdp_publish_warnings']??[])];
+}
+function gdp_publish_consent_error(array $review,array $consent): string {
+    if(empty($review['rows']))return '';
+    if(!hash_equals((string)$review['token'],(string)($consent['token']??'')))return 'TKB, tuần hoặc phân công GDĐP đã thay đổi. Hãy xem lại và xác nhận từng tiết khác giáo viên trước khi công bố.';
+    $accepted=array_fill_keys(array_map('strval',array_filter((array)($consent['accepted']??[]),'is_string')),true);
+    foreach($review['rows']as$row)if(empty($accepted[$row['key']]))return 'Chưa xác nhận đủ các tiết GDĐP khác giáo viên phân công. Hãy kiểm tra bảng đối chiếu và tích xác nhận từng tiết, hoặc quay lại sửa TKB.';
+    return '';
+}
+
+/** Same published PCCM authority for supplemental lessons, independent of a week's teacher. */
+function gdp_runtime_configs(string $dir): array {
+    require_once __DIR__.'/pccm_release.php';
+    $published=pccm_published_source($dir);if($published)return (array)$published['configs'];
+    $version=(string)((load_json($dir.'/active_version.json',[]))['id']??'');
+    if($version==='')foreach((array)load_json($dir.'/versions.json',[])as$v)if(!empty($v['id'])){$version=(string)$v['id'];break;}
+    return gdp_load($dir,$version);
+}
+function gdp_teacher_courses(string $teacher): array {
+    $out=[];foreach(gdp_runtime_configs(DATA_PATH)as$class=>$config)foreach((array)($config['ranges']??[])as$range)if(trim((string)($range['teacher']??''))===trim($teacher)){
+        $subject=(string)($config['subject']??'GDĐP');$out[$class.'|||'.$subject]=['value'=>$class.'|||'.$subject,'class'=>(string)$class,'subject'=>$subject];break;
+    }return array_values($out);
+}
+/** Optional per-slot PPCT metadata never grants permission or changes an approved teacher. */
+function gdp_registration_metadata(array $row,$value): array {
+    if(!gdp_subject((string)($row['replacement_subject']??$row['subject']??'')))return [];
+    if($value===null||$value==='')return [];
+    $period=filter_var($value,FILTER_VALIDATE_INT);
+    if($period===false||$period<1||$period>35)throw new RuntimeException('Tiết PPCT GDĐP phải là số nguyên từ 1 đến 35.');
+    $config=gdp_runtime_configs(DATA_PATH)[(string)($row['class']??'')]??[];
+    return ['program_period'=>$period,'program_expected_teacher'=>gdp_teacher($config,$period)];
 }

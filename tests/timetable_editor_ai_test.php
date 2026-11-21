@@ -1,6 +1,7 @@
 <?php
 /** Actual scheduler/intent validators, synthetic state only, no provider or live data. */
 require __DIR__.'/support/load_functions.php';
+require_once __DIR__.'/../includes/program_assignment.php';
 function check($ok,$message){if(!$ok)throw new RuntimeException($message);}
 function rejects(callable $call,$label){$writes=$GLOBALS['writes'];try{$call();}catch(RuntimeException $e){check($writes===$GLOBALS['writes'],'Rejected operation wrote: '.$label);return;}throw new LogicException('Expected rejection: '.$label);}
 function tkb_subject_canonical($s){return $s;}
@@ -79,3 +80,4 @@ $page=str_replace('__DIR__',var_export(dirname(realpath($path)),true),$page);
 ob_start();eval('?>'.$page);$editorHtml=ob_get_clean();
 check(str_contains($editorHtml,'data-side="ai"')&&str_contains($editorHtml,'id="editorAiCommandForm"')&&str_contains($editorHtml,'/assets/timetable-editor-ai.js'),'Actual editor renders integrated AI panel');
 echo "PASS: fill, gap optimization and actual editor rendering without live config\n";
+
