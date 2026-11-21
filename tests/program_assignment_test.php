@@ -51,76 +51,44 @@ try{
  check(gdp_next($records,'8A','2026-11-02','2026-09-07')===7,'Week nine with six completed periods proposes seven, excluding drafts, holidays, other classes, old years and current/future week');
  $records[]=['class'=>'8A','subject'=>'GDĐP','date'=>'2026-10-31','status'=>'makeup','signed_at'=>'signed','ppct_period'=>7];check(gdp_next($records,'8A','2026-11-02','2026-09-07')===8,'Signed makeup advances progress');
  unset($records[2]);check(gdp_next($records,'8A','2026-11-02','2026-09-07')===3,'Missing earlier period is never skipped by MAX');
- $data=['_workspace_id'=>'w9','_workspace'=>['week_key'=>'9']];rejects(fn()=>gdp_week_rows($data,$configs,'v1'),'Confirmation required');
- $data['program_week']=['week_key'=>'9','version_id'=>'v1','classes'=>['8A'=>['period'=>7,'teacher'=>'A','hash'=>gdp_hash($configs['8A'])]]];$data['program_week']['progress_hash']=gdp_progress_hash($configs,gdp_week_context($data),[]);$GLOBALS['CDS_TTB_CURRENT_DATA']=$data;
- $weekly=ttb_assignments();$gdp=array_values(array_filter($weekly,fn($r)=>isset($r['program_period'])));check(count($gdp)===1&&$gdp[0]['teacher']==='A'&&$gdp[0]['periods']===1&&$gdp[0]['program_period']===7,'Actual builder receives one integer period for A in week nine');
+ $data=['_workspace_id'=>'w9','_workspace'=>['week_key'=>'9']];
+ check(count(gdp_week_rows($data,$configs,'v1'))===1,'No mandatory weekly confirmation');
+ $data['program_week']=['week_key'=>'9','version_id'=>'v1','classes'=>['8A'=>['period'=>7,'teacher'=>'A','hash'=>gdp_hash($configs['8A'])]]];
+ $GLOBALS['CDS_TTB_CURRENT_DATA']=$data;$weekly=ttb_assignments();$gdp=array_values(array_filter($weekly,fn($r)=>isset($r['program_period'])));
+ check(count($gdp)===1&&$gdp[0]['teacher']==='A'&&$gdp[0]['program_period']===7,'Weekly pick suggests teacher');
  check(hash_file('sha256',$dir.'/assignments_v1.json')===$hash,'Legacy data untouched');
- $copy=$data;$copy['_workspace']['week_key']='1';rejects(fn()=>gdp_week_rows($copy,$configs,'v1'),'Copied week must be reconfirmed');
- $changed=$configs;$changed['8A']['ranges'][0]['teacher']='C';rejects(fn()=>gdp_week_rows($data,$changed,'v1'),'Changed range invalidates confirmation');rejects(fn()=>gdp_week_rows($data,$configs,'v2'),'Changed version invalidates confirmation');
- $activities=ttb_activities($gdp,[]);check(count($activities)===1&&$activities[0]['teacher']==='A','One scheduler activity with correct teacher');
- $entry=['activity_id'=>$activities[0]['id'],'teacher'=>'A','subject'=>'GDĐP','classes'=>['8A'],'day'=>2,'session'=>'Sáng','period'=>1];$plan=['id'=>'p','entries'=>[$entry],'unplaced'=>[],'errors'=>[]];
- $periods=gdp_publish_periods($data,$plan,'9','2026-11-02');check($periods[$entry['activity_id']]===7,'Publish carries pinned program period');
- save_json($dir.'/lesson_book_records.json',[['class'=>'8A','subject'=>'GDĐP','date'=>'2026-10-01','status'=>'taught','signed_at'=>'late','ppct_period'=>1]]);rejects(fn()=>gdp_publish_periods($data,$plan,'9','2026-11-02'),'Late signing requires explicit progress review');save_json($dir.'/lesson_book_records.json',[]);
- $bad=$plan;$bad['entries'][0]['teacher']='B';rejects(fn()=>gdp_publish_periods($data,$bad,'9','2026-11-02'),'Stale teacher not silently changed');
- rejects(fn()=>gdp_publish_periods($data,$plan,'1','2026-09-07'),'Publish different week blocked');
- $bad=$plan;$bad['entries'][]=['activity_id'=>'math','teacher'=>'A','subject'=>'Toán','classes'=>['8B'],'day'=>2,'session'=>'Sáng','period'=>1];rejects(fn()=>gdp_publish_periods($data,$bad,'9','2026-11-02'),'Teacher collision blocked even incomplete publishing');
- $bad=$plan;$bad['entries']=[];rejects(fn()=>gdp_publish_periods($data,$bad,'9','2026-11-02'),'Missing configured class cannot silently publish');
- $result=ttb_publish($plan,'Tuần 9','2026-11-02','2026-11-08',['name'=>'fixture'],false,'9');check(!empty($result['ok']),'Real publish succeeds');check($GLOBALS['weeks'][0]['slots'][0]['program_period']===7&&$GLOBALS['weeks'][0]['slots'][0]['teacher_raw']==='A','Published slot freezes teacher and program period');
-
- // Copy week 9 -> 10: source ID is period 9, same teacher B, target explicitly confirms period 10.
- $copied=$data;$copied['_workspace_id']='w10';$copied['_workspace']=['week_key'=>'10','copied_from'=>'w9'];
- $copied['program_week']['week_key']='10';$copied['program_week']['classes']['8A']=['period'=>10,'teacher'=>'B','hash'=>gdp_hash($configs['8A'])];
- $copied['program_week']['progress_hash']=gdp_progress_hash($configs,gdp_week_context($copied),[]);
- $sourceId='gdpw_'.substr(hash('sha256','v1|8A|9|B'),0,24).'_1';
- $copiedPlan=$plan;$copiedPlan['id']='copied';$copiedPlan['entries'][0]['activity_id']=$sourceId;$copiedPlan['entries'][0]['teacher']='B';
- $copiedPlan['entries'][0]['locked']=true;$copiedPlan['entries'][0]['room_id']='room1';
- $beforeCopy=$copied;$beforePlan=$copiedPlan;$beforeWeeks=$GLOBALS['weeks'];
- $periods=gdp_publish_periods($copied,$copiedPlan,'10','2026-11-09');check($periods[$sourceId]===10,'Copied source ID binds to explicitly confirmed target period');
- check($copied===$beforeCopy&&$copiedPlan===$beforePlan&&$GLOBALS['weeks']===$beforeWeeks,'Validation does not change drafts, source weeks, rooms or locks');
- $plain=$copied;unset($plain['_workspace']['copied_from']);rejects(fn()=>gdp_publish_periods($plain,$copiedPlan,'10','2026-11-09'),'Stale ID without copy provenance still rejected');
- foreach(['unknown','gdpw_'.substr(hash('sha256','v2|8A|9|B'),0,24).'_1','gdpw_'.substr(hash('sha256','v1|8B|9|B'),0,24).'_1']as$invalidId){$bad=$copiedPlan;$bad['entries'][0]['activity_id']=$invalidId;rejects(fn()=>gdp_publish_periods($copied,$bad,'10','2026-11-09'),'Unknown, other-version and other-class IDs rejected');}
- $bad=$copiedPlan;$bad['entries'][0]['teacher']='A';rejects(fn()=>gdp_publish_periods($copied,$bad,'10','2026-11-09'),'Copy crossing teacher range still blocked');
- $bad=$copiedPlan;$bad['entries'][]=$bad['entries'][0];rejects(fn()=>gdp_publish_periods($copied,$bad,'10','2026-11-09'),'Duplicate copied lesson blocked');
- $bad=$copiedPlan;$bad['entries'][]=['activity_id'=>'math','teacher'=>'B','subject'=>'Toán','classes'=>['8B'],'day'=>2,'session'=>'Sáng','period'=>1];rejects(fn()=>gdp_publish_periods($copied,$bad,'10','2026-11-09'),'Copied teacher collision blocked');
- rejects(fn()=>gdp_publish_periods($copied,$copiedPlan,'9','2026-11-02'),'Copied target must match confirmed week');
- $GLOBALS['CDS_TTB_CURRENT_DATA']=$copied;
- $result=ttb_publish($copiedPlan,'Tuần 10','2026-11-09','2026-11-14',['name'=>'fixture'],false,'10');check(!empty($result['ok']),'Real copied week publish succeeds without re-scheduling');
- $slot=$result['version']['slots'][0];check($slot['program_period']===10&&$slot['teacher_raw']==='B'&&$slot['day']===2&&$slot['session']==='Sáng'&&$slot['period']===1&&$slot['room_id']==='room1','Published copy retains slot/teacher/room and pins target period 10');
- check($GLOBALS['weeks'][0]['slots']===$beforeWeeks[0]['slots'],'Publishing copy preserves source week lessons');
- $GLOBALS['weeks']=$beforeWeeks;$GLOBALS['CDS_TTB_CURRENT_DATA']=$data;
-
- // Legacy IDs and workspaces without copy metadata require an explicit confirmation of the actual draft.
- $originalData=$data;$legacyData=$copied;unset($legacyData['_workspace']['copied_from']);
- $legacyPlan=$copiedPlan;$legacyPlan['entries'][0]['activity_id']='legacy_assignment_10A_1';
- $legacyPlan['entries'][]=['activity_id'=>'other','teacher'=>'C','subject'=>'Toán','classes'=>['8A'],'day'=>3,'session'=>'Sáng','period'=>2];
- $legacyData['plans']=[$legacyPlan];$legacyData['active_plan']=$legacyPlan['id'];
- rejects(fn()=>gdp_publish_periods($legacyData,$legacyPlan,'10','2026-11-09'),'Unconfirmed legacy identity still blocked');
- $data=$legacyData;$user=['name'=>'Fixture'];$_POST=['program_workspace'=>'w10','program_week_key'=>'10','program_version'=>'v1','program_hash'=>hash('sha256',json_encode($configs)),'program_period'=>['8A'=>'10']];
- require __DIR__.'/../includes/program_week_confirm.php';
- $confirmed=$GLOBALS['saved_workspace'];check($confirmed['plans']===$legacyData['plans'],'Real confirmation retains every draft entry, lock, room and schedule slot');
- $periods=gdp_publish_periods($confirmed,$legacyPlan,'10','2026-11-09');check($periods['legacy_assignment_10A_1']===10,'Explicit confirmation binds legacy ID to target period 10 without copy metadata');
- $bad=$legacyPlan;$bad['id']='different-plan';rejects(fn()=>gdp_publish_periods($confirmed,$bad,'10','2026-11-09'),'Binding cannot be replayed in another plan');
- $bad=$legacyPlan;$bad['entries'][0]['activity_id']='different-id';rejects(fn()=>gdp_publish_periods($confirmed,$bad,'10','2026-11-09'),'Binding cannot be replayed for another activity');
- $bad=$legacyPlan;$bad['entries'][0]['teacher']='A';rejects(fn()=>gdp_publish_periods($confirmed,$bad,'10','2026-11-09'),'Binding cannot override teacher validation');
- $bad=$legacyPlan;$bad['entries'][]=$bad['entries'][0];rejects(fn()=>gdp_publish_periods($confirmed,$bad,'10','2026-11-09'),'Binding cannot bypass duplicate GDĐP checks');
- $bad=$legacyPlan;$bad['entries'][1]['teacher']='B';$bad['entries'][1]['day']=2;$bad['entries'][1]['period']=1;rejects(fn()=>gdp_publish_periods($confirmed,$bad,'10','2026-11-09'),'Binding cannot bypass teacher collisions');
- $bad=$legacyPlan;$bad['entries'][0]['classes'][]='8B';rejects(fn()=>gdp_publish_periods($confirmed,$bad,'10','2026-11-09'),'Binding signature cannot be reused after class changes');
- $ambiguous=$legacyData;$ambiguous['plans'][0]['entries'][]=$legacyPlan['entries'][0];check(gdp_confirm_plan_bindings($ambiguous,$confirmed['program_week']['classes'])===[],'Confirmation does not bind duplicate GDĐP lessons');
- $ambiguous=$legacyData;$ambiguous['plans'][0]['entries'][1]['activity_id']='legacy_assignment_10A_1';check(gdp_confirm_plan_bindings($ambiguous,$confirmed['program_week']['classes'])===[],'Confirmation does not bind IDs reused by other subjects');
- rejects(fn()=>gdp_publish_periods($confirmed,$ambiguous['plans'][0],'10','2026-11-09'),'Published binding cannot leak program period to another subject reusing its ID');
- $GLOBALS['CDS_TTB_CURRENT_DATA']=$confirmed;
- $result=ttb_publish($legacyPlan,'Tuần 10','2026-11-09','2026-11-14',['name'=>'fixture'],false,'10');check(!empty($result['ok']),'Actual publish accepts explicitly confirmed legacy draft');
- check($result['version']['slots'][0]['program_period']===10&&$result['version']['slots'][0]['room_id']==='room1'&&$result['version']['slots'][1]['program_period']===0,'Legacy publish pins GDĐP period and leaves other subjects untouched');
- check($GLOBALS['weeks'][0]['slots']===$beforeWeeks[0]['slots'],'Legacy publish preserves source week lessons');
- $data=$originalData;$GLOBALS['CDS_TTB_CURRENT_DATA']=$data;$GLOBALS['weeks']=$beforeWeeks;
- echo "PASS explicit legacy confirmation: draft preservation, week10/period10, real publish, plan/activity/class scope, duplicates, shared IDs and teacher collisions\n";
-
- $data['_workspace_id']='w9';$user=['name'=>'Fixture'];$_POST=['program_workspace'=>'w9','program_week_key'=>'9','program_version'=>'v1','program_hash'=>hash('sha256',json_encode($configs)),'program_period'=>['8A'=>'8']];
- require __DIR__.'/../includes/program_week_confirm.php';
- check($GLOBALS['saved_workspace']['program_week']['classes']['8A']['teacher']==='B','Real weekly confirmation selects teacher B at period 8');
- $before=$GLOBALS['saved_workspace'];$_POST['program_workspace']='stale';rejects(function()use(&$data,&$user){require __DIR__.'/../includes/program_week_confirm.php';},'Stale workspace confirmation');check($GLOBALS['saved_workspace']===$before,'Stale confirmation does not write');
- $published=$GLOBALS['weeks'];$changed['8A']['ranges'][0]['teacher']='C';save_json(gdp_file($dir,'v1'),$changed);check($GLOBALS['weeks']===$published,'Config save cannot rewrite published weeks');
- check(lb_program_period_error(['planned_ppct_period'=>7],['status'=>'taught','ppct_period'=>8])!=='','Cannot change pinned lesson to another teacher range while signing');check(lb_program_period_error(['planned_ppct_period'=>7],['status'=>'postponed','ppct_period'=>0])==='','Postponement permitted without consuming progress');check(lb_program_period_error([],['ppct_period'=>8])==='','Other subjects unchanged');
+ $activities=ttb_activities($gdp,[]);
+ $entry=['activity_id'=>'legacy_copied_id','teacher'=>'B','subject'=>'GDĐP','classes'=>['8A'],'day'=>2,'session'=>'Sáng','period'=>1,'locked'=>true,'room_id'=>'r1'];
+ $plan=['id'=>'p','entries'=>[$entry],'unplaced'=>[],'errors'=>[]];$before=$plan;
+ $periods=gdp_publish_periods($data,$plan,'9','2026-11-02');
+ check($periods['legacy_copied_id']===7&&count($GLOBALS['gdp_publish_warnings'])===1,'Mismatched teacher is advisory; copied identity needs no binding');
+ check($plan===$before,'No rewriting actual teacher, room, lock or draft');
+ $result=ttb_publish($plan,'Tuần 9','2026-11-02','2026-11-08',['name'=>'fixture'],false,'9');
+ check($result['ok']&&$result['warnings']&&$result['version']['slots'][0]['teacher_raw']==='B','Actual publish succeeds and retains actual teacher with warning');
+ $sourceWeeks=$GLOBALS['weeks'];
+ $extra=$plan;$second=$entry;$second['activity_id']='extra';$second['day']=3;$extra['entries'][]=$second;
+ $periods=gdp_publish_periods($data,$extra,'9','2026-11-02');check($periods['extra']===8,'Additional lesson allowed, sequential suggestion by slot order');
+ $reverse=$extra;$reverse['entries']=array_reverse($reverse['entries']);check(gdp_publish_periods($data,$reverse,'9','2026-11-02')===$periods,'Suggestion independent of entry array order');
+ $bad=$extra;$bad['entries'][1]['day']=2;rejects(fn()=>gdp_publish_periods($data,$bad,'9','2026-11-02'),'Actual duplicate class/teacher remains blocked');
+ $bad=$plan;$bad['entries'][]=['activity_id'=>'math','teacher'=>'B','subject'=>'Toán','classes'=>['8B'],'day'=>2,'session'=>'Sáng','period'=>1];rejects(fn()=>gdp_publish_periods($data,$bad,'9','2026-11-02'),'Cross-subject teacher collision still blocks');
+ $bad=$plan;$bad['entries'][]=['activity_id'=>'math','teacher'=>'C','subject'=>'Toán','classes'=>['8A'],'day'=>2,'session'=>'Sáng','period'=>1];rejects(fn()=>gdp_publish_periods($data,$bad,'9','2026-11-02'),'Class collision still blocks');
+ $bad=$plan;$bad['entries'][]=array_replace($entry,['subject'=>'Toán','day'=>4]);rejects(fn()=>gdp_publish_periods($data,$bad,'9','2026-11-02'),'IDs shared with another subject remain invalid');
+ $late=[['class'=>'8A','subject'=>'GDĐP','date'=>'2026-10-01','status'=>'taught','signed_at'=>'late','ppct_period'=>1]];
+ save_json($dir.'/lesson_book_records.json',$late);gdp_publish_periods($data,$plan,'9','2026-11-02');check($GLOBALS['weeks']===$sourceWeeks,'Late signing no longer blocks or rewrites published weeks');
+ $copy=$data;$copy['_workspace']['week_key']='10';unset($copy['program_week']);
+ check(count(gdp_week_rows($copy,$configs,'v1'))===1,'Copy uses current progress without mandatory reconfirmation');
+ gdp_publish_periods($copy,$plan,'10','2026-11-09');check($GLOBALS['weeks']===$sourceWeeks,'Cross-week legacy ID accepted without changing source');
+ $done=$data;$done['program_week']['classes']['8A']['period']=36;
+ check(gdp_publish_periods($done,$plan,'9','2026-11-02')['legacy_copied_id']===0,'Extra lesson after completion remains publishable without fictitious PPCT36');
+ check(gdp_publish_periods($data,array_replace($plan,['entries'=>[]]),'9','2026-11-02')===[],'Weekly pick does not force one GDĐP lesson');
+ check(lb_program_period_error(['planned_ppct_period'=>7],['status'=>'taught','ppct_period'=>8])==='','PPCT suggestion does not lock signing');
+ check(lb_program_warning(['subject'=>'GDĐP','class'=>'8A','ppct_period'=>8,'actual_teacher'=>'A','status'=>'substitute'])!=='','Actual PPCT checks assigned teacher');
+ check(lb_program_warning(['subject'=>'GDĐP','class'=>'8A','ppct_period'=>8,'actual_teacher'=>'B'])==='','Correct teacher has no warning');
+ check(lb_program_warning(['subject'=>'Toán','class'=>'8A','ppct_period'=>8,'actual_teacher'=>'A'])==='','Other subjects unchanged');
+ $user=['name'=>'Fixture'];$_POST=['program_workspace'=>'w9','program_week_key'=>'9','program_version'=>'v1','program_hash'=>hash('sha256',json_encode($configs)),'program_period'=>['8A'=>'8']];
+ require __DIR__.'/../includes/program_week_confirm.php';check($GLOBALS['saved_workspace']['program_week']['classes']['8A']['teacher']==='B','Optional confirmation still selects teacher');
+ $before=$GLOBALS['saved_workspace'];$_POST['program_workspace']='stale';rejects(function()use(&$data,&$user){require __DIR__.'/../includes/program_week_confirm.php';},'Stale workspace write');check($GLOBALS['saved_workspace']===$before,'Stale request cannot write');
+ echo "PASS flexible GDĐP: optional suggestion, copied weeks, late signing, mismatch warning, extra lessons, completion, immutable drafts, duplicate IDs and real collisions\n";
  save_json(gdp_file($dir,'v1'),[]);check(count(ttb_assignments())===3,'Disabling restores untouched legacy assignments');
  $manualFile=$dir.'/manual_assignments.json';
  $manualRows=[
@@ -145,3 +113,4 @@ try{
  echo "PASS PCCM release: bulk scope, atomic rejection, frozen source and unlock\n";
  echo "PASS GDĐP: validation, 35-period coverage, totals, version isolation, week9/period7, makeup, gaps, snapshot invalidation, real scheduler/publish integration, collisions, signed progress and legacy restoration\n";
 }finally{foreach(glob($dir.'/*')as$f)unlink($f);rmdir($dir);}
+

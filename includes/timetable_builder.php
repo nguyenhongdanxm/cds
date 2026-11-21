@@ -117,5 +117,7 @@ function ttb_publish(array$plan,string$name,string$from,string$to,array$user,boo
     if(function_exists('tkb_normalize_weeks'))$weeks=tkb_normalize_weeks($weeks);
     if(!tkb_save(TKB_WEEKS_FILE,$weeks))return['ok'=>false,'message'=>'Không lưu được thời khóa biểu tuần.'];
     tkb_save_mapping($teacherMap,$classMap);
-    return['ok'=>true,'version'=>$week,'message'=>'Đã công bố và ghi đè TKB '.$name.' ('.count($slots).' tiết). Danh sách tuần không tạo thêm phiên bản.'];
+    $warnings=(array)($GLOBALS['gdp_publish_warnings']??[]);
+    return['ok'=>true,'warnings'=>$warnings,'version'=>$week,'message'=>($warnings?'Cảnh báo: '.implode(' ',$warnings).' ':'').'Đã công bố và ghi đè TKB '.$name.' ('.count($slots).' tiết). Danh sách tuần không tạo thêm phiên bản.'];
 }
+

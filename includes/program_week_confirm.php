@@ -7,4 +7,5 @@ $picks=[];foreach($source['configs']as$class=>$config){$p=filter_var($_POST['pro
 $data['program_week']=['week_key'=>$ctx['key'],'version_id'=>$source['version'],'classes'=>$picks,'progress_hash'=>gdp_progress_hash($source['configs'],$ctx,gdp_week_records($ctx)),'confirmed_at'=>date('c'),'confirmed_by'=>$user['name']??''];
 $data['program_week']['plan_bindings']=gdp_confirm_plan_bindings($data,$picks);
 if(!ttb_save($data))throw new RuntimeException('Không lưu được xác nhận.');
-flash('Đã xác nhận tiết GDĐP và liên kết các tiết đang xếp đúng giáo viên với tuần hiện tại. Vị trí TKB được giữ nguyên; tiết sai giáo viên, thiếu hoặc trùng vẫn phải kiểm tra trước khi công bố.','success');
+flash('Đã lưu gợi ý GDĐP để xếp mới. Giữ nguyên giáo viên và vị trí trong phương án đang có; khác giáo viên phân công chỉ cảnh báo.','success');
+
