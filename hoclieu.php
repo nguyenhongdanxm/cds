@@ -4,6 +4,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/quiz_paper_store.php';
 require_login();
 require_once __DIR__ . '/includes/learning_article.php';
+require_once __DIR__ . '/includes/learning_content.php';
 require_once __DIR__ . '/includes/learning_game_catalog.php';
 require_once __DIR__ . '/includes/learning_dashboard.php';
 
@@ -68,20 +69,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $grade = trim((string)($_POST['grade'] ?? ''));
         $source = trim((string)($_POST['source'] ?? ''));
         $kind = trim((string)($_POST['kind'] ?? ''));
-        $sourceKind = in_array($_POST['source_kind'] ?? '', ['upload', 'link', 'html', 'article'], true) ? (string)$_POST['source_kind'] : 'link';
+        $sourceKind = is_string($_POST['source_kind']??null) ? $_POST['source_kind'] : '';
         $url = lh_url((string)($_POST['url'] ?? ''));
         $id = trim((string)($_POST['id'] ?? ''));
         if ($title === '' || $grade === '' || $kind === '') {
             flash('Vui lòng nhập đủ tên, loại và khối.', 'danger'); lh_redirect($tab);
         }
 
+        try { $url=lc_validate_choice($section,$kind,$sourceKind,$url); } catch (InvalidArgumentException $e) { flash($e->getMessage(),'danger'); lh_redirect($tab); }
         $article = $sourceKind === 'article' ? lh_article_clean(trim((string)($_POST['article_body'] ?? ''))) : '';
         if ($sourceKind === 'article' && ($section !== 'resource' || strlen($article) > 8 * 1024 * 1024 || (trim(html_entity_decode(strip_tags($article))) === '' && !preg_match('/<img\b/i', $article)))) {
             flash('Bài viết cần có nội dung và không vượt quá 8 MB (gồm ảnh).', 'danger'); lh_redirect($tab);
         }
         $index = lh_find($data['items'], $id);
         if ($index >= 0 && !$canApprove && ($data['items'][$index]['author_id'] ?? '') !== $userId) { http_response_code(403); exit('Chỉ được sửa nội dung do mình nộp.'); }
-        $filePath = '';
+        $filePath = ''; $fileName = ''; $fileMime = '';
         $upload = $_FILES['file'] ?? null;
         if (in_array($sourceKind, ['upload', 'html'], true) && $upload && ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
             if (($upload['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
@@ -97,15 +99,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash('Tệp không hợp lệ hoặc vượt quá 50 MB.', 'danger'); lh_redirect($tab);
             }
             $mime = function_exists('mime_content_type') ? (mime_content_type((string)$upload['tmp_name']) ?: 'application/octet-stream') : 'application/octet-stream';
-            if ($sourceKind === 'html') $mime = 'text/html';
+            try { $mime=lc_upload_mime($kind,$sourceKind,$name,$bytes,$mime); } catch (InvalidArgumentException $e) { flash($e->getMessage(),'danger'); lh_redirect($tab); }
             $driveType = $section === 'exam' ? 'exam_bank' : 'learning_resources';
             $result = cds_drive_upload_bytes($bytes, $name, $mime, $driveType, ['title' => $title, 'grade' => $grade, 'source_action' => 'page:/hoclieu.php']);
             if (empty($result['ok'])) {
                 flash($result['message'] ?? 'Không tải được tệp lên Google Drive.', 'danger'); lh_redirect($tab);
             }
-            $filePath = (string)$result['path'];
+            $filePath = (string)$result['path']; $fileName=$name; $fileMime=$mime;
         }
-        if ($sourceKind === 'link' && $url === '') {
+        if (in_array($sourceKind,['link','youtube','vimeo','video_url','image_url'],true) && $url === '') {
             flash('Vui lòng nhập liên kết bắt đầu bằng http:// hoặc https://.', 'danger'); lh_redirect($tab);
         }
 
@@ -113,11 +115,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($index >= 0) {
             $old = $data['items'][$index];
             if (!$canApprove && ($old['author_id'] ?? '') !== $userId) { http_response_code(403); exit('Chỉ được sửa nội dung do mình nộp.'); }
+            if (in_array($sourceKind,['upload','html'],true) && $filePath==='' && (($old['source_kind']??'')!==$sourceKind || empty($old['file_path']) || ($sourceKind==='upload' && ($old['kind']??'')!==$kind))) { flash('Vui lòng chọn tệp phù hợp khi đổi loại hoặc hình thức nội dung.','danger'); lh_redirect($tab); }
             $data['items'][$index] = array_merge($old, [
                 'section' => $section, 'title' => $title, 'kind' => $kind, 'grade' => $grade,
                 'source' => $source, 'source_kind' => $sourceKind, 'article_body' => $article,
-                'url' => $sourceKind === 'link' ? $url : '',
+                'url' => in_array($sourceKind,['link','youtube','vimeo','video_url','image_url'],true) ? $url : '',
                 'file_path' => $sourceKind === 'article' ? '' : ($filePath !== '' ? $filePath : (string)($old['file_path'] ?? '')),
+                'file_name'=>$fileName!==''?$fileName:($old['file_name']??''), 'file_mime'=>$fileMime!==''?$fileMime:($old['file_mime']??''),
                 'updated_at' => date('c'),
             ]);
         } else {
@@ -127,7 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data['items'][] = [
                 'id' => 'hl_' . bin2hex(random_bytes(8)), 'section' => $section, 'title' => $title,
                 'kind' => $kind, 'grade' => $grade, 'source' => $source, 'source_kind' => $sourceKind, 'article_body' => $article,
-                'url' => $sourceKind === 'link' ? $url : '', 'file_path' => $filePath,
+                'url' => in_array($sourceKind,['link','youtube','vimeo','video_url','image_url'],true) ? $url : '', 'file_path' => $filePath, 'file_name'=>$fileName, 'file_mime'=>$fileMime,
                 'author_id' => $userId, 'author' => $userName, 'approved' => $canApprove,
                 'approved_at' => $canApprove ? date('c') : '', 'approved_by' => $canApprove ? $userName : '',
                 'featured' => false, 'created_at' => date('c'), 'updated_at' => date('c'),
@@ -205,16 +209,8 @@ $list = array_values(array_filter($visibleItems, function($row) use ($tab, $q, $
 }));
 usort($list, fn($a, $b) => strcmp((string)($b['created_at'] ?? ''), (string)($a['created_at'] ?? '')));
 
-function lh_item_url(array $row): string {
-    if (($row['source_kind'] ?? '') === 'article') return BASE_URL . 'hoclieu_file.php?id=' . urlencode((string)$row['id']);
-    if (($row['source_kind'] ?? '') === 'link') return (string)($row['url'] ?? '#');
-    $path = (string)($row['file_path'] ?? '');
-    if (($row['source_kind'] ?? '') !== 'html' && str_starts_with($path, 'gdrive:')) {
-        $fileId = trim(substr($path, 7));
-        if ($fileId !== '') return 'https://drive.google.com/file/d/' . rawurlencode($fileId) . '/view?usp=drive_link';
-    }
-    return BASE_URL . 'hoclieu_file.php?id=' . urlencode((string)($row['id'] ?? ''));
-}
+function lh_item_url(array $row): string { return BASE_URL.'hoclieu_file.php?id='.rawurlencode((string)($row['id']??'')).'&preview=1'; }
+
 function lh_icon(string $kind): string {
     $map = ['Bài viết'=>'bi-journal-richtext','Văn bản'=>'bi-file-earmark-text','Ứng dụng'=>'bi-window','Video'=>'bi-play-circle','Trình chiếu'=>'bi-easel2','Hình ảnh'=>'bi-image','Đề kiểm tra'=>'bi-ui-checks','Thi thử'=>'bi-stopwatch','Kỳ thi'=>'bi-mortarboard'];
     return $map[$kind] ?? 'bi-folder2-open';
@@ -261,7 +257,7 @@ require __DIR__.'/includes/learning_dashboard_view.php';
 <form class="card p-3 mb-3"><input type="hidden" name="tab" value="<?= e($tab) ?>"><div class="row g-2"><div class="col-md-7"><input class="form-control" name="q" value="<?= e($q) ?>" placeholder="Tìm theo tên, loại, nguồn hoặc giáo viên"></div><div class="col-md-3"><select class="form-select" name="grade"><option value="">Tất cả khối</option><?php foreach (['6','7','8','9','10','11','12','Toàn trường'] as $g): ?><option <?= $gradeFilter===$g?'selected':'' ?>><?= $g ?></option><?php endforeach; ?></select></div><div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-search"></i> Tìm</button></div></div></form>
 <div class="row g-3"><?php if (!$list): ?><div class="col-12"><div class="card p-5 text-center text-muted">Chưa có nội dung phù hợp.</div></div><?php else: foreach ($list as $row): ?>
 <div class="col-md-6 col-xl-4"><div class="card resource-card p-3"><div class="d-flex gap-3"><span class="resource-icon"><i class="bi <?= lh_icon((string)$row['kind']) ?>"></i></span><div class="flex-grow-1 min-w-0"><div class="d-flex justify-content-between gap-2"><h5 class="fw-bold mb-1"><?= e($row['title']) ?></h5><span class="status <?= !empty($row['approved'])?'approved':'pending' ?>"><?= !empty($row['approved'])?'Đã duyệt':'Chờ duyệt' ?></span></div><div class="small text-muted"><?= e($row['kind']) ?> · Khối <?= e($row['grade']) ?></div><div class="small mt-2"><i class="bi bi-person"></i> <?= e($row['author']) ?><?php if (!empty($row['source'])): ?> · <?= e($row['source']) ?><?php endif; ?></div></div></div>
-<div class="d-flex flex-wrap gap-2 mt-3"><a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener" href="<?= e(lh_item_url($row)) ?>"><i class="bi bi-eye"></i> Xem</a>
+<div class="d-flex flex-wrap gap-2 mt-3"><a class="btn btn-sm btn-outline-primary" data-learning-preview data-title="<?=e($row['title']??'Xem nội dung')?>" href="<?= e(lh_item_url($row)) ?>"><i class="bi bi-eye"></i> Xem</a>
 <?php if (($canCurrentEdit && (($row['author_id'] ?? '') === $userId || $canApprove)) || $canApprove): ?><button type="button" class="btn btn-sm btn-outline-secondary" data-item="<?= e(base64_encode(json_encode($row, JSON_UNESCAPED_UNICODE))) ?>" onclick="editLearningItem(this)" title="Sửa"><i class="bi bi-pencil"></i></button><?php endif; ?>
 <?php if ($canApprove && empty($row['approved'])): ?><form method="post"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="approve_item"><input type="hidden" name="id" value="<?= e($row['id']) ?>"><input type="hidden" name="tab" value="<?= e($tab) ?>"><button class="btn btn-sm btn-success"><i class="bi bi-check2-circle"></i> Duyệt</button></form><?php endif; ?>
 <?php if ($canApprove): ?><form method="post"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="feature_item"><input type="hidden" name="id" value="<?= e($row['id']) ?>"><input type="hidden" name="tab" value="<?= e($tab) ?>"><button class="btn btn-sm btn-outline-warning" title="Nổi bật"><i class="bi bi-star<?= !empty($row['featured'])?'-fill':'' ?>"></i></button></form><?php endif; ?>
@@ -269,10 +265,10 @@ require __DIR__.'/includes/learning_dashboard_view.php';
 <?php endforeach; endif; ?></div>
 
 <div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><form method="post" enctype="multipart/form-data" id="itemForm"><div class="modal-header"><h5 class="modal-title">Nhập <?= $isExam?'đề, bài kiểm tra hoặc kỳ thi':'học liệu' ?></h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="save_item"><input type="hidden" name="id" id="itemId"><input type="hidden" name="section" value="<?= $isExam?'exam':'resource' ?>">
-<div class="row g-3"><div class="col-md-8"><label class="form-label fw-semibold">Tên <?= $isExam?'đề / kỳ thi':'học liệu' ?></label><input class="form-control" name="title" required></div><div class="col-md-4"><label class="form-label fw-semibold">Loại</label><select class="form-select" name="kind" required><option value="">Chọn loại</option><?php foreach ($isExam?['Đề kiểm tra','Thi thử','Kỳ thi']:['Bài viết','Văn bản','Ứng dụng','Video','Trình chiếu','Hình ảnh','Trò chơi'] as $kind): ?><option><?= e($kind) ?></option><?php endforeach; ?></select></div>
+<div class="row g-3"><div class="col-md-8"><label class="form-label fw-semibold">Tên <?= $isExam?'đề / kỳ thi':'học liệu' ?></label><input class="form-control" name="title" required></div><div class="col-md-4"><label class="form-label fw-semibold">Loại</label><select class="form-select" name="kind" id="contentKind" required><option value="">Chọn loại</option><?php foreach ($isExam?['Đề kiểm tra','Thi thử','Kỳ thi']:['Bài viết','Văn bản','Ứng dụng','Video','Trình chiếu','Hình ảnh','Trò chơi'] as $kind): ?><option><?= e($kind) ?></option><?php endforeach; ?></select></div>
 <div class="col-md-4"><label class="form-label fw-semibold">Khối</label><select class="form-select" name="grade" required><option value="">Chọn khối</option><?php foreach (['6','7','8','9','10','11','12','Toàn trường'] as $g): ?><option><?= $g ?></option><?php endforeach; ?></select></div><div class="col-md-8"><label class="form-label fw-semibold">Nguồn</label><input class="form-control" name="source" placeholder="Bộ GDĐT, giáo viên biên soạn…"></div>
-<div class="col-12"><label class="form-label fw-semibold">Hình thức nội dung</label><select class="form-select" name="source_kind" id="sourceKind"><?php if (!$isExam): ?><option value="article">Bài viết – soạn trực tiếp</option><?php endif; ?><option value="upload">Tải tệp lên Google Drive</option><option value="link">Liên kết website</option><option value="html">Tệp HTML chạy tương tác</option></select></div>
-<div class="col-12 d-none" id="articleField"><label class="form-label fw-semibold">Nội dung bài viết</label><textarea id="articleBody" name="article_body" class="form-control" rows="18"></textarea><div class="form-text">Dán chữ và ảnh bằng Ctrl+V; dùng nút ảnh để chọn ảnh từ máy. Tối đa 8 MB gồm ảnh.</div><div id="editorError" class="text-danger small" role="alert"></div></div><div class="col-12" id="fileField"><label class="form-label fw-semibold">Chọn tệp</label><input class="form-control" type="file" name="file" id="itemFile"><div class="form-text">Tối đa 50 MB. Tệp HTML chỉ nhận .html hoặc .htm.</div></div><div class="col-12 d-none" id="urlField"><label class="form-label fw-semibold">Đường liên kết</label><input class="form-control" type="url" name="url" placeholder="https://..."></div></div></div><div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-primary" id="saveButton"><i class="bi bi-cloud-arrow-up"></i> Tải lên và gửi duyệt</button></div></form></div></div></div>
+<div class="col-12"><label class="form-label fw-semibold">Hình thức nội dung</label><select class="form-select" name="source_kind" id="sourceKind" required disabled><option value="">Chọn loại nội dung trước</option></select><div id="contentSourceHelp" class="form-text"></div></div>
+<div class="col-12 d-none" id="articleField"><label class="form-label fw-semibold">Nội dung bài viết</label><textarea id="articleBody" name="article_body" class="form-control" rows="18"></textarea><div class="form-text">Dán chữ và ảnh bằng Ctrl+V; dùng nút ảnh để chọn ảnh từ máy. Tối đa 8 MB gồm ảnh.</div><div id="editorError" class="text-danger small" role="alert"></div></div><div class="col-12" id="fileField"><label class="form-label fw-semibold">Chọn tệp</label><input class="form-control" type="file" name="file" id="itemFile"><div class="form-text"><span id="contentFileHelp">Tối đa 50 MB. Chọn định dạng phù hợp với loại nội dung.</span></div></div><div class="col-12 d-none" id="urlField"><label class="form-label fw-semibold" id="contentUrlLabel" for="contentUrl">Đường liên kết</label><input class="form-control" type="url" name="url" id="contentUrl" placeholder="https://..."></div></div></div><div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-primary" id="saveButton"><i class="bi bi-cloud-arrow-up"></i> Tải lên và gửi duyệt</button></div></form></div></div></div>
 
 <?php elseif ($tab === 'games' && $canResourceView): ?>
 <div class="games-intro mb-3"><h2 class="fw-bold mb-2"><i class="bi bi-controller me-2" aria-hidden="true"></i>Trò chơi hỗ trợ dạy học</h2><p>Chọn trò chơi phù hợp để cả lớp cùng tham gia, luyện tập và khám phá.</p></div>
@@ -299,12 +295,16 @@ $games = lh_game_catalog();
 <div class="row g-3"><?php if (!$data['links']): ?><div class="col-12"><div class="card p-5 text-center text-muted">Chưa có liên kết.</div></div><?php else: foreach ($data['links'] as $link): ?><div class="col-6 col-md-4 col-xl-3"><div class="card h-100"><a class="link-tile" target="_blank" rel="noopener" href="<?= e($link['url']) ?>"><i class="bi <?= e($link['icon']) ?>"></i><strong class="flex-grow-1"><?= e($link['title']) ?></strong></a><?php if($canLinkDelete):?><form method="post" class="px-3 pb-3" onsubmit="return confirm('Xóa liên kết này?')"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="delete_link"><input type="hidden" name="id" value="<?= e($link['id']) ?>"><button class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash"></i> Xóa</button></form><?php endif;?></div></div><?php endforeach; endif; ?></div>
 <?php if($canLinkEdit):?><div class="modal fade" id="linkModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><form method="post"><div class="modal-header"><h5 class="modal-title">Thêm liên kết</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="save_link"><div class="mb-3"><label class="form-label fw-semibold">Tên trang</label><input class="form-control" name="title" required></div><div class="mb-3"><label class="form-label fw-semibold">Biểu tượng Bootstrap Icons</label><input class="form-control" name="icon" value="bi-link-45deg"><div class="form-text">Ví dụ: bi-google, bi-youtube, bi-book</div></div><div><label class="form-label fw-semibold">Liên kết</label><input class="form-control" type="url" name="url" placeholder="https://..." required></div></div><div class="modal-footer"><button class="btn btn-primary">Lưu liên kết</button></div></form></div></div></div><?php endif; ?>
 <?php endif; ?>
+<div class="modal fade" id="learningPreviewModal" tabindex="-1" aria-labelledby="learningPreviewTitle" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-sm-down"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="learningPreviewTitle">Xem nội dung</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div><div class="modal-body p-0"><iframe id="learningPreviewFrame" title="Xem nội dung học liệu" style="display:block;width:100%;height:75vh;border:0" allow="fullscreen; autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div></div></div></div>
 </main><script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-var sourceKind=document.getElementById('sourceKind');if(sourceKind)sourceKind.addEventListener('change',function(){var link=this.value==='link';document.getElementById('urlField').classList.toggle('d-none',!link);document.getElementById('fileField').classList.toggle('d-none',link||this.value==='article');document.getElementById('articleField').classList.toggle('d-none',this.value!=='article');if(this.value==='article')initArticleEditor();document.getElementById('itemFile').accept=this.value==='html'?'.html,.htm':''});
-function editLearningItem(button){try{var row=JSON.parse(decodeURIComponent(escape(atob(button.dataset.item||'')))),form=document.getElementById('itemForm');form.querySelector('#itemId').value=row.id||'';form.querySelector('[name="title"]').value=row.title||'';form.querySelector('[name="kind"]').value=row.kind||'';form.querySelector('[name="grade"]').value=row.grade||'';form.querySelector('[name="source"]').value=row.source||'';form.querySelector('[name="source_kind"]').value=row.source_kind||'link';form.querySelector('[name="url"]').value=row.url||'';document.getElementById('articleBody').value=row.article_body||'';if(window.tinymce&&tinymce.get('articleBody'))tinymce.get('articleBody').setContent(row.article_body||'');form.querySelector('[name="source_kind"]').dispatchEvent(new Event('change'));form.querySelector('.modal-title').textContent='Sửa nội dung';document.getElementById('saveButton').innerHTML='<i class="bi bi-save"></i> Lưu thay đổi';bootstrap.Modal.getOrCreateInstance(document.getElementById('itemModal')).show()}catch(error){alert('Không đọc được dữ liệu cần sửa.')}}
+var sourceKind=document.getElementById('sourceKind');
+function editLearningItem(button){if(window.learningContentEditRow){try{window.learningContentEditRow(JSON.parse(decodeURIComponent(escape(atob(button.dataset.item||'')))));}catch(error){alert('Không đọc được dữ liệu cần sửa.');}}}
+
 var itemForm=document.getElementById('itemForm');if(itemForm)itemForm.addEventListener('submit',function(event){if(sourceKind.value==='article'){var editor=window.tinymce&&tinymce.get('articleBody');if(!editor){event.preventDefault();alert('Bộ soạn thảo chưa tải xong. Vui lòng thử lại.');return;}editor.save();if(!editor.getContent({format:'text'}).trim()&&!/<img\b/i.test(editor.getContent())){event.preventDefault();alert('Vui lòng nhập nội dung bài viết.');return;}}var button=document.getElementById('saveButton');button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đang tải lên…'});
 </script>
+<script id="learningContentConfig" type="application/json"><?=json_encode(['schema'=>lc_schema(($tab==='exams')?'exam':'resource'),'labels'=>lc_sources(),'extensions'=>array_combine(array_keys(lc_schema(($tab==='exams')?'exam':'resource')),array_map(fn($kind)=>lc_extensions($kind,'upload'),array_keys(lc_schema(($tab==='exams')?'exam':'resource'))))],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE)?></script>
+<script src="<?=BASE_URL?>assets/learning-content.js?v=1"></script>
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.6/tinymce.min.js"></script>
 <script src="<?= BASE_URL ?>assets/learning-article.js?v=20261116-1"></script>
 <?php if ($tab === 'games'): require __DIR__ . '/includes/game_credit.php'; endif; ?></body></html>

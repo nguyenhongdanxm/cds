@@ -1,8 +1,8 @@
 <?php
 // Render the actual controller/templates with isolated synthetic auth/data/SQL collaborators.
 $dir=$argv[1]??'';if(!is_dir($dir))throw new RuntimeException('Supply a temporary directory');mkdir($dir.'/includes');mkdir($dir.'/data');mkdir($dir.'/assets');
-$root=dirname(__DIR__);copy($root.'/hoclieu.php',$dir.'/hoclieu.php');foreach(['learning_dashboard.php','learning_dashboard_view.php','learning_game_catalog.php','learning_article.php']as$f)copy($root.'/includes/'.$f,$dir.'/includes/'.$f);
-foreach(['learning-dashboard.css','learning-article.js','hoclieu-games.css']as$f)copy($root.'/assets/'.$f,$dir.'/assets/'.$f);
+$root=dirname(__DIR__);copy($root.'/hoclieu.php',$dir.'/hoclieu.php');copy($root.'/hoclieu_file.php',$dir.'/hoclieu_file.php');foreach(['learning_dashboard.php','learning_dashboard_view.php','learning_game_catalog.php','learning_article.php','learning_content.php','learning_content_preview.php']as$f)copy($root.'/includes/'.$f,$dir.'/includes/'.$f);
+foreach(['learning-content.js','learning-dashboard.css','learning-article.js','hoclieu-games.css']as$f)copy($root.'/assets/'.$f,$dir.'/assets/'.$f);
 mkdir($dir.'/assets/game-covers');symlink($root.'/assets/game-covers/illustrated-v3',$dir.'/assets/game-covers/illustrated-v3');
 file_put_contents($dir.'/includes/module_switcher.php','<?php');file_put_contents($dir.'/includes/game_credit.php','<?php');
 file_put_contents($dir.'/includes/quiz_paper_store.php', <<<'STUB'
