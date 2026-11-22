@@ -3,14 +3,9 @@
 define('BASE_URL', '/cds/');
 function e($value) { return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'); }
 $root = dirname(__DIR__);
-$source = file_get_contents($root.'/hoclieu.php');
 require_once $root.'/includes/learning_game_catalog.php';
-$start = strpos($source, '$games = lh_game_catalog();');
-$end = strpos($source, '<?php else: ?>', $start);
-if ($start === false || $end === false) throw new RuntimeException('Catalog template missing');
-$template = substr($source, $start, $end-$start);
-$render = function ($isAdmin, $gameVisibility) use ($template) {
-    ob_start(); eval($template); return [ob_get_clean(), $games];
+$render = function ($isAdmin, $gameVisibility) use ($root) {
+    $games=lh_game_catalog();ob_start();require $root.'/includes/learning_game_cards.php';return [ob_get_clean(),$games];
 };
 [$html, $games] = $render(false, []);
 if (count($games)!==14 || substr_count($html, '<article ')!==14) throw new RuntimeException('Incomplete gallery');

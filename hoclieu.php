@@ -8,6 +8,7 @@ require_once __DIR__ . '/includes/learning_content.php';
 require_once __DIR__ . '/includes/learning_thumbnail.php';
 require_once __DIR__ . '/includes/learning_game_catalog.php';
 require_once __DIR__ . '/includes/learning_dashboard.php';
+require_once __DIR__ . '/includes/learning_categories.php';
 
 $user = current_user() ?? [];
 $isAdmin = ($user['role'] ?? '') === 'admin';
@@ -27,6 +28,8 @@ $dataFile = DATA_PATH . '/learning_hub.json';
 $data = load_json($dataFile, ['items' => [], 'links' => []]);
 $data['items'] = is_array($data['items'] ?? null) ? array_values($data['items']) : [];
 $data['links'] = is_array($data['links'] ?? null) ? array_values($data['links']) : [];
+$categoryStore=lhc_empty();$categoryError='';
+try{$categoryStore=lhc_load();}catch(Throwable $e){$categoryError='Không đọc được chuyên mục. Vui lòng liên hệ quản trị để kiểm tra dữ liệu.';}
 $gameKeys=['secret','quiz','cards','olympia','wheel','keoco','duavit','loto','chopnot','clock','balldrop','rocket','buzzer','muc'];
 $gameVisibility=[];
 
@@ -53,6 +56,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? '');
     $tab = in_array($_POST['tab'] ?? '', ['resources', 'exams', 'links'], true) ? (string)$_POST['tab'] : 'resources';
 
+    if(in_array($action,['save_category','delete_category','assign_game_category'],true)){
+        $scope=is_string($_POST['category_section']??null)?$_POST['category_section']:'';
+        $scopeView=['resources'=>$canResourceView,'exams'=>$canExamView,'games'=>$canResourceView];
+        if(empty($scopeView[$scope])||!($scope==='games'?$isAdmin:($isAdmin||$canApprove))){http_response_code(403);exit('Bạn chưa có quyền quản lý chuyên mục trong phần này.');}
+        try{
+            if($categoryError!=='')throw new RuntimeException($categoryError);
+            foreach(['category_revision','category_id','name','description','order','game_key']as$field)if(isset($_POST[$field])&&!is_string($_POST[$field]))throw new InvalidArgumentException('Dữ liệu chuyên mục không hợp lệ.');
+            lhc_save_change((string)($_POST['category_revision']??''),$scope,$action,$_POST,$gameKeys);flash('Đã cập nhật chuyên mục.','success');
+        }catch(Throwable $e){flash($e->getMessage(),'danger');}
+        header('Location: '.BASE_URL.'hoclieu.php?tab='.rawurlencode($scope).'&manage_categories=1#categoryManager');exit;
+    }
     if ($action === 'game_visibility') {
         if (!$isAdmin) { http_response_code(403); exit('Chỉ quản trị được cài đặt trò chơi.'); }
         $key=(string)($_POST['game_key']??'');
@@ -84,6 +98,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $index = lh_find($data['items'], $id);
         if ($index >= 0 && !$canApprove && ($data['items'][$index]['author_id'] ?? '') !== $userId) { http_response_code(403); exit('Chỉ được sửa nội dung do mình nộp.'); }
+        $categoryScope=$section==='exam'?'exams':'resources';
+        $categoryId=isset($_POST['category_id'])?(is_string($_POST['category_id'])?$_POST['category_id']:'invalid'):lhc_category_id($categoryStore,$categoryScope,(string)($data['items'][$index]['category_id']??''));
+        try{if($categoryError!=='')throw new RuntimeException($categoryError);$categoryId=lhc_validate_item_category($categoryStore,$categoryScope,$categoryId);}catch(Throwable $e){flash($e->getMessage(),'danger');lh_redirect($tab);}
         $filePath = ''; $fileName = ''; $fileMime = '';
         $upload = $_FILES['file'] ?? null;
         if (in_array($sourceKind, ['upload', 'html'], true) && $upload && ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
@@ -122,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try{$thumbnailFile=lt_select_upload($previousThumbnail,is_array($_FILES['thumbnail']??null)?$_FILES['thumbnail']:null,($_POST['remove_thumbnail']??'')==='1');}catch(Throwable $e){flash($e->getMessage(),'danger');lh_redirect($tab);}
             $data['items'][$index] = array_merge($old, [
                 'section' => $section, 'title' => $title, 'kind' => $kind, 'grade' => $grade,
-                'source' => $source, 'source_kind' => $sourceKind, 'article_body' => $article, 'thumbnail_file'=>$thumbnailFile,
+                'source' => $source, 'source_kind' => $sourceKind, 'article_body' => $article, 'thumbnail_file'=>$thumbnailFile, 'category_id'=>$categoryId,
                 'url' => in_array($sourceKind,['link','youtube','vimeo','video_url','image_url'],true) ? $url : '',
                 'file_path' => $sourceKind === 'article' ? '' : ($filePath !== '' ? $filePath : (string)($old['file_path'] ?? '')),
                 'file_name'=>$fileName!==''?$fileName:($old['file_name']??''), 'file_mime'=>$fileMime!==''?$fileMime:($old['file_mime']??''),
@@ -135,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try{$thumbnailFile=lt_select_upload($previousThumbnail,is_array($_FILES['thumbnail']??null)?$_FILES['thumbnail']:null,($_POST['remove_thumbnail']??'')==='1');}catch(Throwable $e){flash($e->getMessage(),'danger');lh_redirect($tab);}
             $data['items'][] = [
                 'id' => 'hl_' . bin2hex(random_bytes(8)), 'section' => $section, 'title' => $title,
-                'kind' => $kind, 'grade' => $grade, 'source' => $source, 'source_kind' => $sourceKind, 'article_body' => $article, 'thumbnail_file'=>$thumbnailFile,
+                'kind' => $kind, 'grade' => $grade, 'source' => $source, 'source_kind' => $sourceKind, 'article_body' => $article, 'thumbnail_file'=>$thumbnailFile, 'category_id'=>$categoryId,
                 'url' => in_array($sourceKind,['link','youtube','vimeo','video_url','image_url'],true) ? $url : '', 'file_path' => $filePath, 'file_name'=>$fileName, 'file_mime'=>$fileMime,
                 'author_id' => $userId, 'author' => $userName, 'approved' => $canApprove,
                 'approved_at' => $canApprove ? date('c') : '', 'approved_by' => $canApprove ? $userName : '',
@@ -197,6 +214,9 @@ $tab = in_array($_GET['tab'] ?? '', ['dashboard', 'resources', 'exams', 'games',
 if ($tab === 'resources' && !$canResourceView) $tab = 'dashboard';
 if ($tab === 'exams' && !$canExamView) $tab = 'dashboard';
 if ($tab === 'links' && !$canLinkView) $tab = 'dashboard';
+if ($tab === 'games' && !$canResourceView) $tab = 'dashboard';
+$selectedCategory=is_string($_GET['category']??null)?$_GET['category']:'';
+$canManageCategories=$categoryError===''&&in_array($tab,['resources','exams','games'],true)&&($tab==='games'?$isAdmin:($isAdmin||$canApprove));
 $gameVisibilityLoaded = false;
 if ($canResourceView && in_array($tab, ['dashboard','games'], true)) {
     try { $gameVisibility = qp_game_visibility(); $gameVisibilityLoaded = true; } catch (Throwable $e) { $gameVisibility = []; }
@@ -233,7 +253,7 @@ function lh_icon(string $kind): string {
 <style>
 :root{--blue:#164e7a;--blue2:#236a9f;--bg:#eef4f9}body{background:var(--bg);font-family:Segoe UI,system-ui,sans-serif;color:#1f2937}.top{background:linear-gradient(125deg,#103e64,#2379ad);color:#fff}.brand{font-size:1.25rem;font-weight:800}.nav-pills .nav-link{color:#dceeff;font-weight:650;border-radius:10px}.nav-pills .nav-link.active,.nav-pills .nav-link:hover{background:#fff;color:var(--blue)}.card{border:0;border-radius:16px;box-shadow:0 5px 20px rgba(15,55,85,.08)}.stat{position:relative;overflow:hidden}.stat i{position:absolute;right:18px;bottom:4px;font-size:3.5rem;opacity:.12}.stat strong{font-size:2rem;color:var(--blue)}.resource-card{height:100%;transition:.2s}.resource-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(15,55,85,.14)}.resource-icon{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:#e3f2fd;color:var(--blue);font-size:1.45rem}.status{font-size:.75rem;font-weight:700;border-radius:999px;padding:.25rem .55rem}.pending{background:#fff3cd;color:#765b00}.approved{background:#d1e7dd;color:#0f5132}.link-tile{display:flex;align-items:center;gap:12px;text-decoration:none;color:#1f2937;padding:18px;height:100%}.link-tile i{width:48px;height:48px;border-radius:14px;background:#e3f2fd;color:var(--blue);display:grid;place-items:center;font-size:1.5rem}.modal-header{background:var(--blue);color:#fff}.modal-header .btn-close{filter:invert(1)}@media(max-width:767px){.top .nav{margin-top:1rem}.nav-pills{flex-wrap:nowrap;overflow:auto}.nav-pills .nav-link{white-space:nowrap}}
 </style>
-<link rel="stylesheet" href="<?=BASE_URL?>assets/learning-thumbnail.css?v=1">
+<link rel="stylesheet" href="<?=BASE_URL?>assets/learning-thumbnail.css?v=1"><link rel="stylesheet" href="<?=BASE_URL?>assets/learning-categories.css?v=1">
 </head><body>
 <?php if ($tab === 'dashboard'): ?><link rel="stylesheet" href="<?= BASE_URL ?>assets/learning-dashboard.css?v=1"><?php endif; ?>
 <?php if ($tab === 'games'): ?>
@@ -253,29 +273,25 @@ function lh_icon(string $kind): string {
 </ul>
 <div class="d-flex gap-2"><a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>"><i class="bi bi-diagram-3"></i> Hệ sinh thái</a><a class="btn btn-sm btn-light" href="<?= BASE_URL ?>logout.php"><i class="bi bi-box-arrow-right"></i></a></div>
 </div></div></header>
-<main class="container py-4<?= $tab === 'games' ? ' games-page' : '' ?>"><?php show_flash(); ?>
+<main class="container py-4<?= $tab === 'games' ? ' games-page' : '' ?>"><?php show_flash(); if($categoryError!==''):?><div class="alert alert-warning" role="alert"><?=e($categoryError)?></div><?php endif;?>
 
 <?php if ($tab === 'dashboard'): ?>
 <?php
 $dashboard = lh_dashboard_model($visibleItems, $data['links'], lh_game_catalog(), $gameVisibility, $gameVisibilityLoaded, ['resources'=>$canResourceView,'exams'=>$canExamView,'games'=>$canResourceView,'links'=>$canLinkView], $isAdmin);
+foreach($dashboard as$key=>&$dashboardSection)$dashboardSection['categories']=in_array($key,['resources','exams','games'],true)?lhc_categories($categoryStore,$key):[];unset($dashboardSection);
 require __DIR__.'/includes/learning_dashboard_view.php';
 ?>
 
 <?php elseif ($tab === 'resources' || $tab === 'exams'): $isExam=$tab==='exams';$canCurrentEdit=$isExam?$canExamEdit:$canResourceEdit;$canCurrentDelete=$isExam?$canExamDelete:$canResourceDelete; ?>
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3"><div><h2 class="fw-bold mb-1"><?= $isExam?'Kiểm tra và thi':'Học liệu' ?></h2><p class="text-muted mb-0"><?= $isExam?'Ngân hàng đề, thi thử và các kỳ thi':'Học liệu số dùng chung đã được quản trị phê duyệt' ?></p></div><?php if($canCurrentEdit):?><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="bi bi-plus-circle me-1"></i> Nhập <?= $isExam?'đề / kỳ thi':'học liệu' ?></button><?php endif;?></div>
-<form class="card p-3 mb-3"><input type="hidden" name="tab" value="<?= e($tab) ?>"><div class="row g-2"><div class="col-md-7"><input class="form-control" name="q" value="<?= e($q) ?>" placeholder="Tìm theo tên, loại, nguồn hoặc giáo viên"></div><div class="col-md-3"><select class="form-select" name="grade"><option value="">Tất cả khối</option><?php foreach (['6','7','8','9','10','11','12','Toàn trường'] as $g): ?><option <?= $gradeFilter===$g?'selected':'' ?>><?= $g ?></option><?php endforeach; ?></select></div><div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-search"></i> Tìm</button></div></div></form>
-<div class="row g-3"><?php if (!$list): ?><div class="col-12"><div class="card p-5 text-center text-muted">Chưa có nội dung phù hợp.</div></div><?php else: foreach ($list as $row): ?>
-<div class="col-md-6 col-xl-4"><div class="card resource-card p-3"><a class="learning-cover-link" data-learning-preview data-title="<?=e($row['title']??'Xem nội dung')?>" href="<?=e(lh_item_url($row))?>"><?=lt_cover($row)?></a><div class="d-flex gap-3"><div class="flex-grow-1 min-w-0"><div class="d-flex justify-content-between gap-2"><h5 class="fw-bold mb-1"><?= e($row['title']) ?></h5><span class="status <?= !empty($row['approved'])?'approved':'pending' ?>"><?= !empty($row['approved'])?'Đã duyệt':'Chờ duyệt' ?></span></div><div class="small text-muted"><?=e($row['kind']??'Học liệu')?><?php if(($row['grade']??'')!==''):?> · <?=($row['grade']==='Toàn trường')?'Toàn trường':'Khối '.e($row['grade'])?><?php endif;?></div><div class="small mt-2"><i class="bi bi-person"></i> <?= e($row['author']??'') ?><?php if (!empty($row['source'])): ?> · <?= e($row['source']) ?><?php endif; ?></div></div></div>
-<div class="d-flex flex-wrap gap-2 mt-3"><a class="btn btn-sm btn-outline-primary" data-learning-preview data-title="<?=e($row['title']??'Xem nội dung')?>" href="<?= e(lh_item_url($row)) ?>"><i class="bi bi-eye"></i> Xem</a>
-<?php if (($canCurrentEdit && (($row['author_id'] ?? '') === $userId || $canApprove)) || $canApprove): ?><button type="button" class="btn btn-sm btn-outline-secondary" data-item="<?= e(base64_encode(json_encode(array_merge($row,['thumbnail_url'=>lt_thumbnail_url($row)]), JSON_UNESCAPED_UNICODE))) ?>" onclick="editLearningItem(this)" title="Sửa"><i class="bi bi-pencil"></i></button><?php endif; ?>
-<?php if ($canApprove && empty($row['approved'])): ?><form method="post"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="approve_item"><input type="hidden" name="id" value="<?= e($row['id']) ?>"><input type="hidden" name="tab" value="<?= e($tab) ?>"><button class="btn btn-sm btn-success"><i class="bi bi-check2-circle"></i> Duyệt</button></form><?php endif; ?>
-<?php if ($canApprove): ?><form method="post"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="feature_item"><input type="hidden" name="id" value="<?= e($row['id']) ?>"><input type="hidden" name="tab" value="<?= e($tab) ?>"><button class="btn btn-sm btn-outline-warning" title="Nổi bật"><i class="bi bi-star<?= !empty($row['featured'])?'-fill':'' ?>"></i></button></form><?php endif; ?>
-<?php if ($canCurrentDelete || $canApprove): ?><form method="post" onsubmit="return confirm('Xóa nội dung này?')"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="delete_item"><input type="hidden" name="id" value="<?= e($row['id']) ?>"><input type="hidden" name="tab" value="<?= e($tab) ?>"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></form><?php endif; ?></div></div></div>
-<?php endforeach; endif; ?></div>
+<?php require __DIR__.'/includes/learning_category_manager.php'; ?>
+<form class="card p-3 mb-3"><input type="hidden" name="tab" value="<?= e($tab) ?>"><input type="hidden" name="category" value="<?=e($selectedCategory)?>"><div class="row g-2"><div class="col-md-7"><input class="form-control" name="q" value="<?= e($q) ?>" placeholder="Tìm theo tên, loại, nguồn hoặc giáo viên"></div><div class="col-md-3"><select class="form-select" name="grade"><option value="">Tất cả khối</option><?php foreach (['6','7','8','9','10','11','12','Toàn trường'] as $g): ?><option <?= $gradeFilter===$g?'selected':'' ?>><?= $g ?></option><?php endforeach; ?></select></div><div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-search"></i> Tìm</button></div></div></form>
+<?php $categoryShelves=lhc_shelves($categoryStore,$tab,$list,$selectedCategory);require __DIR__.'/includes/learning_category_shelves.php'; ?>
 
 <div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><form method="post" enctype="multipart/form-data" id="itemForm"><div class="modal-header"><h5 class="modal-title">Nhập <?= $isExam?'đề, bài kiểm tra hoặc kỳ thi':'học liệu' ?></h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="save_item"><input type="hidden" name="id" id="itemId"><input type="hidden" name="section" value="<?= $isExam?'exam':'resource' ?>">
 <div class="row g-3"><div class="col-md-8"><label class="form-label fw-semibold">Tên <?= $isExam?'đề / kỳ thi':'học liệu' ?></label><input class="form-control" name="title" required></div><div class="col-md-4"><label class="form-label fw-semibold">Loại</label><select class="form-select" name="kind" id="contentKind" required><option value="">Chọn loại</option><?php foreach ($isExam?['Đề kiểm tra','Thi thử','Kỳ thi']:['Bài viết','Văn bản','Ứng dụng','Video','Trình chiếu','Hình ảnh','Trò chơi'] as $kind): ?><option><?= e($kind) ?></option><?php endforeach; ?></select></div>
 <div class="col-md-4"><label class="form-label fw-semibold">Khối</label><select class="form-select" name="grade" required><option value="">Chọn khối</option><?php foreach (['6','7','8','9','10','11','12','Toàn trường'] as $g): ?><option><?= $g ?></option><?php endforeach; ?></select></div><div class="col-md-8"><label class="form-label fw-semibold">Nguồn</label><input class="form-control" name="source" placeholder="Bộ GDĐT, giáo viên biên soạn…"></div>
+<div class="col-12"><label class="form-label fw-semibold" for="learningCategory">Chuyên mục</label><select class="form-select" name="category_id" id="learningCategory"><option value="">Chưa phân chuyên mục</option><?php foreach(lhc_categories($categoryStore,$tab)as$categoryKey=>$category):?><option value="<?=e($categoryKey)?>" <?=$selectedCategory===$categoryKey?'selected':''?>><?=e($category['name'])?></option><?php endforeach;?></select></div>
 <div class="col-12"><label for="learningThumbnail" class="form-label fw-semibold">Ảnh đại diện <span class="fw-normal text-muted">(không bắt buộc)</span></label><div class="learning-thumbnail-editor"><div class="learning-thumbnail-preview"><img id="learningThumbnailImage" alt="Xem trước ảnh đại diện" hidden><div id="learningThumbnailDefault"><?=lt_cover(['kind'=>''])?></div></div><div class="learning-thumbnail-controls"><input type="file" class="form-control" id="learningThumbnail" name="thumbnail" accept="image/png,image/jpeg,image/gif,image/webp"><div class="form-text">PNG, JPG, GIF hoặc WebP · tối đa 2 MB, 4096 × 4096 px. Nên chọn ảnh ngang 16:9. Không chọn ảnh sẽ dùng hình đại diện theo loại.</div><div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="remove_thumbnail" value="1" id="learningThumbnailRemove"><label class="form-check-label" for="learningThumbnailRemove">Bỏ ảnh, dùng hình mặc định</label></div><div id="learningThumbnailError" class="text-danger small" role="alert"></div></div></div></div>
 <div class="col-12"><label class="form-label fw-semibold">Hình thức nội dung</label><select class="form-select" name="source_kind" id="sourceKind" required disabled><option value="">Chọn loại nội dung trước</option></select><div id="contentSourceHelp" class="form-text"></div></div>
 <div class="col-12 d-none" id="articleField"><label class="form-label fw-semibold">Nội dung bài viết</label><textarea id="articleBody" name="article_body" class="form-control" rows="18"></textarea><div class="form-text">Dán chữ và ảnh bằng Ctrl+V; dùng nút ảnh để chọn ảnh từ máy. Tối đa 8 MB gồm ảnh.</div><div id="editorError" class="text-danger small" role="alert"></div></div><div class="col-12" id="fileField"><label class="form-label fw-semibold">Chọn tệp</label><input class="form-control" type="file" name="file" id="itemFile"><div class="form-text"><span id="contentFileHelp">Tối đa 50 MB. Chọn định dạng phù hợp với loại nội dung.</span></div></div><div class="col-12 d-none" id="urlField"><label class="form-label fw-semibold" id="contentUrlLabel" for="contentUrl">Đường liên kết</label><input class="form-control" type="url" name="url" id="contentUrl" placeholder="https://..."></div></div></div><div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-primary" id="saveButton"><i class="bi bi-cloud-arrow-up"></i> Tải lên và gửi duyệt</button></div></form></div></div></div>
@@ -287,19 +303,10 @@ require __DIR__.'/includes/learning_dashboard_view.php';
 $games = lh_game_catalog();
 
 ?>
-<div class="row games-grid">
-<?php foreach ($games as $game):
-    if (!$isAdmin && isset($gameVisibility[$game['key']]) && !$gameVisibility[$game['key']]) continue;
-?>
-<div class="col-12 col-sm-6 col-xl-4 col-xxl-3"><article class="game-tile game-<?= e($game['key']) ?>" aria-labelledby="game-title-<?= e($game['key']) ?>">
-    <a class="game-cover" href="<?= BASE_URL . e($game['url']) ?>" aria-label="<?= e('Mở ' . $game['name']) ?>">
-        <img src="<?= BASE_URL ?>assets/game-covers/illustrated-v3/<?= e($game['key']) ?>.webp?v=20261110-5" alt="" width="720" height="405" loading="<?= $game['key'] === 'muc' ? 'eager' : 'lazy' ?>" decoding="async">
-    </a>
-    <div class="game-copy"><h3 id="game-title-<?= e($game['key']) ?>"><?= e($game['name']) ?></h3><p><?= e($game['description']) ?></p></div>
-    <a class="game-link" href="<?= BASE_URL . e($game['url']) ?>"><i class="bi <?= $game['key']==='cards'?'bi-printer':'bi-play-circle' ?>" aria-hidden="true"></i><?= e($game['action']) ?></a>
-</article></div>
-<?php endforeach; ?>
-</div>
+<?php require __DIR__.'/includes/learning_category_manager.php';
+$games=$gameVisibilityLoaded?array_values(array_filter($games,fn($game)=>$isAdmin||!isset($gameVisibility[$game['key']])||$gameVisibility[$game['key']])):[];
+if($q!=='')$games=array_values(array_filter($games,fn($game)=>str_contains(mb_strtolower($game['name'].' '.$game['description']),mb_strtolower($q))));
+$categoryShelves=lhc_shelves($categoryStore,'games',$games,$selectedCategory);require __DIR__.'/includes/learning_category_shelves.php'; ?>
 <?php else: ?>
 <div class="d-flex justify-content-between align-items-center mb-3"><div><h2 class="fw-bold mb-1">Liên kết hữu ích</h2><p class="text-muted mb-0">Truy cập nhanh các nền tảng phục vụ dạy và học.</p></div><?php if ($canLinkEdit): ?><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#linkModal"><i class="bi bi-plus-circle"></i> Thêm liên kết</button><?php endif; ?></div>
 <div class="row g-3"><?php if (!$data['links']): ?><div class="col-12"><div class="card p-5 text-center text-muted">Chưa có liên kết.</div></div><?php else: foreach ($data['links'] as $link): ?><div class="col-6 col-md-4 col-xl-3"><div class="card h-100"><a class="link-tile" target="_blank" rel="noopener" href="<?= e($link['url']) ?>"><i class="bi <?= e($link['icon']) ?>"></i><strong class="flex-grow-1"><?= e($link['title']) ?></strong></a><?php if($canLinkDelete):?><form method="post" class="px-3 pb-3" onsubmit="return confirm('Xóa liên kết này?')"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="delete_link"><input type="hidden" name="id" value="<?= e($link['id']) ?>"><button class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash"></i> Xóa</button></form><?php endif;?></div></div><?php endforeach; endif; ?></div>
@@ -314,7 +321,7 @@ function editLearningItem(button){if(window.learningContentEditRow){try{window.l
 var itemForm=document.getElementById('itemForm');if(itemForm)itemForm.addEventListener('submit',function(event){if(sourceKind.value==='article'){var editor=window.tinymce&&tinymce.get('articleBody');if(!editor){event.preventDefault();alert('Bộ soạn thảo chưa tải xong. Vui lòng thử lại.');return;}editor.save();if(!editor.getContent({format:'text'}).trim()&&!/<img\b/i.test(editor.getContent())){event.preventDefault();alert('Vui lòng nhập nội dung bài viết.');return;}}var button=document.getElementById('saveButton');button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đang tải lên…'});
 </script>
 <script id="learningContentConfig" type="application/json"><?=json_encode(['schema'=>lc_schema(($tab==='exams')?'exam':'resource'),'labels'=>lc_sources(),'thumbnailTypes'=>array_combine(array_keys(lc_schema(($tab==='exams')?'exam':'resource')),array_map(fn($kind)=>lt_presentation($kind),array_keys(lc_schema(($tab==='exams')?'exam':'resource')))),'extensions'=>array_combine(array_keys(lc_schema(($tab==='exams')?'exam':'resource')),array_map(fn($kind)=>lc_extensions($kind,'upload'),array_keys(lc_schema(($tab==='exams')?'exam':'resource'))))],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE)?></script>
-<script src="<?=BASE_URL?>assets/learning-content.js?v=2"></script>
+<script src="<?=BASE_URL?>assets/learning-content.js?v=3"></script>
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.6/tinymce.min.js"></script>
 <script src="<?= BASE_URL ?>assets/learning-article.js?v=20261116-1"></script>
 <?php if ($tab === 'games'): require __DIR__ . '/includes/game_credit.php'; endif; ?></body></html>
