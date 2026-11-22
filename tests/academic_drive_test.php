@@ -7,6 +7,7 @@ function acd_transport(string $url,array $headers):array{
     $id=basename($p['path']);$item=$GLOBALS['metadata'][$id]??null;
     return ['status'=>$item?200:404,'body'=>json_encode($item)];
 }
+function acd_binary_transport(string $url,array $headers,$stream,int $limit):int {fwrite($stream,$GLOBALS['binary_body']??'');return 200;}
 require __DIR__.'/../chuyenmon/includes/academic_drive.php';
 require __DIR__.'/../includes/chuyenmon_permission_runtime.php';
 function check($v,$m){if(!$v)throw new RuntimeException($m);}
@@ -20,11 +21,24 @@ check(acd_config()['id']==='','Initial configuration');acd_config_save($config,'
 $GLOBALS['metadata']=[$root=>['id'=>$root,'name'=>'Root','mimeType'=>$mime,'driveId'=>'shared123'], $child=>['id'=>$child,'name'=>'<img src=x onerror=alert(1)>','mimeType'=>$mime,'parents'=>[$root],'resourceKey'=>'childkey','driveId'=>'shared123'], $other=>['id'=>$other,'name'=>'Outside','mimeType'=>$mime]];
 $GLOBALS['listing']=['files'=>[['id'=>$file,'name'=>'<script>alert(1)</script>','parents'=>[$child],'mimeType'=>'application/pdf','resourceKey'=>'filekey','webViewLink'=>'javascript:alert(1)'],['id'=>'shortcut12345','name'=>'Shortcut','parents'=>[$child],'mimeType'=>'application/vnd.google-apps.shortcut','webViewLink'=>'https://drive.google.com/file/d/shortcut12345/view'],['id'=>'notchild12345','parents'=>[$other]]],'nextPageToken'=>'next-page'];
 $keys=[];$data=acd_browse($saved,$child,'updated',"O'Brien\\notes",'page2','test-token',$keys);
-check(count($data['items'])===2&&count($data['breadcrumbs'])===2,'Children and breadcrumbs');check($data['items'][0]['preview_url']==='https://drive.google.com/file/d/'.$file.'/preview?resourcekey=filekey','Safe keyed preview');check(str_starts_with($data['items'][0]['open_url'],'https://drive.google.com/'),'Unsafe external link replaced');check($data['items'][1]['preview_url']==='','Shortcut does not enter outside tree');
+check(count($data['items'])===2&&count($data['breadcrumbs'])===2,'Children and breadcrumbs');check($data['items'][0]['kind']==='pdf'&&$data['items'][0]['previewable'],'Native PDF presentation');check(!isset($data['items'][0]['open_url'])&&!isset($data['items'][0]['preview_url'])&&!isset($data['items'][0]['modified'])&&!isset($data['source_url']),'No source links or update dates in reader response');check(!$data['items'][1]['previewable'],'Shortcut does not enter outside tree');
 [$url,$headers]=end($GLOBALS['requests']);parse_str(parse_url($url,PHP_URL_QUERY),$params);
 check($params['corpora']==='drive'&&$params['driveId']==='shared123'&&$params['pageToken']==='page2','Shared Drive pagination');check(str_contains($params['q'],"O\\'Brien\\\\notes"),'Escaped Drive query');check(count(array_filter($headers,fn($h)=>str_starts_with($h,'X-Goog-Drive-Resource-Keys: ')&&str_contains($h,$root.'/rootkey')&&str_contains($h,$child.'/childkey')))===1,'Resource keys propagated');
 rejects(function()use($saved,$other,&$keys){acd_browse($saved,$other,'name','','','token',$keys);},'Outside root');
 $GLOBALS['metadata'][$child]['parents']=[$other];rejects(function()use($saved,$child,&$keys){acd_browse($saved,$child,'name','','','token',$keys);},'Moved folder revalidated');
+// Content access always rechecks fresh file/parent metadata before transport.
+$GLOBALS['metadata'][$child]['parents']=[$root];
+$GLOBALS['metadata'][$file]=['id'=>$file,'name'=>"Báo cáo\r\n.pdf",'mimeType'=>'application/pdf','parents'=>[$child],'capabilities'=>['canDownload'=>true],'resourceKey'=>'filekey'];
+$plan=acd_content_plan($saved,$file,'private-token',$keys);
+check(str_contains($plan['url'],'alt=media')&&$plan['mime']==='application/pdf'&&!str_contains($plan['name'],"\r"),'Bounded raw file plan and clean filename');
+check(in_array('X-Goog-Drive-Resource-Keys: '.$file.'/filekey',$plan['headers'],true),'File resource key');
+$GLOBALS['binary_body']='%PDF-1.4 test';$content=acd_content($saved,$file,'token',$keys);check($content['inline']&&$content['mime']==='application/pdf'&&stream_get_contents($content['stream'])===$GLOBALS['binary_body'],'PDF content stream');fclose($content['stream']);
+$GLOBALS['binary_body']='<script>alert(1)</script>';$content=acd_content($saved,$file,'token',$keys);check(!$content['inline']&&$content['mime']==='application/octet-stream','Spoofed PDF never rendered');fclose($content['stream']);
+$GLOBALS['metadata'][$file]['mimeType']='application/vnd.google-apps.document';$plan=acd_content_plan($saved,$file,'token',$keys);check(str_contains($plan['url'],'/export?mimeType=application%2Fpdf')&&$plan['limit']===10485760,'Workspace PDF export capped at 10 MB');
+$GLOBALS['metadata'][$file]['capabilities']['canDownload']=false;rejects(function()use($saved,$file,&$keys){acd_content($saved,$file,'token',$keys);},'Restricted download');
+$GLOBALS['metadata'][$file]['capabilities']['canDownload']=true;$GLOBALS['metadata'][$file]['mimeType']='application/pdf';$GLOBALS['metadata'][$file]['size']=33554433;rejects(function()use($saved,$file,&$keys){acd_content($saved,$file,'token',$keys);},'Oversized file');unset($GLOBALS['metadata'][$file]['size']);
+$GLOBALS['metadata'][$file]['parents']=[$other];rejects(function()use($saved,$file,&$keys){acd_content($saved,$file,'token',$keys);},'Outside-root file');
+$GLOBALS['metadata'][$file]['parents']=[$child];$GLOBALS['metadata'][$file]['trashed']=true;rejects(function()use($saved,$file,&$keys){acd_content($saved,$file,'token',$keys);},'Trashed file');
 $GLOBALS['metadata'][$root]['trashed']=true;rejects(function()use($saved,$root,&$keys){acd_browse($saved,$root,'name','','','token',$keys);},'Trashed root');
 foreach([['unknown','',''],['name','',str_repeat('a',4097)],['name',str_repeat('a',151),'']]as[$sort,$q,$cursor])rejects(function()use($saved,$root,$sort,$q,$cursor,&$keys){acd_browse($saved,$root,$sort,$q,$cursor,'token',$keys);},'Invalid filters');
 check(cds_cm_feature_access_for_user(['role'=>'gv','permission_model_version'=>2,'groups'=>['gv']],'cm.hoso',$dir)==='none','No new staff grant');check(cds_cm_feature_access_for_user(['role'=>'gv','permission_model_version'=>2,'permission_overrides'=>['cm.hoso'=>'view']],'cm.hoso',$dir)==='view','Explicit view grant');check(cds_cm_feature_access_for_user(['role'=>'admin'],'cm.hoso',$dir)==='delete','Admin access');

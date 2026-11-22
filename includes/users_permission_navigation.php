@@ -11,7 +11,7 @@ function up_permission_navigation(array $catalog):array {
  'cm.pccm'=>['Phân công chuyên môn','Phân công · Danh sách · Đổi chéo · Rà soát',''],
  'cm.nhaplieu'=>['Phân công chuyên môn','Danh mục giáo viên · Môn học · Lớp · Kiêm nhiệm',''],
  'cm.thongke'=>['Phân công chuyên môn','Thống kê PCCM · Xuất bảng',''],
- 'cm.hoso'=>['Hồ sơ - Báo cáo','Hồ sơ chuyên môn','Xem thư mục/tài liệu Drive. Chỉ quản trị hệ thống được thay đổi thư mục gốc.'],
+ 'cm.hoso'=>['Hồ sơ - Báo cáo','Hồ sơ chuyên môn','Xem thư mục, xem và tải tài liệu thư viện. Chỉ quản trị hệ thống được thay đổi thư mục gốc.'],
  'cm.kehoach'=>['Hồ sơ - Báo cáo / Học tập','Kế hoạch giáo dục · CLB · Học Online','Điều hướng các mục này dùng chung cm.kehoach; gồm Thông báo và Chỉ tiêu. Từng trang vẫn áp dụng quy tắc thao tác hiện có.'],
  'cm.baocao.dinhky'=>['Hồ sơ - Báo cáo','Báo cáo định kỳ',''],
  ];
