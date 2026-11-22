@@ -9,6 +9,7 @@ $items=[
 ];file_put_contents($dir.'/data/learning_hub.json',json_encode(['items'=>$items,'links'=>[]]));
 file_put_contents($dir.'/includes/auth.php', <<<'STUB'
 <?php
+require_once '__PAGE_NAVIGATION__';
 session_start();define('BASE_URL','/');define('DATA_PATH',dirname(__DIR__).'/data');define('SCHOOL_NAME','Trường thử nghiệm');
 function require_login(){if(($_COOKIE['test_role']??'')==='anonymous'){http_response_code(401);exit('Login required');}}
 function current_user(){return ['id'=>'teacher1','username'=>'teacher1','name'=>'Giáo viên A','role'=>$_COOKIE['test_role']??'teacher'];}
@@ -22,3 +23,5 @@ function show_flash(){if(isset($_SESSION['test_flash'])){echo '<p role="alert">'
 function cds_drive_upload_bytes($bytes,$name,$mime,$type,$meta){$id='fixturefile'.bin2hex(random_bytes(5));file_put_contents(DATA_PATH.'/file_'.$id.'.json',json_encode(['name'=>$name,'mime'=>$mime,'body'=>base64_encode($bytes)]));return ['ok'=>true,'path'=>'gdrive:'.$id];}
 function cds_drive_download($id){$data=load_json(DATA_PATH.'/file_'.$id.'.json');return $data?['ok'=>true,'body'=>base64_decode($data['body']),'name'=>$data['name'],'mime'=>$data['mime']]:['ok'=>false,'status'=>404];}
 STUB);
+
+$auth=file_get_contents($dir.'/includes/auth.php');file_put_contents($dir.'/includes/auth.php',str_replace('__PAGE_NAVIGATION__',str_replace("'","\\'",$root.'/includes/page_navigation.php'),$auth));

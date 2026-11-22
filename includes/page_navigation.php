@@ -3,6 +3,8 @@
 if(defined('CDS_PAGE_NAVIGATION_BUFFERED'))return;
 define('CDS_PAGE_NAVIGATION_BUFFERED',true);
 function cds_page_navigation_filter(string $html):string {
+ // Embedded/file responses carry their own layout and CSP; never inject site controls.
+ if(defined('CDS_EMBEDDED_RESPONSE')&&CDS_EMBEDDED_RESPONSE)return $html;
  if(defined('CDS_EXCEL_BACKGROUND_EXPORT')&&CDS_EXCEL_BACKGROUND_EXPORT)return $html;
  if(!preg_match('~^\s*(?:<!--.*?-->\s*)*(?:<!doctype\s+html[^>]*>\s*)?<html(?:\s|>)~is',$html)||stripos($html,'<html')===false||stripos($html,'</head>')===false||stripos($html,'<body')===false||strpos($html,'id="cdsPageNavigation"')!==false)return $html;
  foreach(headers_list()as$header){if(stripos($header,'Content-Disposition:')===0||stripos($header,'Location:')===0)return $html;if(stripos($header,'Content-Type:')===0&&!preg_match('~^Content-Type:\s*(?:text/html|application/xhtml\+xml)(?:\s*;|\s*$)~i',$header))return $html;}

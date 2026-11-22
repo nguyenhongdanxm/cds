@@ -2,7 +2,7 @@
 // Render the actual controller/templates with isolated synthetic auth/data/SQL collaborators.
 $dir=$argv[1]??'';if(!is_dir($dir))throw new RuntimeException('Supply a temporary directory');mkdir($dir.'/includes');mkdir($dir.'/data');mkdir($dir.'/assets');
 $root=dirname(__DIR__);copy($root.'/hoclieu.php',$dir.'/hoclieu.php');copy($root.'/hoclieu_file.php',$dir.'/hoclieu_file.php');foreach(['learning_dashboard.php','learning_dashboard_view.php','learning_game_catalog.php','learning_article.php','learning_content.php','learning_content_preview.php']as$f)copy($root.'/includes/'.$f,$dir.'/includes/'.$f);
-foreach(['learning-content.js','learning-dashboard.css','learning-article.js','hoclieu-games.css']as$f)copy($root.'/assets/'.$f,$dir.'/assets/'.$f);
+foreach(['page-navigation.css','page-navigation.js','learning-content.js','learning-dashboard.css','learning-article.js','hoclieu-games.css']as$f)copy($root.'/assets/'.$f,$dir.'/assets/'.$f);
 mkdir($dir.'/assets/game-covers');symlink($root.'/assets/game-covers/illustrated-v3',$dir.'/assets/game-covers/illustrated-v3');
 file_put_contents($dir.'/includes/module_switcher.php','<?php');file_put_contents($dir.'/includes/game_credit.php','<?php');
 file_put_contents($dir.'/includes/quiz_paper_store.php', <<<'STUB'
@@ -11,6 +11,7 @@ function qp_game_visibility(){if(($_COOKIE['visibility_failure']??'')==='1')thro
 STUB);
 file_put_contents($dir.'/includes/auth.php', <<<'STUB'
 <?php
+require_once '__PAGE_NAVIGATION__';
 session_start();define('BASE_URL','/');define('DATA_PATH',dirname(__DIR__).'/data');define('SCHOOL_NAME','Trường thử nghiệm');
 function require_login(){}
 function current_user(){return ['id'=>'teacher1','username'=>'teacher1','name'=>'Giáo viên A','role'=>$_COOKIE['test_role']??'teacher'];}
@@ -24,3 +25,5 @@ for($i=0;$i<3;$i++)$items[]=['id'=>'exam'.$i,'section'=>'exam','title'=>'Đề k
 $items[]=['id'=>'examprivate','section'=>'exam','title'=>'Đề chưa duyệt riêng','author_id'=>'other','approved'=>false];
 return ['items'=>$items,'links'=>[['title'=>'Học liệu OLM','icon'=>'bi-link-45deg','url'=>'https://olm.vn'],['title'=>'Liên kết thử','url'=>'javascript:alert(1)']]];}
 STUB);
+
+$auth=file_get_contents($dir.'/includes/auth.php');file_put_contents($dir.'/includes/auth.php',str_replace('__PAGE_NAVIGATION__',str_replace("'","\\'",$root.'/includes/page_navigation.php'),$auth));

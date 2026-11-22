@@ -1,5 +1,6 @@
 <?php
 /* File/embedded responses must not be decorated by the site's HTML output filter. */
+define('CDS_EMBEDDED_RESPONSE', true);
 define('CDS_GLOBAL_UI_BUFFERED', true);
 define('CDS_SKIP_DRIVE_ACTION_REGISTRATION', true);
 require_once __DIR__ . '/includes/auth.php';
