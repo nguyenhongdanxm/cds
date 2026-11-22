@@ -11,7 +11,7 @@ function lh_dashboard_model(array $visibleItems,array $links,array $catalog,arra
     }
     if(!empty($permissions['games'])){
         $games=$visibilityLoaded?array_values(array_filter($catalog,static fn($game)=>$admin||!array_key_exists($game['key'],$visibility)||(bool)$visibility[$game['key']])):[];
-        $result['games']=['title'=>'Trò chơi','icon'=>'bi-controller','description'=>'Hoạt động tương tác giúp lớp học thêm sôi nổi.','count'=>count($games),'items'=>array_slice($games,0,8),'unavailable'=>!$visibilityLoaded];
+        $result['games']=['title'=>'Tiện ích','icon'=>'bi-controller','description'=>'Công cụ và hoạt động tương tác hỗ trợ dạy học.','count'=>count($games),'items'=>array_slice($games,0,8),'unavailable'=>!$visibilityLoaded];
     }
     if(!empty($permissions['links']))$result['links']=['title'=>'Liên kết hữu ích','icon'=>'bi-link-45deg','description'=>'Các nền tảng và công cụ phục vụ dạy học.','count'=>count($links),'items'=>array_slice($links,0,6),'unavailable'=>false];
     return $result;
