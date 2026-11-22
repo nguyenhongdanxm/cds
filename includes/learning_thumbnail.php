@@ -19,7 +19,23 @@ function lt_select_upload(string $old,?array $upload,bool $remove): string {
     @chmod($path,0640);return $name;
 }
 function lt_delete_file(string $file): void {if(lt_valid_file($file))@unlink(DATA_PATH.'/learning_thumbnails/'.$file);}
+/** External images are loaded by the browser, never fetched by the server. */
+function lt_external_url(string $url): string {
+    $url=trim($url);if($url==='')return '';
+    $parts=parse_url($url);
+    if(strlen($url)>2048||preg_match('/[\x00-\x20\x7f<>"\\\\]/',$url)||!filter_var($url,FILTER_VALIDATE_URL)||!is_array($parts)||!in_array(strtolower($parts['scheme']??''),['http','https'],true)||empty($parts['host'])||isset($parts['user'])||isset($parts['pass']))throw new InvalidArgumentException('Link ảnh đại diện cần là địa chỉ http:// hoặc https:// hợp lệ.');
+    return $url;
+}
+function lt_select_thumbnail(array $old,?array $upload,bool $remove,?string $external): array {
+    $url=lt_external_url($external??(string)($old['thumbnail_external_url']??''));
+    $hasUpload=$upload&&($upload['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_NO_FILE;
+    if($hasUpload)return ['thumbnail_file'=>lt_select_upload((string)($old['thumbnail_file']??''),$upload,false),'thumbnail_external_url'=>''];
+    if($remove)return ['thumbnail_file'=>'','thumbnail_external_url'=>''];
+    if($url!=='')return ['thumbnail_file'=>'','thumbnail_external_url'=>$url];
+    return ['thumbnail_file'=>(string)($old['thumbnail_file']??''),'thumbnail_external_url'=>''];
+}
 function lt_thumbnail_url(array $row): string {
+    try{$external=lt_external_url((string)($row['thumbnail_external_url']??''));if($external!=='')return $external;}catch(InvalidArgumentException $e){}
     $file=(string)($row['thumbnail_file']??'');if(!lt_valid_file($file)||!is_file(DATA_PATH.'/learning_thumbnails/'.$file))return '';
     return BASE_URL.'hoclieu_file.php?id='.rawurlencode((string)($row['id']??'')).'&thumbnail=1&v='.substr($file,0,12);
 }
@@ -35,6 +51,6 @@ function lt_presentation(string $kind): array {
 }
 function lt_cover(array $row): string {
     [$theme,$icon,$label]=lt_presentation((string)($row['kind']??''));$url=lt_thumbnail_url($row);$esc=static fn($value)=>htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8');
-    if($url!=='')return '<span class="learning-cover learning-cover--custom"><img src="'.$esc($url).'" alt="'.$esc('Ảnh đại diện: '.($row['title']??'Học liệu')).'" loading="lazy" decoding="async"></span>';
+    if($url!=='')return '<span class="learning-cover learning-cover--custom"><img src="'.$esc($url).'" alt="'.$esc('Ảnh đại diện: '.($row['title']??'Học liệu')).'" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>';
     return '<span class="learning-cover learning-cover--'.$theme.'" role="img" aria-label="'.$esc('Ảnh đại diện '.$label).'"><span class="learning-cover-symbol"><i class="bi '.$icon.'" aria-hidden="true"></i></span><span class="learning-cover-label">'.$esc($label).'</span></span>';
 }
