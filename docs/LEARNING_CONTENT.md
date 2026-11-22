@@ -35,3 +35,9 @@ Tệp cần được cấp quyền xem phù hợp cho người sử dụng (ví 
 ## Tải xuống
 
 Trong khung xem học liệu/đề thi có tệp gốc hoặc link Google Drive, bấm **Tải xuống** ở phía trên. Nội dung đang xem vẫn được giữ trong trang. Tệp đã tải lên được trả về dạng đính kèm qua hệ thống sau khi kiểm tra quyền xem; link Drive dùng đường tải gốc và giữ resourcekey. Google Docs tải PDF, Sheets tải XLSX, Slides tải PPTX. Quyền chia sẻ và hạn chế tải của chủ tệp Drive vẫn áp dụng. Bài soạn trực tiếp, YouTube và trang web không có tệp gốc sẽ không hiện nút tải.
+
+## Liên kết hữu ích
+
+Khi thêm hoặc sửa liên kết, nhập **Link ảnh đại diện**, **Mô tả** và **Cách mở**: xem ngay trong trang hoặc mở tab mới ngoài trang. Ảnh là link ảnh HTTP/HTTPS công khai, tự phủ kín khung; để trống dùng biểu tượng thay thế. Mô tả tối đa 1000 ký tự, hiển thị dạng chữ. Thẻ ở Tổng quan dùng cùng thông tin/cách mở. Liên kết cũ mặc định mở tab mới. Người có quyền sửa Liên kết có thể chỉnh thông tin ngay trên thẻ.
+
+Xem trong trang dùng khung nhúng riêng với kiểm tra quyền `hl.lienket`. Website nguồn có thể chặn nhúng; khi đó đổi sang mở tab mới. Không thay đổi chính sách của website nguồn. Không cần SQL.

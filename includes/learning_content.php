@@ -112,3 +112,15 @@ function lc_byte_range(string $range,int $size): ?array {
     if($m[1]===''){$suffix=(int)$m[2];if($suffix<1)throw new InvalidArgumentException('Khoảng dữ liệu không hợp lệ.');return [max(0,$size-$suffix),$size-1];}
     $start=(int)$m[1];$end=$m[2]===''?$size-1:min($size-1,(int)$m[2]);if($start>=$size||$end<$start)throw new InvalidArgumentException('Khoảng dữ liệu không hợp lệ.');return [$start,$end];
 }
+
+function lc_link_attributes(array $row): string {
+    $esc=static fn($v)=>htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');$url=lc_web_url((string)($row['url']??''));
+    if(($row['open_mode']??'new_tab')==='embed')return 'href="'.$esc(BASE_URL.'hoclieu_file.php?link='.rawurlencode((string)($row['id']??''))).'" data-learning-preview data-title="'.$esc($row['title']??'Liên kết').'"';
+    return 'href="'.$esc($url?:'#').'" target="_blank" rel="noopener noreferrer"';
+}
+function lc_link_body(array $row): string {
+    $esc=static fn($v)=>htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');$image='';try{$image=lt_external_url((string)($row['image_url']??''));}catch(InvalidArgumentException $e){}
+    $icon=preg_match('/^bi-[a-z0-9-]+$/D',(string)($row['icon']??''))?$row['icon']:'bi-link-45deg';
+    $cover=$image!==''?'<span class="learning-link-cover"><img src="'.$esc($image).'" alt="'.$esc('Ảnh đại diện: '.($row['title']??'Liên kết')).'" loading="lazy" referrerpolicy="no-referrer"></span>':'<span class="learning-link-icon"><i class="bi '.$esc($icon).'" aria-hidden="true"></i></span>';
+    return $cover.'<span class="learning-link-copy"><strong>'.$esc($row['title']??'Liên kết').'</strong>'.(!empty($row['description'])?'<span class="learning-link-description">'.$esc($row['description']).'</span>':'').'<span class="learning-link-action">'.(($row['open_mode']??'new_tab')==='embed'?'Xem trong trang':'Mở tab mới').'</span></span>';
+}
