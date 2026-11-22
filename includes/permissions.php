@@ -31,6 +31,7 @@ function permission_features_catalog() {
         'cm.pccm'     => ['module' => 'chuyenmon', 'label' => 'Phân công · danh sách · đổi chéo · rà soát', 'group' => 'PCCM'],
         'cm.nhaplieu' => ['module' => 'chuyenmon', 'label' => 'Nhập liệu (GV · môn · lớp · kiêm nhiệm)', 'group' => 'PCCM'],
         'cm.thongke'  => ['module' => 'chuyenmon', 'label' => 'Thống kê PCCM', 'group' => 'PCCM'],
+        'cm.hoso' => ['module'=>'chuyenmon', 'label'=>'Hồ sơ chuyên môn (Google Drive)', 'group'=>'Hồ sơ - Báo cáo'],
         'cm.kehoach'  => ['module' => 'chuyenmon', 'label' => 'Kế hoạch (văn bản · TB · chỉ tiêu)', 'group' => 'Kế hoạch'],
         'cm.baocao.dinhky' => ['module' => 'chuyenmon', 'label' => 'Báo cáo định kỳ', 'group' => 'Báo cáo'],
         'cm.baocao.tiendo' => ['module' => 'chuyenmon', 'label' => 'Tiến độ chương trình', 'group' => 'Báo cáo'],

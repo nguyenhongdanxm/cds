@@ -39,6 +39,7 @@ function cds_viewer_read_routes(): array {
     $routes['noitru_overview_api.php'] = 'date month';
     $routes['noitru_room_roles_data.php'] = 'date';
     $routes['thidua_phongnoitru_history_api.php'] = 'room month from to';
+    $routes['chuyenmon/hoso.php'] = 'api folder cursor sort q';
     foreach (['index','tracuu','ketqua','tongquan','danhsach','rasoat','giaovien','monhoc','lop','kiemnhiem','thongke','kehoach','baocao','dugio','danhgia','phieudugio','kiemtrahoso','boiduong','activities','sodaubai','sodaubai_print','classroom_home','student_support'] as $page) {
         $routes['chuyenmon/'.$page.'.php'] = $filters.' version vid group khoi lop teacher_filter filter_teacher class_filter search baocao_view tiendo_view report_type semester limit offset';
     }

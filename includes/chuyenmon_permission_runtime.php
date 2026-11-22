@@ -11,7 +11,7 @@ function cds_cm_permission_rank(string $level): int {
 
 function cds_cm_permission_codes(): array {
     return [
-        'cm.dashboard','cm.tracuu','cm.pccm','cm.nhaplieu','cm.thongke','cm.kehoach',
+        'cm.dashboard','cm.tracuu','cm.pccm','cm.nhaplieu','cm.thongke','cm.kehoach','cm.hoso',
         'cm.baocao.dinhky','cm.baocao.tiendo','cm.baocao.dugio','cm.baocao.kythi',
     ];
 }

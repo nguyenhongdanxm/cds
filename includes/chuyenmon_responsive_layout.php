@@ -51,7 +51,8 @@ $cmNavGroups = [
         ['permission'=>'cm.pccm','pages'=>['them','danhsach','doicheo','rasoat','sua','tongquan'],'href'=>'them.php','icon'=>'bi-pencil-square','label'=>'Phân công'],
         ['permission'=>$cmLayoutLogged&&$cmLayoutCan('cm.tracuu')?'cm.tracuu':'cm.thongke','pages'=>['ketqua','thongke','xuat_bang'],'href'=>$cmLayoutLogged&&$cmLayoutCan('cm.tracuu')?'ketqua.php':'thongke.php','icon'=>'bi-folder2-open','label'=>'Kết quả phiên bản'],
     ]],
-    ['label'=>'Báo cáo','icon'=>'bi-file-earmark-text','items'=>[
+    ['label'=>'Hồ sơ - Báo cáo','short_label'=>'Hồ sơ - BC','icon'=>'bi-file-earmark-text','items'=>[
+        ['permission'=>'cm.hoso','pages'=>['hoso'],'href'=>'hoso.php','icon'=>'bi-folder2-open','label'=>'Hồ sơ chuyên môn'],
         ['permission'=>'cm.kehoach','pages'=>['kehoach'],'tab'=>'vanban','href'=>'kehoach.php?tab=vanban','icon'=>'bi-file-earmark-check','label'=>'Kế hoạch giáo dục'],
         ['permission'=>'cm.baocao.dinhky','pages'=>['baocao'],'tab'=>'dinhky','href'=>'baocao.php?tab=dinhky','icon'=>'bi-calendar-check','label'=>'Báo cáo định kỳ'],
     ]],
