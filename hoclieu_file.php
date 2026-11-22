@@ -7,10 +7,17 @@ require_once __DIR__ . '/includes/auth.php';
 require_login();
 require_once __DIR__ . '/includes/learning_article.php';
 require_once __DIR__ . '/includes/learning_content.php';
+require_once __DIR__ . '/includes/learning_thumbnail.php';
 
 $id = is_string($_GET['id']??null)?trim($_GET['id']):'';
 $row=lc_require_item($id);
 $isAdmin=(current_user()['role']??'')==='admin';
+if(($_GET['thumbnail']??'')==='1'){
+    try{$image=lt_read_thumbnail($row);}catch(Throwable $e){http_response_code(404);exit('Không tìm thấy ảnh đại diện.');}
+    header('Content-Type: '.$image['mime']);header('X-Content-Type-Options: nosniff');header('Cache-Control: private, no-cache');header('ETag: '.$image['etag']);
+    if(($_SERVER['HTTP_IF_NONE_MATCH']??'')===$image['etag']){http_response_code(304);exit;}
+    header('Content-Length: '.strlen($image['body']));echo $image['body'];exit;
+}
 if (($_GET['preview']??'')==='1') { require __DIR__.'/includes/learning_content_preview.php'; exit; }
 
 if (($row['source_kind'] ?? '') === 'article') {
