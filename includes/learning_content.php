@@ -89,6 +89,23 @@ function lc_preview(array $row): array {
     return ['mode'=>'unavailable','src'=>''];
 }
 
+/** Only original files and recognized Google files offer a download. */
+function lc_drive_download_url(string $url): string {
+    $preview=lc_drive($url);if($preview==='')return '';
+    $p=parse_url($url);$path=$p['path']??'';
+    preg_match('~/file/d/([A-Za-z0-9_-]+)/preview~',$preview,$m);$id=$m[1];
+    parse_str(parse_url($preview,PHP_URL_QUERY)??'',$q);$key=isset($q['resourcekey'])?'&resourcekey='.rawurlencode($q['resourcekey']):'';
+    if(in_array(strtolower($p['host']),['docs.google.com','www.docs.google.com'],true)&&preg_match('~^/(document|spreadsheets|presentation)/~',$path,$type)){
+        $format=['document'=>'pdf','spreadsheets'=>'xlsx','presentation'=>'pptx'][$type[1]];
+        return 'https://docs.google.com/'.$type[1].'/d/'.$id.'/export?format='.$format.$key;
+    }
+    return 'https://drive.google.com/uc?export=download&id='.$id.$key;
+}
+function lc_can_download(array $row): bool {
+    if(in_array($row['source_kind']??'',['link','gdrive','video_url','image_url'],true)&&lc_drive_download_url((string)($row['url']??''))!=='')return true;
+    return in_array($row['source_kind']??'',['upload','html'],true)&&preg_match('/^gdrive:[A-Za-z0-9_-]{10,200}$/D',(string)($row['file_path']??''))===1;
+}
+
 function lc_byte_range(string $range,int $size): ?array {
     if($range==='')return null;
     if($size<1||!preg_match('/^bytes=(\d*)-(\d*)$/D',$range,$m)||($m[1]===''&&$m[2]===''))throw new InvalidArgumentException('Khoảng dữ liệu không hợp lệ.');

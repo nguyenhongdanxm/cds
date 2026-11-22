@@ -31,3 +31,7 @@ Trang `hoclieu_file.php` đánh dấu `CDS_EMBEDDED_RESPONSE` trước khi nạp
 Khi nhập/sửa học liệu hoặc đề thi, chọn **Hình thức nội dung → Google Drive — xem trong trang**, dán link chia sẻ của tệp rồi lưu. Hỗ trợ link Drive dạng `/file/d/…/view`, `/open?id=…`, `/uc?id=…`, Google Docs, Sheets và Slides. Khi bấm Xem hoặc ảnh đại diện, tệp mở trong khung ngay trên trang hiện tại. Link Drive đã lưu dưới hình thức Liên kết cũng được tự chuyển sang trình xem nhúng. Khóa `resourcekey` trong link được giữ.
 
 Tệp cần được cấp quyền xem phù hợp cho người sử dụng (ví dụ Bất kỳ ai có đường liên kết). Hệ thống không thay đổi quyền chia sẻ. Link thư mục không dùng để nhập một học liệu/đề thi. Máy chủ chỉ chuẩn hóa URL từ các tên miền Google hợp lệ; không tải tệp qua link và không nhận mã HTML nhúng. Nội dung vẫn chịu quyền xem và quy trình duyệt hiện có. Không cần SQL.
+
+## Tải xuống
+
+Trong khung xem học liệu/đề thi có tệp gốc hoặc link Google Drive, bấm **Tải xuống** ở phía trên. Nội dung đang xem vẫn được giữ trong trang. Tệp đã tải lên được trả về dạng đính kèm qua hệ thống sau khi kiểm tra quyền xem; link Drive dùng đường tải gốc và giữ resourcekey. Google Docs tải PDF, Sheets tải XLSX, Slides tải PPTX. Quyền chia sẻ và hạn chế tải của chủ tệp Drive vẫn áp dụng. Bài soạn trực tiếp, YouTube và trang web không có tệp gốc sẽ không hiện nút tải.

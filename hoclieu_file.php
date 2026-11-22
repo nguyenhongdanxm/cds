@@ -12,6 +12,16 @@ require_once __DIR__ . '/includes/learning_thumbnail.php';
 $id = is_string($_GET['id']??null)?trim($_GET['id']):'';
 $row=lc_require_item($id);
 $isAdmin=(current_user()['role']??'')==='admin';
+if(($_GET['download']??'')==='1'){
+    if(!lc_can_download($row)){http_response_code(404);exit('Nội dung này không có tệp để tải xuống.');}
+    header('Cache-Control: private, no-store');header('X-Content-Type-Options: nosniff');header('Referrer-Policy: no-referrer');
+    $external=lc_drive_download_url((string)($row['url']??''));
+    if($external!==''&&in_array($row['source_kind']??'',['link','gdrive','video_url','image_url'],true)){header('Location: '.$external,true,302);exit;}
+    $file=cds_drive_download(substr((string)$row['file_path'],7));
+    if(empty($file['ok'])){http_response_code(502);exit('Không tải được tệp. Vui lòng thử lại sau.');}
+    $name=basename(str_replace('\\','/',(string)($row['file_name']??$file['name']??'hoc-lieu')));if($name==='')$name='hoc-lieu';
+    $body=(string)($file['body']??'');header('Content-Type: application/octet-stream');header("Content-Disposition: attachment; filename*=UTF-8''".rawurlencode($name));header('Content-Length: '.strlen($body));echo $body;exit;
+}
 if(($_GET['thumbnail']??'')==='1'){
     try{$image=lt_read_thumbnail($row);}catch(Throwable $e){http_response_code(404);exit('Không tìm thấy ảnh đại diện.');}
     header('Content-Type: '.$image['mime']);header('X-Content-Type-Options: nosniff');header('Cache-Control: private, no-cache');header('ETag: '.$image['etag']);
