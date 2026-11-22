@@ -9,6 +9,14 @@ require_once __DIR__ . '/includes/learning_article.php';
 require_once __DIR__ . '/includes/learning_content.php';
 require_once __DIR__ . '/includes/learning_thumbnail.php';
 
+if(isset($_GET['link'])){
+    $user=current_user()??[];if(($user['role']??'')!=='admin'&&!can_perm_level('hl.lienket','view')){http_response_code(403);exit('Bạn chưa có quyền xem liên kết.');}
+    $linkId=is_string($_GET['link'])?$_GET['link']:'';$hub=load_json(DATA_PATH.'/learning_hub.json',['links'=>[]]);$link=null;
+    foreach((array)($hub['links']??[])as$candidate)if(is_array($candidate)&&($candidate['id']??'')===$linkId){$link=$candidate;break;}
+    if(!$link){http_response_code(404);exit('Không tìm thấy liên kết.');}
+    $row=['id'=>$linkId,'title'=>$link['title']??'Liên kết','source_kind'=>'link','url'=>$link['url']??''];$hideDownload=true;
+    require __DIR__.'/includes/learning_content_preview.php';exit;
+}
 $id = is_string($_GET['id']??null)?trim($_GET['id']):'';
 $row=lc_require_item($id);
 $isAdmin=(current_user()['role']??'')==='admin';
