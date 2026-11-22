@@ -5,6 +5,7 @@ require_once __DIR__ . '/includes/quiz_paper_store.php';
 require_login();
 require_once __DIR__ . '/includes/learning_article.php';
 require_once __DIR__ . '/includes/learning_content.php';
+require_once __DIR__ . '/includes/learning_thumbnail.php';
 require_once __DIR__ . '/includes/learning_game_catalog.php';
 require_once __DIR__ . '/includes/learning_dashboard.php';
 
@@ -112,13 +113,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $index = lh_find($data['items'], $id);
+        $previousThumbnail=$index>=0?(string)($data['items'][$index]['thumbnail_file']??''):'';
+        $thumbnailFile=$previousThumbnail;
         if ($index >= 0) {
             $old = $data['items'][$index];
             if (!$canApprove && ($old['author_id'] ?? '') !== $userId) { http_response_code(403); exit('Chỉ được sửa nội dung do mình nộp.'); }
             if (in_array($sourceKind,['upload','html'],true) && $filePath==='' && (($old['source_kind']??'')!==$sourceKind || empty($old['file_path']) || ($sourceKind==='upload' && ($old['kind']??'')!==$kind))) { flash('Vui lòng chọn tệp phù hợp khi đổi loại hoặc hình thức nội dung.','danger'); lh_redirect($tab); }
+            try{$thumbnailFile=lt_select_upload($previousThumbnail,is_array($_FILES['thumbnail']??null)?$_FILES['thumbnail']:null,($_POST['remove_thumbnail']??'')==='1');}catch(Throwable $e){flash($e->getMessage(),'danger');lh_redirect($tab);}
             $data['items'][$index] = array_merge($old, [
                 'section' => $section, 'title' => $title, 'kind' => $kind, 'grade' => $grade,
-                'source' => $source, 'source_kind' => $sourceKind, 'article_body' => $article,
+                'source' => $source, 'source_kind' => $sourceKind, 'article_body' => $article, 'thumbnail_file'=>$thumbnailFile,
                 'url' => in_array($sourceKind,['link','youtube','vimeo','video_url','image_url'],true) ? $url : '',
                 'file_path' => $sourceKind === 'article' ? '' : ($filePath !== '' ? $filePath : (string)($old['file_path'] ?? '')),
                 'file_name'=>$fileName!==''?$fileName:($old['file_name']??''), 'file_mime'=>$fileMime!==''?$fileMime:($old['file_mime']??''),
@@ -128,16 +132,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (in_array($sourceKind, ['upload', 'html'], true) && $filePath === '') {
                 flash('Vui lòng chọn tệp cần tải lên.', 'danger'); lh_redirect($tab);
             }
+            try{$thumbnailFile=lt_select_upload($previousThumbnail,is_array($_FILES['thumbnail']??null)?$_FILES['thumbnail']:null,($_POST['remove_thumbnail']??'')==='1');}catch(Throwable $e){flash($e->getMessage(),'danger');lh_redirect($tab);}
             $data['items'][] = [
                 'id' => 'hl_' . bin2hex(random_bytes(8)), 'section' => $section, 'title' => $title,
-                'kind' => $kind, 'grade' => $grade, 'source' => $source, 'source_kind' => $sourceKind, 'article_body' => $article,
+                'kind' => $kind, 'grade' => $grade, 'source' => $source, 'source_kind' => $sourceKind, 'article_body' => $article, 'thumbnail_file'=>$thumbnailFile,
                 'url' => in_array($sourceKind,['link','youtube','vimeo','video_url','image_url'],true) ? $url : '', 'file_path' => $filePath, 'file_name'=>$fileName, 'file_mime'=>$fileMime,
                 'author_id' => $userId, 'author' => $userName, 'approved' => $canApprove,
                 'approved_at' => $canApprove ? date('c') : '', 'approved_by' => $canApprove ? $userName : '',
                 'featured' => false, 'created_at' => date('c'), 'updated_at' => date('c'),
             ];
         }
-        save_json($dataFile, $data);
+        $saved=save_json($dataFile, $data);
+        if($saved===false){if($thumbnailFile!==$previousThumbnail)lt_delete_file($thumbnailFile);flash('Không lưu được học liệu. Vui lòng thử lại.','danger');lh_redirect($tab);}
+        if($previousThumbnail!==$thumbnailFile)lt_delete_file($previousThumbnail);
         flash($canApprove ? 'Đã lưu và hiển thị nội dung.' : 'Đã gửi nội dung, vui lòng chờ người có quyền duyệt.', 'success');
         lh_redirect($tab);
     }
@@ -151,6 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (($action === 'approve_item' || $action === 'feature_item') && !$canApprove) { http_response_code(403); exit('Bạn chưa có quyền duyệt nội dung.'); }
         if ($action === 'delete_item' && !$canItemDelete && !$canApprove) { http_response_code(403); exit('Bạn chưa có quyền xóa nội dung.'); }
         if ($action === 'delete_item') {
+            $deletedThumbnail=(string)($data['items'][$index]['thumbnail_file']??'');
             array_splice($data['items'], $index, 1);
             flash('Đã xóa nội dung.', 'warning');
         } elseif ($action === 'approve_item') {
@@ -162,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data['items'][$index]['featured'] = empty($data['items'][$index]['featured']);
             flash('Đã cập nhật trạng thái nổi bật.', 'success');
         }
-        save_json($dataFile, $data); lh_redirect($tab);
+        $saved=save_json($dataFile, $data);if($saved!==false&&isset($deletedThumbnail))lt_delete_file($deletedThumbnail); lh_redirect($tab);
     }
 
     if ($action === 'save_link') {
@@ -225,6 +233,7 @@ function lh_icon(string $kind): string {
 <style>
 :root{--blue:#164e7a;--blue2:#236a9f;--bg:#eef4f9}body{background:var(--bg);font-family:Segoe UI,system-ui,sans-serif;color:#1f2937}.top{background:linear-gradient(125deg,#103e64,#2379ad);color:#fff}.brand{font-size:1.25rem;font-weight:800}.nav-pills .nav-link{color:#dceeff;font-weight:650;border-radius:10px}.nav-pills .nav-link.active,.nav-pills .nav-link:hover{background:#fff;color:var(--blue)}.card{border:0;border-radius:16px;box-shadow:0 5px 20px rgba(15,55,85,.08)}.stat{position:relative;overflow:hidden}.stat i{position:absolute;right:18px;bottom:4px;font-size:3.5rem;opacity:.12}.stat strong{font-size:2rem;color:var(--blue)}.resource-card{height:100%;transition:.2s}.resource-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(15,55,85,.14)}.resource-icon{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:#e3f2fd;color:var(--blue);font-size:1.45rem}.status{font-size:.75rem;font-weight:700;border-radius:999px;padding:.25rem .55rem}.pending{background:#fff3cd;color:#765b00}.approved{background:#d1e7dd;color:#0f5132}.link-tile{display:flex;align-items:center;gap:12px;text-decoration:none;color:#1f2937;padding:18px;height:100%}.link-tile i{width:48px;height:48px;border-radius:14px;background:#e3f2fd;color:var(--blue);display:grid;place-items:center;font-size:1.5rem}.modal-header{background:var(--blue);color:#fff}.modal-header .btn-close{filter:invert(1)}@media(max-width:767px){.top .nav{margin-top:1rem}.nav-pills{flex-wrap:nowrap;overflow:auto}.nav-pills .nav-link{white-space:nowrap}}
 </style>
+<link rel="stylesheet" href="<?=BASE_URL?>assets/learning-thumbnail.css?v=1">
 </head><body>
 <?php if ($tab === 'dashboard'): ?><link rel="stylesheet" href="<?= BASE_URL ?>assets/learning-dashboard.css?v=1"><?php endif; ?>
 <?php if ($tab === 'games'): ?>
@@ -256,9 +265,9 @@ require __DIR__.'/includes/learning_dashboard_view.php';
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3"><div><h2 class="fw-bold mb-1"><?= $isExam?'Kiểm tra và thi':'Học liệu' ?></h2><p class="text-muted mb-0"><?= $isExam?'Ngân hàng đề, thi thử và các kỳ thi':'Học liệu số dùng chung đã được quản trị phê duyệt' ?></p></div><?php if($canCurrentEdit):?><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="bi bi-plus-circle me-1"></i> Nhập <?= $isExam?'đề / kỳ thi':'học liệu' ?></button><?php endif;?></div>
 <form class="card p-3 mb-3"><input type="hidden" name="tab" value="<?= e($tab) ?>"><div class="row g-2"><div class="col-md-7"><input class="form-control" name="q" value="<?= e($q) ?>" placeholder="Tìm theo tên, loại, nguồn hoặc giáo viên"></div><div class="col-md-3"><select class="form-select" name="grade"><option value="">Tất cả khối</option><?php foreach (['6','7','8','9','10','11','12','Toàn trường'] as $g): ?><option <?= $gradeFilter===$g?'selected':'' ?>><?= $g ?></option><?php endforeach; ?></select></div><div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-search"></i> Tìm</button></div></div></form>
 <div class="row g-3"><?php if (!$list): ?><div class="col-12"><div class="card p-5 text-center text-muted">Chưa có nội dung phù hợp.</div></div><?php else: foreach ($list as $row): ?>
-<div class="col-md-6 col-xl-4"><div class="card resource-card p-3"><div class="d-flex gap-3"><span class="resource-icon"><i class="bi <?= lh_icon((string)$row['kind']) ?>"></i></span><div class="flex-grow-1 min-w-0"><div class="d-flex justify-content-between gap-2"><h5 class="fw-bold mb-1"><?= e($row['title']) ?></h5><span class="status <?= !empty($row['approved'])?'approved':'pending' ?>"><?= !empty($row['approved'])?'Đã duyệt':'Chờ duyệt' ?></span></div><div class="small text-muted"><?= e($row['kind']) ?> · Khối <?= e($row['grade']) ?></div><div class="small mt-2"><i class="bi bi-person"></i> <?= e($row['author']) ?><?php if (!empty($row['source'])): ?> · <?= e($row['source']) ?><?php endif; ?></div></div></div>
+<div class="col-md-6 col-xl-4"><div class="card resource-card p-3"><a class="learning-cover-link" data-learning-preview data-title="<?=e($row['title']??'Xem nội dung')?>" href="<?=e(lh_item_url($row))?>"><?=lt_cover($row)?></a><div class="d-flex gap-3"><div class="flex-grow-1 min-w-0"><div class="d-flex justify-content-between gap-2"><h5 class="fw-bold mb-1"><?= e($row['title']) ?></h5><span class="status <?= !empty($row['approved'])?'approved':'pending' ?>"><?= !empty($row['approved'])?'Đã duyệt':'Chờ duyệt' ?></span></div><div class="small text-muted"><?=e($row['kind']??'Học liệu')?><?php if(($row['grade']??'')!==''):?> · <?=($row['grade']==='Toàn trường')?'Toàn trường':'Khối '.e($row['grade'])?><?php endif;?></div><div class="small mt-2"><i class="bi bi-person"></i> <?= e($row['author']??'') ?><?php if (!empty($row['source'])): ?> · <?= e($row['source']) ?><?php endif; ?></div></div></div>
 <div class="d-flex flex-wrap gap-2 mt-3"><a class="btn btn-sm btn-outline-primary" data-learning-preview data-title="<?=e($row['title']??'Xem nội dung')?>" href="<?= e(lh_item_url($row)) ?>"><i class="bi bi-eye"></i> Xem</a>
-<?php if (($canCurrentEdit && (($row['author_id'] ?? '') === $userId || $canApprove)) || $canApprove): ?><button type="button" class="btn btn-sm btn-outline-secondary" data-item="<?= e(base64_encode(json_encode($row, JSON_UNESCAPED_UNICODE))) ?>" onclick="editLearningItem(this)" title="Sửa"><i class="bi bi-pencil"></i></button><?php endif; ?>
+<?php if (($canCurrentEdit && (($row['author_id'] ?? '') === $userId || $canApprove)) || $canApprove): ?><button type="button" class="btn btn-sm btn-outline-secondary" data-item="<?= e(base64_encode(json_encode(array_merge($row,['thumbnail_url'=>lt_thumbnail_url($row)]), JSON_UNESCAPED_UNICODE))) ?>" onclick="editLearningItem(this)" title="Sửa"><i class="bi bi-pencil"></i></button><?php endif; ?>
 <?php if ($canApprove && empty($row['approved'])): ?><form method="post"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="approve_item"><input type="hidden" name="id" value="<?= e($row['id']) ?>"><input type="hidden" name="tab" value="<?= e($tab) ?>"><button class="btn btn-sm btn-success"><i class="bi bi-check2-circle"></i> Duyệt</button></form><?php endif; ?>
 <?php if ($canApprove): ?><form method="post"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="feature_item"><input type="hidden" name="id" value="<?= e($row['id']) ?>"><input type="hidden" name="tab" value="<?= e($tab) ?>"><button class="btn btn-sm btn-outline-warning" title="Nổi bật"><i class="bi bi-star<?= !empty($row['featured'])?'-fill':'' ?>"></i></button></form><?php endif; ?>
 <?php if ($canCurrentDelete || $canApprove): ?><form method="post" onsubmit="return confirm('Xóa nội dung này?')"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="delete_item"><input type="hidden" name="id" value="<?= e($row['id']) ?>"><input type="hidden" name="tab" value="<?= e($tab) ?>"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></form><?php endif; ?></div></div></div>
@@ -267,6 +276,7 @@ require __DIR__.'/includes/learning_dashboard_view.php';
 <div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><form method="post" enctype="multipart/form-data" id="itemForm"><div class="modal-header"><h5 class="modal-title">Nhập <?= $isExam?'đề, bài kiểm tra hoặc kỳ thi':'học liệu' ?></h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="save_item"><input type="hidden" name="id" id="itemId"><input type="hidden" name="section" value="<?= $isExam?'exam':'resource' ?>">
 <div class="row g-3"><div class="col-md-8"><label class="form-label fw-semibold">Tên <?= $isExam?'đề / kỳ thi':'học liệu' ?></label><input class="form-control" name="title" required></div><div class="col-md-4"><label class="form-label fw-semibold">Loại</label><select class="form-select" name="kind" id="contentKind" required><option value="">Chọn loại</option><?php foreach ($isExam?['Đề kiểm tra','Thi thử','Kỳ thi']:['Bài viết','Văn bản','Ứng dụng','Video','Trình chiếu','Hình ảnh','Trò chơi'] as $kind): ?><option><?= e($kind) ?></option><?php endforeach; ?></select></div>
 <div class="col-md-4"><label class="form-label fw-semibold">Khối</label><select class="form-select" name="grade" required><option value="">Chọn khối</option><?php foreach (['6','7','8','9','10','11','12','Toàn trường'] as $g): ?><option><?= $g ?></option><?php endforeach; ?></select></div><div class="col-md-8"><label class="form-label fw-semibold">Nguồn</label><input class="form-control" name="source" placeholder="Bộ GDĐT, giáo viên biên soạn…"></div>
+<div class="col-12"><label for="learningThumbnail" class="form-label fw-semibold">Ảnh đại diện <span class="fw-normal text-muted">(không bắt buộc)</span></label><div class="learning-thumbnail-editor"><div class="learning-thumbnail-preview"><img id="learningThumbnailImage" alt="Xem trước ảnh đại diện" hidden><div id="learningThumbnailDefault"><?=lt_cover(['kind'=>''])?></div></div><div class="learning-thumbnail-controls"><input type="file" class="form-control" id="learningThumbnail" name="thumbnail" accept="image/png,image/jpeg,image/gif,image/webp"><div class="form-text">PNG, JPG, GIF hoặc WebP · tối đa 2 MB, 4096 × 4096 px. Nên chọn ảnh ngang 16:9. Không chọn ảnh sẽ dùng hình đại diện theo loại.</div><div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="remove_thumbnail" value="1" id="learningThumbnailRemove"><label class="form-check-label" for="learningThumbnailRemove">Bỏ ảnh, dùng hình mặc định</label></div><div id="learningThumbnailError" class="text-danger small" role="alert"></div></div></div></div>
 <div class="col-12"><label class="form-label fw-semibold">Hình thức nội dung</label><select class="form-select" name="source_kind" id="sourceKind" required disabled><option value="">Chọn loại nội dung trước</option></select><div id="contentSourceHelp" class="form-text"></div></div>
 <div class="col-12 d-none" id="articleField"><label class="form-label fw-semibold">Nội dung bài viết</label><textarea id="articleBody" name="article_body" class="form-control" rows="18"></textarea><div class="form-text">Dán chữ và ảnh bằng Ctrl+V; dùng nút ảnh để chọn ảnh từ máy. Tối đa 8 MB gồm ảnh.</div><div id="editorError" class="text-danger small" role="alert"></div></div><div class="col-12" id="fileField"><label class="form-label fw-semibold">Chọn tệp</label><input class="form-control" type="file" name="file" id="itemFile"><div class="form-text"><span id="contentFileHelp">Tối đa 50 MB. Chọn định dạng phù hợp với loại nội dung.</span></div></div><div class="col-12 d-none" id="urlField"><label class="form-label fw-semibold" id="contentUrlLabel" for="contentUrl">Đường liên kết</label><input class="form-control" type="url" name="url" id="contentUrl" placeholder="https://..."></div></div></div><div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Hủy</button><button class="btn btn-primary" id="saveButton"><i class="bi bi-cloud-arrow-up"></i> Tải lên và gửi duyệt</button></div></form></div></div></div>
 
@@ -303,8 +313,8 @@ function editLearningItem(button){if(window.learningContentEditRow){try{window.l
 
 var itemForm=document.getElementById('itemForm');if(itemForm)itemForm.addEventListener('submit',function(event){if(sourceKind.value==='article'){var editor=window.tinymce&&tinymce.get('articleBody');if(!editor){event.preventDefault();alert('Bộ soạn thảo chưa tải xong. Vui lòng thử lại.');return;}editor.save();if(!editor.getContent({format:'text'}).trim()&&!/<img\b/i.test(editor.getContent())){event.preventDefault();alert('Vui lòng nhập nội dung bài viết.');return;}}var button=document.getElementById('saveButton');button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đang tải lên…'});
 </script>
-<script id="learningContentConfig" type="application/json"><?=json_encode(['schema'=>lc_schema(($tab==='exams')?'exam':'resource'),'labels'=>lc_sources(),'extensions'=>array_combine(array_keys(lc_schema(($tab==='exams')?'exam':'resource')),array_map(fn($kind)=>lc_extensions($kind,'upload'),array_keys(lc_schema(($tab==='exams')?'exam':'resource'))))],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE)?></script>
-<script src="<?=BASE_URL?>assets/learning-content.js?v=1"></script>
+<script id="learningContentConfig" type="application/json"><?=json_encode(['schema'=>lc_schema(($tab==='exams')?'exam':'resource'),'labels'=>lc_sources(),'thumbnailTypes'=>array_combine(array_keys(lc_schema(($tab==='exams')?'exam':'resource')),array_map(fn($kind)=>lt_presentation($kind),array_keys(lc_schema(($tab==='exams')?'exam':'resource')))),'extensions'=>array_combine(array_keys(lc_schema(($tab==='exams')?'exam':'resource')),array_map(fn($kind)=>lc_extensions($kind,'upload'),array_keys(lc_schema(($tab==='exams')?'exam':'resource'))))],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE)?></script>
+<script src="<?=BASE_URL?>assets/learning-content.js?v=2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.6/tinymce.min.js"></script>
 <script src="<?= BASE_URL ?>assets/learning-article.js?v=20261116-1"></script>
 <?php if ($tab === 'games'): require __DIR__ . '/includes/game_credit.php'; endif; ?></body></html>

@@ -1,0 +1,49 @@
+name: Learning thumbnails
+on:
+  pull_request:
+    paths:
+      - 'hoclieu.php'
+      - 'hoclieu_file.php'
+      - 'includes/learning_thumbnail.php'
+      - 'includes/learning_dashboard_view.php'
+      - 'includes/viewer_access.php'
+      - 'assets/learning-content.js'
+      - 'assets/learning-thumbnail.css'
+      - 'tests/learning_thumbnail*'
+      - 'tests/learning_content_fixture.php'
+      - 'tests/learning_dashboard_fixture.php'
+      - '.github/workflows/learning-thumbnails.yml'
+  workflow_dispatch:
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, fileinfo
+      - run: |
+          php -l hoclieu.php
+          php -l hoclieu_file.php
+          php -l includes/learning_thumbnail.php
+          php -l includes/learning_dashboard_view.php
+          php tests/learning_thumbnail_test.php
+          php tests/viewer_access_test.php
+          node --check assets/learning-content.js
+  browser:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, fileinfo
+      - run: npm install --prefix "$RUNNER_TEMP/learning-thumbnails" --no-package-lock playwright@1.58.2 bootstrap@5.3.3 bootstrap-icons@1.11.3
+      - run: "$RUNNER_TEMP/learning-thumbnails/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/learning_thumbnail_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/learning-thumbnails/node_modules
