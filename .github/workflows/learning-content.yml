@@ -7,6 +7,7 @@ on:
       - 'includes/learning_content*'
       - 'includes/learning_dashboard_view.php'
       - 'includes/viewer_access.php'
+      - 'includes/page_navigation.php'
       - 'assets/learning-content.js'
       - 'assets/learning-article.js'
       - 'tests/learning_content*'
@@ -31,6 +32,7 @@ jobs:
           php -l includes/learning_content.php
           php -l includes/learning_content_preview.php
           php tests/learning_content_test.php
+          php tests/page_navigation_test.php
           php tests/viewer_access_test.php
           node --check assets/learning-content.js
   browser:

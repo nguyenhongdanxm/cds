@@ -23,3 +23,5 @@ Dữ liệu cũ không bị di trú: liên kết YouTube cũ vẫn nhận diện
 Không cần SQL/Node.js mới. Cập nhật các tệp root, includes và assets theo quy trình triển khai hiện có.
 
 Kiểm tra: `php tests/learning_content_test.php`, `node tests/learning_content_browser.cjs`. Browser test chạy controller/file endpoint thật với kho lưu trữ/quyền/YouTube/Vimeo giả, không gọi dịch vụ thật. Kiểm tra form liên động, lưu record, server từ chối tổ hợp sai, legacy article, same-page modal, upload video/range, sandbox và giới hạn quyền theo ngăn trên màn hình 320–1440px. TinyMCE được mô phỏng trong bài kiểm tra này; logic bộ soạn thảo hiện có được giữ nguyên.
+
+Trang `hoclieu_file.php` đánh dấu `CDS_EMBEDDED_RESPONSE` trước khi nạp cấu hình. Bộ lọc điều hướng `page_navigation.php` không chèn thanh Quay lại/Trang chủ hoặc tài nguyên giao diện vào phản hồi này. Điều này giữ nguyên CSP của trình xem và tránh biểu tượng SVG không có CSS bị phóng lớn trong khung video. Fixture HTTP nạp bộ lọc điều hướng thật để kiểm tra hồi quy; các trang ứng dụng bình thường vẫn có thanh điều hướng như cũ.
