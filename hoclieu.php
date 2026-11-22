@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $filePath = (string)$result['path']; $fileName=$name; $fileMime=$mime;
         }
-        if (in_array($sourceKind,['link','youtube','vimeo','video_url','image_url'],true) && $url === '') {
+        if (in_array($sourceKind,['link','youtube','vimeo','gdrive','video_url','image_url'],true) && $url === '') {
             flash('Vui lòng nhập liên kết bắt đầu bằng http:// hoặc https://.', 'danger'); lh_redirect($tab);
         }
 
@@ -140,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data['items'][$index] = array_merge($old, [
                 'section' => $section, 'title' => $title, 'kind' => $kind, 'grade' => $grade,
                 'source' => $source, 'source_kind' => $sourceKind, 'article_body' => $article, 'thumbnail_file'=>$thumbnailFile, 'thumbnail_external_url'=>$thumbnail['thumbnail_external_url'], 'category_id'=>$categoryId,
-                'url' => in_array($sourceKind,['link','youtube','vimeo','video_url','image_url'],true) ? $url : '',
+                'url' => in_array($sourceKind,['link','youtube','vimeo','gdrive','video_url','image_url'],true) ? $url : '',
                 'file_path' => $sourceKind === 'article' ? '' : ($filePath !== '' ? $filePath : (string)($old['file_path'] ?? '')),
                 'file_name'=>$fileName!==''?$fileName:($old['file_name']??''), 'file_mime'=>$fileMime!==''?$fileMime:($old['file_mime']??''),
                 'updated_at' => date('c'),
@@ -153,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data['items'][] = [
                 'id' => 'hl_' . bin2hex(random_bytes(8)), 'section' => $section, 'title' => $title,
                 'kind' => $kind, 'grade' => $grade, 'source' => $source, 'source_kind' => $sourceKind, 'article_body' => $article, 'thumbnail_file'=>$thumbnailFile, 'thumbnail_external_url'=>$thumbnail['thumbnail_external_url'], 'category_id'=>$categoryId,
-                'url' => in_array($sourceKind,['link','youtube','vimeo','video_url','image_url'],true) ? $url : '', 'file_path' => $filePath, 'file_name'=>$fileName, 'file_mime'=>$fileMime,
+                'url' => in_array($sourceKind,['link','youtube','vimeo','gdrive','video_url','image_url'],true) ? $url : '', 'file_path' => $filePath, 'file_name'=>$fileName, 'file_mime'=>$fileMime,
                 'author_id' => $userId, 'author' => $userName, 'approved' => $canApprove,
                 'approved_at' => $canApprove ? date('c') : '', 'approved_by' => $canApprove ? $userName : '',
                 'featured' => false, 'created_at' => date('c'), 'updated_at' => date('c'),
@@ -321,7 +321,7 @@ function editLearningItem(button){if(window.learningContentEditRow){try{window.l
 var itemForm=document.getElementById('itemForm');if(itemForm)itemForm.addEventListener('submit',function(event){if(sourceKind.value==='article'){var editor=window.tinymce&&tinymce.get('articleBody');if(!editor){event.preventDefault();alert('Bộ soạn thảo chưa tải xong. Vui lòng thử lại.');return;}editor.save();if(!editor.getContent({format:'text'}).trim()&&!/<img\b/i.test(editor.getContent())){event.preventDefault();alert('Vui lòng nhập nội dung bài viết.');return;}}var button=document.getElementById('saveButton');button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Đang tải lên…'});
 </script>
 <script id="learningContentConfig" type="application/json"><?=json_encode(['schema'=>lc_schema(($tab==='exams')?'exam':'resource'),'labels'=>lc_sources(),'thumbnailTypes'=>array_combine(array_keys(lc_schema(($tab==='exams')?'exam':'resource')),array_map(fn($kind)=>lt_presentation($kind),array_keys(lc_schema(($tab==='exams')?'exam':'resource')))),'extensions'=>array_combine(array_keys(lc_schema(($tab==='exams')?'exam':'resource')),array_map(fn($kind)=>lc_extensions($kind,'upload'),array_keys(lc_schema(($tab==='exams')?'exam':'resource'))))],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE)?></script>
-<script src="<?=BASE_URL?>assets/learning-content.js?v=4"></script>
+<script src="<?=BASE_URL?>assets/learning-content.js?v=5"></script>
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.6/tinymce.min.js"></script>
 <script src="<?= BASE_URL ?>assets/learning-article.js?v=20261116-1"></script>
 <?php if ($tab === 'games'): require __DIR__ . '/includes/game_credit.php'; endif; ?></body></html>

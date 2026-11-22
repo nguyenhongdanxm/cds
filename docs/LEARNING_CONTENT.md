@@ -25,3 +25,9 @@ Không cần SQL/Node.js mới. Cập nhật các tệp root, includes và asset
 Kiểm tra: `php tests/learning_content_test.php`, `node tests/learning_content_browser.cjs`. Browser test chạy controller/file endpoint thật với kho lưu trữ/quyền/YouTube/Vimeo giả, không gọi dịch vụ thật. Kiểm tra form liên động, lưu record, server từ chối tổ hợp sai, legacy article, same-page modal, upload video/range, sandbox và giới hạn quyền theo ngăn trên màn hình 320–1440px. TinyMCE được mô phỏng trong bài kiểm tra này; logic bộ soạn thảo hiện có được giữ nguyên.
 
 Trang `hoclieu_file.php` đánh dấu `CDS_EMBEDDED_RESPONSE` trước khi nạp cấu hình. Bộ lọc điều hướng `page_navigation.php` không chèn thanh Quay lại/Trang chủ hoặc tài nguyên giao diện vào phản hồi này. Điều này giữ nguyên CSP của trình xem và tránh biểu tượng SVG không có CSS bị phóng lớn trong khung video. Fixture HTTP nạp bộ lọc điều hướng thật để kiểm tra hồi quy; các trang ứng dụng bình thường vẫn có thanh điều hướng như cũ.
+
+## Google Drive xem trong trang
+
+Khi nhập/sửa học liệu hoặc đề thi, chọn **Hình thức nội dung → Google Drive — xem trong trang**, dán link chia sẻ của tệp rồi lưu. Hỗ trợ link Drive dạng `/file/d/…/view`, `/open?id=…`, `/uc?id=…`, Google Docs, Sheets và Slides. Khi bấm Xem hoặc ảnh đại diện, tệp mở trong khung ngay trên trang hiện tại. Link Drive đã lưu dưới hình thức Liên kết cũng được tự chuyển sang trình xem nhúng. Khóa `resourcekey` trong link được giữ.
+
+Tệp cần được cấp quyền xem phù hợp cho người sử dụng (ví dụ Bất kỳ ai có đường liên kết). Hệ thống không thay đổi quyền chia sẻ. Link thư mục không dùng để nhập một học liệu/đề thi. Máy chủ chỉ chuẩn hóa URL từ các tên miền Google hợp lệ; không tải tệp qua link và không nhận mã HTML nhúng. Nội dung vẫn chịu quyền xem và quy trình duyệt hiện có. Không cần SQL.

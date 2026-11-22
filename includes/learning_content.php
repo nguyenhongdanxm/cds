@@ -1,9 +1,9 @@
 <?php
 function lc_schema(string $section='resource'): array {
-    if($section==='exam')return array_fill_keys(['Đề kiểm tra','Thi thử','Kỳ thi'],['upload','link']);
-    return ['Bài viết'=>['article','upload','link'],'Văn bản'=>['upload','link'],'Ứng dụng'=>['html','link'],'Video'=>['upload','youtube','vimeo','video_url'],'Trình chiếu'=>['upload','link'],'Hình ảnh'=>['upload','image_url'],'Trò chơi'=>['html','link']];
+    if($section==='exam')return array_fill_keys(['Đề kiểm tra','Thi thử','Kỳ thi'],['upload','gdrive','link']);
+    return ['Bài viết'=>['article','upload','gdrive','link'],'Văn bản'=>['upload','gdrive','link'],'Ứng dụng'=>['html','gdrive','link'],'Video'=>['upload','youtube','vimeo','gdrive','video_url'],'Trình chiếu'=>['upload','gdrive','link'],'Hình ảnh'=>['upload','gdrive','image_url'],'Trò chơi'=>['html','gdrive','link']];
 }
-function lc_sources(): array {return ['article'=>'Soạn bài viết trực tiếp','upload'=>'Tải tệp lên','html'=>'Tải tệp HTML tương tác','link'=>'Liên kết website / tài liệu','youtube'=>'Liên kết YouTube','vimeo'=>'Liên kết Vimeo','video_url'=>'Liên kết tệp video (MP4, WebM, OGV)','image_url'=>'Liên kết hình ảnh'];}
+function lc_sources(): array {return ['article'=>'Soạn bài viết trực tiếp','upload'=>'Tải tệp lên','html'=>'Tải tệp HTML tương tác','gdrive'=>'Google Drive — xem trong trang','link'=>'Liên kết website / tài liệu','youtube'=>'Liên kết YouTube','vimeo'=>'Liên kết Vimeo','video_url'=>'Liên kết tệp video (MP4, WebM, OGV)','image_url'=>'Liên kết hình ảnh'];}
 function lc_extensions(string $kind,string $source): array {
     if($source==='html')return ['html','htm'];
     return match($kind){'Video'=>['mp4','webm','ogv'],'Hình ảnh'=>['png','jpg','jpeg','gif','webp'],'Trình chiếu'=>['ppt','pptx','odp','pdf'],'Văn bản'=>['pdf','doc','docx','odt','rtf','txt'],default=>['pdf','doc','docx','odt','rtf','txt','ppt','pptx','odp','xls','xlsx','ods']};
@@ -27,10 +27,24 @@ function lc_vimeo(string $url): string {
     parse_str($p['query']??'',$q);$hash=$m[2]??($q['h']??'');if(!is_string($hash)||($hash!==''&&!preg_match('/^[A-Za-z0-9]{6,64}$/D',$hash)))return '';
     return 'https://player.vimeo.com/video/'.$m[1].($hash!==''?'?h='.$hash:'');
 }
+/** Normalize only known Google file URLs; never embed arbitrary supplied HTML. */
+function lc_drive(string $url): string {
+    if(!lc_web_url($url))return '';
+    $p=parse_url($url);$host=strtolower($p['host']);$path=$p['path']??'';parse_str($p['query']??'',$q);$id='';
+    if(in_array($host,['drive.google.com','www.drive.google.com'],true)){
+        if(preg_match('~^/file/(?:u/[0-9]+/)?d/([A-Za-z0-9_-]{10,200})(?:/(?:view|preview|edit))?/?$~D',$path,$m))$id=$m[1];
+        elseif(in_array($path,['/open','/uc'],true)&&is_string($q['id']??null))$id=$q['id'];
+    }elseif(in_array($host,['docs.google.com','www.docs.google.com'],true)&&preg_match('~^/(?:document|spreadsheets|presentation)/(?:u/[0-9]+/)?d/([A-Za-z0-9_-]{10,200})(?:/(?:edit|view|preview|viewform|present|copy|export))?/?$~D',$path,$m))$id=$m[1];
+    if(!preg_match('/^[A-Za-z0-9_-]{10,200}$/D',$id))return '';
+    $key=$q['resourcekey']??'';if(!is_string($key)||($key!==''&&!preg_match('/^[A-Za-z0-9_-]{1,200}$/D',$key)))return '';
+    $src='https://drive.google.com/file/d/'.$id.'/preview';
+    return $src.($key!==''?(str_contains($src,'?')?'&':'?').'resourcekey='.rawurlencode($key):'');
+}
 function lc_validate_choice(string $section,string $kind,string $source,string $url): string {
     $schema=lc_schema($section);if(!isset($schema[$kind])||!in_array($source,$schema[$kind],true))throw new InvalidArgumentException('Loại và hình thức nội dung chưa phù hợp. Hãy chọn lại.');
     if(in_array($source,['article','upload','html'],true))return '';
     $url=lc_web_url($url);if($url==='')throw new InvalidArgumentException('Vui lòng nhập liên kết http:// hoặc https:// hợp lệ.');
+    if($source==='gdrive'&&lc_drive($url)==='')throw new InvalidArgumentException('Vui lòng dán link tệp Google Drive, Google Docs, Sheets hoặc Slides hợp lệ; không dùng link thư mục.');
     if($source==='youtube'&&lc_youtube($url)==='')throw new InvalidArgumentException('Vui lòng nhập liên kết video YouTube hợp lệ.');
     if($source==='vimeo'&&lc_vimeo($url)==='')throw new InvalidArgumentException('Vui lòng nhập liên kết video Vimeo hợp lệ.');
     if(in_array($source,['video_url','image_url'],true)&&parse_url($url,PHP_URL_SCHEME)!=='https')throw new InvalidArgumentException('Liên kết video/hình ảnh cần bắt đầu bằng https://.');
@@ -60,8 +74,10 @@ function lc_require_item(string $id): array {
 function lc_preview(array $row): array {
     $source=(string)($row['source_kind']??'');$kind=(string)($row['kind']??'');$self=BASE_URL.'hoclieu_file.php?id='.rawurlencode((string)$row['id']);
     if($source==='article'||$source==='html')return ['mode'=>'frame','src'=>$self,'trusted'=>false];
-    if(in_array($source,['link','youtube','vimeo','video_url','image_url'],true)){
+    if(in_array($source,['link','youtube','vimeo','gdrive','video_url','image_url'],true)){
         $url=lc_web_url((string)($row['url']??''));if($url==='')return ['mode'=>'unavailable','src'=>''];
+        if(($drive=lc_drive($url))!=='')return ['mode'=>'frame','src'=>$drive,'trusted'=>true];
+        if($source==='gdrive')return ['mode'=>'unavailable','src'=>''];
         if($source==='youtube'||($kind==='Video'&&lc_youtube($url)!==''))return ['mode'=>'frame','src'=>lc_youtube($url),'trusted'=>true];
         if($source==='vimeo'||($kind==='Video'&&lc_vimeo($url)!==''))return ['mode'=>'frame','src'=>lc_vimeo($url),'trusted'=>true];
         if($source==='video_url'||($kind==='Video'&&preg_match('/\.(mp4|webm|ogv)$/i',parse_url($url,PHP_URL_PATH)??'')))return ['mode'=>'video','src'=>$url];
