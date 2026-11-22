@@ -19,6 +19,7 @@ if(isArticle&&typeof window.initArticleEditor==='function')window.initArticleEdi
 function sync(preferred){if(!form)return;const choices=config.schema[kind.value]||[],previous=typeof preferred==='string'?preferred:source.value;source.replaceChildren();choices.forEach(value=>source.append(new Option(config.labels[value],value)));if(!choices.length)source.append(new Option('Chọn loại nội dung trước',''));source.disabled=!choices.length;source.dataset.kind=kind.value;source.value=choices.includes(previous)?previous:(choices[0]||'');fields();}
 if(form){kind.addEventListener('change',()=>sync());source.addEventListener('change',fields);sync();
 window.learningContentEditRow=function(row){form.reset();thumbnailReset(row.thumbnail_url||'');form.querySelector('#itemId').value=row.id||'';for(const key of ['title','grade','source','url'])form.querySelector('[name='+key+']').value=row[key]||'';
+const category=form.querySelector('[name=category_id]');if(category){category.value=row.category_id||'';if(category.selectedIndex<0)category.value='';}
 let k=row.kind||'',s=row.source_kind||'';
 // Legacy records keep their content; repair the visible type only until the user saves.
 if(s==='article'&&!config.schema[k]?.includes(s))k='Bài viết';if(s==='html'&&!config.schema[k]?.includes(s))k='Ứng dụng';if(k==='Video'&&s==='link')s=provider(row.url||'');if(k==='Hình ảnh'&&s==='link')s='image_url';

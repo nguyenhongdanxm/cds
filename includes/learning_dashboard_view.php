@@ -8,6 +8,7 @@
     <?php foreach($dashboard as$key=>$section):?>
     <section id="lh-section-<?=e($key)?>" class="lh-dashboard-section lh-tone-<?=e($key)?>" aria-labelledby="lh-title-<?=e($key)?>">
         <header class="lh-section-heading"><div class="lh-section-intro"><span class="lh-section-icon"><i class="bi <?=e($section['icon'])?>" aria-hidden="true"></i></span><div><h2 id="lh-title-<?=e($key)?>"><?=e($section['title'])?> <span class="lh-section-count"><?=$section['unavailable']?'—':(int)$section['count']?></span></h2><p><?=e($section['description'])?></p></div></div><a class="lh-view-all" href="?tab=<?=e($key)?>">Xem tất cả <i class="bi bi-arrow-right" aria-hidden="true"></i></a></header>
+        <?php if(!empty($section['categories'])):?><nav class="lh-category-links" aria-label="Chuyên mục <?=e($section['title'])?>"><?php foreach($section['categories']as$categoryKey=>$category):?><a href="<?=e(lhc_url($key,$categoryKey))?>"><?=e($category['name'])?></a><?php endforeach;?></nav><?php endif;?>
         <?php if(!$section['items']):?><div class="lh-dashboard-empty"><i class="bi <?=e($section['icon'])?>" aria-hidden="true"></i><p><?=$section['unavailable']?'Chưa tải được danh sách tiện ích. Vui lòng thử lại sau.':($key==='resources'?'Chưa có học liệu.':($key==='exams'?'Chưa có đề kiểm tra hoặc kỳ thi.':($key==='games'?'Chưa có tiện ích được bật.':'Chưa có liên kết.')))?></p></div>
         <?php else:?>
         <div class="lh-content-grid <?=$key==='games'?'lh-games-preview':''?>">
