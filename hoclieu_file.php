@@ -1,23 +1,16 @@
 <?php
-/* HOC_LIEU_FILE_BUILD: 2026-08-11.1 */
+/* File/embedded responses must not be decorated by the site's HTML output filter. */
+define('CDS_GLOBAL_UI_BUFFERED', true);
+define('CDS_SKIP_DRIVE_ACTION_REGISTRATION', true);
 require_once __DIR__ . '/includes/auth.php';
 require_login();
 require_once __DIR__ . '/includes/learning_article.php';
+require_once __DIR__ . '/includes/learning_content.php';
 
-$id = trim((string)($_GET['id'] ?? ''));
-$data = load_json(DATA_PATH . '/learning_hub.json', ['items' => []]);
-$row = null;
-foreach ((array)($data['items'] ?? []) as $candidate) {
-    if (($candidate['id'] ?? '') === $id) { $row = $candidate; break; }
-}
-if (!$row) { http_response_code(404); exit('Không tìm thấy học liệu.'); }
-
-$user = current_user() ?? [];
-$isAdmin = ($user['role'] ?? '') === 'admin';
-$userId = (string)($user['id'] ?? $user['username'] ?? '');
-if (empty($row['approved']) && !$isAdmin && !cds_is_viewer($user) && ($row['author_id'] ?? '') !== $userId) {
-    http_response_code(403); exit('Học liệu chưa được duyệt.');
-}
+$id = is_string($_GET['id']??null)?trim($_GET['id']):'';
+$row=lc_require_item($id);
+$isAdmin=(current_user()['role']??'')==='admin';
+if (($_GET['preview']??'')==='1') { require __DIR__.'/includes/learning_content_preview.php'; exit; }
 
 if (($row['source_kind'] ?? '') === 'article') {
     if (!$isAdmin && !can_perm_level('hl.xem', 'view')) { http_response_code(403); exit('Bạn chưa có quyền xem học liệu.'); }
@@ -38,7 +31,7 @@ if ($fileId === '') { http_response_code(404); exit('Không tìm thấy tệp.')
 
 // Tài liệu thông thường mở thẳng bằng trình xem gốc của Google Drive để cPanel
 // không phải tải toàn bộ tệp rồi truyền lại. HTML tương tác vẫn cần proxy an toàn.
-if (($row['source_kind'] ?? '') !== 'html') {
+if (($row['source_kind'] ?? '') !== 'html' && ($_GET['inline']??'')!=='1') {
     header('Cache-Control: private, no-store');
     header('Location: https://drive.google.com/file/d/' . rawurlencode($fileId) . '/view?usp=drive_link', true, 302);
     exit;
@@ -46,6 +39,13 @@ if (($row['source_kind'] ?? '') !== 'html') {
 
 $file = cds_drive_download($fileId);
 if (empty($file['ok'])) { http_response_code((int)($file['status'] ?? 404)); exit('Không tải được tệp từ Google Drive.'); }
+
+if (($_GET['inline']??'')==='1') {
+    $bytes=(string)($file['body']??'');$kind=(string)($row['kind']??'');
+    if(($row['source_kind']??'')!=='upload'||!in_array($kind,['Video','Hình ảnh'],true)||strlen($bytes)>50*1024*1024){http_response_code(415);exit('Tệp này không hỗ trợ trình xem trực tiếp.');}
+    try{$mime=lc_upload_mime($kind,'upload',(string)($file['name']??''),$bytes,(string)($file['mime']??''));}catch(Throwable $e){http_response_code(415);exit('Định dạng nội dung không hợp lệ.');}
+    header('Content-Type: '.$mime);header('X-Content-Type-Options: nosniff');header('Cache-Control: private, no-store');header('Content-Disposition: inline');header('Accept-Ranges: bytes');$size=strlen($bytes);try{$range=lc_byte_range((string)($_SERVER['HTTP_RANGE']??''),$size);}catch(InvalidArgumentException $e){http_response_code(416);header('Content-Range: bytes */'.$size);exit;}if($range){[$start,$end]=$range;http_response_code(206);header('Content-Range: bytes '.$start.'-'.$end.'/'.$size);$bytes=substr($bytes,$start,$end-$start+1);}header('Content-Length: '.strlen($bytes));echo $bytes;exit;
+}
 
 $name = (string)($file['name'] ?? $row['title'] ?? 'hoc-lieu');
 $extension = strtolower((string)pathinfo($name, PATHINFO_EXTENSION));

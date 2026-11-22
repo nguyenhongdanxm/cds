@@ -1,0 +1,22 @@
+(function(){
+'use strict';
+const configElement=document.getElementById('learningContentConfig');if(!configElement)return;const config=JSON.parse(configElement.textContent),form=document.getElementById('itemForm'),kind=document.getElementById('contentKind'),source=document.getElementById('sourceKind');
+function provider(url){try{const u=new URL(url),h=u.hostname.toLowerCase();if(['youtube.com','www.youtube.com','m.youtube.com','youtu.be','youtube-nocookie.com','www.youtube-nocookie.com'].includes(h))return 'youtube';if(['vimeo.com','www.vimeo.com','player.vimeo.com'].includes(h))return 'vimeo';}catch(_){}return 'video_url';}
+function fields(){if(!form)return;if(source.dataset.kind!==kind.value){sync();return;}const value=source.value,isArticle=value==='article',isFile=['upload','html'].includes(value),isUrl=['link','youtube','vimeo','video_url','image_url'].includes(value);
+document.getElementById('articleField').classList.toggle('d-none',!isArticle);document.getElementById('fileField').classList.toggle('d-none',!isFile);document.getElementById('urlField').classList.toggle('d-none',!isUrl);
+const file=document.getElementById('itemFile'),url=form.querySelector('[name=url]');file.disabled=!isFile;url.disabled=!isUrl;url.required=isUrl;document.getElementById('articleBody').disabled=!isArticle;
+const extensions=value==='html'?['html','htm']:(config.extensions[kind.value]||[]);file.accept=extensions.map(e=>'.'+e).join(',');document.getElementById('contentFileHelp').textContent='Tối đa 50 MB. Định dạng: '+extensions.map(e=>e.toUpperCase()).join(', ')+'.';
+document.getElementById('contentUrlLabel').textContent=config.labels[value]||'Đường liên kết';url.placeholder=value==='youtube'?'https://www.youtube.com/watch?v=…':value==='vimeo'?'https://vimeo.com/…':value==='video_url'?'https://…/video.mp4':value==='image_url'?'https://…/hinh-anh.jpg':'https://…';
+document.getElementById('contentSourceHelp').textContent=kind.value==='Video'?'Video được phát ngay trong trang. Với YouTube/Vimeo, cần video cho phép nhúng.':isArticle?'Soạn và lưu nội dung trực tiếp trong hệ thống.':isFile?'Chọn tệp tương ứng với loại nội dung.':'Nội dung sẽ hiển thị trong khung xem; một số website có thể chặn nhúng.';
+if(isArticle&&typeof window.initArticleEditor==='function')window.initArticleEditor();
+}
+function sync(preferred){if(!form)return;const choices=config.schema[kind.value]||[],previous=typeof preferred==='string'?preferred:source.value;source.replaceChildren();choices.forEach(value=>source.append(new Option(config.labels[value],value)));if(!choices.length)source.append(new Option('Chọn loại nội dung trước',''));source.disabled=!choices.length;source.dataset.kind=kind.value;source.value=choices.includes(previous)?previous:(choices[0]||'');fields();}
+if(form){kind.addEventListener('change',()=>sync());source.addEventListener('change',fields);sync();
+window.learningContentEditRow=function(row){form.reset();form.querySelector('#itemId').value=row.id||'';for(const key of ['title','grade','source','url'])form.querySelector('[name='+key+']').value=row[key]||'';
+let k=row.kind||'',s=row.source_kind||'';
+// Legacy records keep their content; repair the visible type only until the user saves.
+if(s==='article'&&!config.schema[k]?.includes(s))k='Bài viết';if(s==='html'&&!config.schema[k]?.includes(s))k='Ứng dụng';if(k==='Video'&&s==='link')s=provider(row.url||'');if(k==='Hình ảnh'&&s==='link')s='image_url';
+kind.value=k;sync(s);document.getElementById('articleBody').value=row.article_body||'';if(window.tinymce&&tinymce.get('articleBody'))tinymce.get('articleBody').setContent(row.article_body||'');document.getElementById('saveButton').disabled=false;document.getElementById('saveButton').textContent='Lưu thay đổi';form.closest('.modal').querySelector('.modal-title').textContent='Sửa nội dung';bootstrap.Modal.getOrCreateInstance(document.getElementById('itemModal')).show();};}
+const modal=document.getElementById('learningPreviewModal'),frame=document.getElementById('learningPreviewFrame');
+if(modal){document.addEventListener('click',event=>{const link=event.target.closest('a[data-learning-preview]');if(!link||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();document.getElementById('learningPreviewTitle').textContent=link.dataset.title||'Xem nội dung';frame.src=link.href;bootstrap.Modal.getOrCreateInstance(modal).show();});modal.addEventListener('hidden.bs.modal',()=>frame.removeAttribute('src'));}
+})();
