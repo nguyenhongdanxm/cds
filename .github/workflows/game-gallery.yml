@@ -1,9 +1,9 @@
 name: Illustrated game gallery
 on:
   push:
-    paths: ['hoclieu.php', 'assets/hoclieu-games.css', 'assets/game-covers/**', 'tests/game_gallery_test.php', '.github/workflows/game-gallery.yml']
+    paths: ['hoclieu.php', 'includes/learning_game_catalog.php', 'assets/hoclieu-games.css', 'assets/game-covers/**', 'tests/game_gallery_test.php', '.github/workflows/game-gallery.yml']
   pull_request:
-    paths: ['hoclieu.php', 'assets/hoclieu-games.css', 'assets/game-covers/**', 'tests/game_gallery_test.php', '.github/workflows/game-gallery.yml']
+    paths: ['hoclieu.php', 'includes/learning_game_catalog.php', 'assets/hoclieu-games.css', 'assets/game-covers/**', 'tests/game_gallery_test.php', '.github/workflows/game-gallery.yml']
 jobs:
   verify:
     runs-on: ubuntu-latest

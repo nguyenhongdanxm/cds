@@ -4,7 +4,8 @@ define('BASE_URL', '/cds/');
 function e($value) { return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'); }
 $root = dirname(__DIR__);
 $source = file_get_contents($root.'/hoclieu.php');
-$start = strpos($source, '$games = [');
+require_once $root.'/includes/learning_game_catalog.php';
+$start = strpos($source, '$games = lh_game_catalog();');
 $end = strpos($source, '<?php else: ?>', $start);
 if ($start === false || $end === false) throw new RuntimeException('Catalog template missing');
 $template = substr($source, $start, $end-$start);

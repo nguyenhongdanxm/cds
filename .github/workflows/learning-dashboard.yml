@@ -1,0 +1,44 @@
+name: Learning dashboard sections
+on:
+  pull_request:
+    paths:
+      - 'hoclieu.php'
+      - 'includes/learning_dashboard*'
+      - 'includes/learning_game_catalog.php'
+      - 'assets/learning-dashboard.css'
+      - 'tests/learning_dashboard*'
+      - 'tests/game_gallery_test.php'
+      - '.github/workflows/learning-dashboard.yml'
+  workflow_dispatch:
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l hoclieu.php
+          php -l includes/learning_dashboard.php
+          php -l includes/learning_dashboard_view.php
+          php -l includes/learning_game_catalog.php
+          php tests/learning_dashboard_test.php
+          php tests/game_gallery_test.php
+  browser:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: npm install --prefix "$RUNNER_TEMP/learning-dashboard" --no-package-lock playwright@1.58.2 bootstrap@5.3.3 bootstrap-icons@1.11.3
+      - run: "$RUNNER_TEMP/learning-dashboard/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/learning_dashboard_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/learning-dashboard/node_modules
