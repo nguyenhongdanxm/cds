@@ -262,7 +262,7 @@ function lh_icon(string $kind): string {
 </style>
 <link rel="stylesheet" href="<?=BASE_URL?>assets/learning-thumbnail.css?v=3"><link rel="stylesheet" href="<?=BASE_URL?>assets/learning-categories.css?v=1">
 </head><body>
-<?php if ($tab === 'dashboard'): ?><link rel="stylesheet" href="<?= BASE_URL ?>assets/learning-dashboard.css?v=1"><?php endif; ?>
+<?php if ($tab === 'dashboard'): ?><link rel="stylesheet" href="<?= BASE_URL ?>assets/learning-dashboard.css?v=2"><?php endif; ?>
 <?php if ($tab === 'games'): ?>
 <link rel="stylesheet" href="<?= BASE_URL ?>assets/hoclieu-games.css?v=20261110-5">
 <?php endif; ?>
