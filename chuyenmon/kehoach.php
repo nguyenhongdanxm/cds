@@ -2,6 +2,7 @@
 $page_title = 'Kế hoạch chuyên môn';
 require_once 'includes/functions.php';
 require_login();
+require_once dirname(__DIR__).'/includes/notice_timing.php';
 
 $tabs = [
     'thongbao' => ['Thông báo', 'bi-megaphone'],
@@ -31,6 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $recordId = trim((string)($_POST['id'] ?? ''));
         $isNewRecord = $recordId === '';
         if ($isNewRecord) $recordId = 'cm_' . date('YmdHis') . '_' . bin2hex(random_bytes(4));
+        $noticeSettings=[];
+        if($tab==='thongbao'){try{$noticeSettings=cds_notice_settings(array_merge((function()use($recordId){foreach(cm_docs_by_section('kh_thongbao')as$existing)if(($existing['id']??'')===$recordId)return $existing;return [];})(),$_POST));}catch(InvalidArgumentException $e){flash($e->getMessage(),'danger');header('Location: '.BASE_URL.'kehoach.php?tab=thongbao');exit;}}
         $file = cds_storage_handle_upload('file', $tab === 'vanban' ? 'documents' : 'plans');
         $oldFile = trim($_POST['file_path'] ?? '');
         $hasDeadline = !empty($_POST['has_deadline']);
@@ -56,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'file_path' => $file !== '' ? $file : $oldFile,
             'by' => $_SESSION['cds_user']['name'] ?? 'admin',
         ];
+        $savedRecord=array_merge($savedRecord,$noticeSettings);
         cm_doc_save($savedRecord);
         if ($tab === 'thongbao' && $isNewRecord && empty($savedRecord['completed'])) {
             $dashboardItem = $savedRecord + ['_dashboard_module'=>'chuyenmon'];
@@ -175,6 +179,8 @@ function resetArticle(){article_id.value='';article_title.value='';article_link.
           <label class="form-label small fw-semibold">Ngày ban hành / sự kiện</label>
           <input type="date" name="date" id="doc_date" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>">
         </div>
+
+        <?php if($tab==='thongbao'):?><div class="border rounded p-2 mb-2"><label class="form-label small fw-semibold" for="doc_event_date">Ngày diễn ra</label><input type="date" name="event_date" id="doc_event_date" class="form-control form-control-sm"><div class="form-text">Để trống: dùng hạn cụ thể, kỳ hàng tháng hoặc ngày sự kiện ở trên.</div><label class="form-label small fw-semibold mt-2" for="doc_hide_after_days">Tự ẩn sau ngày diễn ra (số ngày)</label><input type="number" name="hide_after_days" id="doc_hide_after_days" class="form-control form-control-sm" value="7" min="0" max="3650" required><div class="form-text">Ví dụ 7: giữ đến hết ngày thứ 7 sau sự kiện. Nhập 0: ẩn từ ngày kế tiếp. Chỉ ẩn ở trang chủ, không xóa thông báo.</div></div><?php endif;?>
 
         <div class="form-check mb-2">
           <input class="form-check-input" type="checkbox" name="has_deadline" value="1" id="chkDeadline" onchange="toggleDeadline()">
@@ -311,6 +317,7 @@ function toggleAssign(){
 }
 function resetForm(){
   ['doc_id','doc_file','doc_title','doc_content','doc_link','doc_due','doc_from','doc_to'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  var eventDate=document.getElementById('doc_event_date');if(eventDate)eventDate.value='';var hideDays=document.getElementById('doc_hide_after_days');if(hideDays)hideDays.value='7';
   document.getElementById('doc_date').value='<?= date('Y-m-d') ?>';
   document.getElementById('chkDeadline').checked=false;
   document.getElementById('chkAssign').checked=false;
@@ -324,6 +331,7 @@ function editDoc(it){
   document.getElementById('doc_file').value=it.file_path||'';
   document.getElementById('doc_title').value=it.title||'';
   document.getElementById('doc_date').value=it.date||'';
+  var eventDate=document.getElementById('doc_event_date');if(eventDate)eventDate.value=it.event_date||'';var hideDays=document.getElementById('doc_hide_after_days');if(hideDays)hideDays.value=it.hide_after_days??7;
   document.getElementById('doc_content').value=it.content||'';
   document.getElementById('doc_link').value=it.link||'';
   var completed=document.getElementById('doc_completed');if(completed)completed.checked=!!it.completed;

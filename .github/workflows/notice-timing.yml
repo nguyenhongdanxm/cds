@@ -1,0 +1,30 @@
+name: Notice countdown and retention
+on:
+  pull_request:
+    paths:
+      - 'admin.php'
+      - 'includes/notice_timing.php'
+      - 'includes/dashboard_data.php'
+      - 'chuyenmon/kehoach.php'
+      - 'tests/notice_timing*'
+      - '.github/workflows/notice-timing.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, tokenizer
+      - run: |
+          php -l admin.php
+          php -l includes/notice_timing.php
+          php -l includes/dashboard_data.php
+          php -l chuyenmon/kehoach.php
+          php tests/notice_timing_test.php
+          python tests/notice_timing_http_test.py
