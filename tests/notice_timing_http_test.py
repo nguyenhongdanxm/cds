@@ -21,14 +21,15 @@ with tempfile.TemporaryDirectory(prefix='notice-timing-') as folder:
   for _ in range(50):
    try:html=urllib.request.urlopen(url).read().decode();break
    except (OSError,urllib.error.URLError):time.sleep(.1)
-  assert 'id="doc_event_date"' in html and 'id="doc_hide_after_days"' in html
-  payload=dict(action='save',title='Sự kiện thử',date='2026-11-20',event_date='2026-11-26',hide_after_days='3')
-  assert post(payload)==302;rows=json.loads((d/'rows.json').read_text());assert rows[0]['event_date']=='2026-11-26' and rows[0]['hide_after_days']==3
-  identity=rows[0]['id'];payload['id']=identity;payload['hide_after_days']='0';assert post(payload)==302;assert json.loads((d/'rows.json').read_text())[0]['hide_after_days']==0
-  del payload['event_date'];del payload['hide_after_days'];assert post(payload)==302;row=json.loads((d/'rows.json').read_text())[0];assert row['event_date']=='2026-11-26' and row['hide_after_days']==0,'Older form preserves saved timing'
+  assert 'id="doc_event_date"' in html and 'id="doc_hide_date"' in html
+  payload=dict(action='save',title='Sự kiện thử',date='2026-11-20',event_date='2026-11-23',hide_date='2026-11-30',notice_timing_version='2')
+  assert post(payload)==302;rows=json.loads((d/'rows.json').read_text());assert rows[0]['date']=='2026-11-20' and rows[0]['event_date']=='2026-11-23' and rows[0]['hide_date']=='2026-11-30' and rows[0]['notice_timing_version']==2
+  identity=rows[0]['id'];payload['id']=identity;payload['hide_date']='';assert post(payload)==302;assert json.loads((d/'rows.json').read_text())[0]['hide_date']=='','Blank explicit date disables auto-hide'
+  payload['hide_date']='2026-12-01';assert post(payload)==302
+  del payload['event_date'];del payload['hide_date'];del payload['notice_timing_version'];assert post(payload)==302;row=json.loads((d/'rows.json').read_text())[0];assert row['event_date']=='2026-11-23' and row['hide_date']=='2026-12-01','Older form preserves three dates'
   before=(d/'rows.json').read_bytes()
-  for invalid in [dict(hide_after_days='-1'),dict(event_date='2026-02-30'),dict(hide_after_days='3651')]:
+  for invalid in [dict(hide_date='2026-11-19'),dict(event_date='2026-02-30'),dict(event_date=''),dict(date='')]:
    assert post(payload|invalid)==302;assert (d/'rows.json').read_bytes()==before,'Invalid input must not change records'
-  html=urllib.request.urlopen(url).read().decode();assert 'event_date' in html and 'hide_after_days' in html and 'editDoc(' in html
-  print('PASS actual notice controller HTTP: form fields, create/edit persistence, zero retention, old-form preservation and invalid-input no-write')
+  html=urllib.request.urlopen(url).read().decode();assert 'event_date' in html and 'hide_date' in html and 'editDoc(' in html
+  print('PASS actual notice controller HTTP: form fields, create/edit persistence, explicit hide/no-hide dates, old-form preservation and invalid-input no-write')
  finally:server.terminate();server.wait()

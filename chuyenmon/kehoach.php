@@ -106,6 +106,7 @@ $noticeView = null;
 if ($tab === 'thongbao' && !empty($_GET['notice'])) {
     foreach ($items as $candidate) if (($candidate['id'] ?? '') === (string)$_GET['notice']) { $noticeView = $candidate; break; }
 }
+if($noticeView)$noticeView['_notice_dates']=cds_notice_timing($noticeView);
 function cm_article_body($html) {
     $html = trim((string) $html);
     if ($html === '') {
@@ -176,11 +177,13 @@ function resetArticle(){article_id.value='';article_title.value='';article_link.
           <input type="text" name="title" id="doc_title" class="form-control form-control-sm" required>
         </div>
         <div class="mb-2">
-          <label class="form-label small fw-semibold">Ngày ban hành / sự kiện</label>
-          <input type="date" name="date" id="doc_date" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>">
+          <label class="form-label small fw-semibold">Ngày ban hành</label>
+          <input type="date" name="date" id="doc_date" class="form-control form-control-sm" required value="<?= date('Y-m-d') ?>">
         </div>
 
-        <?php if($tab==='thongbao'):?><div class="border rounded p-2 mb-2"><label class="form-label small fw-semibold" for="doc_event_date">Ngày diễn ra</label><input type="date" name="event_date" id="doc_event_date" class="form-control form-control-sm"><div class="form-text">Để trống: dùng hạn cụ thể, kỳ hàng tháng hoặc ngày sự kiện ở trên.</div><label class="form-label small fw-semibold mt-2" for="doc_hide_after_days">Tự ẩn sau ngày diễn ra (số ngày)</label><input type="number" name="hide_after_days" id="doc_hide_after_days" class="form-control form-control-sm" value="7" min="0" max="3650" required><div class="form-text">Ví dụ 7: giữ đến hết ngày thứ 7 sau sự kiện. Nhập 0: ẩn từ ngày kế tiếp. Chỉ ẩn ở trang chủ, không xóa thông báo.</div></div><?php endif;?>
+        <?php if($tab==='thongbao'):?><input type="hidden" name="notice_timing_version" value="2"><div class="border rounded p-2 mb-2"><label class="form-label small fw-semibold" for="doc_event_date">Ngày diễn ra / chính thức áp dụng</label><input type="date" name="event_date" id="doc_event_date" class="form-control form-control-sm" required><div class="form-text">Mốc duy nhất để tính “Còn … ngày” hoặc “Đã diễn ra … ngày”.</div><label class="form-label small fw-semibold mt-2" for="doc_hide_date">Ngày ẩn</label><input type="date" name="hide_date" id="doc_hide_date" class="form-control form-control-sm"><div class="form-text">Ẩn khỏi trang chủ từ 00:00 ngày đã chọn. Để trống nếu không tự ẩn. Thông báo bắt đầu hiển thị từ ngày ban hành.</div></div><?php endif;?>
+        <div <?=$tab==='thongbao'?'hidden':''?>>
+
 
         <div class="form-check mb-2">
           <input class="form-check-input" type="checkbox" name="has_deadline" value="1" id="chkDeadline" onchange="toggleDeadline()">
@@ -204,6 +207,7 @@ function resetArticle(){article_id.value='';article_title.value='';article_link.
           <div class="form-text">Chọn ngày cụ thể <em>hoặc</em> khung ngày lặp hàng tháng.</div>
         </div>
 
+        </div>
         <div class="form-check mb-2">
           <input class="form-check-input" type="checkbox" name="has_assignees" value="1" id="chkAssign" onchange="toggleAssign()">
           <label class="form-check-label small fw-semibold" for="chkAssign">Chỉ định người thực hiện</label>
@@ -244,24 +248,21 @@ function resetArticle(){article_id.value='';article_title.value='';article_link.
     <div class="card"><div class="card-header"><?= e($tabs[$tab][0]) ?> (<?= count($items) ?>)</div>
     <div class="table-responsive">
       <table class="table table-sm table-hover mb-0 align-middle">
-        <thead><tr><th>Ngày</th><th>Hạn</th><th>Tiêu đề</th><th>Người TH</th><th>Trạng thái</th><th>Tài liệu</th><th></th></tr></thead>
+        <thead><tr><th>Ngày ban hành</th><th>Ngày diễn ra / áp dụng</th><th>Ngày ẩn</th><th>Tiêu đề</th><th>Người TH</th><th>Trạng thái</th><th>Tài liệu</th><th></th></tr></thead>
         <tbody>
         <?php if (!$items): ?>
-          <tr><td colspan="7" class="text-muted text-center py-4">Chưa có thông báo nào.</td></tr>
+          <tr><td colspan="8" class="text-muted text-center py-4">Chưa có thông báo nào.</td></tr>
         <?php else: foreach ($items as $it):
           $dl = !empty($it['has_deadline']) || !empty($it['due_date']) || !empty($it['day_from'])
             ? cm_resolve_deadline($it) : null;
+          $it['_notice_dates']=cds_notice_timing($it);
           $asg = $it['assignees'] ?? [];
           if (!is_array($asg)) $asg = $asg ? [$asg] : [];
         ?>
           <tr>
             <td class="small text-nowrap"><?= e($it['date'] ?? '') ?></td>
-            <td class="small">
-              <?php if ($dl): ?>
-                <?= e(date('d/m/Y', strtotime($dl['due_date']))) ?>
-                <?php if (!empty($dl['window'])): ?><div class="text-muted"><?= e($dl['window']) ?></div><?php endif; ?>
-              <?php else: ?>—<?php endif; ?>
-            </td>
+            <td class="small text-nowrap"><?=e($it['_notice_dates']['event_date']??'—')?></td>
+            <td class="small text-nowrap"><?=e(($it['_notice_dates']['hide_date']??'')?:'Không tự ẩn')?></td>
             <td>
               <?php if ($tab === 'chitieu'): ?>
                 <a class="fw-bold text-decoration-none" href="<?= BASE_URL ?>kehoach.php?tab=chitieu&article=<?= urlencode($it['id'] ?? '') ?>"><i class="bi bi-file-text me-1"></i><?= e($it['title'] ?? '') ?></a>
@@ -317,7 +318,7 @@ function toggleAssign(){
 }
 function resetForm(){
   ['doc_id','doc_file','doc_title','doc_content','doc_link','doc_due','doc_from','doc_to'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
-  var eventDate=document.getElementById('doc_event_date');if(eventDate)eventDate.value='';var hideDays=document.getElementById('doc_hide_after_days');if(hideDays)hideDays.value='7';
+  var eventDate=document.getElementById('doc_event_date');if(eventDate)eventDate.value='';var hideDate=document.getElementById('doc_hide_date');if(hideDate)hideDate.value='';
   document.getElementById('doc_date').value='<?= date('Y-m-d') ?>';
   document.getElementById('chkDeadline').checked=false;
   document.getElementById('chkAssign').checked=false;
@@ -331,7 +332,7 @@ function editDoc(it){
   document.getElementById('doc_file').value=it.file_path||'';
   document.getElementById('doc_title').value=it.title||'';
   document.getElementById('doc_date').value=it.date||'';
-  var eventDate=document.getElementById('doc_event_date');if(eventDate)eventDate.value=it.event_date||'';var hideDays=document.getElementById('doc_hide_after_days');if(hideDays)hideDays.value=it.hide_after_days??7;
+  var eventDate=document.getElementById('doc_event_date');if(eventDate)eventDate.value=(it._notice_dates||{}).event_date||it.event_date||it.due_date||it.date||'';var hideDate=document.getElementById('doc_hide_date');if(hideDate)hideDate.value=('hide_date' in it)?it.hide_date:((it._notice_dates||{}).hide_date||'');
   document.getElementById('doc_content').value=it.content||'';
   document.getElementById('doc_link').value=it.link||'';
   var completed=document.getElementById('doc_completed');if(completed)completed.checked=!!it.completed;
@@ -352,7 +353,7 @@ function editDoc(it){
 }
 function viewDoc(it){
   document.getElementById('viewTitle').textContent=it.title||'Xem';
-  var meta=(it.date||'')+(it.due_date?' · Hạn '+it.due_date:'')+(it.day_from?' · Kỳ '+it.day_from+'-'+it.day_to+'/tháng':'');
+  var timing=it._notice_dates||{};var meta='Ban hành: '+(it.date||'—')+' · Diễn ra / áp dụng: '+(timing.event_date||it.event_date||'—')+' · Ẩn từ: '+(('hide_date' in it)?(it.hide_date||'Không tự ẩn'):(timing.hide_date||'—'));
   document.getElementById('viewMeta').textContent=meta;
   var asg=it.assignees||[];
   document.getElementById('viewAssignees').innerHTML = asg.length ? '<strong>Người thực hiện:</strong> '+asg.join(', ') : '';

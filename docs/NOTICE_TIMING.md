@@ -1,12 +1,24 @@
-# Ngày diễn ra và tự ẩn thông báo
+# Ba mốc ngày của thông báo
 
-Trong Chuyên môn → Thông báo, thêm/sửa thông báo có hai trường:
+Form Thêm/Sửa thông báo trong Chuyên môn có ba trường độc lập:
 
-- Ngày diễn ra: dùng ngày này để đếm ngược. Để trống sẽ dùng hạn cụ thể, kỳ hàng tháng, hoặc ngày ban hành/sự kiện hiện có.
-- Tự ẩn sau ngày diễn ra: 0–3650 ngày, mặc định 7. Giữ thông báo đến hết ngày thứ N sau sự kiện; nhập 0 thì giữ hết ngày diễn ra và ẩn từ ngày kế tiếp.
+- **Ngày ban hành**: ngày bắt đầu hiện thông báo trên trang chủ.
+- **Ngày diễn ra / chính thức áp dụng**: bắt buộc; là mốc duy nhất để tính đếm ngược/đã diễn ra. Không lấy ngày ban hành hoặc hạn báo cáo để thay thế ở bản ghi mới.
+- **Ngày ẩn**: tùy chọn; ẩn từ 00:00 ngày đã chọn theo Asia/Ho_Chi_Minh. Để trống là không tự ẩn. Ngày ẩn không được trước ngày ban hành.
 
-Trang chủ chỉ giữ tiêu đề “Thông báo”, bỏ dòng tiêu đề phụ. Nhãn tự tính theo ngày tại Asia/Ho_Chi_Minh: “Còn N ngày”, “Diễn ra hôm nay”, “Đã diễn ra N ngày”. Ngày sự kiện được ghi rõ thay vì hiển thị mốc 31/12/9999. Mốc tháng có ngày vượt số ngày trong tháng được giới hạn ở ngày cuối tháng.
+Ví dụ ban hành 20/11/2026, áp dụng 23/11/2026, ẩn 30/11/2026:
 
-Thông báo cũ chưa có cấu hình dùng mặc định 7 ngày. Ẩn là lọc khi đọc trang chủ, không xóa hoặc sửa bản ghi. Thông báo tắt/đã hoàn thành vẫn bị ẩn như trước. Quy trình công việc, hạn báo cáo riêng, mốc nhân sự và thông báo văn bản không bị đổi sang cơ chế sự kiện. Không cần cron hoặc SQL; chỉ cập nhật mã nguồn. Cấu hình lưu trong bản ghi thông báo chuyên môn hiện có (`event_date`, `hide_after_days`).
+| Ngày xem | Hiển thị |
+|---|---|
+| 19/11 | Chưa hiển thị |
+| 20/11 | Còn 3 ngày |
+| 23/11 | Diễn ra hôm nay |
+| 24/11 | Đã diễn ra 1 ngày |
+| 29/11 | Đã diễn ra 6 ngày |
+| Từ 30/11 | Ẩn khỏi trang chủ |
 
-Kiểm tra: `php tests/notice_timing_test.php` kiểm tra ngày, biên ẩn, dữ liệu cũ và hàm tổng hợp/template thực; `python tests/notice_timing_http_test.py` chạy controller thật với dữ liệu/auth/thông báo đẩy giả, kiểm tra tạo/sửa/lưu và từ chối dữ liệu lỗi. Không gửi thông báo ra ngoài khi kiểm thử.
+Danh sách quản lý và khung xem hiển thị đủ ba ngày. Trang chủ phân biệt ngày ban hành và ngày diễn ra/áp dụng. Thông báo ẩn vẫn được giữ trong kho để xem/sửa; không xóa dữ liệu. Các mốc đều tính theo ngày lịch Việt Nam.
+
+Bản ghi mới lưu `date`, `event_date`, `hide_date` và `notice_timing_version=2`. Các trường hạn báo cáo/lặp tháng cũ được ẩn trong form thông báo để tránh nhầm với ba ngày. Bản ghi cũ vẫn được đọc theo cách cũ đến khi sửa; khi mở sửa, hệ thống điền ngày áp dụng/ngày ẩn tương ứng cấu hình cũ để người dùng kiểm tra và lưu lại. Biểu mẫu cũ không gửi các trường mới vẫn giữ cấu hình đã lưu.
+
+Không cần cron hoặc SQL. Kiểm tra bằng `php tests/notice_timing_test.php` và `python tests/notice_timing_http_test.py`: ví dụ cụ thể của người dùng, ngày ẩn/không ẩn, dữ liệu cũ, tổng hợp dashboard/template thật, tạo/sửa/lưu ba ngày và từ chối dữ liệu lỗi. Kiểm thử dùng nguồn dữ liệu/auth/thông báo đẩy giả, không gửi thông báo ra ngoài.
