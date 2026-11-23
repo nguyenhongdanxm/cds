@@ -250,7 +250,7 @@ $pushUnread = cds_push_unread_count($user);
             <span class="feed-icon <?= e($kind) ?>"><i class="bi <?= e($icons[$kind]) ?>"></i></span>
             <span class="feed-copy">
               <strong><?= e($title) ?></strong>
-              <small><?= e($detail) ?><?php if ($nearestDate): ?> · <i class="bi bi-calendar-event"></i> <?= !empty($item['_dashboard_event_date'])?'Ngày diễn ra ':($endDate?'Hạn ':'') ?><?= e(date(str_contains((string)$nearestDate, ':') ? 'd/m/Y H:i' : 'd/m/Y', strtotime($nearestDate))) ?><?php endif; ?></small>
+              <small><?= e($detail) ?><?php if ($nearestDate): ?> · <i class="bi bi-calendar-event"></i> <?php if(!empty($item['_dashboard_publish_date'])):?>Ban hành <?=e(date('d/m/Y',strtotime($item['_dashboard_publish_date'])))?> · <?php endif;?><?= !empty($item['_dashboard_event_date'])?'Ngày diễn ra / áp dụng ':($endDate?'Hạn ':'') ?><?= e(date(str_contains((string)$nearestDate, ':') ? 'd/m/Y H:i' : 'd/m/Y', strtotime($nearestDate))) ?><?php endif; ?></small>
             </span>
             <span class="schedule-pill <?= e($deadlineClass) ?>" title="<?= e($state) ?>"><?= e($deadlineLabel) ?></span>
           <?php if ($url): ?></a><?php else: ?></div><?php endif; ?>
