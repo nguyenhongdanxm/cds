@@ -1,0 +1,35 @@
+name: Observation A4 PDF
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/phieudugio.php'
+      - 'chuyenmon/includes/observation_form.php'
+      - 'tests/observation_pdf*'
+      - '.github/workflows/observation-pdf.yml'
+  workflow_dispatch:
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: php -l chuyenmon/phieudugio.php && php -l tests/observation_pdf_fixture.php
+  browser:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: npm install --prefix "$RUNNER_TEMP/observation-pdf" --no-package-lock playwright@1.58.2 html2canvas@1.4.1 jspdf@2.5.1 pdf-lib@1.17.1
+      - run: "$RUNNER_TEMP/observation-pdf/node_modules/.bin/playwright install --with-deps chromium"
+      - run: node tests/observation_pdf_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/observation-pdf/node_modules
