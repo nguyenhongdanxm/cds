@@ -213,8 +213,8 @@ $pushUnread = cds_push_unread_count($user);
   <div class="content-grid">
     <div class="main-stack">
     <section class="panel feed-panel">
-      <div class="panel-head"><div><span class="section-kicker">Thông báo</span><h2>Thông báo đang và sắp diễn ra</h2></div><span class="count-pill"><?= count($feedItems) ?></span></div>
-      <div class="feed-list" id="professionalFeed" tabindex="0" role="region" aria-label="Thông báo đang và sắp diễn ra">
+      <div class="panel-head"><div><span class="section-kicker">Thông báo</span></div><span class="count-pill"><?= count($feedItems) ?></span></div>
+      <div class="feed-list" id="professionalFeed" tabindex="0" role="region" aria-label="Thông báo">
         <?php foreach ($feedItems as $feedIndex => $item):
           $title = cds_dashboard_feed_title($item) ?: 'Nội dung Chuyên môn';
           $url = $item['url'] ?? $item['link'] ?? '';
@@ -240,6 +240,7 @@ $pushUnread = cds_push_unread_count($user);
                   $deadlineClass = $daysRemaining <= 3 ? 'urgent' : ($daysRemaining <= 7 ? 'warning' : ($daysRemaining <= 30 ? 'notice-time' : 'future'));
               }
           }
+          if(isset($item['_dashboard_event_label'])){$deadlineLabel=$item['_dashboard_event_label'];$deadlineClass=$item['_dashboard_badge_class']??'active';}
           $assigneeText = implode(', ', array_slice($item['_dashboard_assignees'] ?? [], 0, 3));
           $kind = in_array(($item['kind'] ?? ''), ['notice','task','salary','seniority'], true) ? $item['kind'] : 'task';
           $icons = ['notice'=>'bi-megaphone-fill','task'=>'bi-check2-square','salary'=>'bi-cash-coin','seniority'=>'bi-award-fill'];
@@ -249,12 +250,12 @@ $pushUnread = cds_push_unread_count($user);
             <span class="feed-icon <?= e($kind) ?>"><i class="bi <?= e($icons[$kind]) ?>"></i></span>
             <span class="feed-copy">
               <strong><?= e($title) ?></strong>
-              <small><?= e($detail) ?><?php if ($nearestDate): ?> · <i class="bi bi-calendar-event"></i> <?= $endDate ? 'Hạn ' : '' ?><?= e(date(str_contains((string)$nearestDate, ':') ? 'd/m/Y H:i' : 'd/m/Y', strtotime($nearestDate))) ?><?php endif; ?></small>
+              <small><?= e($detail) ?><?php if ($nearestDate): ?> · <i class="bi bi-calendar-event"></i> <?= !empty($item['_dashboard_event_date'])?'Ngày diễn ra ':($endDate?'Hạn ':'') ?><?= e(date(str_contains((string)$nearestDate, ':') ? 'd/m/Y H:i' : 'd/m/Y', strtotime($nearestDate))) ?><?php endif; ?></small>
             </span>
             <span class="schedule-pill <?= e($deadlineClass) ?>" title="<?= e($state) ?>"><?= e($deadlineLabel) ?></span>
           <?php if ($url): ?></a><?php else: ?></div><?php endif; ?>
         <?php endforeach; ?>
-        <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có nội dung sắp tới</strong><span>Thông báo chuyên môn chung, công việc được giao và mốc nhân sự cá nhân sẽ xuất hiện tại đây.</span></div><?php endif; ?>
+        <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có thông báo</strong><span>Thông báo chuyên môn chung, công việc được giao và mốc nhân sự cá nhân sẽ xuất hiện tại đây.</span></div><?php endif; ?>
       </div>
       <?php if (count($feedItems) > 5): ?><nav class="feed-pagination" aria-label="Trang thông báo"><?php for($feedPage=1,$feedPages=(int)ceil(count($feedItems)/5);$feedPage<=$feedPages;$feedPage++): ?><button type="button" class="<?= $feedPage===1?'active':'' ?>" data-feed-page-button="<?= $feedPage ?>" <?= $feedPage===1?'aria-current="page"':'' ?>><?= $feedPage ?></button><?php endfor; ?></nav><?php endif; ?>
     </section>
@@ -315,6 +316,7 @@ $voiceTargets = array_map(static function (array $command): array {
 </script>
 <script src="<?= e(BASE_URL) ?>assets/pwa-push.js?v=20260813-3" defer></script>
 <script src="<?= e(BASE_URL) ?>assets/voice-nav.js?v=20261012-4" defer></script>
+<style>.schedule-pill.past{background:#edf2f7;color:#52647a}</style>
 <?php require_once __DIR__.'/includes/login_notice_store.php'; $loginNotice=cds_ln_pending($user); $loginNoticeGate=false; require __DIR__.'/includes/login_notice_popup.php'; ?>
 </body></html>
 

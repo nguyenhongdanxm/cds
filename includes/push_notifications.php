@@ -269,7 +269,7 @@ function cds_push_sync_dashboard_feed(array $items, array $user): array {
         $sourceId = cds_push_dashboard_source_id($item); $current[$sourceId] = true;
         if (!$exists || isset($seen[$sourceId]) || isset($sourceIds[$sourceId])) { $seen[$sourceId] = true; $skipped++; continue; }
         $title = trim((string)($item['title'] ?? $item['name'] ?? $item['content'] ?? 'Nội dung mới'));
-        $detail = trim((string)($item['_dashboard_detail'] ?? 'Có nội dung mới trong Thông báo đang và sắp diễn ra.'));
+        $detail = trim((string)($item['_dashboard_detail'] ?? 'Có thông báo mới trên trang chủ.'));
         $url = trim((string)($item['url'] ?? $item['link'] ?? BASE_URL . 'admin.php')) ?: BASE_URL . 'admin.php';
         $kind = (string)($item['kind'] ?? 'notice');
         $audience = in_array($kind, ['task','salary','seniority'], true) ? [cds_push_user_key($user)] : ['all'];
