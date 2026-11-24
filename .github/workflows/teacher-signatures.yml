@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'includes/teacher_signatures.php'
+      - 'assets/teacher-signature-upload.js'
       - 'teacher_signature.php'
       - 'includes/csdl_modal_teacher.php'
       - 'csdl.php'
@@ -26,6 +27,7 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: mbstring, gd
       - run: |
+          node --check assets/teacher-signature-upload.js
           php -l includes/teacher_signatures.php
           php -l includes/csdl_modal_teacher.php
           php -l csdl.php

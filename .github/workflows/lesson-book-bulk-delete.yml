@@ -63,7 +63,7 @@ jobs:
           CDS_TEST_MYSQL: disposable-ci
           CDS_TEST_MYSQL_PORT: ${{ job.services.mysql.ports[3306] }}
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -73,7 +73,7 @@ jobs:
       - run: php tests/lesson_book_bulk_delete_fixture.php
       - run: php tests/lesson_book_sign_browser_fixture.php
       - run: npm install --prefix "$RUNNER_TEMP/lb-bulk-browser" --no-package-lock playwright@1.58.2
-      - run: "$RUNNER_TEMP/lb-bulk-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: "$RUNNER_TEMP/lb-bulk-browser/node_modules/.bin/playwright install --only-shell chromium"
       - run: node tests/lesson_book_sign_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/lb-bulk-browser/node_modules
