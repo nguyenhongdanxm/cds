@@ -24,7 +24,7 @@ if ($requestedTab === '' && !can_perm($tabPermissions[$tab])) {
 }
 require_perm($tabPermissions[$tab]);
 if(empty($_SESSION['teacher_signature_csrf']))$_SESSION['teacher_signature_csrf']=bin2hex(random_bytes(24));
-if($tab==='teachers'&&$_SERVER['REQUEST_METHOD']==='GET'&&can_perm_level('csdl.teachers','edit'))cds_ts_migrate_legacy();
+if($tab==='teachers'&&$_SERVER['REQUEST_METHOD']==='GET'&&can_perm_level('csdl.teachers','edit')){$signatureMigration=cds_ts_migrate_legacy();if(!$signatureMigration['ok'])flash('Không lưu được kết quả đồng bộ chữ ký. Vui lòng kiểm tra quyền ghi dữ liệu.','warning');}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'teacher_save') {
-        $hasSignatureChange=!empty($_POST['remove_teacher_signature'])||(isset($_FILES['teacher_signature'])&&($_FILES['teacher_signature']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_NO_FILE);
+        $hasSignatureChange=!empty($_POST['legacy_signature_key'])||!empty($_POST['remove_teacher_signature'])||(isset($_FILES['teacher_signature'])&&($_FILES['teacher_signature']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_NO_FILE);
         if($hasSignatureChange&&!hash_equals($_SESSION['teacher_signature_csrf'],(string)($_POST['signature_csrf']??''))){http_response_code(403);exit('Phiên làm việc chữ ký không hợp lệ.');}
         $group = trim($_POST['to_chuyen_mon'] ?? '');
         $teacherId = csdl_teacher_save([
@@ -146,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if(isset($_FILES['teacher_signature'])&&($_FILES['teacher_signature']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_NO_FILE){
             $signatureResult=cds_ts_upload($teacherId,$_FILES['teacher_signature'],$user);$photoMessage.=' '.$signatureResult['message'];$photoOk=$photoOk&&!empty($signatureResult['ok']);
-        }elseif(!empty($_POST['remove_teacher_signature'])){$signatureRemoved=cds_ts_remove($teacherId,$user);$photoMessage.=$signatureRemoved?' Đã gỡ chữ ký dùng cho lần ký mới.':' Không gỡ được chữ ký.';$photoOk=$photoOk&&$signatureRemoved;}
+        }elseif(!empty($_POST['legacy_signature_key'])){$signatureResult=cds_ts_link_legacy($teacherId,(string)$_POST['legacy_signature_key'],$user);$photoMessage.=' '.$signatureResult['message'];$photoOk=$photoOk&&!empty($signatureResult['ok']);}elseif(!empty($_POST['remove_teacher_signature'])){$signatureRemoved=cds_ts_remove($teacherId,$user);$photoMessage.=$signatureRemoved?' Đã gỡ chữ ký dùng cho lần ký mới.':' Không gỡ được chữ ký.';$photoOk=$photoOk&&$signatureRemoved;}
         flash('Đã lưu giáo viên.'.$photoMessage,$photoOk?'success':'warning');
         header('Location: ' . BASE_URL . 'csdl.php?tab=teachers');
         exit;
@@ -675,6 +675,8 @@ function resetTeacherForm(){
   var sigPreview=document.getElementById('teacherSignaturePreview');if(sigPreview)sigPreview.remove();
   document.querySelectorAll('[name=remove_teacher_signature]').forEach(function(el){el.checked=false;el.closest('label').remove()});
   var sigInput=document.querySelector('[name=teacher_signature]');if(sigInput)sigInput.value='';
+  var legacySelect=document.querySelector('[name=legacy_signature_key]');if(legacySelect){legacySelect.value='';legacySelect.disabled=true;}
+  var legacyPreview=document.getElementById('teacherLegacySignaturePreview');if(legacyPreview)legacyPreview.hidden=true;
 }
 document.querySelectorAll('.student-departure-btn').forEach(function(button){
   button.addEventListener('click',function(){

@@ -13,9 +13,9 @@ with tempfile.TemporaryDirectory(prefix='teacher-signatures-http-') as temp:
  (d/'includes/auth.php').write_text(auth);(d/'includes/csdl_store.php').write_text("<?php function csdl_teachers_all(){return load_json(DATA_PATH.'/teachers.json',[]);}")
  (d/'data/teachers.json').write_text(json.dumps([{'id':'a','name':'Nguyễn An'},{'id':'b','name':'Trần Bình'}]));(d/'chuyenmon/data/teachers.json').write_text('["Wrong module teacher list"]')
  legacy_img=d/'chuyenmon/data/lesson_book_signatures/legacy.png';legacy_img.write_bytes(png(50,30));(d/'chuyenmon/data/lesson_book_signatures.json').write_text(json.dumps([{'user_id':'ua','teacher':'Nguyễn An','path':str(legacy_img),'version':'old','created_at':'2026-01-01'}]))
- (d/'manage.php').write_text("""<?php require 'includes/auth.php';require 'includes/csdl_store.php';require 'includes/teacher_signatures.php';header('Content-Type: application/json');if(($_POST['csrf']??'')!=='fixture'){http_response_code(403);exit;}if(($_POST['action']??'')==='migrate')echo json_encode(cds_ts_migrate_legacy());else echo json_encode(cds_ts_upload((string)($_POST['teacher_id']??''),$_FILES['signature']??[],current_user()));""")
+ (d/'manage.php').write_text("""<?php require 'includes/auth.php';require 'includes/csdl_store.php';require 'includes/teacher_signatures.php';header('Content-Type: application/json');if(($_POST['csrf']??'')!=='fixture'){http_response_code(403);exit;}if(($_POST['action']??'')==='migrate')echo json_encode(cds_ts_migrate_legacy());elseif(($_POST['action']??'')==='link')echo json_encode(cds_ts_link_legacy((string)($_POST['teacher_id']??''),(string)($_POST['source_key']??''),current_user()));else echo json_encode(cds_ts_upload((string)($_POST['teacher_id']??''),$_FILES['signature']??[],current_user()));""")
  (d/'cm_lookup.php').write_text("<?php define('DATA_PATH',__DIR__.'/chuyenmon/data');require '"+root.as_posix()+"/includes/json_store.php';function load_json($f,$v=[]){return cds_json_load($f,$v);}require 'includes/teacher_signatures.php';header('Content-Type: application/json');echo json_encode(cds_ts_for_user(['teacher_id'=>'a','name'=>'Nguyễn An']));")
- (d/'modal.php').write_text("<?php require 'includes/auth.php';require 'includes/csdl_store.php';require 'includes/teacher_signatures.php';$editing=['id'=>'a','name'=>'Nguyễn An'];$_SESSION['teacher_signature_csrf']='fixture';require 'includes/csdl_modal_teacher.php';")
+ (d/'modal.php').write_text("<?php require 'includes/auth.php';require 'includes/csdl_store.php';require 'includes/teacher_signatures.php';$editing=['id'=>($_GET['teacher']??'a')==='b'?'b':'a','name'=>'Fixture'];$_SESSION['teacher_signature_csrf']='fixture';require 'includes/csdl_modal_teacher.php';")
  with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
  server=subprocess.Popen([os.environ.get('PHP_BINARY','php'),'-d','session.save_path='+temp,'-S',f'127.0.0.1:{port}','-t',str(d)],stdout=subprocess.DEVNULL,stderr=(d/'server.log').open('w'))
  base=f'http://127.0.0.1:{port}'
@@ -34,6 +34,10 @@ with tempfile.TemporaryDirectory(prefix='teacher-signatures-http-') as temp:
    except (OSError,urllib.error.URLError):time.sleep(.1)
   assert status==200 and json.loads(body)['version']=='old',body
   assert not (d/'data/teacher_signatures.json').exists(),'Lookup must not write on GET'
+  # Reproduce the live teacher modal: CSDL suffix, old account has empty teacher_name.
+  (d/'data/teachers.json').write_text(json.dumps([{'id':'a','name':'Nguyễn An (t)'},{'id':'b','name':'Trần Bình'}]))
+  assert json.loads(request('/cm_lookup.php')[1])['version']=='old','Legacy source resolves short teacher suffix'
+
   status,body,_=request('/manage.php',urllib.parse.urlencode({'csrf':'fixture','action':'migrate'}).encode());assert body.startswith(b'{'),body;assert json.loads(body)['count']==1,body
   assert (d/'data/teacher_signatures.json').exists() and not (d/'chuyenmon/data/teacher_signatures.json').exists(),'Always root CSDL registry'
   before=(d/'data/teacher_signatures.json').read_bytes()
@@ -49,6 +53,15 @@ with tempfile.TemporaryDirectory(prefix='teacher-signatures-http-') as temp:
   status,body,headers=request('/teacher_signature.php?id=a');assert status==200 and body==raw and headers.get('Cache-Control')=='private, no-store'
   assert request('/teacher_signature.php?id=a',headers={'Cookie':'who=ub'})[0]==403,'Other teacher cannot download raw image'
   html=request('/modal.php')[1].decode();assert 'name="teacher_signature"' in html and 'teacherSignaturePreview' in html and 'name="signature_csrf"' in html
+  legacyfile=d/'chuyenmon/data/lesson_book_signatures.json';sources=json.loads(legacyfile.read_text());sources.append({'user_id':'unresolved','teacher':'Chữ ký chưa ghép <script>','path':str(legacy_img),'version':'unmatched'});legacyfile.write_text(json.dumps(sources))
+  missing_html=request('/modal.php?teacher=b')[1].decode();assert 'Chưa ghép được chữ ký' in missing_html and 'name="legacy_signature_key"' in missing_html and 'data-preview="data:image/png;base64,' in missing_html
+  assert 'Chữ ký chưa ghép <script>' not in missing_html,'Legacy labels escaped'
+  import re
+  source_key=re.search(r'<option value="([a-f0-9]{64})" data-preview=',missing_html).group(1)
+  form=urllib.parse.urlencode({'csrf':'fixture','action':'link','teacher_id':'b','source_key':source_key}).encode()
+  assert not json.loads(request('/manage.php',form)[1])['ok'],'Teacher cannot assign another profile'
+  linked=json.loads(request('/manage.php',form,{'Cookie':'role=admin'})[1]);assert linked['ok'],linked
+  assert 'teacherSignaturePreview' in request('/modal.php?teacher=b')[1].decode(),'Manual link immediately shows existing image'
   oldpath=signature['path'];again=json.loads(upload(png(140,60))[1]);assert again['ok'] and again['signature']['path']!=oldpath and pathlib.Path(oldpath).read_bytes()==raw,'Replacement is immutable new version'
   print('PASS real signature uploads, file validation, normalized output, root vs CM stores, legacy import, preview/endpoint permissions and immutable replacement')
  except Exception:
