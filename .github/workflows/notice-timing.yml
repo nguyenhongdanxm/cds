@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'admin.php'
+      - 'notices.php'
+      - 'includes/admin_notices_v2.php'
+      - 'public_notice.php'
       - 'includes/notice_timing.php'
       - 'includes/dashboard_data.php'
       - 'chuyenmon/kehoach.php'
@@ -23,8 +26,12 @@ jobs:
           extensions: mbstring, tokenizer
       - run: |
           php -l admin.php
+          php -l notices.php
+          php -l includes/admin_notices_v2.php
+          php -l public_notice.php
           php -l includes/notice_timing.php
           php -l includes/dashboard_data.php
           php -l chuyenmon/kehoach.php
           php tests/notice_timing_test.php
           python tests/notice_timing_http_test.py
+          python tests/notice_central_dates_http_test.py
