@@ -5,7 +5,7 @@
 ?>
 <div class="mb-2" data-equipment-signature-phase="<?=$phase?>">
 <?php if($signed):?><span class="badge text-bg-success">Đã <?=e(mb_strtolower($signLabel,'UTF-8'))?></span>
-<?php if(function_exists('cds_ts_data_uri')&&($signedImage=cds_ts_data_uri($loan[$phase.'_signature']))!==''):?><img src="<?=e($signedImage)?>" alt="<?=e($signLabel)?> đã xác nhận" style="display:block;width:90px;height:30px;object-fit:contain"><?php endif;?>
+<?php if(function_exists('cds_ts_data_uri')&&($signedImage=cds_ts_data_uri($loan[$phase.'_signature']))!==''):?><img src="<?=e($signedImage)?>" alt="<?=e($signLabel)?> đã xác nhận" style="display:block;width:150px;max-width:100%;height:auto;aspect-ratio:3/1;object-fit:contain"><?php endif;?>
 <?php elseif($reason===''):?>
 <form method="post" class="d-inline" onsubmit="return confirm('<?=e($signLabel)?> dòng thiết bị này bằng chữ ký của bạn?')">
 <input type="hidden" name="csrf" value="<?=e($csrf)?>"><input type="hidden" name="action" value="sign_equipment_row"><input type="hidden" name="id" value="<?=e($loan['id']??'')?>"><input type="hidden" name="phase" value="<?=$phase?>">
