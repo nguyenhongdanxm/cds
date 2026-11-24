@@ -3,13 +3,13 @@ root=pathlib.Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='equipment-ledgers-') as folder:
  d=pathlib.Path(folder);(d/'includes').mkdir();(d/'data').mkdir()
  for name in ['thuvien.php','thietbi_phieu.php']:shutil.copy(root/name,d/name)
- for name in ['library_public_catalog.php','library_equipment_ledgers.php','library_equipment_ledgers_view.php','teacher_signatures.php']:shutil.copy(root/'includes'/name,d/'includes'/name)
+ for name in ['library_public_catalog.php','library_equipment_ledgers.php','library_equipment_ledgers_view.php','library_equipment_signature_cell.php','teacher_signatures.php']:shutil.copy(root/'includes'/name,d/'includes'/name)
  for name in ['csdl_store.php','library_book_excel.php','library_maintenance.php','module_switcher.php']:(d/'includes'/name).write_text('<?php')
  (d/'includes/library_equipment_excel.php').write_text("<?php function lib_equipment_status_quantities($e){return ['total'=>$e['quantity']??0,'good'=>$e['good_quantity']??0,'degraded'=>0,'broken'=>0];}")
  (d/'includes/form_profile.php').write_text("<?php function cds_form_school_name(){return 'Trường thử nghiệm';}")
- (d/'includes/auth.php').write_text('''<?php session_start();define('BASE_URL','/');define('DATA_PATH',dirname(__DIR__).'/data');define('SCHOOL_YEAR','2026 - 2027');define('SCHOOL_NAME','Fixture');function current_user(){return ['role'=>$_COOKIE['role']??'admin','name'=>'Vương Văn Quân','teacher_id'=>'gv-test'];}function require_login(){}function can_perm_level($p,$l){return ($_COOKIE['role']??'admin')==='teacher'&&$p==='tb.muontra'&&$l==='view';}function load_json($p,$d=[]){return is_file($p)?json_decode(file_get_contents($p),true):$d;}function save_json($p,$d){file_put_contents($p,json_encode($d));return true;}function e($s){return htmlspecialchars((string)$s,ENT_QUOTES,'UTF-8');}function cds_json_update($p,$fn,$default=[]){$v=$fn(load_json($p,$default));return $v!==false&&save_json($p,$v);}function flash(...$a){}function show_flash(){}
+ (d/'includes/auth.php').write_text('''<?php session_start();define('BASE_URL','/');define('DATA_PATH',dirname(__DIR__).'/data');define('SCHOOL_YEAR','2026 - 2027');define('SCHOOL_NAME','Fixture');function current_user(){$who=$_COOKIE['who']??'owner';return ['role'=>$_COOKIE['role']??'admin','name'=>$who==='owner'?'Vương Văn Quân':($who==='other'?'Giáo viên khác':'Quản trị'),'teacher_id'=>$who==='owner'?'gv-test':($who==='other'?'gv-other':'')];}function require_login(){}function can_perm_level($p,$l){return ($_COOKIE['role']??'admin')==='teacher'&&$p==='tb.muontra'&&$l==='view';}function load_json($p,$d=[]){return is_file($p)?json_decode(file_get_contents($p),true):$d;}function save_json($p,$d){file_put_contents($p,json_encode($d));return true;}function e($s){return htmlspecialchars((string)$s,ENT_QUOTES,'UTF-8');}function cds_json_update($p,$fn,$default=[]){$v=$fn(load_json($p,$default));return $v!==false&&save_json($p,$v);}function flash(...$a){}function show_flash(){}
  ''')
- (d/'data/teachers.json').write_text(json.dumps([{'id':'gv-test','name':'Vương Văn Quân'}]))
+ (d/'data/teachers.json').write_text(json.dumps([{'id':'gv-test','name':'Vương Văn Quân'},{'id':'gv-other','name':'Giáo viên khác'}]))
  (d/'data/teacher_signature_images').mkdir()
  import base64
  (d/'data/teacher_signature_images/fixture.png').write_bytes(base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5N8AAAAASUVORK5CYII='))
@@ -20,8 +20,8 @@ with tempfile.TemporaryDirectory(prefix='equipment-ledgers-') as folder:
  class NoRedirect(urllib.request.HTTPRedirectHandler):
   def redirect_request(self,*args):return None
  jar=http.cookiejar.CookieJar();opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar),NoRedirect());base=f'http://127.0.0.1:{port}'
- def request(path='/thuvien.php?tab=equipment_loans',form=None,role='admin'):
-  req=urllib.request.Request(base+path,None if form is None else urllib.parse.urlencode(form).encode(),headers={'Cookie':'; '.join(['role='+role]+[c.name+'='+c.value for c in jar])})
+ def request(path='/thuvien.php?tab=equipment_loans',form=None,role='admin',who='owner'):
+  req=urllib.request.Request(base+path,None if form is None else urllib.parse.urlencode(form).encode(),headers={'Cookie':'; '.join(['role='+role,'who='+who]+[c.name+'='+c.value for c in jar])})
   try:
    with opener.open(req) as r:return r.status,r.read().decode(),r.headers
   except urllib.error.HTTPError as r:return r.code,r.read().decode(),r.headers
@@ -33,11 +33,18 @@ with tempfile.TemporaryDirectory(prefix='equipment-ledgers-') as folder:
   payload=dict(action='save_equipment_loan',csrf=csrf,equipment_borrower='Vương Văn Quân',equipment_subject='GDTC',equipment_school_year='2026 - 2027',equipment_borrowed_at='2026-11-09',equipment_due_at='2026-11-12',**{'equipment_id[]':'eq','equipment_quantity[]':'1','teaching_grade[]':'8,9','lesson_period[]':'24'})
   assert request(form=payload)[0]==302;first=json.loads(store.read_text())['equipment_loans'][0];assert first['ledger_id'].startswith('eqbook_');assert request(form=payload|{'equipment_borrowed_at':'2026-11-23'})[0]==302;loans=json.loads(store.read_text())['equipment_loans'];assert len(loans)==2 and loans[0]['id']!=loans[1]['id'] and loans[0]['batch_id']==loans[1]['batch_id'],'Second loan appends into same ledger'
   status,html,_=request();assert status==200 and html.count('data-equipment-ledger=')==1 and html.count('data-equipment-loan=')==2
+  assert '<th>Chữ ký giáo viên</th>' in html and 'data-equipment-sign-button="borrow"' in html
+  assert 'disabled data-equipment-sign-button="return"' in html and 'Chưa xác nhận trả thiết bị' in html
+  other_html=request(who='other')[1];assert 'disabled data-equipment-sign-button="borrow"' in other_html and 'Chỉ giáo viên đứng tên mượn được ký' in other_html
+  unlinked_html=request(who='unlinked')[1];assert 'Tài khoản chưa liên kết hồ sơ giáo viên' in unlinked_html
+  signatures=d/'data/teacher_signatures.json';saved_signatures=signatures.read_bytes();signatures.write_text('[]')
+  missing_html=request()[1];assert 'disabled data-equipment-sign-button="borrow"' in missing_html and 'Chưa có ảnh chữ ký trong CSDL' in missing_html;signatures.write_bytes(saved_signatures)
   before=store.read_bytes();status,printed,_=request('/thietbi_phieu.php?ledger='+first['ledger_id']);assert status==200 and '09/11/2026' in printed and '23/11/2026' in printed;assert store.read_bytes()==before
   assert request(form={'action':'return_equipment_loan','csrf':csrf,'id':first['id'],'returned_at':'2026-11-12','return_condition':'Tốt'})[0]==302;loans=json.loads(store.read_text())['equipment_loans'];assert loans[0]['returned_at']=='2026-11-12' and loans[1]['returned_at']=='','Return touches only selected row'
   assert request(form=payload|{'equipment_subject':'Sinh học'})[0]==302;assert request(form=payload|{'equipment_school_year':'2025 - 2026'})[0]==302;status,html,_=request();assert html.count('data-equipment-ledger=')==3
   assert request(form={'action':'sign_equipment_row','csrf':csrf,'id':first['id'],'phase':'borrow'})[0]==302
   assert request(form={'action':'sign_equipment_row','csrf':csrf,'id':first['id'],'phase':'return'})[0]==302
+  protected=store.read_bytes();assert request(form={'action':'sign_equipment_row','csrf':csrf,'id':first['id'],'phase':'borrow'},who='other')[0]==302;assert store.read_bytes()==protected,'Another teacher cannot sign even with visible disabled control'
   signed=json.loads(store.read_text())['equipment_loans'][0];assert signed['borrow_signature']['version']=='fixture' and signed['return_signature']['version']=='fixture'
   assert 'equipment-signature' in request('/thietbi_phieu.php?ledger='+first['ledger_id'])[1]
   open_id=json.loads(store.read_text())['equipment_loans'][1]['id'];assert request(form={'action':'sign_equipment_row','csrf':csrf,'id':open_id,'phase':'return'})[0]==400

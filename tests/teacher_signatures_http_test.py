@@ -53,6 +53,7 @@ with tempfile.TemporaryDirectory(prefix='teacher-signatures-http-') as temp:
   status,body,headers=request('/teacher_signature.php?id=a');assert status==200 and body==raw and headers.get('Cache-Control')=='private, no-store'
   assert request('/teacher_signature.php?id=a',headers={'Cookie':'who=ub'})[0]==403,'Other teacher cannot download raw image'
   html=request('/modal.php')[1].decode();assert 'name="teacher_signature"' in html and 'teacherSignaturePreview' in html and 'name="signature_csrf"' in html
+  assert 'id="teacherSignaturePreview" src="data:image/png;base64,' in html and 'teacher_signature.php?id=' not in html,'CSDL preview must decode inline without a separate image endpoint'
   legacyfile=d/'chuyenmon/data/lesson_book_signatures.json';sources=json.loads(legacyfile.read_text());sources.append({'user_id':'unresolved','teacher':'Chữ ký chưa ghép <script>','path':str(legacy_img),'version':'unmatched'});legacyfile.write_text(json.dumps(sources))
   missing_html=request('/modal.php?teacher=b')[1].decode();assert 'Chưa ghép được chữ ký' in missing_html and 'name="legacy_signature_key"' in missing_html and 'data-preview="data:image/png;base64,' in missing_html
   assert 'Chữ ký chưa ghép <script>' not in missing_html,'Legacy labels escaped'
