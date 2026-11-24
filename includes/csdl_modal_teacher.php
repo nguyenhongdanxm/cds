@@ -25,8 +25,11 @@
           <div class="border rounded p-3 mb-3 bg-light">
             <label class="form-label fw-semibold">Ảnh chữ ký giáo viên</label>
             <?php $teacherSignature=($teacherPhotoId!==''&&function_exists('cds_ts_meta'))?cds_ts_meta($teacherPhotoId):null;if($teacherSignature):?>
-            <div><img id="teacherSignaturePreview" src="<?=e(BASE_URL.'teacher_signature.php?id='.rawurlencode($teacherPhotoId).'&v='.rawurlencode((string)$teacherSignature['version']))?>" alt="Chữ ký hiện tại" style="width:240px;height:80px;object-fit:contain;background:white;border:1px solid #ddd"></div>
+            <div><img id="teacherSignaturePreview" src="<?=e(BASE_URL.'teacher_signature.php?id='.rawurlencode($teacherPhotoId).'&v='.rawurlencode((string)$teacherSignature['version']))?>" alt="Chữ ký hiện tại" style="width:240px;height:80px;object-fit:contain;background:white;border:1px solid #ddd"></div><div class="text-success small mt-1"><?=str_starts_with((string)($teacherSignature['source']??''),'lesson_book')?'Chữ ký hiện tại đã được lấy từ Sổ đầu bài.':'Đã có chữ ký dùng chung trong CSDL.'?></div>
             <?php endif;?>
+            <?php if(!$teacherSignature&&$teacherPhotoId!==''&&function_exists('cds_ts_legacy_scan')):$signatureScan=cds_ts_legacy_scan();$legacyOptions=array_filter($signatureScan['sources'],static fn($source)=>$source['teacher_id']===''||$source['teacher_id']===$teacherPhotoId);?>
+            <div class="alert alert-warning py-2 my-2"><?php if(!$signatureScan['total']):?>Chưa tìm thấy dữ liệu chữ ký cũ từ Sổ đầu bài.<?php else:?>Chưa ghép được chữ ký Sổ đầu bài với hồ sơ giáo viên này.<?php endif;?><?php if($signatureScan['missing_images']):?> Có <?=$signatureScan['missing_images']?> ảnh nguồn không đọc được.<?php endif;?></div>
+            <?php if($legacyOptions&&empty($teacherReadOnly)):?><label class="form-label mt-1">Lấy chữ ký đã có từ Sổ đầu bài</label><select class="form-select" name="legacy_signature_key" id="teacherLegacySignature"><option value="">— Chọn đúng chữ ký để đối chiếu —</option><?php foreach($legacyOptions as$sourceKey=>$source):?><option value="<?=e($sourceKey)?>" data-preview="<?=e(cds_ts_data_uri($source['signature']))?>"><?=e($source['label'])?> · <?=e($source['signature']['created_at']??$source['signature']['version']??'')?></option><?php endforeach;?></select><img id="teacherLegacySignaturePreview" hidden alt="Chữ ký nguồn đang đối chiếu" style="width:240px;height:80px;object-fit:contain;background:#fff"><div class="form-text">Kiểm tra tên và ảnh đúng người, rồi bấm Lưu để ghép vào hồ sơ hiện tại. Không cần tải ảnh lên lại.</div><?php endif;endif;?>
             <input type="file" name="teacher_signature" class="form-control mt-2" accept="image/png,image/jpeg,image/webp">
             <div class="form-text">PNG, JPG hoặc WebP, tối đa 5 MB. Tự căn đúng tỷ lệ vào khung 480 × 160 px. Chữ ký này dùng chung với Sổ đầu bài và các biểu mẫu khi giáo viên xác nhận ký. Các bản đã ký giữ phiên bản cũ.</div>
             <?php if($teacherSignature):?><label class="form-check mt-2"><input class="form-check-input" type="checkbox" name="remove_teacher_signature" value="1"> <span class="form-check-label text-danger">Gỡ chữ ký cho lần ký mới (giữ lịch sử đã ký)</span></label><?php endif;?>
@@ -100,6 +103,7 @@
   </div>
 </div>
 <script>document.addEventListener('DOMContentLoaded',function(){
+  var legacy=document.getElementById('teacherLegacySignature'),legacyPreview=document.getElementById('teacherLegacySignaturePreview');if(legacy&&legacyPreview)legacy.addEventListener('change',function(){var source=legacy.selectedOptions[0].dataset.preview||'';legacyPreview.hidden=!source;if(source)legacyPreview.src=source;else legacyPreview.removeAttribute('src');});
   var input=document.getElementById('teacherPhotoInput'),preview=document.getElementById('teacherPhotoPreview');
   if(input&&preview)input.addEventListener('change',function(){var file=input.files&&input.files[0];if(!file)return;preview.src=URL.createObjectURL(file);preview.style.display='block';});
   <?php if (!empty($editing)): ?>new bootstrap.Modal('#modalTeacher').show();<?php endif; ?>
