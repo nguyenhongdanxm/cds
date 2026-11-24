@@ -1,0 +1,44 @@
+name: Daily teaching load matrix
+on:
+  pull_request:
+    paths:
+      - 'chuyenmon/tkb_taigiang.php'
+      - 'chuyenmon/includes/teacher_daily_load.php'
+      - 'tests/teacher_daily_load*'
+      - '.github/workflows/teacher-daily-load.yml'
+  workflow_dispatch:
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+      - run: |
+          php -l chuyenmon/tkb_taigiang.php
+          php -l chuyenmon/includes/teacher_daily_load.php
+          php tests/teacher_daily_load_test.php
+          node --check tests/teacher_daily_load_browser.cjs
+  browser:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: npm install --prefix "$RUNNER_TEMP/daily-load" --no-package-lock playwright@1.58.2 bootstrap@5.3.3
+      - run: "$RUNNER_TEMP/daily-load/node_modules/.bin/playwright install --only-shell chromium"
+      - run: node tests/teacher_daily_load_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/daily-load/node_modules
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: daily-load-preview
+          path: /tmp/daily-load-preview
