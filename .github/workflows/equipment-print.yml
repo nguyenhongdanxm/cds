@@ -6,6 +6,7 @@ on:
       - 'thuvien.php'
       - 'includes/library_equipment_ledgers*'
       - 'tests/equipment_ledgers*'
+      - 'tests/equipment_loan_statistics_test.php'
       - 'tests/equipment_print_test.php'
       - 'tests/equipment_print_browser.cjs'
       - '.github/workflows/equipment-print.yml'
@@ -26,6 +27,7 @@ jobs:
           php -l thietbi_phieu.php
           php tests/equipment_print_test.php
           php tests/equipment_ledgers_test.php
+          php tests/equipment_loan_statistics_test.php
           python tests/equipment_ledgers_http_test.py
 
   layout:
