@@ -1,0 +1,19 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{spawn,execFileSync}=require('node:child_process');
+(async()=>{const dir=fs.mkdtempSync(path.join(os.tmpdir(),'daily-load-')),php=process.env.PHP_BINARY||'php';execFileSync(php,['tests/teacher_daily_load_fixture.php',dir]);const port=19000+Math.floor(Math.random()*8000),base=`http://127.0.0.1:${port}`,server=spawn(php,['-d','session.save_path='+dir,'-S',`127.0.0.1:${port}`,'-t',dir],{stdio:'ignore'});let browser;
+try{
+ for(let i=0;i<60;i++){try{await fetch(base+'/tkb_taigiang.php');break;}catch(_){await new Promise(r=>setTimeout(r,100));}}
+ browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1440,height:950}});await page.route('https://fixture.test/bootstrap.css',r=>r.fulfill({contentType:'text/css',body:fs.readFileSync(require.resolve('bootstrap/dist/css/bootstrap.min.css'),'utf8')}));
+ const url=base+'/tkb_taigiang.php?date=2026-11-25&scope=day&lessons=all';await page.goto(url);assert.equal(await page.locator('thead tr:nth-child(2) th').count(),8);assert.equal(await page.locator('tbody tr[data-load-teacher]').count(),4);
+ const an=page.locator('[data-load-teacher="An"]');assert((await an.locator('[data-load-session="morning"][data-load-period="1"]').innerText()).includes('6A'));assert.equal(await an.locator('[data-load-session="morning"][data-load-period="3"]').innerText(),'Trống');
+ const binh=page.locator('[data-load-teacher="Bình"]');assert((await binh.locator('[data-load-session="morning"][data-load-period="3"]').innerText()).includes('Dạy thay An'));
+ assert.equal(await page.locator('script').count(),0,'Untrusted teacher label is text');
+ await page.locator('#load-subject').selectOption('Toán');await page.locator('#load-class').selectOption('6A');await page.getByRole('button',{name:'Lọc thống kê'}).click();assert.equal(await page.locator('tbody tr[data-load-teacher]').count(),3);assert((await page.locator('[data-load-teacher="Bình"] [data-load-period="3"][data-load-session="morning"]').innerText()).includes('Lịch khác'));
+ await page.locator('#load-count').selectOption('0');await page.getByRole('button',{name:'Lọc thống kê'}).click();assert.equal(await page.locator('tbody tr[data-load-teacher]').count(),1);assert.equal(await page.locator('tbody tr th').innerText(),'Chi');
+ await page.goto(url+'&teacher=An&scope=morning');assert.equal(await page.locator('thead tr:nth-child(2) th').count(),4);assert.equal(await page.locator('tbody tr').count(),1);
+ await page.goto(url+'&subject='+encodeURIComponent('Không có'));assert((await page.locator('tbody').innerText()).includes('Không có giáo viên'));
+ await page.goto(base+'/tkb_taigiang.php?date=2027-01-01');assert.equal(await page.locator('.load-matrix').count(),0);assert((await page.locator('main').innerText()).includes('Chưa thể kết luận'));
+ await page.goto(url);fs.mkdirSync('/tmp/daily-load-preview',{recursive:true});await page.screenshot({path:'/tmp/daily-load-preview/desktop.png',fullPage:true});
+ for(const width of [390,320]){await page.setViewportSize({width,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Table scroll stays inside matrix container');}
+ await page.screenshot({path:'/tmp/daily-load-preview/mobile.png',fullPage:true});
+ await page.context().addCookies([{name:'role',value:'denied',url:base}]);assert.equal((await page.request.get(url)).status(),403);console.log('PASS actual daily-load page: period matrix, approved substitution, combined filters, true busy/free cells, escaping, absent week, permissions and mobile layout');
+}finally{if(browser)await browser.close();server.kill();fs.rmSync(dir,{recursive:true,force:true});}})().catch(e=>{console.error(e);process.exit(1)});
