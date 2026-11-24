@@ -34,6 +34,7 @@ function cds_viewer_read_routes(): array {
     $routes['logout.php'] = '';
     $routes['student_photo.php'] = 'id v';
     $routes['staff_photo.php'] = 'id v';
+    $routes['teacher_signature.php'] = 'id v';
     $routes['student_card_students.php'] = 'q class page';
     $routes['staff_card_teachers.php'] = 'q group page';
     $routes['noitru_meal_quantity_data.php'] = 'from to date class month';

@@ -6,6 +6,7 @@ require_once 'includes/csdl_import_teachers.php';
 require_once 'includes/csdl_io.php';
 require_once 'includes/csdl_student_photo.php';
 require_once 'includes/staff_card_store.php';
+require_once 'includes/teacher_signatures.php';
 require_login();
 $user = current_user();
 $requestedTab = $_GET['tab'] ?? '';
@@ -22,6 +23,8 @@ if ($requestedTab === '' && !can_perm($tabPermissions[$tab])) {
     }
 }
 require_perm($tabPermissions[$tab]);
+if(empty($_SESSION['teacher_signature_csrf']))$_SESSION['teacher_signature_csrf']=bin2hex(random_bytes(24));
+if($tab==='teachers'&&$_SERVER['REQUEST_METHOD']==='GET'&&can_perm_level('csdl.teachers','edit'))cds_ts_migrate_legacy();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -100,6 +103,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'teacher_save') {
+        $hasSignatureChange=!empty($_POST['remove_teacher_signature'])||(isset($_FILES['teacher_signature'])&&($_FILES['teacher_signature']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_NO_FILE);
+        if($hasSignatureChange&&!hash_equals($_SESSION['teacher_signature_csrf'],(string)($_POST['signature_csrf']??''))){http_response_code(403);exit('Phiên làm việc chữ ký không hợp lệ.');}
         $group = trim($_POST['to_chuyen_mon'] ?? '');
         $teacherId = csdl_teacher_save([
             'id' => trim($_POST['id'] ?? ''),
@@ -139,6 +144,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $photoResult=staff_card_upload_photo($teacherId,$_FILES['teacher_photo'],(string)($user['id']??$user['username']??''));
             $photoOk=!empty($photoResult['ok']);$photoMessage=' '.(string)($photoResult['message']??'');
         }
+        if(isset($_FILES['teacher_signature'])&&($_FILES['teacher_signature']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_NO_FILE){
+            $signatureResult=cds_ts_upload($teacherId,$_FILES['teacher_signature'],$user);$photoMessage.=' '.$signatureResult['message'];$photoOk=$photoOk&&!empty($signatureResult['ok']);
+        }elseif(!empty($_POST['remove_teacher_signature'])){$signatureRemoved=cds_ts_remove($teacherId,$user);$photoMessage.=$signatureRemoved?' Đã gỡ chữ ký dùng cho lần ký mới.':' Không gỡ được chữ ký.';$photoOk=$photoOk&&$signatureRemoved;}
         flash('Đã lưu giáo viên.'.$photoMessage,$photoOk?'success':'warning');
         header('Location: ' . BASE_URL . 'csdl.php?tab=teachers');
         exit;
@@ -664,6 +672,9 @@ function resetTeacherForm(){
   var a=document.getElementById('tact'); if(a) a.checked=true;
   var photo=document.getElementById('teacherPhotoPreview');if(photo){photo.removeAttribute('src');photo.style.display='none';}
   var photoInput=document.getElementById('teacherPhotoInput');if(photoInput)photoInput.value='';
+  var sigPreview=document.getElementById('teacherSignaturePreview');if(sigPreview)sigPreview.remove();
+  document.querySelectorAll('[name=remove_teacher_signature]').forEach(function(el){el.checked=false;el.closest('label').remove()});
+  var sigInput=document.querySelector('[name=teacher_signature]');if(sigInput)sigInput.value='';
 }
 document.querySelectorAll('.student-departure-btn').forEach(function(button){
   button.addEventListener('click',function(){

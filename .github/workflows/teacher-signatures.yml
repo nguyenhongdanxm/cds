@@ -1,0 +1,42 @@
+name: Shared teacher signatures
+on:
+  pull_request:
+    paths:
+      - 'includes/teacher_signatures.php'
+      - 'assets/teacher-signature-upload.js'
+      - 'teacher_signature.php'
+      - 'includes/csdl_modal_teacher.php'
+      - 'csdl.php'
+      - 'includes/account_profile*'
+      - 'chuyenmon/includes/lesson_book_store.php'
+      - 'chuyenmon/phieudugio.php'
+      - 'thuvien.php'
+      - 'tests/teacher_signatures*'
+      - '.github/workflows/teacher-signatures.yml'
+  workflow_dispatch:
+jobs:
+  signatures:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, gd
+      - run: |
+          node --check assets/teacher-signature-upload.js
+          php -l includes/teacher_signatures.php
+          php -l includes/csdl_modal_teacher.php
+          php -l csdl.php
+          php -l includes/account_profile_view.php
+          php -l chuyenmon/includes/lesson_book_store.php
+          php -l chuyenmon/phieudugio.php
+          php -l thuvien.php
+          php -l thietbi_phieu.php
+          php tests/teacher_signatures_test.php
+          python tests/teacher_signatures_http_test.py
+          python tests/teacher_signatures_observation_http_test.py
+          python tests/equipment_ledgers_http_test.py

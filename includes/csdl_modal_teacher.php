@@ -5,7 +5,7 @@
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <form method="post" enctype="multipart/form-data" class="<?=!empty($teacherReadOnly)?'teacher-readonly-form':''?>">
-        <input type="hidden" name="action" value="teacher_save">
+        <input type="hidden" name="action" value="teacher_save"><input type="hidden" name="signature_csrf" value="<?=e($_SESSION['teacher_signature_csrf']??'')?>">
         <input type="hidden" name="id" id="t_id" value="<?= e($editing['id'] ?? '') ?>">
         <div class="modal-header">
           <h5 class="modal-title" id="modalTeacherTitle"><?= !empty($teacherReadOnly) ? 'Thông tin giáo viên' : ($editing ? 'Sửa giáo viên' : 'Thêm giáo viên') ?></h5>
@@ -22,6 +22,15 @@
               <?php if($hasTeacherPhoto):?><label class="form-check mt-2"><input class="form-check-input" type="checkbox" name="remove_teacher_photo" value="1"> <span class="form-check-label text-danger">Xóa ảnh thẻ hiện tại</span></label><?php endif;?>
             </div>
           </div></div></div>
+          <div class="border rounded p-3 mb-3 bg-light">
+            <label class="form-label fw-semibold">Ảnh chữ ký giáo viên</label>
+            <?php $teacherSignature=($teacherPhotoId!==''&&function_exists('cds_ts_meta'))?cds_ts_meta($teacherPhotoId):null;if($teacherSignature):?>
+            <div><img id="teacherSignaturePreview" src="<?=e(BASE_URL.'teacher_signature.php?id='.rawurlencode($teacherPhotoId).'&v='.rawurlencode((string)$teacherSignature['version']))?>" alt="Chữ ký hiện tại" style="width:240px;height:80px;object-fit:contain;background:white;border:1px solid #ddd"></div>
+            <?php endif;?>
+            <input type="file" name="teacher_signature" class="form-control mt-2" accept="image/png,image/jpeg,image/webp">
+            <div class="form-text">PNG, JPG hoặc WebP, tối đa 5 MB. Tự căn đúng tỷ lệ vào khung 480 × 160 px. Chữ ký này dùng chung với Sổ đầu bài và các biểu mẫu khi giáo viên xác nhận ký. Các bản đã ký giữ phiên bản cũ.</div>
+            <?php if($teacherSignature):?><label class="form-check mt-2"><input class="form-check-input" type="checkbox" name="remove_teacher_signature" value="1"> <span class="form-check-label text-danger">Gỡ chữ ký cho lần ký mới (giữ lịch sử đã ký)</span></label><?php endif;?>
+          </div>
           <div class="row g-3">
             <div class="col-md-4"><label class="form-label small">Họ và tên *</label>
               <input type="text" name="name" class="form-control" required value="<?= e($editing['name'] ?? '') ?>"></div>
@@ -95,3 +104,5 @@
   if(input&&preview)input.addEventListener('change',function(){var file=input.files&&input.files[0];if(!file)return;preview.src=URL.createObjectURL(file);preview.style.display='block';});
   <?php if (!empty($editing)): ?>new bootstrap.Modal('#modalTeacher').show();<?php endif; ?>
 });</script>
+
+<script src="<?=e(BASE_URL)?>assets/teacher-signature-upload.js"></script>
