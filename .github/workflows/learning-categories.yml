@@ -44,7 +44,7 @@ jobs:
           php-version: '8.3'
           extensions: mbstring, dom, fileinfo
       - run: npm install --prefix "$RUNNER_TEMP/learning-categories" --no-package-lock playwright@1.58.2 bootstrap@5.3.3 bootstrap-icons@1.11.3
-      - run: "$RUNNER_TEMP/learning-categories/node_modules/.bin/playwright install --with-deps chromium"
+      - run: "$RUNNER_TEMP/learning-categories/node_modules/.bin/playwright install --only-shell chromium"
       - run: node tests/learning_categories_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/learning-categories/node_modules

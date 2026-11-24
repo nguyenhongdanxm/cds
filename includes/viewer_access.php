@@ -26,6 +26,7 @@ function cds_viewer_read_routes(): array {
     $routes['vanban_open.php'] = 'id file';
     $routes['vanban_preview.php'] = 'id file';
     $routes['vanban_preview_file.php'] = 'id file kind';
+    $routes['thietbi_phieu.php'] = 'batch ledger';
     $routes['hoclieu_file.php'] = 'id preview inline thumbnail v download link';
     $routes['admin.php'] = 'date week month year';
     $routes['login_notice.php'] = '';

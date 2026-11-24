@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'thietbi_phieu.php'
+      - 'thuvien.php'
+      - 'includes/library_equipment_ledgers*'
+      - 'tests/equipment_ledgers*'
       - 'tests/equipment_print_test.php'
       - 'tests/equipment_print_browser.cjs'
       - '.github/workflows/equipment-print.yml'
@@ -18,20 +21,24 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
+          extensions: mbstring
       - run: |
           php -l thietbi_phieu.php
           php tests/equipment_print_test.php
+          php tests/equipment_ledgers_test.php
+          python tests/equipment_ledgers_http_test.py
 
   layout:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
+          extensions: mbstring
       - run: php tests/equipment_print_test.php --html
       - run: npm install --prefix "$RUNNER_TEMP/equipment-browser" --no-package-lock playwright@1.58.2
-      - run: "$RUNNER_TEMP/equipment-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: "$RUNNER_TEMP/equipment-browser/node_modules/.bin/playwright install --only-shell chromium"
       - run: node tests/equipment_print_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/equipment-browser/node_modules

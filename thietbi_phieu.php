@@ -3,12 +3,14 @@ require_once __DIR__.'/includes/form_profile.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/csdl_store.php';
 require_login();
+require_once __DIR__.'/includes/library_equipment_ledgers.php';
 $user=current_user()??[];$isAdmin=($user['role']??'')==='admin';
 if(!$isAdmin&&!can_perm_level('tb.muontra','view')){http_response_code(403);exit('Không có quyền xem phiếu mượn thiết bị.');}
-$batch=trim((string)($_GET['batch']??''));$data=load_json(DATA_PATH.'/library_equipment.json',['equipment_loans'=>[]]);$rows=array_values(array_filter((array)($data['equipment_loans']??[]),fn($row)=>($row['batch_id']??'')===$batch));
+$batch=is_string($_GET['batch']??null)?trim($_GET['batch']):'';$ledger=is_string($_GET['ledger']??null)?trim($_GET['ledger']):'';
+$data=load_json(DATA_PATH.'/library_equipment.json',['equipment_loans'=>[]]);$all=(array)($data['equipment_loans']??[]);$books=lib_eq_ledgers($all);if($ledger==='')$ledger=lib_eq_batch_ledger($all,$batch);$book=$books[$ledger]??null;$rows=$book['rows']??[];
 if(!$rows){http_response_code(404);exit('Không tìm thấy phiếu mượn thiết bị.');}
 $user=current_user()??[];$name=trim((string)($user['teacher_name']??$user['name']??''));$first=$rows[0];$isAdmin=($user['role']??'')==='admin';if(!$isAdmin&&!can_perm_level('tb.muontra','view')&&($first['created_by']??'')!==$name){http_response_code(403);exit('Không có quyền xem phiếu.');}
-$currentYear=function_exists('csdl_year_current')?csdl_year_current():null;$year=trim((string)($first['school_year']??''))?:trim((string)($currentYear['label']??SCHOOL_YEAR));$borrower=(string)($first['borrower']??'');$subject=(string)($first['subject']??'');$group=(string)($first['teacher_group']??'');
+$currentYear=function_exists('csdl_year_current')?csdl_year_current():null;$year=(string)$book['school_year'];$borrower=(string)($first['borrower']??'');$subject=(string)($first['subject']??'');$group=(string)($first['teacher_group']??'');
 function eqp_date($value): string {
     $value=trim((string)$value);if($value==='')return '';
     $date=DateTimeImmutable::createFromFormat('!Y-m-d',substr($value,0,10));
