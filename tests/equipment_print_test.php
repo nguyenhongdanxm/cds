@@ -5,14 +5,14 @@ function current_user(){return ['role'=>'admin','name'=>'Quản trị'];}
 function can_perm_level($a,$b){return false;}
 function csdl_year_current(){return ['label'=>'2027 - 2028'];}
 define('SCHOOL_YEAR','2027 - 2028');define('SCHOOL_NAME','Trường thử nghiệm');define('BASE_URL','/');define('DATA_PATH','fixture-only');
-$rows=[];for($i=0;$i<21;$i++)$rows[]=['batch_id'=>'fixture','borrower'=>'Nguyễn A','subject'=>'Toán','school_year'=>'2026 - 2027','equipment_name'=>'Thiết bị <script>alert(1)</script>','quantity'=>2,'borrowed_at'=>$i===0?'invalid':'2026-10-20','teaching_grade'=>'6A','lesson_period'=>'12','returned_at'=>$i===1?'2026-10-21':'','return_condition'=>'Tốt','note'=>'Ghi chú'];
-$GLOBALS['fixture']=['equipment_loans'=>$rows];function load_json($file,$default){if($file!=='fixture-only/library_equipment.json')throw new RuntimeException('Unexpected file');return $GLOBALS['fixture'];}
-$_GET=['batch'=>'fixture'];$before=serialize($GLOBALS['fixture']);$source=file_get_contents(__DIR__.'/../thietbi_phieu.php');
+$rows=[];for($i=0;$i<21;$i++)$rows[]=['id'=>'row'.$i,'batch_id'=>'fixture'.$i,'borrower'=>'Nguyễn A','subject'=>'Toán','school_year'=>'2026 - 2027','equipment_name'=>'Thiết bị <script>alert(1)</script>','quantity'=>2,'borrowed_at'=>$i===0?'invalid':'2026-10-20','teaching_grade'=>'6A','lesson_period'=>'12','returned_at'=>$i===1?'2026-10-21':'','return_condition'=>'Tốt','note'=>'Ghi chú'];
+$rows[]=['batch_id'=>'other','borrower'=>'Giáo viên khác','subject'=>'Toán','school_year'=>'2026 - 2027','equipment_name'=>'PRIVATE_OTHER_LEDGER'];$GLOBALS['fixture']=['equipment_loans'=>$rows];function load_json($file,$default){if($file!=='fixture-only/library_equipment.json')throw new RuntimeException('Unexpected file');return $GLOBALS['fixture'];}
+$_GET=['batch'=>'fixture0'];$before=serialize($GLOBALS['fixture']);$source=file_get_contents(__DIR__.'/../thietbi_phieu.php');
 foreach(["require_once __DIR__ . '/includes/auth.php';","require_once __DIR__ . '/includes/csdl_store.php';"]as$line)$source=str_replace($line,';',$source);
 $source=str_replace('__DIR__',var_export(realpath(dirname(__DIR__)),true),$source);
 ob_start();eval('?>'.$source);$html=ob_get_clean();
 function check($ok,$message){if(!$ok)throw new RuntimeException($message);}
-check(str_contains($html,'A4 landscape'),'Landscape page');check(substr_count($html,'class="sheet"')===2,'21 rows split into two sheets');
+check(!str_contains($html,'PRIVATE_OTHER_LEDGER'),'Do not mix another teacher');check(str_contains($html,'A4 landscape'),'Landscape page');check(substr_count($html,'class="sheet"')===2,'21 rows split into two sheets');
 check(substr_count($html,'colspan="4">Mượn')===2&&substr_count($html,'colspan="5">Trả')===2,'Grouped borrowing/return headings');
 check(!str_contains($html,'<script>')&&str_contains($html,'&lt;script&gt;'),'Escape equipment names');
 check(!str_contains($html,'01/01/1970'),'Invalid dates stay blank');check(str_contains($html,'21/10/2026'),'Actual return date');
