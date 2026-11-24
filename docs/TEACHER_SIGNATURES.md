@@ -6,7 +6,7 @@
 - Giáo viên: trang tổng quan → Thông tin cá nhân → Ảnh chữ ký dùng chung. Chỉ đổi ảnh của chính hồ sơ đã liên kết.
 - PNG, JPG, WebP tối đa 5 MB; ảnh được căn giữ tỷ lệ vào khung PNG 480 × 160 px. Trình duyệt và máy chủ kiểm tra ảnh; máy chủ có GD sẽ tự chuẩn hóa lại. Nếu không có GD, trình duyệt chuẩn hóa trước.
 - Sổ đầu bài → Chữ ký cũng cập nhật cùng nguồn CSDL. Khi xác nhận ký tiết mới sẽ lấy phiên bản hiện tại.
-- Mượn–trả thiết bị → mở sổ → Ký mượn / Ký trả từng dòng. Chỉ chính giáo viên mượn được xác nhận bằng ảnh của mình; ký trả cần đã trả thiết bị.
+- Mượn–trả thiết bị → mở sổ → cột Chữ ký giáo viên → Ký mượn / Ký trả từng dòng. Nút luôn hiển thị; khi không thể ký sẽ bị vô hiệu hóa kèm lý do (chưa liên kết, thiếu ảnh, chưa trả, tài khoản khác). Sổ của mình tự mở để dễ thấy nút. Chỉ chính giáo viên mượn được xác nhận bằng ảnh của mình; ký trả cần đã trả thiết bị.
 - Phiếu dự giờ đã hoàn thành: người dạy và người dự xác nhận phần của mình. Sửa lại điểm đánh giá sẽ xóa xác nhận cũ để ký lại.
 
 ## Chuyển chữ ký sổ đầu bài đã có
@@ -21,6 +21,6 @@ Registry luôn ở thư mục data của CDS gốc, không phụ thuộc `DATA_P
 
 `includes/teacher_signatures.php` cung cấp `cds_ts_for_user`, `cds_ts_meta`, `cds_ts_snapshot`, `cds_ts_data_uri`. Biểu mẫu khác có thể dùng cùng API, chỉ gọi snapshot sau khi chính người ký xác nhận và kiểm tra quyền/nghiệp vụ của biểu mẫu. Các khung ký chưa có luồng xác nhận không tự chèn chữ ký người khác. Việc tải ảnh lên không tự xác nhận một tài liệu. Ảnh chữ ký không phải chứng thư ký số.
 
-Ảnh xem trước đi qua `teacher_signature.php` yêu cầu đăng nhập và quyền xem CSDL giáo viên hoặc đúng chủ ảnh; `no-store`, `nosniff`. Bản đã ký dùng ảnh snapshot nhúng khi in/PDF, không lấy URL ảnh hiện tại. Gỡ hoặc đổi ảnh không làm đổi bản cũ. Không nhập đường dẫn hay URL ảnh do trình duyệt cung cấp; chỉ đọc ảnh thật trong các thư mục chữ ký cho phép.
+Ảnh xem trước trong hồ sơ CSDL/trang cá nhân được nhúng trực tiếp vào HTML đã kiểm tra quyền, không phụ thuộc request ảnh riêng. Endpoint `teacher_signature.php` vẫn yêu cầu đăng nhập và quyền xem CSDL giáo viên hoặc đúng chủ ảnh; `no-store`, `nosniff`. Bản đã ký dùng ảnh snapshot nhúng khi in/PDF, không lấy URL ảnh hiện tại. Gỡ hoặc đổi ảnh không làm đổi bản cũ. Không nhập đường dẫn hay URL ảnh do trình duyệt cung cấp; chỉ đọc ảnh thật trong các thư mục chữ ký cho phép.
 
 Không có tệp dữ liệu vận hành trong PR. Không cần SQL. Trước khi chuyển hosting cần sao lưu cả `data` và `chuyenmon/data` như quy trình hiện có.

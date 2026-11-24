@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'includes/teacher_signatures.php'
+      - 'includes/library_equipment_ledgers_view.php'
+      - 'includes/library_equipment_signature_cell.php'
       - 'assets/teacher-signature-upload.js'
       - 'teacher_signature.php'
       - 'includes/csdl_modal_teacher.php'
@@ -40,3 +42,23 @@ jobs:
           python tests/teacher_signatures_http_test.py
           python tests/teacher_signatures_observation_http_test.py
           python tests/equipment_ledgers_http_test.py
+
+  preview:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, gd
+      - run: php tests/teacher_signatures_preview_fixture.php
+      - run: npm install --prefix "$RUNNER_TEMP/signature-preview" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/signature-preview/node_modules/.bin/playwright install --only-shell chromium"
+      - run: node tests/teacher_signatures_preview_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/signature-preview/node_modules
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: teacher-signature-preview
+          path: /tmp/teacher-signature-preview.png
