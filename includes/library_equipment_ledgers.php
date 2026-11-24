@@ -16,3 +16,29 @@ function lib_eq_batch_ledger(array $rows,string $batch): string {
     if($batch==='')return '';$ids=[];foreach($rows as$row)if(is_array($row)&&($row['batch_id']??'')===$batch)$ids[lib_eq_ledger_id($row)]=true;
     return count($ids)===1?(string)array_key_first($ids):'';
 }
+
+/** A loan count is one equipment detail row, not the sum of quantities. */
+function lib_eq_loan_stats(array $rows, string $today): array {
+    $stats=['total'=>0,'returned'=>0,'open'=>0,'overdue'=>0];
+    foreach($rows as $row){
+        if(!is_array($row))continue;
+        $stats['total']++;
+        if(!empty($row['returned_at'])){$stats['returned']++;continue;}
+        $stats['open']++;
+        $due=substr((string)($row['due_at']??''),0,10);
+        if(preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D',$due,$m)&&checkdate((int)$m[2],(int)$m[3],(int)$m[1])&&$due<$today)$stats['overdue']++;
+    }
+    return $stats;
+}
+function lib_eq_teacher_report(array $rows, string $today): array {
+    $teachers=[];
+    foreach($rows as $row){
+        if(!is_array($row))continue;
+        $key=hash('sha256',lib_eq_norm((string)($row['borrower']??'')));
+        if(!isset($teachers[$key]))$teachers[$key]=['name'=>trim((string)($row['borrower']??''))?:'Chưa xác định giáo viên','rows'=>[]];
+        $teachers[$key]['rows'][]=$row;
+    }
+    foreach($teachers as &$teacher){$teacher['stats']=lib_eq_loan_stats($teacher['rows'],$today);unset($teacher['rows']);}unset($teacher);
+    uasort($teachers,static fn($a,$b)=>strnatcmp(lib_eq_norm($a['name']),lib_eq_norm($b['name'])));
+    return $teachers;
+}
