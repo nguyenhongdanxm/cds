@@ -13,6 +13,7 @@ if (!isset($_GET['library_qr'])) {
 require_login();
 require_once __DIR__.'/includes/library_maintenance.php';
 require_once __DIR__.'/includes/library_equipment_ledgers.php';
+if(is_file(__DIR__.'/includes/teacher_signatures.php'))require_once __DIR__.'/includes/teacher_signatures.php';
 
 $user = current_user() ?? [];
 $role = (string)($user['role'] ?? '');
@@ -201,8 +202,18 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $periods=array_values((array)($_POST['lesson_period']??[]));$teachingGrades=array_values((array)($_POST['teaching_grade']??[]));$itemNotes=array_values((array)($_POST['equipment_item_note']??[]));$data['equipment_loans'][]=['id'=>'eql_'.bin2hex(random_bytes(7)),'batch_id'=>$batch,'ledger_id'=>$batch,'school_year'=>$year,'equipment_id'=>$equipmentId,'equipment_name'=>(string)$data['equipment'][$index]['name'],'equipment_code'=>(string)($data['equipment'][$index]['code']??''),'borrower'=>$borrower,'subject'=>trim((string)($_POST['equipment_subject']??'')),'teacher_group'=>trim((string)($_POST['equipment_group']??'')),'quantity'=>$qty,'borrowed_at'=>trim((string)($_POST['equipment_borrowed_at']??date('Y-m-d'))),'due_at'=>trim((string)($_POST['equipment_due_at']??'')),'lesson_period'=>trim((string)($periods[$line]??'')),'teaching_grade'=>trim((string)($teachingGrades[$line]??'')),'purpose'=>trim((string)($_POST['purpose']??'')),'note'=>trim((string)($itemNotes[$line]??($_POST['equipment_note']??''))),'returned_at'=>'','return_condition'=>'','created_by'=>$userName,'created_at'=>date('c')];$added++;}
         if(!$added){flash('Vui lòng thêm ít nhất một thiết bị.','danger');lib_redirect('equipment_loans');}save_json($dataFile,$data);flash('Đã thêm '.$added.' dòng mượn vào sổ thiết bị của giáo viên.','success');header('Location: '.BASE_URL.'thietbi_phieu.php?ledger='.urlencode($batch));exit;
     }
+    if($action==='sign_equipment_row'){
+        if(!function_exists('cds_ts_snapshot')||(!$isAdmin&&!can_perm_level('tb.muontra','view'))){http_response_code(403);exit('Không có quyền ký sổ thiết bị.');}
+        $index=lib_index($data['equipment_loans'],trim((string)($_POST['id']??'')));$phase=(string)($_POST['phase']??'');
+        if($index<0||!in_array($phase,['borrow','return'],true)){http_response_code(404);exit('Không tìm thấy dòng cần ký.');}
+        $loan=$data['equipment_loans'][$index];if($phase==='return'&&empty($loan['returned_at'])){http_response_code(400);exit('Chỉ ký trả sau khi đã xác nhận trả thiết bị.');}
+        $signature=cds_ts_snapshot(current_user()??[],(string)($loan['borrower']??''));
+        if(!$signature){flash('Chỉ giáo viên mượn được ký bằng chữ ký của mình. Hãy kiểm tra ảnh chữ ký và liên kết CSDL.','danger');lib_redirect('equipment_loans');}
+        $saved=true;if(empty($loan[$phase.'_signature']))$saved=cds_json_update($dataFile,static function($latest)use($loan,$phase,$signature){foreach($latest['equipment_loans']as&$live)if(($live['id']??'')===($loan['id']??'')){if($live!==$loan)return false;$live[$phase.'_signature']=$signature;$live['updated_at']=date('c');return$latest;}return false;},[]);
+        flash($saved?'Đã ký '.($phase==='borrow'?'mượn':'trả').' thiết bị bằng chữ ký CSDL.':'Dữ liệu đã thay đổi hoặc không lưu được. Hãy tải lại sổ trước khi ký.',$saved?'success':'danger');lib_redirect('equipment_loans');
+    }
     if($action==='return_equipment_loan'){
-        $index=lib_index($data['equipment_loans'],trim((string)($_POST['id']??'')));if($index>=0&&!$canEquipmentLoanEdit&&($data['equipment_loans'][$index]['created_by']??'')!==$userName){http_response_code(403);exit('Chỉ được trả phiếu thiết bị do mình lập.');}if($index>=0){$data['equipment_loans'][$index]['returned_at']=trim((string)($_POST['returned_at']??date('Y-m-d')));$data['equipment_loans'][$index]['return_condition']=trim((string)($_POST['return_condition']??''));$data['equipment_loans'][$index]['updated_at']=date('c');save_json($dataFile,$data);flash('Đã xác nhận trả thiết bị.','success');}lib_redirect('equipment_loans');
+        $index=lib_index($data['equipment_loans'],trim((string)($_POST['id']??'')));if($index>=0&&!$canEquipmentLoanEdit&&($data['equipment_loans'][$index]['created_by']??'')!==$userName){http_response_code(403);exit('Chỉ được trả phiếu thiết bị do mình lập.');}if($index>=0){unset($data['equipment_loans'][$index]['return_signature']);$data['equipment_loans'][$index]['returned_at']=trim((string)($_POST['returned_at']??date('Y-m-d')));$data['equipment_loans'][$index]['return_condition']=trim((string)($_POST['return_condition']??''));$data['equipment_loans'][$index]['updated_at']=date('c');save_json($dataFile,$data);flash('Đã xác nhận trả thiết bị.','success');}lib_redirect('equipment_loans');
     }
     if($action==='delete_equipment_loan'){
         $index=lib_index($data['equipment_loans'],trim((string)($_POST['id']??'')));if($index>=0)array_splice($data['equipment_loans'],$index,1);save_json($dataFile,$data);flash('Đã xóa phiếu thiết bị.','warning');lib_redirect('equipment_loans');

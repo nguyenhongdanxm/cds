@@ -4,6 +4,7 @@ require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/csdl_store.php';
 require_once __DIR__ . '/staff_card_store.php';
 require_once __DIR__ . '/google_drive_storage.php';
+require_once __DIR__.'/teacher_signatures.php';
 
 function cds_account_csrf_token(): string {
     if (empty($_SESSION['cds_account_csrf'])) $_SESSION['cds_account_csrf'] = bin2hex(random_bytes(24));
