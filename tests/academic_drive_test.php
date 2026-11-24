@@ -45,4 +45,4 @@ check(cds_cm_feature_access_for_user(['role'=>'gv','permission_model_version'=>2
 acd_config_save(['id'=>'','resource_key'=>'','name'=>''],$saved['revision']);check(acd_config()['id']==='','Unlink');
 file_put_contents(acd_config_path(),'{broken');rejects(fn()=>acd_config(),'Corrupt config fails closed');
 echo "PASS academic Drive: root confinement, moved/trashed folders, shared Drive, resource keys, pagination, escaped queries, safe URLs, revisions and permissions\n";
-}finally{foreach(glob($dir.'/*')as$f)unlink($f);rmdir($dir);}
+}finally{foreach(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST)as$f){if($f->isDir())rmdir($f->getPathname());else unlink($f->getPathname());}rmdir($dir);}

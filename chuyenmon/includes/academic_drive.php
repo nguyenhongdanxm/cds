@@ -1,5 +1,6 @@
 <?php
 /** Read-only, root-bound Google Drive navigation. Credentials stay on the server. */
+require_once __DIR__.'/academic_drive_cache.php';
 function acd_id(string $id): bool { return preg_match('/^[A-Za-z0-9_-]{10,200}$/D',$id)===1; }
 function acd_key(string $key): bool { return $key===''||preg_match('/^[A-Za-z0-9_-]{1,200}$/D',$key)===1; }
 function acd_folder_link(string $value): array {
@@ -37,8 +38,8 @@ function acd_token(): string {
 if(!function_exists('acd_transport')){
 function acd_transport(string $url,array $headers): array {
     if(!function_exists('curl_init'))throw new RuntimeException('Hosting cần bật PHP cURL để đọc thư viện.');
-    $ch=curl_init($url);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>$headers,CURLOPT_TIMEOUT=>15,CURLOPT_CONNECTTIMEOUT=>7,CURLOPT_FOLLOWLOCATION=>false]);
-    $body=curl_exec($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);
+    static $ch=null;if($ch===null)$ch=curl_init();curl_setopt_array($ch,[CURLOPT_URL=>$url,CURLOPT_HTTPGET=>true,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>$headers,CURLOPT_TIMEOUT=>15,CURLOPT_CONNECTTIMEOUT=>7,CURLOPT_FOLLOWLOCATION=>false]);
+    $body=curl_exec($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);
     return ['status'=>$status,'body'=>$body===false?'':$body];
 }}
 function acd_request(string $route,array $query,string $token,array $keys=[]): array {
@@ -53,7 +54,7 @@ function acd_request(string $route,array $query,string $token,array $keys=[]): a
 function acd_metadata(string $id,string $token,array &$keys): array {
     if(!acd_id($id))throw new InvalidArgumentException('Mã thư mục không hợp lệ.');
     if(isset($keys[$id])){$key=$keys[$id];unset($keys[$id]);$keys[$id]=$key;}
-    $item=acd_request('files/'.$id,['fields'=>'id,name,mimeType,parents,trashed,resourceKey,driveId,size,capabilities(canDownload)','supportsAllDrives'=>'true'],$token,$keys);
+    $item=acd_request('files/'.$id,['fields'=>'id,name,mimeType,parents,trashed,resourceKey,driveId,size,version,modifiedTime,md5Checksum,capabilities(canDownload)','supportsAllDrives'=>'true'],$token,$keys);
     if(($item['id']??'')!==$id||!empty($item['trashed']))throw new RuntimeException('Thư mục đã bị xóa hoặc không còn truy cập được.');
     $key=(string)($item['resourceKey']??'');if($key!==''&&acd_key($key))$keys[$id]=$key;return $item;
 }
@@ -73,15 +74,17 @@ function acd_path(array $config,string $folder,string $token,array &$keys): arra
     }
     throw new RuntimeException('Thư mục không nằm trong Hồ sơ chuyên môn đã liên kết hoặc cây thư mục quá sâu.');
 }
-function acd_browse(array $config,string $folder,string $sort,string $query,string $cursor,string $token,array &$keys): array {
+function acd_browse(array $config,string $folder,string $sort,string $query,string $cursor,string $token,array &$keys,bool $fresh=false): array {
     if(!acd_id((string)($config['id']??'')))throw new RuntimeException('Chưa liên kết thư mục Hồ sơ chuyên môn.');
     $orders=['name'=>'folder,name_natural','name_desc'=>'folder,name_natural desc','updated'=>'folder,modifiedTime desc,name_natural'];
-    if(!isset($orders[$sort])||mb_strlen($query)>150||preg_match('/[\x00-\x1f]/',$query)||strlen($cursor)>4096||preg_match('/[\x00-\x1f]/',$cursor))throw new InvalidArgumentException('Bộ lọc không hợp lệ.');
+    if(!isset($orders[$sort])||!mb_check_encoding($query,'UTF-8')||mb_strlen($query)>150||preg_match('/[\x00-\x1f]/',$query)||strlen($cursor)>4096||preg_match('/[\x00-\x1f]/',$cursor))throw new InvalidArgumentException('Bộ lọc không hợp lệ.');
     $trail=acd_path($config,$folder,$token,$keys);$escape=static fn($s)=>str_replace(['\\',"'"],['\\\\',"\\'"],$s);
     $q="'".$escape($folder)."' in parents and trashed = false";if($query!=='')$q.=" and name contains '".$escape($query)."'";
     $params=['q'=>$q,'pageSize'=>100,'orderBy'=>$orders[$sort],'fields'=>'nextPageToken,incompleteSearch,files(id,name,mimeType,parents,resourceKey,size)','supportsAllDrives'=>'true','includeItemsFromAllDrives'=>'true'];
     if($cursor!=='')$params['pageToken']=$cursor;$last=$trail[count($trail)-1];if($last['drive_id']!==''){$params['corpora']='drive';$params['driveId']=$last['drive_id'];}
-    $list=acd_request('files',$params,$token,$keys);$items=[];
+    $cacheKey=acd_cache_key(['list-v1',$config['id'],$config['revision']??'',$config['resource_key']??'',hash('sha256',$token),$folder,$sort,$query,$cursor]);
+    // Only children are cached for 20 seconds. Folder access and every ancestor were checked live above.
+    $list=$fresh?null:acd_cache_read($cacheKey,20);if($list===null){$list=acd_request('files',$params,$token,$keys);acd_cache_write($cacheKey,$list);}$items=[];
     foreach((array)($list['files']??[])as$item){if(!is_array($item)||!acd_id((string)($item['id']??''))||!in_array($folder,(array)($item['parents']??[]),true))continue;
         $id=(string)$item['id'];$key=(string)($item['resourceKey']??'');if(!acd_key($key))$key='';if($key!=='')$keys[$id]=$key;
         $isFolder=($item['mimeType']??'')==='application/vnd.google-apps.folder';$shortcut=($item['mimeType']??'')==='application/vnd.google-apps.shortcut';
@@ -126,7 +129,7 @@ function acd_content_plan(array $config,string $id,string $token,array &$keys): 
     if($export&&!str_ends_with(strtolower($name),'.pdf'))$name.='.pdf';
     $query=$export?['mimeType'=>'application/pdf']:['alt'=>'media','supportsAllDrives'=>'true'];
     $headers=['Authorization: Bearer '.$token];if(!empty($keys[$id]))$headers[]='X-Goog-Drive-Resource-Keys: '.$id.'/'.$keys[$id];
-    return ['url'=>'https://www.googleapis.com/drive/v3/files/'.$id.($export?'/export':'').'?'.http_build_query($query),'headers'=>$headers,'name'=>$name?:'Tài liệu','mime'=>acd_inline_mime($mime),'limit'=>$export?10*1024*1024:32*1024*1024];
+    return ['url'=>'https://www.googleapis.com/drive/v3/files/'.$id.($export?'/export':'').'?'.http_build_query($query),'headers'=>$headers,'name'=>$name?:'Tài liệu','mime'=>acd_inline_mime($mime),'limit'=>$export?10*1024*1024:32*1024*1024,'cache_key'=>acd_cache_content_key($config,$file,$token)];
 }
 /** Bounded temporary stream. Never redirects to an arbitrary URL or persists file content. */
 if(!function_exists('acd_binary_transport')){
@@ -140,7 +143,7 @@ function acd_binary_transport(string $url,array $headers,$stream,int $limit): in
     return $status;
 }}
 function acd_content(array $config,string $id,string $token,array &$keys): array {
-    $plan=acd_content_plan($config,$id,$token,$keys);$stream=fopen('php://temp/maxmemory:2097152','w+b');
+    $plan=acd_content_plan($config,$id,$token,$keys);$cached=acd_cache_content_get($plan['cache_key'],$plan);if($cached)return$cached;$stream=fopen('php://temp/maxmemory:2097152','w+b');
     if($stream===false)throw new RuntimeException('Không tạo được phiên xem tài liệu.');
     try{
         $status=acd_binary_transport($plan['url'],$plan['headers'],$stream,$plan['limit']);
@@ -148,6 +151,7 @@ function acd_content(array $config,string $id,string $token,array &$keys): array
         $size=ftell($stream);if($size===false||$size===0||$size>$plan['limit'])throw new RuntimeException('Nội dung tài liệu không hợp lệ hoặc quá lớn.');
         rewind($stream);$signature=fread($stream,12);rewind($stream);
         $mime=$plan['mime'];$valid=match($mime){'application/pdf'=>str_starts_with($signature,'%PDF-'),'image/png'=>str_starts_with($signature,"\x89PNG\r\n\x1a\n"),'image/jpeg'=>str_starts_with($signature,"\xff\xd8\xff"),'image/gif'=>str_starts_with($signature,'GIF87a')||str_starts_with($signature,'GIF89a'),'image/webp'=>str_starts_with($signature,'RIFF')&&substr($signature,8,4)==='WEBP',default=>false};
-        return ['stream'=>$stream,'size'=>$size,'name'=>$plan['name'],'mime'=>$valid?$mime:'application/octet-stream','inline'=>$valid];
+        $content=['stream'=>$stream,'size'=>$size,'name'=>$plan['name'],'mime'=>$valid?$mime:'application/octet-stream','inline'=>$valid,'etag'=>$valid&&$plan['cache_key']!==''?'"'.$plan['cache_key'].'"':'','cache_hit'=>false];
+        acd_cache_content_put($plan['cache_key'],$content);return$content;
     }catch(Throwable $ex){fclose($stream);throw $ex;}
 }

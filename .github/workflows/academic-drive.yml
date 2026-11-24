@@ -3,7 +3,7 @@ on:
   pull_request:
     paths:
       - 'chuyenmon/hoso.php'
-      - 'chuyenmon/includes/academic_drive.php'
+      - 'chuyenmon/includes/academic_drive*.php'
       - 'chuyenmon/assets/academic-drive.*'
       - 'includes/chuyenmon_permission_runtime.php'
       - 'includes/permissions.php'
@@ -28,6 +28,8 @@ jobs:
           php -l chuyenmon/hoso.php
           php -l chuyenmon/includes/academic_drive.php
           php tests/academic_drive_test.php
+          php tests/academic_drive_cache_test.php
+          python tests/academic_drive_concurrency_test.py
           php tests/academic_drive_transport_test.php
   browser:
     runs-on: ubuntu-24.04
