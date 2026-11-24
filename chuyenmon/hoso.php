@@ -37,6 +37,7 @@ if(isset($_GET['api'])){
             $token=acd_token();session_write_close();
             $content=acd_content($config,$_GET['id'],$token,$keys);
             try{
+                if(!empty($content['etag'])){header('ETag: '.$content['etag']);if(($_GET['download']??'0')!=='1'&&trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$content['etag']){http_response_code(304);fclose($content['stream']);exit;}}
                 header('Content-Type: '.$content['mime']);header('X-Content-Type-Options: nosniff');header('Cross-Origin-Resource-Policy: same-origin');
                 header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'self\'; sandbox');
                 $disposition=$content['inline']&&($_GET['download']??'0')!=='1'?'inline':'attachment';
@@ -46,8 +47,14 @@ if(isset($_GET['api'])){
             exit;
         }
         $args=[];foreach(['folder'=>$config['id'],'sort'=>'name','q'=>'','cursor'=>'']as$key=>$default){$args[$key]=$_GET[$key]??$default;if(!is_string($args[$key]))throw new InvalidArgumentException('Bộ lọc không hợp lệ.');}
-        $data=acd_browse($config,$args['folder'],$args['sort'],$args['q'],$args['cursor'],acd_token(),$keys);
-        $_SESSION['academic_drive_keys']=['scope'=>$scope,'keys'=>$keys];
+        $token=acd_token();$sessionOwner=$_SESSION['cds_user']['id']??null;session_write_close();
+        $data=acd_browse($config,$args['folder'],$args['sort'],$args['q'],$args['cursor'],$token,$keys,stripos((string)($_SERVER['HTTP_CACHE_CONTROL']??''),'no-cache')!==false);
+        // Persist resource keys briefly; never hold the session lock over remote network requests.
+        if(session_start(['use_cookies'=>false,'cache_limiter'=>''])){
+            $latest=acd_config();$latestScope=hash('sha256',$latest['revision'].'|'.$latest['id']);
+            if(($_SESSION['cds_user']['id']??null)===$sessionOwner&&hash_equals($scope,$latestScope)){$previous=$_SESSION['academic_drive_keys']??[];$merged=($previous['scope']??'')===$scope?(array)($previous['keys']??[]):[];$_SESSION['academic_drive_keys']=['scope'=>$scope,'keys'=>array_slice(array_replace($merged,$keys),-500,null,true)];}
+            session_write_close();
+        }
         echo json_encode(['ok'=>true]+$data,JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE);
     }catch(Throwable $ex){http_response_code($ex instanceof InvalidArgumentException?400:502);echo json_encode(['ok'=>false,'message'=>$ex->getMessage()],JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE);}
     exit;
@@ -76,7 +83,7 @@ require __DIR__.'/includes/header.php';
         <button type="button" id="acd-more" class="btn btn-outline-primary" hidden>Xem thêm hồ sơ</button>
     </div>
     <dialog id="acd-preview" aria-labelledby="acd-preview-title"><div class="acd-preview-header"><div><span class="acd-eyebrow">XEM HỒ SƠ</span><h2 id="acd-preview-title"></h2></div><div class="acd-preview-actions"><a id="acd-download" class="btn btn-primary">Tải tài liệu</a><button id="acd-close" class="btn btn-outline-secondary" type="button">Đóng</button></div></div><p id="acd-preview-status" role="status" aria-live="polite"></p><iframe id="acd-frame" title="Nội dung hồ sơ" hidden></iframe><div id="acd-no-preview" class="acd-empty" hidden><i class="bi bi-file-earmark-arrow-down" aria-hidden="true"></i><h3>Tài liệu sẵn sàng tải xuống</h3><p>Định dạng này chưa hỗ trợ xem trực tiếp. Chọn “Tải tài liệu” để mở bằng ứng dụng phù hợp.</p></div></dialog>
-    <script src="assets/academic-drive.js?v=2" defer></script>
+    <script src="assets/academic-drive.js?v=3" defer></script>
     <?php endif;?>
     <?php if($admin):?>
     <details class="acd-settings" <?=!$config['id']?'open':''?>>
