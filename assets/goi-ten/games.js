@@ -16,7 +16,7 @@ const storageKey=k=>storagePrefix+(k==='selectedClass'?'settings':storageClass)+
 function load(k,d){try{const v=localStorage.getItem(storageKey(k));return v===null?d:JSON.parse(v)}catch(e){return d}}
 function save(k,v){try{localStorage.setItem(storageKey(k),JSON.stringify(v))}catch(e){}}
 const IMG={};for(const k in ASSETS){const im=new Image();im.onload=()=>{IMG[k]=im};im.src=ASSETS[k]}
-const scaleFor=n=>(n>34?.58:n>24?.68:n>14?.82:1)*1.16;
+const scaleFor=n=>(n>34?.58:n>24?.68:n>14?.82:1)*1.16*1.15;
 
 let audio=null,master=null,silentEl=null;
 function silentWav(){const n=4000,b=new Uint8Array(44+n),v=new DataView(b.buffer),w=(o,t)=>{for(let i=0;i<t.length;i++)b[o+i]=t.charCodeAt(i)};
@@ -65,7 +65,7 @@ function drawKidSprite(k,t,im){
   ctx.fillStyle='rgba(60,40,10,.22)';ell(k.x,k.y+2,20*s,5.5*s);ctx.fill();
   if(k.shirt){ctx.fillStyle=k.shirt;ell(k.x,k.y+2,22*s,7*s);ctx.fill()}
   if(k.hi){ctx.fillStyle='rgba(242,182,50,.55)';ell(k.x,k.y,40*s,14*s);ctx.fill()}
-  ctx.save();ctx.translate(k.x,k.y-bob);if(scared&&k.dir<0)ctx.scale(-1,1);if(mv)ctx.rotate(Math.sin(t*14+k.ph)*.05);
+  ctx.save();ctx.translate(k.x,k.y-bob);if(scared&&k.dir<0)ctx.scale(-1,1);if(k.grabbed)ctx.rotate(.08+(reduce?0:Math.sin(t*5)*.012));else if(mv)ctx.rotate(Math.sin(t*14+k.ph)*.05);
   ctx.drawImage(im,-w/2,-Hh,w,Hh);ctx.restore();
   drawEmotion(k.x,k.y-Hh-bob-(k.hold==='egg'?36:12)*s,k.hi?'surprise':scared?'fear':k.hold==='egg'?'mischief':'happy',s,t+k.ph);
   if(k.hold==='egg')eggShape(k.x,k.y-Hh-12*s-bob,s*1.1);
@@ -196,6 +196,20 @@ function hen(h,t,ph){
   if(sleep){ctx.fillStyle='#4a6fa5';ctx.font=`800 22px ${DFONT}`;ctx.textAlign='left';const z=(t*1.2)%1,z2=(z+.5)%1;
     ctx.globalAlpha=1-z;ctx.fillText('z',h.x+34,h.y-90-z*30);ctx.globalAlpha=1-z2;ctx.fillText('Z',h.x+46,h.y-100-z2*30);ctx.globalAlpha=1}
 }
+function eggCatchGeometry(k,h){
+ const height=96*h.size,width=height*1292/1024,beakX=h.x+h.dir*(1282/1292-.5)*width,beakY=h.y-height+height*365/1024;
+ return{height,width,beakX,beakY,shirtX:k.x-h.dir*10*k.s,shirtY:k.y-36*k.s};
+}
+function positionShirtCatch(S){
+ const k=S.win,h=S.h,dir=k.catchDir;h.dir=dir;const height=96*h.size,width=height*1292/1024;
+ h.x=clamp(k.x-dir*38*k.s-dir*(1282/1292-.5)*width,90,910);h.y=clamp(k.y-38*k.s+height*(1-365/1024),320,586);
+}
+function drawShirtCatch(S,t){
+ const k=S.win,h=S.h,g=eggCatchGeometry(k,h),s=k.s,wobble=reduce?0:Math.sin(t*5)*1.5;
+ ctx.save();ctx.fillStyle='#f8fbff';ctx.strokeStyle='#a9b4c1';ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(g.shirtX,g.shirtY-7*s);ctx.quadraticCurveTo((g.shirtX+g.beakX)/2,g.beakY-10*s+wobble,g.beakX,g.beakY);ctx.quadraticCurveTo((g.shirtX+g.beakX)/2,g.beakY+8*s+wobble,g.shirtX+3*h.dir*s,g.shirtY+7*s);ctx.closePath();ctx.fill();ctx.stroke();
+ ctx.strokeStyle='#c7d1db';ctx.lineWidth=.8;for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(g.beakX,g.beakY);ctx.quadraticCurveTo((g.shirtX+g.beakX)/2,g.shirtY+(i-1)*4*s,g.shirtX,g.shirtY+(i-1)*5*s);ctx.stroke()}
+ if(IMG.hen_grip){ctx.translate(h.x,h.y);ctx.scale(h.dir,1);ctx.drawImage(IMG.hen_grip,0,0,IMG.hen_grip.width*1292/1536,IMG.hen_grip.height,-g.width/2,-g.height,g.width,g.height)}else hen(h,t,'chase');ctx.restore();
+}
 G.egg={
   setup(P){const s=scaleFor(P.length);const kids=P.map((p,i)=>mkKid(p,i,rnd(560,960),rnd(330,560),s));
     return{kids,h:{x:NEST.x,y:NEST.y-8,dir:1,size:1,shake:0,angry:false,tgt:null},ph:'sleep',pt:0,eggs:7,win:pick(kids)}},
@@ -229,16 +243,16 @@ G.egg={
       if(Math.random()<.5)dust(h.x,h.y);if(Math.random()<.05)feathers(h.x,h.y-40,2);
       flee(fin,null);
       if(fin&&((d<27*h.size&&S.el>=S.D-.4)||S.el>S.D+.6)){if(d>=27*h.size){h.x=tg.x-30;h.y=tg.y}
-        S.ph='caught';S.pt=0;h.shake=0;h.dir=S.win.x>h.x?1:-1;S.win.vx=S.win.vy=0;S.win.hold=null;S.win.hi=true;S.win.pose='scared';
-        say('Lần này bắt được thật rồi!',h.x,h.y-150,99);feathers(S.win.x,S.win.y-50,26);cluck();finish(S.win.p)}
+        S.ph='grab';S.pt=0;h.shake=0;S.win.catchDir=S.win.x<160?-1:S.win.x>840?1:(S.win.x>h.x?1:-1);S.win.grabbed=true;S.win.dir=S.win.catchDir;S.win.vx=S.win.vy=0;S.win.hold=null;S.win.hi=true;S.win.pose='scared';positionShirtCatch(S);
+        say('Lần này bắt được thật rồi!',h.x,h.y-150,99);feathers(S.win.x,S.win.y-50,26);cluck();}
       else if(!fin&&h.stun<=0&&d<27*h.size&&S.el<S.D-2.8){S.ph='fake';S.pt=0;S.fk=tg;tg.vx=tg.vy=0;tg.pose='scared';
         say('Bắt được rồi nhé!',h.x,h.y-150,.9);cluck();feathers(h.x,h.y-40,8)}}
     else if(S.ph==='fake'){const k=S.fk;h.x+=((k.x-24*h.dir)-h.x)*dt*8;h.y+=((k.y-2)-h.y)*dt*8;k.vx=k.vy=0;flee(false,k);k.pose='scared';
       if(S.pt>.9){const a=Math.atan2(k.y-h.y,k.x-h.x)+rnd(-.5,.5);k.vx=Math.cos(a)*k.spd*1.9;k.vy=Math.sin(a)*k.spd*1.9;k.dash=.6;k.pose='run';
         say(pick(['Ối! Tuột mất rồi!','Chạy thoát rồi!','Hụt rồi!']),h.x,h.y-150,1,'#1f6fa8');snd(700,200,.3,'sawtooth',.08);h.stun=.5;S.ph='chase';S.pt=0;S.next=-1}}
-    else if(S.ph==='caught'){S.kids.forEach(k=>{k.vx*=.9;k.vy*=.9;if(k!==S.win)mv(k)});h.x+=((S.win.x-24*h.dir)-h.x)*dt*6;h.y+=((S.win.y-2)-h.y)*dt*6;if(Math.random()<.06)feathers(S.win.x,S.win.y-50,1)}
+    else if(S.ph==='grab'||S.ph==='caught'){S.kids.forEach(k=>{k.vx*=.9;k.vy*=.9;if(k!==S.win)mv(k)});S.win.x+=(clamp(S.win.x,160,840)-S.win.x)*Math.min(1,dt*5);S.win.y+=(clamp(S.win.y,360,515)-S.win.y)*Math.min(1,dt*5);positionShirtCatch(S);if(Math.random()<.04)feathers(S.win.x,S.win.y-50,1);if(S.ph==='grab'&&S.pt>=1.4){S.ph='caught';finish(S.win.p)}}
   },
-  draw(S,t){if(IMG.bg_egg)ctx.drawImage(IMG.bg_egg,0,0,W,H);else{farm();nest(S.eggs)}sceneMotion('egg',t,S);sortDraw([...S.kids.map(k=>({y:k.y,f:()=>drawKid(k,t)})),{y:S.h.y+(S.ph==='caught'?6:0),f:()=>hen(S.h,t,S.ph)}]);S.kids.forEach(kidLabel)}
+  draw(S,t){if(IMG.bg_egg)ctx.drawImage(IMG.bg_egg,0,0,W,H);else{farm();nest(S.eggs)}sceneMotion('egg',t,S);const caught=S.ph==='grab'||S.ph==='caught';sortDraw([...S.kids.map(k=>({y:k.y,f:()=>drawKid(k,t)})),...(!caught?[{y:S.h.y,f:()=>hen(S.h,t,S.ph)}]:[])]);if(caught)drawShirtCatch(S,t);S.kids.forEach(kidLabel)}
 };
 
 /* ---------- 10. UFO ---------- */

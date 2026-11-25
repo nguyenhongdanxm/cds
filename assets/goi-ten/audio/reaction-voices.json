@@ -5,11 +5,11 @@
   "dataset": "VAIS-1000",
   "dataset_license": "CC BY 4.0",
   "license_url": "https://creativecommons.org/licenses/by/4.0/",
-  "note": "Short synthetic Vietnamese exclamations; pitch, pace and loudness adjusted. No student names or recordings supplied to the engine.",
+  "note": "Offline Vietnamese synthesis with slower stable pacing and no pitch shifting; high-pass filtered and normalized. Active lines are allowed to finish at the normal result.",
   "phrases": [
     {
       "file": "reaction_oi_oi.mp3",
-      "text": "Ối, ối!"
+      "text": "Ối! Ối!"
     },
     {
       "file": "reaction_oai.mp3",
@@ -34,6 +34,10 @@
     {
       "file": "reaction_thoat_roi.mp3",
       "text": "Thoát rồi!"
+    },
+    {
+      "file": "hen_chase_line.mp3",
+      "text": "Cục ta, cục tác! Dám trộm trứng của ta à?"
     }
   ]
 }
