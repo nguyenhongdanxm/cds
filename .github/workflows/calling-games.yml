@@ -5,6 +5,10 @@ on:
       - 'hoclieu_game_goiten.php'
       - 'assets/goi-ten/**'
       - 'tests/calling_games*'
+      - 'tests/staff_evaluation_deploy_test.php'
+      - 'tools/deploy_cds.php'
+      - 'tools/deploy_cpanel.sh'
+      - '.cpanel.yml'
       - '.github/workflows/calling-games.yml'
   workflow_dispatch:
 jobs:
@@ -17,6 +21,7 @@ jobs:
           php-version: '8.3'
           extensions: mbstring
       - run: php -l hoclieu_game_goiten.php && node --check assets/goi-ten/games.js
+      - run: php tests/staff_evaluation_deploy_test.php
       - run: npm install --prefix "$RUNNER_TEMP/calling-games" --no-package-lock playwright@1.58.2
       - run: |
           "$RUNNER_TEMP/calling-games/node_modules/.bin/playwright" install --with-deps --only-shell chromium
