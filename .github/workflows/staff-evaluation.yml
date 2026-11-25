@@ -37,7 +37,7 @@ jobs:
           php tests/staff_evaluation_deploy_test.php
           php tests/viewer_access_test.php
   staff-browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
