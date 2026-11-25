@@ -55,6 +55,8 @@ if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
       <button type="button" class="small" id="testSound">🔊 Thử âm thanh</button>
       <button type="button" class="small" id="fs" hidden>Toàn màn hình</button>
     </div>
+    <div class="opts"><label>Nhạc nền <input id="musicVolume" type="range" min="0" max="100" step="1" value="20" aria-label="Âm lượng nhạc nền"></label><label>Hiệu ứng <input id="effectsVolume" type="range" min="0" max="100" step="1" value="55" aria-label="Âm lượng hiệu ứng"></label></div>
+    <details class="audio-credits"><summary>Nguồn âm thanh</summary><p>Tiếng gà và giọng người: Breviceps, tonsil5 (Freesound), Joseph SARDIN (BigSoundBank), CC0 1.0. Nhạc Trộm trứng: Sneaky Snitch và Monkeys Spinning Monkeys — Kevin MacLeod (incompetech.com), <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Đã cắt 30 giây, chuẩn hóa mức âm và thêm fade. <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100772" target="_blank" rel="noopener">Nguồn Sneaky Snitch</a> · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1400011" target="_blank" rel="noopener">Nguồn Monkeys Spinning Monkeys</a>. Nhạc không gian và tiếng tia hút UFO: âm thanh tổng hợp được tạo cho CDS.</p></details>
     <div class="timeset">
       <div class="trow">
         <span class="tl">Thời gian chọn <output id="durOut">20 giây</output></span>
@@ -99,4 +101,4 @@ if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
 
 
 
-<script id="rosterData" type="application/json"><?=json_encode($rosters,JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?></script><script src="<?=e(BASE_URL)?>assets/goi-ten/assets.js?v=1"></script><script src="<?=e(BASE_URL)?>assets/goi-ten/games.js?v=1"></script></body></html>
+<script id="rosterData" type="application/json"><?=json_encode($rosters,JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?></script><script src="<?=e(BASE_URL)?>assets/goi-ten/assets.js?v=1"></script><script src="<?=e(BASE_URL)?>assets/goi-ten/audio.js?v=2"></script><script src="<?=e(BASE_URL)?>assets/goi-ten/games.js?v=2"></script></body></html>

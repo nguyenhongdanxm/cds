@@ -20,7 +20,7 @@ jobs:
         with:
           php-version: '8.3'
           extensions: mbstring
-      - run: php -l hoclieu_game_goiten.php && node --check assets/goi-ten/games.js
+      - run: php -l hoclieu_game_goiten.php && node --check assets/goi-ten/games.js && node --check assets/goi-ten/audio.js && node tests/calling_games_audio_test.cjs
       - run: php tests/staff_evaluation_deploy_test.php
       - run: npm install --prefix "$RUNNER_TEMP/calling-games" --no-package-lock playwright@1.58.2
       - run: |

@@ -1,0 +1,74 @@
+[
+  {
+    "file": "01_Ga_cuc_tac.mp3",
+    "title": "Chicken clucking",
+    "author": "Breviceps",
+    "license": "CC0 1.0",
+    "source": "https://freesound.org/people/Breviceps/sounds/456803/",
+    "url": "https://cdn.freesound.org/previews/456/456803_9159316-hq.mp3",
+    "note": "Bản MP3 HQ nghe thử công khai do Freesound cung cấp.",
+    "seconds": 15.05,
+    "bytes": 199656
+  },
+  {
+    "file": "02_Ga_me_tuc_gian.mp3",
+    "title": "Annoyed Hen",
+    "author": "Joseph SARDIN / BigSoundBank",
+    "license": "CC0 1.0",
+    "source": "https://bigsoundbank.com/annoyed-hen-s0453.html",
+    "url": "https://bigsoundbank.com/UPLOAD/mp3/0453.mp3",
+    "seconds": 3.27,
+    "bytes": 131648
+  },
+  {
+    "file": "03_Ga_hoang_hot.mp3",
+    "title": "Hen scared",
+    "author": "Joseph SARDIN / BigSoundBank",
+    "license": "CC0 1.0",
+    "source": "https://bigsoundbank.com/hen-scared-s1040.html",
+    "url": "https://bigsoundbank.com/UPLOAD/mp3/1040.mp3",
+    "seconds": 6.17,
+    "bytes": 247908
+  },
+  {
+    "file": "04_Tre_em_la_het_khi_choi.mp3",
+    "title": "Kids Screaming #1",
+    "author": "Joseph SARDIN / BigSoundBank",
+    "license": "CC0 1.0",
+    "source": "https://bigsoundbank.com/kids-scream-1-s1148.html",
+    "url": "https://bigsoundbank.com/UPLOAD/mp3/1148.mp3",
+    "seconds": 10.54,
+    "bytes": 422628
+  },
+  {
+    "file": "05_Tieng_la_hoat_hinh.mp3",
+    "title": "Cartoon Scream 1.wav",
+    "author": "tonsil5",
+    "license": "CC0 1.0",
+    "source": "https://freesound.org/people/tonsil5/sounds/416840/",
+    "url": "https://cdn.freesound.org/previews/416/416840_8247784-hq.mp3",
+    "note": "Bản MP3 HQ nghe thử công khai do Freesound cung cấp.",
+    "seconds": 1.12,
+    "bytes": 26978
+  },
+  {
+    "file": "06_Nhac_ron_ren_Sneaky_Snitch.mp3",
+    "title": "Sneaky Snitch",
+    "author": "Kevin MacLeod",
+    "license": "CC BY 4.0",
+    "source": "https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100772",
+    "url": "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Sneaky%20Snitch.mp3",
+    "seconds": 136.62,
+    "bytes": 5466943
+  },
+  {
+    "file": "07_Nhac_vui_Monkeys_Spinning_Monkeys.mp3",
+    "title": "Monkeys Spinning Monkeys",
+    "author": "Kevin MacLeod",
+    "license": "CC BY 4.0",
+    "source": "https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1400011",
+    "url": "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Monkeys%20Spinning%20Monkeys.mp3",
+    "seconds": 125.07,
+    "bytes": 5005207
+  }
+]
