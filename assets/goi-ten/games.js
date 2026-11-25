@@ -72,10 +72,11 @@ function drawKidSprite(k,t,im){
   if(k.hold==='cake')cake(k.x+k.dir*18*s,k.y-Hh*.42-bob,s*1.1);
 }
 function drawEmotion(x,y,mood,s,t){
-  ctx.save();ctx.translate(x,y);const bounce=reduce?0:Math.sin(t*5)*2*s;ctx.translate(0,bounce);ctx.font=`800 ${18*s}px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';
-  const text={fear:'Ối!',surprise:'?!',mischief:'Hí hí',happy:'♪',angry:'!!',sleep:'Zzz'}[mood];ctx.fillStyle=mood==='angry'||mood==='fear'?'#c8361b':'#3564a8';
-  if(mood==='fear'){ctx.fillStyle='#4faeff';ell(23*s,5*s,3*s,6*s,-.4);ctx.fill();ctx.fillStyle='#c8361b'}
-  if(mood!=='happy'||Math.sin(t*.8)>.7){ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=4*s;ctx.strokeText(text,0,0);ctx.fillText(text,0,0)}ctx.restore();
+ // Keep expression graphics, never draw spoken words above students.
+ ctx.save();ctx.translate(x,y);ctx.fillStyle=mood==='fear'?'#4faeff':'#ffd45e';
+ if(mood==='fear'){ell(20*s,5*s,3*s,6*s,-.4);ctx.fill();ell(-18*s,9*s,2*s,4*s,.3);ctx.fill()}
+ else if(mood==='angry'||mood==='surprise'){ctx.strokeStyle=mood==='angry'?'#df413d':'#ffd45e';ctx.lineWidth=2.5*s;for(let i=0;i<3;i++){const a=-2.2+i*.6;ctx.beginPath();ctx.moveTo(Math.cos(a)*10*s,Math.sin(a)*10*s);ctx.lineTo(Math.cos(a)*19*s,Math.sin(a)*19*s);ctx.stroke()}}
+ ctx.restore();
 }
 function sceneMotion(kind,t,state){
  if(reduce)return;ctx.save();
@@ -308,12 +309,15 @@ G.ufo={
   },
   draw(S,t){if(IMG.bg_ufo)ctx.drawImage(IMG.bg_ufo,0,0,W,H);else street(t);sceneMotion('ufo',t,S);busDraw(S.bus.x);const u=S.u,tg=S.cur;
     if(u.beam>0&&tg){const gy=tg.y+6,g=ctx.createLinearGradient(0,u.y,0,gy);g.addColorStop(0,`rgba(200,150,255,${.6*u.beam})`);g.addColorStop(1,`rgba(200,150,255,${.18*u.beam})`);
-      ctx.fillStyle=g;ctx.beginPath();const by=u.y+(IMG.ufo?42:12);ctx.moveTo(u.x-28,by);ctx.lineTo(u.x+28,by);ctx.lineTo(u.x+70,gy);ctx.lineTo(u.x-70,gy);ctx.fill();ctx.fillStyle=`rgba(235,215,255,${.6*u.beam})`;ell(u.x,gy,70,12);ctx.fill()}
+      ctx.fillStyle=g;ctx.beginPath();const by=u.y+(IMG.ufo?42:12);ctx.moveTo(u.x-28,by);ctx.lineTo(u.x+28,by);ctx.lineTo(u.x+70,gy);ctx.lineTo(u.x-70,gy);ctx.fill();ctx.fillStyle=`rgba(235,215,255,${.6*u.beam})`;ell(u.x,gy,70,12);ctx.fill();
+      ctx.save();const height=Math.max(1,gy-by);ctx.globalAlpha=u.beam;ctx.globalCompositeOperation='screen';
+      const core=ctx.createLinearGradient(0,by,0,gy);core.addColorStop(0,'rgba(220,255,255,.9)');core.addColorStop(1,'rgba(120,160,255,.04)');ctx.fillStyle=core;ctx.beginPath();ctx.moveTo(u.x-9,by);ctx.lineTo(u.x+9,by);ctx.lineTo(u.x+35,gy);ctx.lineTo(u.x-35,gy);ctx.fill();
+      for(let i=0;i<7;i++){const f=((reduce?i/7:t*1.25+i/7)%1),y=gy-f*height;ctx.strokeStyle=`rgba(180,240,255,${.65*(1-f)})`;ctx.lineWidth=2;ell(u.x,y,65*(1-f)+15,5+5*(1-f));ctx.stroke()}
+      for(let i=0;i<18;i++){const f=(reduce?i/18:(t*.65+i*.137)%1),angle=i*2.4+(reduce?0:t*3),radius=12+30*(1-f);ctx.fillStyle=i%2?'#e6fbff':'#bba0ff';ctx.beginPath();ctx.arc(u.x+Math.cos(angle)*radius,gy-f*height,1.5+(i%3),0,Math.PI*2);ctx.fill()}ctx.restore();}
+
     const vis=S.kids.filter(k=>!k.captured);
     sortDraw(vis.map(k=>({y:k.y,f:()=>{if(k.lift>0||k.shr<1){const oy=k.y,os=k.s;k.y=oy-k.lift;k.s=os*k.shr;drawKid(k,t);k.y=oy;k.s=os}else drawKid(k,t)}})));
     vis.forEach(k=>label(k.x,k.y-k.lift+6,k.p.name,Math.max(.75,k.s*k.shr),k.hi,130));
-    vis.forEach(k=>{if(k.shoutT>0){const fs=11*Math.max(.8,k.s);ctx.font=`700 ${fs}px ${FONT}`;const w=ctx.measureText(k.shout).width+10,y=k.y-k.lift-92*k.s;
-      ctx.fillStyle='#fff';rr(k.x-w/2,y,w,fs+6,6);ctx.fill();ctx.fillStyle='#c8361b';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(k.shout,k.x,y+(fs+6)/2)}});
     ufoDraw(u,t,S.kids.find(k=>k.captured))}
 };
 
@@ -367,8 +371,8 @@ function frame(now){
   if(ephase==='count'||ephase==='play'||ephase==='twist'){S.el+=dt;if(ephase==='play'&&S.el>=S.nextTick){const k=clamp(S.el/S.D,0,1);snd(1000-k*300,650,.05,'triangle',.04);S.nextTick=S.el+(.6-.46*k)}}
   if(ephase==='count'){const before=Math.floor(cd/.8);cd+=dt;const after=Math.floor(cd/.8);if(cd===dt||after!==before)snd(after>=3?880:440,after>=3?880:440,.2,'square',.1);
     if(cd>=2.6){ephase='play';G[cur].start(S)}}
-  G[cur].update(S,dt,t);if(busy())window.CDSCallingAudio?.sync(S.ph);stepFx(dt);
-  G[cur].draw(S,t);drawFx();drawBubble();drawClock(t);
+  G[cur].update(S,dt,t);if(busy())window.CDSCallingAudio?.sync(S.ph,clamp(S.el/S.D,0,1));stepFx(dt);
+  G[cur].draw(S,t);drawFx();drawClock(t);
   if(ephase==='count'){const n=3-Math.floor(cd/.8),txt=n>0?String(n):'Đi!';ctx.font=`800 ${150}px ${DFONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=10;ctx.strokeStyle='rgba(0,0,0,.4)';ctx.strokeText(txt,W/2,H/2);ctx.fillStyle='#fff';ctx.fillText(txt,W/2,H/2)}
   if(ephase==='idle'){ctx.font=`700 20px ${FONT}`;const tx='Bấm vào đây hoặc nút Bắt đầu!',w=ctx.measureText(tx).width+30;ctx.fillStyle='rgba(20,20,20,.6)';rr(W/2-w/2,H-50,w,36,18);ctx.fill();ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(tx,W/2,H-31)}
   requestAnimationFrame(frame);
