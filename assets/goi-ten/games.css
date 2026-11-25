@@ -86,3 +86,8 @@ ol li:first-child{font-weight:600;color:var(--accent)}
 @media (prefers-reduced-motion:reduce){.banner .box{animation:none}}
 
 [hidden]{display:none!important}body{margin:0}a{color:inherit}select{font:inherit;padding:10px;border-radius:10px;max-width:100%}.back{display:inline-block;margin-bottom:12px}#picker{display:none}.roster-label{display:grid;gap:6px;font-weight:600}
+
+.wrap{max-width:1600px}.game-layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:18px;align-items:start}.game-arena{position:sticky;top:16px;min-width:0}.game-settings{display:grid;gap:14px;min-width:0}.settings-options .opts{display:grid;gap:12px}.settings-options .opts label{justify-content:space-between}.settings-options input[type=range]{width:145px}.game-settings .card{min-width:0}.game-settings .step{font-size:1.12rem}.audio-credits{font-size:.8rem}.audio-credits p{overflow-wrap:anywhere}.game-settings button{padding:8px 12px}.game-settings .numstep{flex-wrap:wrap}.game-settings .hint{line-height:1.5}#game{width:100%}
+@media(max-width:1050px){.game-layout{grid-template-columns:minmax(0,1fr) 300px}.game-settings .modes{display:grid}}
+@media(max-width:780px){.game-layout{grid-template-columns:minmax(0,1fr)}.game-arena{position:static}.game-settings{grid-template-columns:repeat(2,minmax(0,1fr))}.game-settings>section:last-child{grid-column:1/-1}}
+@media(max-width:520px){.game-settings{grid-template-columns:minmax(0,1fr)}body{padding-inline:10px}.card{padding:10px}.game-arena .go{font-size:1.1rem}}

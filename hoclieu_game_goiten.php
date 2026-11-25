@@ -29,7 +29,7 @@ $game=($_GET['game']??'egg')==='ufo'?'ufo':'egg';
 $title=$game==='ufo'?'UFO – Gọi tên học sinh':'Trộm trứng – Gọi tên học sinh';
 if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
 ?>
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($title)?> · CDS</title><link rel="stylesheet" href="<?=e(BASE_URL)?>assets/goi-ten/games.css?v=1"></head><body data-game="<?=e($game)?>" data-user="<?=e($gameUserKey)?>">
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($title)?> · CDS</title><link rel="stylesheet" href="<?=e(BASE_URL)?>assets/goi-ten/games.css?v=3"></head><body data-game="<?=e($game)?>" data-user="<?=e($gameUserKey)?>">
 <div class="wrap">
   <header>
     <a class="back" href="<?=e(BASE_URL)?>hoclieu.php?tab=games">← Tiện ích gọi tên</a><h1><?=e($title)?></h1>
@@ -38,7 +38,7 @@ if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
 
   <div class="picker" id="picker" role="group" aria-label="Chọn trò chơi"></div>
 
-  <section class="card">
+  <main class="game-layout"><section class="card game-arena">
     <div class="stagewrap" id="stagewrap">
       <canvas id="game" width="1000" height="600" aria-label="Màn hình trò chơi"></canvas>
       <div class="banner" id="banner" hidden><div class="box"><div class="lbl" id="bLbl"></div><div class="nm" id="bName"></div><div class="stamp" id="bStamp" hidden>NHẦM RỒI!</div><div class="ch" id="bSub" hidden></div><div class="tm" id="bTimer" hidden></div></div></div>
@@ -47,6 +47,8 @@ if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
       <div class="count" id="count">—</div>
       <button class="go" id="go">Bắt đầu!</button>
     </div>
+  </section>
+  <aside class="game-settings" aria-label="Tùy chọn trò chơi"><section class="card settings-options"><h2 class="step">Tùy chọn</h2>
     <div class="opts">
       <label><input type="checkbox" id="noRepeat" checked> Bạn đã được gọi thì nghỉ lượt sau</label>
       <label><input type="checkbox" id="mix"> Trộn vị trí mỗi lượt</label>
@@ -66,7 +68,6 @@ if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
       <p class="hint">Không nghe tiếng? Bấm "Thử âm thanh", tăng âm lượng máy, và trên iPhone/iPad hãy gạt tắt chế độ im lặng.</p>
     </div>
   </section>
-
   <section class="card" id="participants">
     <label class="roster-label">Chọn lớp<select id="classSelect"><option value="">— Nhập danh sách riêng —</option><?php foreach($rosters as $class=>$students):?><option value="<?=e($class)?>"><?=e($class)?> · <?=count($students)?> học sinh</option><?php endforeach;?></select></label><p class="hint" id="excludeHint"></p>
     <h2 class="step">Người chơi <small id="total"></small></h2>
@@ -96,9 +97,6 @@ if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
     <h2 class="step">Đã được gọi <button class="small" id="reset">Làm lại từ đầu</button></h2>
     <ol id="history"><li class="empty">Chưa có ai.</li></ol>
   </section>
+  </aside></main>
 </div>
-
-
-
-
-<script id="rosterData" type="application/json"><?=json_encode($rosters,JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?></script><script src="<?=e(BASE_URL)?>assets/goi-ten/assets.js?v=1"></script><script src="<?=e(BASE_URL)?>assets/goi-ten/audio.js?v=2"></script><script src="<?=e(BASE_URL)?>assets/goi-ten/games.js?v=2"></script></body></html>
+<script id="rosterData" type="application/json"><?=json_encode($rosters,JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?></script><script src="<?=e(BASE_URL)?>assets/goi-ten/assets.js?v=1"></script><script src="<?=e(BASE_URL)?>assets/goi-ten/audio.js?v=2"></script><script src="<?=e(BASE_URL)?>assets/goi-ten/games.js?v=3"></script></body></html>
