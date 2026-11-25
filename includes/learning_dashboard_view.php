@@ -14,7 +14,7 @@
         <div class="lh-content-grid <?=$key==='games'?'lh-games-preview':''?>">
         <?php foreach($section['items']as$row):?>
             <?php if($key==='games'):?>
-            <a class="lh-preview-game" data-game-key="<?=e($row['key'])?>" href="<?=e(BASE_URL.$row['url'])?>"><img src="<?=e(BASE_URL.'assets/game-covers/illustrated-v3/'.$row['key'].'.webp?v=20261110-5')?>" width="720" height="405" loading="lazy" decoding="async" alt=""><div><h3><?=e($row['name'])?></h3><p><?=e($row['description'])?></p><span>Mở tiện ích <i class="bi bi-arrow-up-right" aria-hidden="true"></i></span></div></a>
+            <a class="lh-preview-game" data-game-key="<?=e($row['key'])?>" href="<?=e(BASE_URL.$row['url'])?>"><img src="<?=e(BASE_URL.($row['cover']??('assets/game-covers/illustrated-v3/'.$row['key'].'.webp?v=20261110-5')))?>" width="720" height="405" loading="lazy" decoding="async" alt=""><div><h3><?=e($row['name'])?></h3><p><?=e($row['description'])?></p><span>Mở tiện ích <i class="bi bi-arrow-up-right" aria-hidden="true"></i></span></div></a>
             <?php elseif($key==='links'):?>
             <a class="learning-link-card lh-preview-link" <?=lc_link_attributes($row)?>><?=lc_link_body($row)?></a>
             <?php else:?>
