@@ -1,0 +1,39 @@
+{
+  "engine": "Piper TTS",
+  "model": "vi_VN-vais1000-medium",
+  "model_source": "https://huggingface.co/rhasspy/piper-voices/tree/main/vi/vi_VN/vais1000/medium",
+  "dataset": "VAIS-1000",
+  "dataset_license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "note": "Short synthetic Vietnamese exclamations; pitch, pace and loudness adjusted. No student names or recordings supplied to the engine.",
+  "phrases": [
+    {
+      "file": "reaction_oi_oi.mp3",
+      "text": "Ối, ối!"
+    },
+    {
+      "file": "reaction_oai.mp3",
+      "text": "Oái!"
+    },
+    {
+      "file": "reaction_chay_mau.mp3",
+      "text": "Chạy mau!"
+    },
+    {
+      "file": "reaction_so_qua.mp3",
+      "text": "Sợ quá!"
+    },
+    {
+      "file": "reaction_thot_tim.mp3",
+      "text": "Thót tim!"
+    },
+    {
+      "file": "reaction_cuu_voi.mp3",
+      "text": "Cứu với!"
+    },
+    {
+      "file": "reaction_thoat_roi.mp3",
+      "text": "Thoát rồi!"
+    }
+  ]
+}

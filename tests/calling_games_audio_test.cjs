@@ -1,19 +1,19 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('assets/goi-ten/audio.js','utf8');
 function fixture(game){
- const events={},winEvents={},elements={},media=[],osc=[],timers=new Map(),intervals=new Map();let serial=0;
+ const events={},winEvents={},elements={},media=[],osc=[],timers=new Map(),intervals=new Map();let serial=0,now=10000;
  for(const id of ['sound','musicVolume','effectsVolume'])elements[id]={checked:true,value:0,listeners:{},addEventListener(k,fn){this.listeners[k]=fn}};
  const document={hidden:false,body:{dataset:{game,user:'teacher1'}},currentScript:{src:'https://school.test/sub/assets/goi-ten/audio.js?v=2'},getElementById:id=>elements[id],addEventListener:(k,fn)=>events[k]=fn};
  class Audio{constructor(src){this.src=src;this.paused=true;media.push(this)}setAttribute(){}play(){this.paused=false;return Promise.resolve()}pause(){this.paused=true}}
  const param=()=>({value:0,setValueAtTime(){},exponentialRampToValueAtTime(){}});
  class AC{constructor(){this.state='running';this.currentTime=0}resume(){this.state='running';return Promise.resolve()}suspend(){this.state='suspended';return Promise.resolve()}createDynamicsCompressor(){return{threshold:param(),ratio:param(),connect(){}}}createGain(){return{gain:param(),connect(){},disconnect(){}}}createOscillator(){const o={frequency:param(),connect(){},disconnect(){},start(){this.started=true},stop(){this.stopped=true;this.onended?.()}};osc.push(o);return o}}
  const window={AudioContext:AC,addEventListener:(k,fn)=>winEvents[k]=fn},storage=new Map();
- vm.runInNewContext(source,{window,document,URL,Audio,performance:{now:()=>10000},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},setInterval:fn=>{const id=++serial;intervals.set(id,fn);return id},clearInterval:id=>intervals.delete(id),setTimeout:fn=>{const id=++serial;timers.set(id,fn);return id},clearTimeout:id=>timers.delete(id)});
- return {a:window.CDSCallingAudio,document,elements,media,osc,events,winEvents,intervals,timers};
+ vm.runInNewContext(source,{window,document,URL,Audio,performance:{now:()=>now},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},setInterval:fn=>{const id=++serial;intervals.set(id,fn);return id},clearInterval:id=>intervals.delete(id),setTimeout:fn=>{const id=++serial;timers.set(id,fn);return id},clearTimeout:id=>timers.delete(id)});
+ return {advance(ms){now+=ms},a:window.CDSCallingAudio,document,elements,media,osc,events,winEvents,intervals,timers};
 }
 {
- const f=fixture('egg'),a=f.a;assert.equal(f.media.length,0,'No audio autoplay on page open');a.start();a.sync('sneak');assert.match(f.media.at(-1).src,/\/sub\/assets\/goi-ten\/audio\/nhac_ron_ren_30s.mp3$/);assert.equal(f.media.at(-1).volume,.2);
- const count=f.media.length;a.sync('sneak');assert.equal(f.media.length,count,'One track per phase');a.sync('wake');assert.ok(f.media.some(x=>x.src.endsWith('ga_me_tuc_gian.mp3')));assert.ok(f.media.some(x=>x.src.endsWith('la_het_khi_chay.mp3')));a.sync('chase');assert.ok(f.media.some(x=>x.src.endsWith('nhac_ruot_duoi_30s.mp3')));
+ const f=fixture('egg'),a=f.a;assert.equal(f.media.length,0,'No audio autoplay on page open');a.start();a.sync('sneak');assert.match(f.media.at(-1).src,/\/sub\/assets\/goi-ten\/audio\/nhac_ron_ren_30s.mp3$/);assert.ok(f.media.at(-1).volume>=.3&&f.media.at(-1).volume<=1,'Stronger background with volume bounded');
+ const count=f.media.length;a.sync('sneak');assert.equal(f.media.length,count,'One track per phase');a.sync('wake');assert.ok(f.media.some(x=>x.src.endsWith('ga_me_tuc_gian.mp3')));assert.ok(f.media.some(x=>/reaction_.*\.mp3$/.test(x.src)),'Spoken Vietnamese reaction');a.sync('chase');assert.ok(f.media.some(x=>x.src.endsWith('nhac_ruot_duoi_30s.mp3')));const firstReaction=f.media.find(x=>x.reaction);const reactions=f.media.filter(x=>x.reaction).length;a.sync('fake');assert.equal(f.media.filter(x=>x.reaction).length,reactions,'Reaction cooldown prevents overlapping voices');firstReaction.pause();firstReaction.onended();f.advance(8000);a.sync('chase',.8);const secondReaction=f.media.filter(x=>x.reaction).at(-1);assert.notEqual(secondReaction.src,firstReaction.src,'Varied phrases without immediate repeats');
  a.setEnabled(false);assert.ok(f.media.every(x=>x.paused),'Mute stops every media voice');const mutedCount=f.media.length;a.sync('fake');a.effect('cluck');assert.equal(f.media.length,mutedCount);a.setEnabled(true);assert.equal(f.media.at(-1).paused,false);
  f.elements.musicVolume.value=0;f.elements.musicVolume.listeners.input();assert.equal(f.media.at(-1).volume,0);a.finish();assert.ok(f.media.every(x=>x.paused),'Finish stops background and speech');
  a.test();assert.equal(f.timers.size,1);a.start();assert.equal(f.timers.size,0,'Preview timer cannot stop a later round');a.sync('sneak');f.winEvents.pagehide();assert.ok(f.media.every(x=>x.paused));
