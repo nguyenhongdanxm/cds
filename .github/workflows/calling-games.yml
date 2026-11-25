@@ -18,7 +18,8 @@ jobs:
           extensions: mbstring
       - run: php -l hoclieu_game_goiten.php && node --check assets/goi-ten/games.js
       - run: npm install --prefix "$RUNNER_TEMP/calling-games" --no-package-lock playwright@1.58.2
-      - run: "$RUNNER_TEMP/calling-games/node_modules/.bin/playwright" install --with-deps --only-shell chromium
+      - run: |
+          "$RUNNER_TEMP/calling-games/node_modules/.bin/playwright" install --with-deps --only-shell chromium
       - run: node tests/calling_games_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/calling-games/node_modules
