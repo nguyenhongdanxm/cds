@@ -35,7 +35,7 @@ function lhc_change(array $store,string $scope,string $action,array $input,array
         unset($store['categories'][$id]);foreach($store['game_categories']as$key=>$value)if($value===$id)unset($store['game_categories'][$key]);
     }elseif($action==='assign_game_category'){
         if($scope!=='games'||!in_array($input['game_key']??'', $gameKeys,true))throw new InvalidArgumentException('Tiện ích không hợp lệ.');
-        lhc_validate_item_category($store,'games',$id);if($id==='')unset($store['game_categories'][$input['game_key']]);else $store['game_categories'][$input['game_key']]=$id;
+        lhc_validate_item_category($store,'games',$id);$store['game_categories'][$input['game_key']]=$id;
     }else throw new InvalidArgumentException('Thao tác chuyên mục không hợp lệ.');
     return $store;
 }
@@ -49,9 +49,15 @@ function lhc_shelves(array $store,string $scope,array $items,string $selected=''
     $categories=lhc_categories($store,$scope);$groups=[];
     foreach($categories as$id=>$category)$groups[$id]=['id'=>$id,'name'=>$category['name'],'description'=>$category['description'],'items'=>[]];
     $groups['unassigned']=['id'=>'unassigned','name'=>'Chưa phân chuyên mục','description'=>'Nội dung chưa được xếp vào chuyên mục.','items'=>[]];
-    foreach($items as$item){$id=$scope==='games'?(string)($store['game_categories'][$item['key']]??''):(string)($item['category_id']??'');$key=lhc_category_id($store,$scope,$id)?:'unassigned';$groups[$key]['items'][]=$item;}
+    foreach($items as$item){$id=$scope==='games'?lhc_game_category($store,$item['key']):(string)($item['category_id']??'');$key=lhc_category_id($store,$scope,$id)?:'unassigned';$groups[$key]['items'][]=$item;}
     if($selected!=='')return isset($groups[$selected])?[$groups[$selected]]:[];
     if($categories&&empty($groups['unassigned']['items']))unset($groups['unassigned']);
     return array_values($groups);
 }
 function lhc_url(string $scope,string $category='',string $query='',string $grade=''): string {return '?'.http_build_query(array_filter(['tab'=>$scope,'category'=>$category,'q'=>$query,'grade'=>$grade],static fn($v)=>$v!==''));}
+
+function lhc_game_category(array $store,string $key): string {
+    if(array_key_exists($key,$store['game_categories']))return (string)$store['game_categories'][$key];
+    if(in_array($key,['egg','ufo'],true))foreach(lhc_categories($store,'games')as$id=>$category)if(mb_strtolower(trim($category['name']))==='tiện ích gọi tên')return $id;
+    return '';
+}

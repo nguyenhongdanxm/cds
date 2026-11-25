@@ -1,0 +1,25 @@
+name: Calling games
+on:
+  pull_request:
+    paths:
+      - 'hoclieu_game_goiten.php'
+      - 'assets/goi-ten/**'
+      - 'tests/calling_games*'
+      - '.github/workflows/calling-games.yml'
+  workflow_dispatch:
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+      - run: php -l hoclieu_game_goiten.php && node --check assets/goi-ten/games.js
+      - run: npm install --prefix "$RUNNER_TEMP/calling-games" --no-package-lock playwright@1.58.2
+      - run: |
+          "$RUNNER_TEMP/calling-games/node_modules/.bin/playwright" install --with-deps --only-shell chromium
+      - run: node tests/calling_games_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/calling-games/node_modules
