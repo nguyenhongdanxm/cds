@@ -29,7 +29,7 @@ $game=($_GET['game']??'egg')==='ufo'?'ufo':'egg';
 $title=$game==='ufo'?'UFO – Gọi tên học sinh':'Trộm trứng – Gọi tên học sinh';
 if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
 ?>
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($title)?> · CDS</title><link rel="stylesheet" href="<?=e(BASE_URL)?>assets/goi-ten/games.css?v=3"></head><body data-game="<?=e($game)?>" data-user="<?=e($gameUserKey)?>">
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($title)?> · CDS</title><link rel="stylesheet" href="<?=e(BASE_URL)?>assets/goi-ten/games.css?v=4"></head><body data-game="<?=e($game)?>" data-user="<?=e($gameUserKey)?>">
 <div class="wrap">
   <header>
     <a class="back" href="<?=e(BASE_URL)?>hoclieu.php?tab=games">← Tiện ích gọi tên</a><h1><?=e($title)?></h1>
@@ -48,11 +48,36 @@ if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
       <button class="go" id="go">Bắt đầu!</button>
     </div>
   </section>
-  <aside class="game-settings" aria-label="Tùy chọn trò chơi"><section class="card settings-options"><h2 class="step">Tùy chọn</h2>
+  <aside class="game-settings" aria-label="Tùy chọn trò chơi">  <section class="card" id="participants">
+    <label class="roster-label">Chọn lớp<select id="classSelect"><option value="">— Nhập danh sách riêng —</option><?php foreach($rosters as $class=>$students):?><option value="<?=e($class)?>"><?=e($class)?> · <?=count($students)?> học sinh</option><?php endforeach;?></select></label>
+    <h2 class="step">Người chơi <small id="total"></small></h2>
+    <details class="roster-editor"><summary>Danh sách / nhập riêng</summary><div class="modes" role="radiogroup" aria-label="Cách nhập người chơi">
+      <label><input type="radio" name="mode" id="modeNum" value="num"> Dùng số thứ tự</label>
+      <label><input type="radio" name="mode" id="modeName" value="name"> Dùng tên</label>
+    </div>
+    <div id="numBox" class="numbox">
+      <div class="numhead"><span>Số học sinh</span><output id="numOut">20</output></div>
+      <input type="range" id="numRange" min="2" max="50" value="20" aria-label="Số học sinh">
+      <div class="numstep"><button type="button" class="small" id="numMinus">− 1</button><span class="hint">2–50 học sinh.</span><button type="button" class="small" id="numPlus">+ 1</button></div>
+    </div>
+    <div id="nameBox" class="namebox">
+      <form class="addrow" id="addForm">
+        <input id="newName" type="text" placeholder="Thêm tên học sinh" autocomplete="off" aria-label="Tên học sinh">
+        <button type="submit" class="add">Thêm</button>
+      </form>
+      <textarea id="list" spellcheck="false" aria-label="Danh sách tên, mỗi dòng một tên"></textarea>
+      <div class="bar">
+        <p class="hint">Mỗi dòng một tên; xóa học sinh vắng.</p>
+        <button type="button" class="small" id="clearList">Xoá hết tên</button>
+      </div>
+    </div>
+    </details>
+  </section>
+<section class="card settings-options"><h2 class="step">Tùy chọn</h2>
     <div class="opts">
-      <label><input type="checkbox" id="noRepeat" checked> Bạn đã được gọi thì nghỉ lượt sau</label>
-      <label><input type="checkbox" id="mix"> Trộn vị trí mỗi lượt</label>
-      <label><input type="checkbox" id="twist"> Lật kèo: tưởng bắt được rồi nhưng cuối cùng là người khác</label>
+      <label><input type="checkbox" id="noRepeat" checked> Không gọi lặp</label>
+      <label><input type="checkbox" id="mix"> Xáo vị trí</label>
+      <label><input type="checkbox" id="twist"> Lật kèo bất ngờ</label>
       <label><input type="checkbox" id="sound" checked> Âm thanh</label>
       <button type="button" class="small" id="testSound">🔊 Thử âm thanh</button>
       <button type="button" class="small" id="fs" hidden>Toàn màn hình</button>
@@ -63,33 +88,9 @@ if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
       <div class="trow">
         <span class="tl">Thời gian chọn <output id="durOut">20 giây</output></span>
         <input type="range" id="durRange" min="10" max="30" step="1" value="20" aria-label="Thời gian chọn mỗi lượt">
-        <span class="hint">Trong lúc chờ sẽ có vài lần "chọn hụt rồi nhả ra". Người được gọi thật chỉ lộ diện ở khoảng 2 giây cuối.</span>
+
       </div>
-      <p class="hint">Không nghe tiếng? Bấm "Thử âm thanh", tăng âm lượng máy, và trên iPhone/iPad hãy gạt tắt chế độ im lặng.</p>
-    </div>
-  </section>
-  <section class="card" id="participants">
-    <label class="roster-label">Chọn lớp<select id="classSelect"><option value="">— Nhập danh sách riêng —</option><?php foreach($rosters as $class=>$students):?><option value="<?=e($class)?>"><?=e($class)?> · <?=count($students)?> học sinh</option><?php endforeach;?></select></label><p class="hint" id="excludeHint"></p>
-    <h2 class="step">Người chơi <small id="total"></small></h2>
-    <div class="modes" role="radiogroup" aria-label="Cách nhập người chơi">
-      <label><input type="radio" name="mode" id="modeNum" value="num"> Dùng số thứ tự</label>
-      <label><input type="radio" name="mode" id="modeName" value="name"> Dùng tên</label>
-    </div>
-    <div id="numBox" class="numbox">
-      <div class="numhead"><span>Số học sinh</span><output id="numOut">20</output></div>
-      <input type="range" id="numRange" min="2" max="50" value="20" aria-label="Số học sinh">
-      <div class="numstep"><button type="button" class="small" id="numMinus">− 1</button><span class="hint">Kéo để chọn từ 2 đến 50 bạn, mỗi bạn mang một số.</span><button type="button" class="small" id="numPlus">+ 1</button></div>
-    </div>
-    <div id="nameBox" class="namebox">
-      <form class="addrow" id="addForm">
-        <input id="newName" type="text" placeholder="Gõ một tên rồi bấm Thêm" autocomplete="off" aria-label="Tên học sinh">
-        <button type="submit" class="add">Thêm</button>
-      </form>
-      <textarea id="list" spellcheck="false" aria-label="Danh sách tên, mỗi dòng một tên"></textarea>
-      <div class="bar">
-        <p class="hint">Mỗi dòng một tên, có thể dán cả danh sách lớp. Xóa dòng học sinh vắng trước khi bắt đầu.</p>
-        <button type="button" class="small" id="clearList">Xoá hết tên</button>
-      </div>
+      <details class="quick-help"><summary>Hướng dẫn</summary><p class="hint" id="excludeHint"></p><p class="hint">Lật kèo: kết quả có thể đổi ở cuối lượt. Không nghe tiếng? Bấm Thử âm thanh và kiểm tra chế độ im lặng của máy.</p></details>
     </div>
   </section>
 
