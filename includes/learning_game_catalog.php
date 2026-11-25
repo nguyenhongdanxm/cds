@@ -2,8 +2,8 @@
 /** One catalog for the game gallery and learning overview. */
 function lh_game_catalog(): array {
     return [
-    ['key'=>'egg','name'=>'Trộm trứng','description'=>'Gà mẹ rượt đuổi và gọi tên học sinh trong lớp.','icon'=>'','emoji'=>'🥚','url'=>'hoclieu_game_goiten.php?game=egg','cover'=>'assets/goi-ten/egg-cover.webp','action'=>'Chơi Trộm trứng'],
-    ['key'=>'ufo','name'=>'UFO','description'=>'Đĩa bay xuất hiện và chọn một học sinh thật bất ngờ.','icon'=>'','emoji'=>'🛸','url'=>'hoclieu_game_goiten.php?game=ufo','cover'=>'assets/goi-ten/ufo-cover.webp','action'=>'Chơi UFO'],
+    ['key'=>'egg','name'=>'Trộm trứng','description'=>'Gà mẹ rượt đuổi và gọi tên học sinh trong lớp.','icon'=>'','emoji'=>'🥚','url'=>'hoclieu_game_goiten.php?game=egg','cover'=>'assets/goi-ten/egg-thumbnail-v2.webp','action'=>'Chơi Trộm trứng'],
+    ['key'=>'ufo','name'=>'UFO','description'=>'Đĩa bay xuất hiện và chọn một học sinh thật bất ngờ.','icon'=>'','emoji'=>'🛸','url'=>'hoclieu_game_goiten.php?game=ufo','cover'=>'assets/goi-ten/ufo-thumbnail-v2.webp','action'=>'Chơi UFO'],
     ['key'=>'secret','name'=>'Ô cửa bí mật – Thử thách kiến thức','description'=>'Chọn ô, trả lời và lật ngược tình thế cùng 2–4 đội. Có ô bất ngờ, Excel và AI.','icon'=>'','emoji'=>'🎁','url'=>'hoclieu_game_secret.php','action'=>'Khám phá ô cửa'],
     ['key'=>'muc','name'=>'Mực ơi đừng dậy!','description'=>'Rón rén qua sân trường, chạy trốn Mực và gọi tên học sinh thật bất ngờ.','icon'=>'','emoji'=>'🐕','url'=>'hoclieu_game_muc.php','action'=>'Vào sân cùng Mực'],
     ['key'=>'buzzer','name'=>'Bấm chuông','description'=>'Mở phòng bằng mã, đồng hồ trực tiếp và giành quyền trả lời trên điện thoại.','icon'=>'bi-bell-fill','emoji'=>'','url'=>'hoclieu_game_buzzer.php','action'=>'Mở phòng bấm chuông'],
