@@ -67,7 +67,7 @@ function drawKidSprite(k,t,im){
   if(k.hi){ctx.fillStyle='rgba(242,182,50,.55)';ell(k.x,k.y,40*s,14*s);ctx.fill()}
   ctx.save();ctx.translate(k.x,k.y-bob);if(scared&&k.dir<0)ctx.scale(-1,1);if(mv)ctx.rotate(Math.sin(t*14+k.ph)*.05);
   ctx.drawImage(im,-w/2,-Hh,w,Hh);ctx.restore();
-  drawEmotion(k.x,k.y-Hh-bob-12*s,k.hi?'surprise':scared?'fear':k.hold==='egg'?'mischief':'happy',s,t+k.ph);
+  drawEmotion(k.x,k.y-Hh-bob-(k.hold==='egg'?36:12)*s,k.hi?'surprise':scared?'fear':k.hold==='egg'?'mischief':'happy',s,t+k.ph);
   if(k.hold==='egg')eggShape(k.x,k.y-Hh-12*s-bob,s*1.1);
   if(k.hold==='cake')cake(k.x+k.dir*18*s,k.y-Hh*.42-bob,s*1.1);
 }
