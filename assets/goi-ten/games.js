@@ -16,7 +16,7 @@ const storageKey=k=>storagePrefix+(k==='selectedClass'?'settings':storageClass)+
 function load(k,d){try{const v=localStorage.getItem(storageKey(k));return v===null?d:JSON.parse(v)}catch(e){return d}}
 function save(k,v){try{localStorage.setItem(storageKey(k),JSON.stringify(v))}catch(e){}}
 const IMG={};for(const k in ASSETS){const im=new Image();im.onload=()=>{IMG[k]=im};im.src=ASSETS[k]}
-const scaleFor=n=>n>34?.58:n>24?.68:n>14?.82:1;
+const scaleFor=n=>(n>34?.58:n>24?.68:n>14?.82:1)*1.16;
 
 let audio=null,master=null,silentEl=null;
 function silentWav(){const n=4000,b=new Uint8Array(44+n),v=new DataView(b.buffer),w=(o,t)=>{for(let i=0;i<t.length;i++)b[o+i]=t.charCodeAt(i)};
@@ -67,8 +67,27 @@ function drawKidSprite(k,t,im){
   if(k.hi){ctx.fillStyle='rgba(242,182,50,.55)';ell(k.x,k.y,40*s,14*s);ctx.fill()}
   ctx.save();ctx.translate(k.x,k.y-bob);if(scared&&k.dir<0)ctx.scale(-1,1);if(mv)ctx.rotate(Math.sin(t*14+k.ph)*.05);
   ctx.drawImage(im,-w/2,-Hh,w,Hh);ctx.restore();
+  drawEmotion(k.x,k.y-Hh-bob-12*s,k.hi?'surprise':scared?'fear':k.hold==='egg'?'mischief':'happy',s,t+k.ph);
   if(k.hold==='egg')eggShape(k.x,k.y-Hh-12*s-bob,s*1.1);
   if(k.hold==='cake')cake(k.x+k.dir*18*s,k.y-Hh*.42-bob,s*1.1);
+}
+function drawEmotion(x,y,mood,s,t){
+  ctx.save();ctx.translate(x,y);const bounce=reduce?0:Math.sin(t*5)*2*s;ctx.translate(0,bounce);ctx.font=`800 ${18*s}px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';
+  const text={fear:'Ối!',surprise:'?!',mischief:'Hí hí',happy:'♪',angry:'!!',sleep:'Zzz'}[mood];ctx.fillStyle=mood==='angry'||mood==='fear'?'#c8361b':'#3564a8';
+  if(mood==='fear'){ctx.fillStyle='#4faeff';ell(23*s,5*s,3*s,6*s,-.4);ctx.fill();ctx.fillStyle='#c8361b'}
+  if(mood!=='happy'||Math.sin(t*.8)>.7){ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=4*s;ctx.strokeText(text,0,0);ctx.fillText(text,0,0)}ctx.restore();
+}
+function sceneMotion(kind,t,state){
+ if(reduce)return;ctx.save();
+ if(kind==='egg'){
+  for(let i=0;i<5;i++){const x=((i*241+t*8)%1200)-100;ctx.globalAlpha=.32;cloud(x,45+(i%3)*24,.45+(i%2)*.2)}ctx.globalAlpha=1;
+  ctx.strokeStyle='#5a9d4a';ctx.lineWidth=2;for(let i=0;i<34;i++){const x=i*31,y=570+(i%3)*9,w=Math.sin(t*3+i)*5;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+w,y-12,x+w*1.5,y-20);ctx.stroke()}
+  for(let i=0;i<8;i++){const x=(t*27+i*157)%W,y=170+Math.sin(t*2+i)*26+(i%3)*30;ctx.fillStyle=['#ffc85b','#fff1a2','#ffa4bb'][i%3];ell(x,y,5,2,Math.sin(t*10+i));ctx.fill()}
+ }else{
+  for(let i=0;i<28;i++){ctx.globalAlpha=.25+.5*Math.abs(Math.sin(t*2+i));ctx.fillStyle='#fff6be';const x=(i*137+31)%W,y=24+(i*67)%200;ctx.fillRect(x,y,i%4===0?3:2,2)}ctx.globalAlpha=1;
+  for(let i=0;i<5;i++){ctx.fillStyle=`rgba(159,100,255,${.04+.04*Math.sin(t+i)})`;ell(100+i*210,90+Math.sin(t+i)*25,100,50);ctx.fill()}
+  if(state?.ph==='fly'){ctx.strokeStyle='rgba(159,224,255,.5)';ctx.lineWidth=2;for(let i=0;i<4;i++){ctx.beginPath();ctx.moveTo(state.u.x-85-i*15,state.u.y+i*7);ctx.lineTo(state.u.x-120-i*15,state.u.y+i*7);ctx.stroke()}}
+ }ctx.restore();
 }
 function drawKid(k,t){
   if(!k.vector){const im=IMG[(k.pose==='scared'||k.pose==='run')?'ks'+k.v:'kh'+k.v];if(im){drawKidSprite(k,t,im);return}}
@@ -154,7 +173,7 @@ function hen(h,t,ph){
   {const sleep=ph==='sleep'||ph==='sneak',im=IMG[sleep?'hen_sleep':'hen_angry'];
   if(im){const sz=h.size,Hh=(sleep?78:92)*sz,w=Hh*im.width/im.height,sh=h.angry?Math.sin(t*50)*h.shake:0,bob=ph==='chase'?Math.abs(Math.sin(t*20))*6:0;
     ctx.fillStyle='rgba(60,40,10,.22)';ell(h.x,h.y+4,w*.38,9*sz);ctx.fill();
-    ctx.save();ctx.translate(h.x+sh,h.y-bob);ctx.scale(h.dir,1);if(ph==='chase')ctx.rotate(Math.sin(t*20)*.06);ctx.drawImage(im,-w/2,-Hh,w,Hh);ctx.restore();
+    ctx.save();ctx.translate(h.x+sh,h.y-bob);ctx.scale(h.dir,1);if(ph==='chase')ctx.rotate(Math.sin(t*20)*.06);ctx.drawImage(im,-w/2,-Hh,w,Hh);ctx.restore();drawEmotion(h.x,h.y-Hh-18,sleep?'sleep':ph==='caught'?'mischief':'angry',1,t);
     if(sleep){ctx.fillStyle='#4a6fa5';ctx.font=`800 24px ${DFONT}`;ctx.textAlign='left';const z=(t*1.2)%1,z2=(z+.5)%1;
       ctx.globalAlpha=1-z;ctx.fillText('z',h.x+w*.35,h.y-Hh-z*30);ctx.globalAlpha=1-z2;ctx.fillText('Z',h.x+w*.45,h.y-Hh-10-z2*30);ctx.globalAlpha=1}
     return}}
@@ -218,7 +237,7 @@ G.egg={
         say(pick(['Ối! Tuột mất rồi!','Chạy thoát rồi!','Hụt rồi!']),h.x,h.y-150,1,'#1f6fa8');snd(700,200,.3,'sawtooth',.08);h.stun=.5;S.ph='chase';S.pt=0;S.next=-1}}
     else if(S.ph==='caught'){S.kids.forEach(k=>{k.vx*=.9;k.vy*=.9;if(k!==S.win)mv(k)});h.x+=((S.win.x-24*h.dir)-h.x)*dt*6;h.y+=((S.win.y-2)-h.y)*dt*6;if(Math.random()<.06)feathers(S.win.x,S.win.y-50,1)}
   },
-  draw(S,t){if(IMG.bg_egg)ctx.drawImage(IMG.bg_egg,0,0,W,H);else{farm();nest(S.eggs)}sortDraw([...S.kids.map(k=>({y:k.y,f:()=>drawKid(k,t)})),{y:S.h.y+(S.ph==='caught'?6:0),f:()=>hen(S.h,t,S.ph)}]);S.kids.forEach(kidLabel)}
+  draw(S,t){if(IMG.bg_egg)ctx.drawImage(IMG.bg_egg,0,0,W,H);else{farm();nest(S.eggs)}sceneMotion('egg',t,S);sortDraw([...S.kids.map(k=>({y:k.y,f:()=>drawKid(k,t)})),{y:S.h.y+(S.ph==='caught'?6:0),f:()=>hen(S.h,t,S.ph)}]);S.kids.forEach(kidLabel)}
 };
 
 /* ---------- 10. UFO ---------- */
@@ -246,7 +265,7 @@ function busDraw(x){if(IMG.bus){const w=150,h=w*IMG.bus.height/IMG.bus.width;ctx
   ctx.fillStyle='#222';ctx.beginPath();ctx.arc(x+24,y+30,6,0,7);ctx.arc(x+92,y+30,6,0,7);ctx.fill();
   ctx.fillStyle='rgba(255,247,194,.25)';ctx.beginPath();ctx.moveTo(x+116,y+18);ctx.lineTo(x+190,y+8);ctx.lineTo(x+190,y+34);ctx.fill()}
 function ufoDraw(u,t,rider){if(IMG.ufo){const w=180,h=w*IMG.ufo.height/IMG.ufo.width,y=u.y+Math.sin(t*4)*2;
-    ctx.drawImage(IMG.ufo,u.x-w/2,y-h*.55,w,h);
+    ctx.save();ctx.translate(u.x,y);ctx.rotate(u.bank||0);ctx.drawImage(IMG.ufo,-w/2,-h*.55,w,h);ctx.restore();
     if(rider){ctx.save();ctx.translate(u.x,y-h*.2);ctx.fillStyle='#f6d3b3';ctx.beginPath();ctx.arc(0,0,13,0,7);ctx.fill();ctx.fillStyle='#2a1d14';ctx.beginPath();ctx.arc(0,-2,13.5,Math.PI*1.02,Math.PI*1.98);ctx.fill();
       ctx.beginPath();ctx.arc(-4.5,1,2,0,7);ctx.arc(4.5,1,2,0,7);ctx.fill();ctx.fillStyle='#8b2b1d';ell(0,7,2.5,3.2);ctx.fill();ctx.fillStyle='rgba(170,225,255,.35)';ctx.beginPath();ctx.arc(0,0,20,0,7);ctx.fill();ctx.restore()}
     return}ctx.save();ctx.translate(u.x,u.y+Math.sin(t*4)*2);
@@ -260,7 +279,7 @@ function ufoDraw(u,t,rider){if(IMG.ufo){const w=180,h=w*IMG.ufo.height/IMG.ufo.w
   ctx.restore()}
 G.ufo={
   setup(P){const s=scaleFor(P.length);const kids=P.map((p,i)=>{const k=mkKid(p,i,rnd(40,960),rnd(UY0,UY1),s);k.lift=0;k.shr=1;k.tx=k.x;k.ty=k.y;k.shoutT=0;return k});
-    return{kids,u:{x:260,y:105,beam:0},bus:{x:rnd(-200,800)},ph:'idle',pt:0,win:pick(kids)}},
+    return{kids,u:{x:260,y:105,beam:0,bank:0,routeX:180,routeY:70,detour:0},bus:{x:rnd(-200,800)},ph:'idle',pt:0,win:pick(kids)}},
   start(S){S.ph='alarm';S.pt=0;S.final=false;S.cur=null;
     say('UFO xuất hiện!',420,14,1.5,'#6b2fb0');snd(300,900,.6,'sine',.08);snd(900,300,.6,'sine',.08,.6);
     shuffle(S.kids.slice()).slice(0,6).forEach(k=>{k.shout=pick(['UFO kìa!','Chạy thôi!','Cứu với!','Ối!']);k.shoutT=2})},
@@ -274,20 +293,20 @@ G.ufo={
       if(S.ph==='done'){k.vx*=.9;k.vy*=.9;k.pose='idle';mv(k);continue}
       k.pose='run';if(Math.hypot(k.tx-k.x,k.ty-k.y)<10||Math.random()<dt*.5){k.tx=rnd(40,960);k.ty=rnd(UY0,UY1)}
       const dx=k.tx-k.x,dy=k.ty-k.y,d=Math.hypot(dx,dy)||1;k.vx=dx/d*k.spd*.7;k.vy=dy/d*k.spd*.7;mv(k);if(Math.random()<.03)dust(k.x,k.y)}
-    if(S.ph==='idle'){u.x=500+Math.cos(t*.5)*360;u.y=105+Math.sin(t*1.3)*14;return}
-    if(S.ph==='alarm'){u.y=105+Math.sin(t*3)*10;if(S.pt>1.5){S.ph='fly';S.pt=0;S.cur=G.ufo.next(S)}}
-    else if(S.ph==='fly'){const dx=tg.x-u.x,dy=150-u.y,d=Math.hypot(dx,dy)||1,spd=S.final?clamp(d/Math.max(.3,(S.D-2.2)-S.el),60,900):440,sp=spd*dt;u.x+=dx/d*Math.min(sp,d);u.y+=dy/d*Math.min(sp,d);
-      if(d<3){S.ph='beam';S.pt=0;snd(200,600,1,'sine',.08);const top=tg.y-(u.y+25);if(S.final)S.liftSp=top/Math.max(.8,S.D-S.el);else S.liftMax=rnd(40,top*.8)}}
-    else if(S.ph==='beam'){u.beam=Math.min(1,u.beam+dt*3);const top=tg.y-(u.y+25);
+    if(S.ph==='idle'){u.x=500+Math.sin(t*.65)*390;u.y=145+Math.sin(t*1.3)*90;u.bank=reduce?0:Math.cos(t*.65)*.12;return}
+    if(S.ph==='alarm'){u.x=500+Math.sin(t*2)*340;u.y=115+Math.sin(t*3)*65;u.bank=reduce?0:Math.cos(t*2)*.2;if(S.pt>1.5){S.ph='fly';S.pt=0;S.cur=G.ufo.next(S);u.detour=.65;u.routeX=clamp(1000-S.cur.x+rnd(-100,100),95,905);u.routeY=rnd(55,245)}}
+    else if(S.ph==='fly'){const detour=!S.final&&u.detour>0;if(detour)u.detour-=dt;const dx=(detour?u.routeX:tg.x)-u.x,dy=(detour?u.routeY:150)-u.y,d=Math.hypot(dx,dy)||1,spd=S.final?clamp(d/Math.max(.3,(S.D-2.2)-S.el),60,1100):650,sp=spd*dt;u.x=clamp(u.x+dx/d*Math.min(sp,d),30,970);u.y=clamp(u.y+dy/d*Math.min(sp,d),50,270);u.bank=reduce?0:clamp(dx/700,-.22,.22);
+      if(!detour&&Math.abs(tg.x-u.x)<4&&Math.abs(150-u.y)<4){S.ph='beam';S.pt=0;snd(200,600,1,'sine',.08);const top=tg.y-(u.y+25);if(S.final)S.liftSp=top/Math.max(.8,S.D-S.el);else S.liftMax=rnd(40,top*.8)}}
+    else if(S.ph==='beam'){u.bank*=Math.max(0,1-dt*8);u.beam=Math.min(1,u.beam+dt*3);const top=tg.y-(u.y+25);
       if(!S.final){tg.lift=Math.min(S.liftMax,S.pt*S.liftMax/1.1);tg.shr=1-.45*(tg.lift/top);
         if(S.pt>1.5){S.ph='drop';S.pt=0;say(pick(['Phù! Thoát rồi!','Hụt rồi nhé!','Tuột mất rồi!']),tg.x,tg.y-170,1.1,'#6b2fb0');snd(600,150,.4,'sawtooth',.07)}}
       else{tg.lift=Math.min(top,tg.lift+dt*S.liftSp);tg.shr=1-.6*(tg.lift/top);
         if(tg.lift>=top){tg.captured=true;u.beam=0;S.ph='done';S.pt=0;tg.hi=true;burst(u.x,u.y,24,['#59e1ff','#c69bff','#fff'],220);finish(tg.p)}}}
     else if(S.ph==='drop'){const top=tg.y-(u.y+25);u.beam=Math.max(0,u.beam-dt*3);tg.lift=Math.max(0,tg.lift-dt*300);tg.shr=1-.45*(tg.lift/top);
-      if(tg.lift===0&&S.pt>.7){tg.shr=1;S.cur=G.ufo.next(S);S.ph='fly';S.pt=0}}
+      if(tg.lift===0&&S.pt>.7){tg.shr=1;S.cur=G.ufo.next(S);S.ph='fly';S.pt=0;u.detour=.65;u.routeX=clamp(1000-S.cur.x+rnd(-100,100),95,905);u.routeY=rnd(55,245)}}
     else if(S.ph==='done'){u.x+=(500-u.x)*dt*1.5;u.y+=(150-u.y)*dt*1.5}
   },
-  draw(S,t){if(IMG.bg_ufo)ctx.drawImage(IMG.bg_ufo,0,0,W,H);else street(t);busDraw(S.bus.x);const u=S.u,tg=S.cur;
+  draw(S,t){if(IMG.bg_ufo)ctx.drawImage(IMG.bg_ufo,0,0,W,H);else street(t);sceneMotion('ufo',t,S);busDraw(S.bus.x);const u=S.u,tg=S.cur;
     if(u.beam>0&&tg){const gy=tg.y+6,g=ctx.createLinearGradient(0,u.y,0,gy);g.addColorStop(0,`rgba(200,150,255,${.6*u.beam})`);g.addColorStop(1,`rgba(200,150,255,${.18*u.beam})`);
       ctx.fillStyle=g;ctx.beginPath();const by=u.y+(IMG.ufo?42:12);ctx.moveTo(u.x-28,by);ctx.lineTo(u.x+28,by);ctx.lineTo(u.x+70,gy);ctx.lineTo(u.x-70,gy);ctx.fill();ctx.fillStyle=`rgba(235,215,255,${.6*u.beam})`;ell(u.x,gy,70,12);ctx.fill()}
     const vis=S.kids.filter(k=>!k.captured);
