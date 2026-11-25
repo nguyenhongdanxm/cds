@@ -1,0 +1,26 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('assets/goi-ten/audio.js','utf8');
+function fixture(game){
+ const events={},winEvents={},elements={},media=[],osc=[],timers=new Map(),intervals=new Map();let serial=0;
+ for(const id of ['sound','musicVolume','effectsVolume'])elements[id]={checked:true,value:0,listeners:{},addEventListener(k,fn){this.listeners[k]=fn}};
+ const document={hidden:false,body:{dataset:{game,user:'teacher1'}},currentScript:{src:'https://school.test/sub/assets/goi-ten/audio.js?v=2'},getElementById:id=>elements[id],addEventListener:(k,fn)=>events[k]=fn};
+ class Audio{constructor(src){this.src=src;this.paused=true;media.push(this)}setAttribute(){}play(){this.paused=false;return Promise.resolve()}pause(){this.paused=true}}
+ const param=()=>({value:0,setValueAtTime(){},exponentialRampToValueAtTime(){}});
+ class AC{constructor(){this.state='running';this.currentTime=0}resume(){this.state='running';return Promise.resolve()}suspend(){this.state='suspended';return Promise.resolve()}createDynamicsCompressor(){return{threshold:param(),ratio:param(),connect(){}}}createGain(){return{gain:param(),connect(){},disconnect(){}}}createOscillator(){const o={frequency:param(),connect(){},disconnect(){},start(){this.started=true},stop(){this.stopped=true;this.onended?.()}};osc.push(o);return o}}
+ const window={AudioContext:AC,addEventListener:(k,fn)=>winEvents[k]=fn},storage=new Map();
+ vm.runInNewContext(source,{window,document,URL,Audio,performance:{now:()=>10000},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},setInterval:fn=>{const id=++serial;intervals.set(id,fn);return id},clearInterval:id=>intervals.delete(id),setTimeout:fn=>{const id=++serial;timers.set(id,fn);return id},clearTimeout:id=>timers.delete(id)});
+ return {a:window.CDSCallingAudio,document,elements,media,osc,events,winEvents,intervals,timers};
+}
+{
+ const f=fixture('egg'),a=f.a;assert.equal(f.media.length,0,'No audio autoplay on page open');a.start();a.sync('sneak');assert.match(f.media.at(-1).src,/\/sub\/assets\/goi-ten\/audio\/nhac_ron_ren_30s.mp3$/);assert.equal(f.media.at(-1).volume,.2);
+ const count=f.media.length;a.sync('sneak');assert.equal(f.media.length,count,'One track per phase');a.sync('wake');assert.ok(f.media.some(x=>x.src.endsWith('ga_me_tuc_gian.mp3')));assert.ok(f.media.some(x=>x.src.endsWith('la_het_khi_chay.mp3')));a.sync('chase');assert.ok(f.media.some(x=>x.src.endsWith('nhac_ruot_duoi_30s.mp3')));
+ a.setEnabled(false);assert.ok(f.media.every(x=>x.paused),'Mute stops every media voice');const mutedCount=f.media.length;a.sync('fake');a.effect('cluck');assert.equal(f.media.length,mutedCount);a.setEnabled(true);assert.equal(f.media.at(-1).paused,false);
+ f.elements.musicVolume.value=0;f.elements.musicVolume.listeners.input();assert.equal(f.media.at(-1).volume,0);a.finish();assert.ok(f.media.every(x=>x.paused),'Finish stops background and speech');
+ a.test();assert.equal(f.timers.size,1);a.start();assert.equal(f.timers.size,0,'Preview timer cannot stop a later round');a.sync('sneak');f.winEvents.pagehide();assert.ok(f.media.every(x=>x.paused));
+}
+{
+ const f=fixture('ufo'),a=f.a;a.start();a.sync('alarm');assert.equal(f.intervals.size,1);assert.ok(f.osc.length>0,'Space score and arrival tones');let count=f.osc.length;a.sync('beam');assert.ok(f.osc.length>count,'Tractor beam cue');a.sync('drop');assert.ok(f.media.some(x=>x.src.endsWith('la_hoat_hinh.mp3')));assert.ok(!f.media.some(x=>/ga_|nhac_ron_ren/.test(x.src)),'UFO has its own score');
+ f.document.hidden=true;f.events.visibilitychange();assert.equal(f.intervals.size,0);assert.ok(f.osc.every(o=>o.stopped));count=f.osc.length;a.sync('beam');assert.equal(f.osc.length,count,'Hidden tab is silent');f.document.hidden=false;a.unlock();assert.equal(f.intervals.size,1);a.finish();assert.equal(f.intervals.size,0);assert.ok(f.media.every(x=>x.paused));
+ a.setEnabled(false);count=f.osc.length;a.start();a.sync('alarm');assert.equal(f.osc.length,count);a.setEnabled(true);assert.equal(f.intervals.size,1);a.stop();assert.equal(f.intervals.size,0);
+}
+console.log('PASS calling audio: local samples, scene cues, distinct UFO score, no autoplay, bounded phase changes, mute/volumes, preview cancellation, finish and hidden/page cleanup');
