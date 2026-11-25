@@ -100,4 +100,4 @@ if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
   </section>
   </aside></main>
 </div>
-<script id="rosterData" type="application/json"><?=json_encode($rosters,JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?></script><script src="<?=e(BASE_URL)?>assets/goi-ten/assets.js?v=1"></script><script src="<?=e(BASE_URL)?>assets/goi-ten/audio.js?v=5"></script><script src="<?=e(BASE_URL)?>assets/goi-ten/games.js?v=5"></script></body></html>
+<script id="rosterData" type="application/json"><?=json_encode($rosters,JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?></script><script src="<?=e(BASE_URL)?>assets/goi-ten/assets.js?v=6"></script><script src="<?=e(BASE_URL)?>assets/goi-ten/audio.js?v=6"></script><script src="<?=e(BASE_URL)?>assets/goi-ten/games.js?v=6"></script></body></html>
