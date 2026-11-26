@@ -5,6 +5,7 @@
 require_once 'includes/auth.php';
 require_once 'includes/user_sync.php';
 require_once 'includes/account_profile.php';
+require_once 'includes/staff_identity.php';
 require_admin();
 
 $modCatalog = permission_modules_catalog();
@@ -260,6 +261,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $changed++;
         }
         unset($u);
+        // Only this administrator form may establish a stable teacher link from a name.
+        $teacherIndex = si_index(csdl_teachers_all());
+        foreach ($users as &$linkedUser) {
+            if (($linkedUser['username'] ?? '') !== $username) continue;
+            $linkedIds = $teacherIndex['name']['v:'.si_name((string)($linkedUser['teacher_name'] ?? ''))] ?? [];
+            $linkedUser['teacher_id'] = count($linkedIds) === 1 ? (string)array_key_first($linkedIds) : '';
+            unset($linkedUser['teacher_code']);
+        }
+        unset($linkedUser);
+
         if (!save_users($users)) {
             flash('Không thể lưu tài khoản. Hãy kiểm tra quyền ghi tệp users.json.', 'danger');
             header('Location: users.php'); exit;
@@ -374,6 +385,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'created_at' => date('c'),
             ];
         }
+
+        // Only this administrator form may establish a stable teacher link from a name.
+        $teacherIndex = si_index(csdl_teachers_all());
+        foreach ($users as &$linkedUser) {
+            if (($linkedUser['username'] ?? '') !== $username) continue;
+            $linkedIds = $teacherIndex['name']['v:'.si_name((string)($linkedUser['teacher_name'] ?? ''))] ?? [];
+            $linkedUser['teacher_id'] = count($linkedIds) === 1 ? (string)array_key_first($linkedIds) : '';
+            unset($linkedUser['teacher_code']);
+        }
+        unset($linkedUser);
 
         if (!save_users($users)) {
             flash('Không thể lưu tài khoản. Hãy kiểm tra quyền ghi tệp users.json.', 'danger');
