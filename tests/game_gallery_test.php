@@ -8,7 +8,7 @@ $render = function ($isAdmin, $gameVisibility) use ($root) {
     $games=lh_game_catalog();ob_start();require $root.'/includes/learning_game_cards.php';return [ob_get_clean(),$games];
 };
 [$html, $games] = $render(false, []);
-if (count($games)!==16 || substr_count($html, '<article ')!==16) throw new RuntimeException('Incomplete gallery');
+if (count($games)!==17 || substr_count($html, '<article ')!==17) throw new RuntimeException('Incomplete gallery');
 $bytes = 0;
 foreach ($games as $game) {
     $key = $game['key'];
@@ -25,6 +25,6 @@ if(str_contains($html,'class="game-cover-title"')||str_contains($html,'class="ga
 if ($bytes>1500000) throw new RuntimeException('Cover budget exceeded');
 [$hidden] = $render(false, ['quiz'=>false, 'cards'=>false]);
 [$admin] = $render(true, ['quiz'=>false, 'cards'=>false]);
-if (substr_count($hidden, '<article ')!==14 || str_contains($hidden, 'id="game-title-quiz"') || str_contains($hidden, 'id="game-title-cards"') || substr_count($admin, '<article ')!==16) throw new RuntimeException('Visibility regression');
-if (substr_count($html, 'loading="lazy"')!==15) throw new RuntimeException('Lazy loading regression');
-echo "PASS: 16 integrated-title illustrated covers and game routes; teacher visibility and admin access preserved; lazy loading; ".$bytes." image bytes\n";
+if (substr_count($hidden, '<article ')!==15 || str_contains($hidden, 'id="game-title-quiz"') || str_contains($hidden, 'id="game-title-cards"') || substr_count($admin, '<article ')!==17) throw new RuntimeException('Visibility regression');
+if (substr_count($html, 'loading="lazy"')!==16) throw new RuntimeException('Lazy loading regression');
+echo "PASS: 17 integrated-title illustrated covers and game routes; teacher visibility and admin access preserved; lazy loading; ".$bytes." image bytes\n";

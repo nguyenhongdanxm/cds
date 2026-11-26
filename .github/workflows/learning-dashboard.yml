@@ -38,7 +38,7 @@ jobs:
           php-version: '8.3'
           extensions: mbstring
       - run: npm install --prefix "$RUNNER_TEMP/learning-dashboard" --no-package-lock playwright@1.58.2 bootstrap@5.3.3 bootstrap-icons@1.11.3
-      - run: "$RUNNER_TEMP/learning-dashboard/node_modules/.bin/playwright install --with-deps chromium"
+      - run: "$RUNNER_TEMP/learning-dashboard/node_modules/.bin/playwright install --only-shell chromium"
       - run: node tests/learning_dashboard_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/learning-dashboard/node_modules

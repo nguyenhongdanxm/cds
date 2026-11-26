@@ -2,6 +2,7 @@
 /** One catalog for the game gallery and learning overview. */
 function lh_game_catalog(): array {
     return [
+    ['key'=>'achievement','name'=>'Bảng thành tích','description'=>'Điểm thưởng, điểm phạt theo lớp và môn; xếp hạng tuần, tháng, giai đoạn.','icon'=>'','emoji'=>'🏆','url'=>'hoclieu_thanhtich.php','action'=>'Mở Bảng thành tích'],
     ['key'=>'egg','name'=>'Trộm trứng','description'=>'Gà mẹ rượt đuổi và gọi tên học sinh trong lớp.','icon'=>'','emoji'=>'🥚','url'=>'hoclieu_game_goiten.php?game=egg','cover'=>'assets/goi-ten/egg-thumbnail-v2.webp','action'=>'Chơi Trộm trứng'],
     ['key'=>'ufo','name'=>'UFO','description'=>'Đĩa bay xuất hiện và chọn một học sinh thật bất ngờ.','icon'=>'','emoji'=>'🛸','url'=>'hoclieu_game_goiten.php?game=ufo','cover'=>'assets/goi-ten/ufo-thumbnail-v2.webp','action'=>'Chơi UFO'],
     ['key'=>'secret','name'=>'Ô cửa bí mật – Thử thách kiến thức','description'=>'Chọn ô, trả lời và lật ngược tình thế cùng 2–4 đội. Có ô bất ngờ, Excel và AI.','icon'=>'','emoji'=>'🎁','url'=>'hoclieu_game_secret.php','action'=>'Khám phá ô cửa'],
