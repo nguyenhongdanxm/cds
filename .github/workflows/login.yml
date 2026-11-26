@@ -40,7 +40,7 @@ jobs:
           php-version: '8.3'
           extensions: mbstring
       - run: npm install --prefix "$RUNNER_TEMP/login-browser" --no-package-lock playwright@1.58.2
-      - run: "$RUNNER_TEMP/login-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - run: "$RUNNER_TEMP/login-browser/node_modules/.bin/playwright install --only-shell chromium"
       - run: node tests/login_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/login-browser/node_modules
