@@ -79,3 +79,9 @@ body.admin-dashboard .attendance-recent small{flex:1 1 auto;min-width:0;white-sp
 @media(max-width:1000px){body.admin-dashboard .side-stack>.panel,body.admin-dashboard .main-stack>.feed-panel{min-height:0}body.admin-dashboard .side-stack>.leave-panel{min-height:230px}}
 
 @media(min-width:1001px){body.admin-dashboard .main-stack>.feed-panel{min-height:320px}}
+
+/* More readable document summaries, with ten recent items using the calendar's height. */
+body.admin-dashboard .latest-docs-panel .doc-copy strong{font-size:14px;line-height:1.5}
+body.admin-dashboard .latest-docs-panel .doc-copy small{font-size:12px;line-height:1.5}
+body.admin-dashboard .latest-docs-panel .doc-row>span:last-child{font-size:11px}
+@media(max-width:680px){body.admin-dashboard .latest-docs-panel .doc-copy strong{font-size:13px}body.admin-dashboard .latest-docs-panel .doc-copy small{font-size:11px}}
