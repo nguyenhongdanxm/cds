@@ -85,3 +85,11 @@ body.admin-dashboard .latest-docs-panel .doc-copy strong{font-size:14px;line-hei
 body.admin-dashboard .latest-docs-panel .doc-copy small{font-size:12px;line-height:1.5}
 body.admin-dashboard .latest-docs-panel .doc-row>span:last-child{font-size:11px}
 @media(max-width:680px){body.admin-dashboard .latest-docs-panel .doc-copy strong{font-size:13px}body.admin-dashboard .latest-docs-panel .doc-copy small{font-size:11px}}
+
+/* Bound both top cards to preserve the dashboard's two-column balance. */
+body.admin-dashboard .content-grid{--work-preview-height:480px}
+body.admin-dashboard .side-stack>.latest-docs-panel{height:var(--work-preview-height);max-height:var(--work-preview-height);min-height:0;overflow:hidden;box-sizing:border-box;display:flex;flex-direction:column}
+body.admin-dashboard .side-stack>.latest-docs-panel>.doc-list{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-width:thin;padding-right:5px}
+@media(min-width:1001px){body.admin-dashboard .content-grid>.main-stack{grid-template-rows:var(--work-preview-height) minmax(0,1fr)}body.admin-dashboard .content-grid>.side-stack{grid-template-rows:var(--work-preview-height) auto}body.admin-dashboard .side-stack:has(.observation-panel){grid-template-rows:var(--work-preview-height) auto auto}}
+@media(max-width:680px){body.admin-dashboard .content-grid{--work-preview-height:420px}}
+@media print{body.admin-dashboard .main-stack>.weekly-work-panel,body.admin-dashboard .side-stack>.latest-docs-panel{height:auto;max-height:none;overflow:visible}body.admin-dashboard .ww-summary-scroll,body.admin-dashboard .latest-docs-panel>.doc-list{overflow:visible;max-height:none}}

@@ -43,6 +43,8 @@ try{
  $other=ww_change(array_merge($input,['date'=>'2026-11-30']),$teacher,'save');
  $rows=ww_rows(ww_all(),ww_week('2026-11-25'));check(count($rows)===2&&$rows[0]['session']==='morning'&&$rows[1]['session']==='afternoon','Week isolation and session order');
  ob_start();ww_render_week(ww_week('2026-11-25'),[$r]);$html=ob_get_clean();check(str_contains($html,'&lt;script&gt;')&&!str_contains($html,'<script>'),'HTML escaped');check(str_contains($html,'Thứ Hai')&&str_contains($html,'Chủ nhật'),'Seven day headings');
+ ob_start();ww_render_summary(ww_week('2026-11-25'),[$r]);$preview=ob_get_clean();check(str_contains($preview,'&lt;script&gt;')&&!str_contains($preview,'Chuẩn bị hồ sơ')&&!str_contains($preview,'Phòng họp'),'Preview escapes titles and omits secondary details');check(str_contains($preview,'date=2026-11-23')&&str_contains($preview,'Xem chi tiết cả tuần'),'Day and week detail links');
+ ob_start();ww_render_week(ww_week('2026-11-25'),[$r],false,'2026-11-23');$dayHtml=ob_get_clean();check(str_contains($dayHtml,'Thứ Hai')&&!str_contains($dayHtml,'Thứ Ba'),'Day detail filters neighboring days');
  ww_change(['csrf'=>ww_csrf(),'id'=>$updated['id'],'version'=>$updated['version']],$admin,'delete');check(count(ww_all())===2,'Delete only selected row');
  file_put_contents(ww_path(),'{broken');rejected(fn()=>ww_change($input,$admin,'save'));check(file_get_contents(ww_path())==='{broken','Corrupt file never replaced');
  echo "PASS weekly work: real permissions, CSRF, CRUD, stale version protection, strict dates/times, week boundaries, escaped rendering and viewer read routes\n";
