@@ -14,6 +14,7 @@ deployment:
     - /opt/alt/php83/usr/bin/php -l includes/quiz_result_excel.php
     - /opt/alt/php83/usr/bin/php -l hoclieu_game_thabong.php
     - /opt/alt/php83/usr/bin/php -l hoclieu_game_rocket.php
+    - /opt/alt/php83/usr/bin/php -l hoclieu_thanhtich.php
     - /opt/alt/php83/usr/bin/php -l hoclieu_game_goiten.php
     - /opt/alt/php83/usr/bin/php -l hoclieu_game_muc.php
     - /opt/alt/php83/usr/bin/php -l hoclieu_clock.php

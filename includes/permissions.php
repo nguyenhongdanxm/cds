@@ -88,6 +88,7 @@ function permission_features_catalog() {
         'td.all_data'            => ['module' => 'thidua', 'label' => 'Xem dữ liệu của tất cả giáo viên/lớp', 'group' => 'Phạm vi dữ liệu'],
 
         // Trang Học liệu và thi
+        'hl.thanhtich' => ['module'=>'hoclieu','label'=>'Bảng thành tích: xem · ghi điểm · quản lý tiêu chí','group'=>'Công cụ'],
         'hl.xem'      => ['module' => 'hoclieu', 'label' => 'Học liệu: xem · nộp · sửa · xóa', 'group' => 'Học liệu'],
         'hl.kiemtra'  => ['module' => 'hoclieu', 'label' => 'Kiểm tra và thi: xem · nộp · sửa · xóa', 'group' => 'Kiểm tra và thi'],
         'hl.lienket'  => ['module' => 'hoclieu', 'label' => 'Liên kết hữu ích: xem · thêm · sửa · xóa', 'group' => 'Liên kết'],

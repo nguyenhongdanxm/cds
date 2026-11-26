@@ -1,0 +1,34 @@
+name: Classroom achievement board
+on:
+  pull_request:
+    paths: ['hoclieu_thanhtich.php', 'includes/achievement_board.php', 'assets/achievement-board.*', 'tests/achievement_board*', 'includes/permissions.php', 'includes/viewer_access.php', '.github/workflows/achievement-board.yml']
+  workflow_dispatch:
+jobs:
+  board:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '${{ matrix.php }}'
+      - run: |
+          php -l hoclieu_thanhtich.php
+          php -l includes/achievement_board.php
+          php tests/achievement_board_test.php
+          php tests/viewer_access_test.php
+          node --check assets/achievement-board.js
+      - run: npm install --prefix "$RUNNER_TEMP/achievement" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/achievement/node_modules/.bin/playwright install --only-shell chromium"
+      - run: node tests/achievement_board_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/achievement/node_modules
+          SCREENSHOT_DIR: ${{ runner.temp }}/achievement-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: achievement-ui-${{ matrix.php }}
+          path: ${{ runner.temp }}/achievement-shots/*.png
+          if-no-files-found: ignore

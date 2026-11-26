@@ -8,8 +8,8 @@ function lhc_check_store(array $data): array {
     return $data;
 }
 function lhc_load(): array {
-    $file=DATA_PATH.'/learning_categories.json';if(!is_file($file))return lhc_empty();
-    $data=json_decode((string)file_get_contents($file),true);if(!is_array($data))throw new RuntimeException('Không đọc được dữ liệu chuyên mục.');return lhc_check_store($data);
+    $file=DATA_PATH.'/learning_categories.json';if(!is_file($file))return lhc_tools_category(lhc_empty());
+    $data=json_decode((string)file_get_contents($file),true);if(!is_array($data))throw new RuntimeException('Không đọc được dữ liệu chuyên mục.');return lhc_tools_category(lhc_check_store($data));
 }
 function lhc_categories(array $store,string $scope): array {
     $rows=array_filter($store['categories'],static fn($row)=>$row['section']===$scope);
@@ -60,4 +60,12 @@ function lhc_game_category(array $store,string $key): string {
     if(array_key_exists($key,$store['game_categories']))return (string)$store['game_categories'][$key];
     if(in_array($key,['egg','ufo'],true))foreach(lhc_categories($store,'games')as$id=>$category)if(mb_strtolower(trim($category['name']))==='tiện ích gọi tên')return $id;
     return '';
+}
+
+/** First-use placement for the new classroom tool; explicit category choices win. */
+function lhc_tools_category(array $store): array {
+    if(array_key_exists('achievement',$store['game_categories']))return $store;
+    $target='';foreach(lhc_categories($store,'games') as $id=>$row)if(mb_strtolower(trim($row['name']))==='công cụ'){$target=$id;break;}
+    if($target===''){$n=0;do{$target='cat_'.substr(hash('sha256','cds.achievement.tools.'.$n++),0,16);}while(isset($store['categories'][$target]));$store['categories'][$target]=['section'=>'games','name'=>'Công cụ','description'=>'Công cụ hỗ trợ tổ chức lớp học và hoạt động giáo dục.','order'=>0];}
+    $store['game_categories']['achievement']=$target;return $store;
 }
