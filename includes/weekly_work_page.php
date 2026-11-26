@@ -15,7 +15,7 @@ if(!$form&&$edit!==''&&$canEdit){foreach($workItems as $row)if(($row['id']??'')=
 $form=array_merge(['id'=>'','version'=>'','date'=>$workWeek->format('Y-m-d'),'session'=>'morning','time'=>'','end_time'=>'','content'=>'','people'=>'','place'=>'','note'=>''],$form);
 // Keep malformed requests out of HTML attributes while preserving valid input after errors.
 foreach($form as $key=>$value)if(!is_string($value))$form[$key]='';
-?><!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lịch công tác tuần</title><link rel="stylesheet" href="<?=e(BASE_URL)?>assets/weekly-work.css?v=1"></head><body class="ww-page"><main>
+?><!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lịch công tác tuần</title><link rel="stylesheet" href="<?=e(BASE_URL)?>assets/weekly-work.css?v=2"></head><body class="ww-page"><main>
 <header class="ww-page-header"><div><a href="<?=e(BASE_URL)?>admin.php">← Trang chủ</a><h1>Lịch công tác tuần</h1><p><?=e(SCHOOL_NAME)?> · <?=e($workWeek->format('d/m'))?> – <?=e($workWeek->modify('+6 days')->format('d/m/Y'))?></p></div><?php if(($workUser['role']??'')==='admin'):?><a class="ww-button" href="<?=e(BASE_URL)?>users.php">Phân quyền tài khoản</a><?php endif;?></header>
 <?php if($error):?><div class="ww-error" role="alert"><?=e($error)?></div><?php endif;?>
 <?php if(!empty($_SESSION['cds_flash'])):$workFlash=$_SESSION['cds_flash'];unset($_SESSION['cds_flash']);?><p role="status"><?=e($workFlash['message']??'')?></p><?php endif;?>
