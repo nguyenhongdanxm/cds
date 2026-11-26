@@ -24,6 +24,16 @@ try{
  check(ab_pccm_pairs(array_merge($a,['teacher_id'=>'unknown']))===[],'Invalid explicit staff identity never falls back to name');
  $dupes=array_merge($teachers,[['id'=>'gvOther','code'=>'003','name'=>'Trần An']]);ab_pccm_prepare($source,$dupes,'y',$ctx['classes'],$ctx['subjects']);check(ab_pccm_pairs($a)===[],'Duplicate names do not grant privileges');
  ab_pccm_prepare($source,$teachers,'y',$ctx['classes'],$ctx['subjects']);
+ // Missing assignments must be explained, and zero weekly hours remain assigned.
+ $diagnosticSource=$source;$diagnosticSource['rows'][]=['class'=>' 6 a ','subject'=>'GDĐP','teacher'=>'Trần An','periods'=>0];$diagnosticSource['rows'][]=['class'=>'99Z','subject'=>'Toán','teacher'=>'Trần An'];$diagnosticSource['rows'][]=['class'=>'6A','subject'=>'Văn','teacher'=>'Không có tên'];
+ $diagnostic=ab_pccm_prepare($diagnosticSource,$teachers,'y',$ctx['classes'],$ctx['subjects']);
+ check(ab_pccm_pair($a,'6A','GDĐP'),'Zero-hour annual assignment retained and class spelling normalized');
+ check(count($diagnostic['ignored'])===1&&str_contains($diagnostic['ignored'][0]['reason'],'CSDL'),'Missing class has visible reason');
+ check(str_contains(end($diagnostic['rows'])['reason'],'không khớp'),'Unknown teacher has visible reason');
+ check(str_contains(ab_pccm_account_reason(array_diff_key($a,['teacher_id'=>true])),'chưa liên kết'),'Account with no stable link diagnosed');
+ $put('assignments_v1.json',array_merge($rows,[['class'=>'6A','subject'=>'GDĐP','teacher'=>'Trần An','periods'=>0],['class'=>'','subject'=>'Toán','teacher'=>'Trần An']]));
+ $zero=ab_pccm_source(PCCM_DATA_PATH);check(count($zero['rows'])===5&&count($zero['ignored'])===1,'Source retains zero hours and reports incomplete rows');$put('assignments_v1.json',$rows);
+ ab_pccm_prepare($source,$teachers,'y',$ctx['classes'],$ctx['subjects']);
  $award=['action'=>'award','year'=>'y','class'=>'6A','criterion_id'=>'homework','date'=>$today,'students'=>['s1'],'csrf'=>ab_csrf(),'request_id'=>'math_reward_000001','subject'=>'Toán'];
  ab_save($award,$admin,$ctx);ab_save(array_merge($award,['students'=>['s2'],'criterion_id'=>'participate','request_id'=>'math_reward_000002']),$a,$ctx);
  ab_save(array_merge($award,['subject'=>'Văn','criterion_id'=>'missing','request_id'=>'lit_reward_000001']),$b,$ctx);ab_save(array_merge($award,['subject'=>'Văn','students'=>['s2'],'criterion_id'=>'progress','request_id'=>'lit_reward_000002']),$b,$ctx);
@@ -38,6 +48,17 @@ try{
  $summary=ab_class_summary(ab_load(),$ctx,'y','6A',$today,$today);check($summary['total']===6,'Revision counted once in combined totals');
  ab_save(['action'=>'undo','year'=>'y','class'=>'6A','subject'=>'Toán','event_id'=>$edited['events'][2]['id'],'csrf'=>ab_csrf()],$a,$ctx);check(ab_class_summary(ab_load(),$ctx,'y','6A',$today,$today)['total']===2,'Deleting revised points updates combined totals');
  denied(fn()=>ab_save(array_merge($edit,['subject'=>'Văn','request_id'=>'forged_edit_000001']),$a,$ctx));
+ // Mascot additions and assignments use the same class/subject write scope.
+ $artInput=['year'=>'y','class'=>'6A','subject'=>'Toán','csrf'=>ab_csrf(),'action'=>'mascot_save','mascot_id'=>'','name'=>'Bạn mới','image'=>'https://example.org/friend.webp'];
+ ab_save($artInput,$a,$ctx);$artBoard=ab_load($key);$custom=end($artBoard['mascots']);
+ check(count(ab_art($artBoard)['mascots'])===9,'Eight original presets plus a custom friend');
+ ab_save(array_merge($artInput,['action'=>'mascot_assign','mascot_id'=>$custom['id'],'students'=>['s1']]),$a,$ctx);check(ab_load($key)['student_mascots']['s1']===$custom['id'],'Mascot selection persists per board');
+ denied(fn()=>ab_save(array_merge($artInput,['subject'=>'Văn']),$a,$ctx));
+ denied(fn()=>ab_save(array_merge($artInput,['image'=>'javascript:alert(1)']),$a,$ctx));
+ denied(fn()=>ab_save(array_merge($artInput,['image'=>'data:image/svg+xml;base64,PHN2Zz4=']),$a,$ctx));
+ denied(fn()=>ab_save(array_merge($artInput,['image'=>'https://127.0.0.1/x.png']),$a,$ctx));
+ denied(fn()=>ab_save(array_merge($artInput,['action'=>'mascot_assign','mascot_id'=>$custom['id'],'students'=>['s3']]),$a,$ctx));
+ ab_save(array_merge($artInput,['action'=>'mascot_delete','mascot_id'=>$custom['id']]),$a,$ctx);check(empty(ab_load($key)['student_mascots']['s1']),'Deleting custom friend restores default without altering point history');
  $published=['version'=>'v2','name'=>'Bản chính thức','rows'=>[['class'=>'6A','subject'=>'Toán','teacher'=>'Lê Bình'],['class'=>'6B','subject'=>'Toán','teacher'=>'Trần An']],'manual'=>[],'configs'=>['6A'=>['subject'=>'GDĐP','ranges'=>[['teacher'=>'Trần An','from'=>1,'to'=>35]]]]];
  check(pccm_save_release_state(PCCM_DATA_PATH,['published'=>$published]),'Publish fixture');file_put_contents(PCCM_DATA_PATH.'/active_version.json','{broken draft');
  $next=ab_pccm_source(PCCM_DATA_PATH);ab_pccm_prepare($next,$teachers,'y',$ctx['classes'],$ctx['subjects']);

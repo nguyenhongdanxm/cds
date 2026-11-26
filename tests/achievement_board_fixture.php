@@ -1,5 +1,6 @@
 <?php
 $dir=$argv[1];$root=dirname(__DIR__);mkdir($dir.'/includes',0777,true);mkdir($dir.'/assets',0777,true);mkdir($dir.'/data');copy($root.'/hoclieu_thanhtich.php',$dir.'/hoclieu_thanhtich.php');copy($root.'/includes/achievement_board.php',$dir.'/includes/achievement_board.php');foreach(['achievement_pccm.php','pccm_release.php','staff_identity.php'] as $f)copy($root.'/includes/'.$f,$dir.'/includes/'.$f);mkdir($dir.'/pccm');
+mkdir($dir.'/assets/achievement');foreach(glob($root.'/assets/achievement/*.webp') as $image)copy($image,$dir.'/assets/achievement/'.basename($image));
 foreach(['css','js'] as $ext)copy($root.'/assets/achievement-board.'.$ext,$dir.'/assets/achievement-board.'.$ext);
 file_put_contents($dir.'/includes/json_store.php','<?php require '.var_export($root.'/includes/json_store.php',true).';');
 $auth=<<<'PHP'
