@@ -12,11 +12,15 @@ $baseline=getenv('CDS_USERS_BASELINE');if($baseline&&is_readable($baseline)){
  check($start!==false&&$end!==false,'Stable identity block present');
  $block=substr($new,$start,$end+strlen($linkEnd)-$start);
  require_once __DIR__.'/../includes/staff_identity.php';
- function csdl_teachers_all(){return [['id'=>'a','name'=>'An'],['id'=>'b','name'=>'Bình'],['id'=>'c','name'=>'Bình']];}
+ function csdl_teachers_all(){return [['id'=>'a','name'=>'An'],['id'=>'b','name'=>'Bình'],['id'=>'c','name'=>'Bình'],['id'=>'hoaV','name'=>'Nguyễn Thị Hoa (v)'],['id'=>'hoaT','name'=>'Nguyễn Thị Hoa (t)']];}
  $username='target';$users=[['username'=>'target','teacher_name'=>'An'],['username'=>'other','teacher_id'=>'keep']];eval($block);
  check($users[0]['teacher_id']==='a'&&$users[1]['teacher_id']==='keep','Only target account uniquely linked');
  $users[0]['teacher_name']='Bình';eval($block);check($users[0]['teacher_id']==='','Ambiguous name clears stale identity');
  $users[0]['teacher_name']='Unknown';eval($block);check($users[0]['teacher_id']==='','Missing teacher cannot retain previous rights');
+ $users[0]['teacher_name']='Nguyễn Thị Hoa T';eval($block);check($users[0]['teacher_id']==='hoaT','Administrator links Hoa T to the T record');
+ $users[0]['teacher_name']='Nguyễn Thị Hoa V';eval($block);check($users[0]['teacher_id']==='hoaV','Administrator links Hoa V to the V record');
+ $oldStart=strpos($old,$linkStart);if($oldStart!==false){$oldEnd=strpos($old,$linkEnd,$oldStart);check($oldEnd!==false,'Baseline linkage block is complete');$old=substr_replace($old,'',$oldStart,$oldEnd+strlen($linkEnd)-$oldStart);}
+ $old=str_replace("require_once 'includes/staff_identity.php';\n",'',$old);
  $new=substr_replace($new,'',$start,strlen($block));$new=str_replace("require_once 'includes/staff_identity.php';\n",'',$new);
  check(explode($marker,$old)[0]===explode($marker,$new)[0],'Authentication and other POST mutations unchanged');
 }

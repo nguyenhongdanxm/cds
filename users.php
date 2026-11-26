@@ -380,7 +380,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $teacherIndex = si_index(csdl_teachers_all());
         foreach ($users as &$linkedUser) {
             if (($linkedUser['username'] ?? '') !== $username) continue;
-            $linkedIds = $teacherIndex['name']['v:'.si_name((string)($linkedUser['teacher_name'] ?? ''))] ?? [];
+            $linkedIds = $teacherIndex['name']['v:'.si_staff_name((string)($linkedUser['teacher_name'] ?? ''))] ?? [];
             $linkedUser['teacher_id'] = count($linkedIds) === 1 ? (string)array_key_first($linkedIds) : '';
             unset($linkedUser['teacher_code']);
         }
