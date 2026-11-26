@@ -37,7 +37,7 @@ try{
     if(in_array($api,['data','csv'],true)){
         $class=ab_text($_GET,'class',100);$subject=ab_text($_GET,'subject',150);$year=ab_text($_GET,'year',100);
         if(!isset($ctx['classes'][$class])||!in_array($subject,$ctx['subjects'],true)||!isset($ctx['years'][$year])||!ab_scope_allowed($s,$abUser,$class,$subject))throw new RuntimeException('Không có quyền xem lớp, môn hoặc năm học này.');
-        [$from,$to]=ab_range($_GET);$key=ab_key($year,$class,$subject);$students=array_filter($ctx['students'],fn($r)=>$r['class']===$class);$report=ab_report($s,$students,$key,$from,$to);
+        [$from,$to]=ab_range($_GET);$key=ab_key($year,$class,$subject);$s=ab_load($key);if(!ab_scope_allowed($s,$abUser,$class,$subject))throw new RuntimeException('Quyền lớp–môn đã thay đổi. Hãy tải lại trang.');$students=array_filter($ctx['students'],fn($r)=>$r['class']===$class);$report=ab_report($s,$students,$key,$from,$to);
         foreach($report['history'] as &$event)$event['can_undo']=empty($event['voided_at'])&&ab_scope_allowed($s,$abUser,$class,$subject,'edit')&&(ab_admin($abUser)||$event['by']===ab_actor($abUser)||ab_feature($abUser,'delete'));unset($event);
         if($api==='csv'){
             header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="bang-thanh-tich.csv"');$out=fopen('php://output','w');fwrite($out,"\xEF\xBB\xBF");fputcsv($out,['Hạng','Học sinh','Lớp','Môn','Năm học','Từ ngày','Đến ngày','Điểm thưởng','Điểm phạt','Tổng điểm'],',','"','');

@@ -4,7 +4,13 @@ require_once __DIR__.'/json_store.php';
 function ab_path(): string {return DATA_PATH.'/achievement_board.json';}
 function ab_empty(): array {return ['grants'=>[],'criteria'=>[],'events'=>[],'requests'=>[]];}
 function ab_check(array $s): array {foreach(array_keys(ab_empty()) as $key)if(!is_array($s[$key]??null))throw new RuntimeException('Dữ liệu Bảng thành tích không hợp lệ; không ghi đè.');return $s;}
-function ab_load(): array {return ab_check(cds_json_load_for_update(ab_path(),ab_empty()));}
+function ab_board_path(string $key): string {if(!preg_match('/^[a-f0-9]{64}$/D',$key))throw new RuntimeException('Mã bảng không hợp lệ.');return DATA_PATH.'/achievement_boards/'.$key.'.json';}
+function ab_load(?string $key=null): array {
+    $meta=ab_check(cds_json_load_for_update(ab_path(),ab_empty()));
+    if($key===null)return $meta;
+    $board=ab_check(cds_json_load_for_update(ab_board_path($key),ab_empty()));
+    $board['grants']=$meta['grants'];return $board;
+}
 function ab_admin(array $u): bool {return ($u['role']??'')==='admin';}
 function ab_actor(array $u): string {return (string)($u['id']??$u['username']??'');}
 function ab_now(): DateTimeImmutable {return new DateTimeImmutable('now',new DateTimeZone('Asia/Ho_Chi_Minh'));}
@@ -87,7 +93,17 @@ function ab_apply(array $s,array $in,array $u,array $ctx): array {
 function ab_save(array $in,array $u,array $ctx): void {
     if(!is_string($in['csrf']??null)||!hash_equals(ab_csrf(),$in['csrf']))throw new RuntimeException('Phiên làm việc không hợp lệ. Hãy tải lại trang.');
     $error='Không lưu được điểm. Vui lòng thử lại.';
-    $ok=cds_json_update(ab_path(),function($s)use($in,$u,$ctx,&$error){try{return ab_apply($s,$in,$u,$ctx);}catch(RuntimeException $e){$error=$e->getMessage();return false;}},ab_empty());
+    // The small metadata lock also serializes scope revocations with board writes.
+    // Events stay in separate year/class/subject files, avoiding a school-wide ledger read.
+    $ok=cds_json_update(ab_path(),function($meta)use($in,$u,$ctx,&$error){try{
+        ab_check($meta);$action=ab_text($in,'action',30);
+        if(in_array($action,['grant_save','grant_delete'],true))return ab_apply($meta,$in,$u,$ctx);
+        $key=ab_key(ab_text($in,'year',100),ab_text($in,'class',100),ab_text($in,'subject',150));
+        $board=ab_check(cds_json_load_for_update(ab_board_path($key),ab_empty()));$board['grants']=$meta['grants'];
+        $next=ab_apply($board,$in,$u,$ctx);$next['grants']=[];
+        if(!cds_json_save(ab_board_path($key),$next))throw new RuntimeException('Không lưu được bảng điểm. Hãy kiểm tra quyền ghi dữ liệu.');
+        return $meta;
+    }catch(RuntimeException $e){$error=$e->getMessage();return false;}},ab_empty());
     if(!$ok)throw new RuntimeException($error);
 }
 function ab_report(array $s,array $students,string $key,string $from,string $to): array {
