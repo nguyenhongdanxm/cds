@@ -77,15 +77,15 @@ function ab_pccm_pair(array $u,string $class,string $subject): bool {return !emp
 /** Navigation hint only; the tool validates against unique CSDL identity before reading points. */
 function ab_pccm_navigation_hint(array $u): bool {
     if(($u['role']??'')==='viewer'||($u['permission_overrides']['hl.thanhtich']??'')==='none'||!defined('PCCM_DATA_PATH'))return false;
-    try{$source=ab_pccm_source(PCCM_DATA_PATH);$name=si_name((string)(trim((string)($u['teacher_name']??''))!==''?$u['teacher_name']:($u['name']??'')));foreach($source['rows'] as $r){
+    try{$source=ab_pccm_source(PCCM_DATA_PATH);$name=si_staff_name((string)(trim((string)($u['teacher_name']??''))!==''?$u['teacher_name']:($u['name']??'')));foreach($source['rows'] as $r){
         foreach(['teacher_id','teacher_code'] as $field)if(!empty($u[$field])&&isset($r[$field])&&(string)$u[$field]===(string)$r[$field])return true;
-        if($name!==''&&$name===si_name((string)($r['teacher']??$r['teacher_name']??'')))return true;
+        if($name!==''&&$name===si_staff_name((string)($r['teacher']??$r['teacher_name']??'')))return true;
     }}catch(Throwable $e){return false;}return false;
 }
 
 function ab_pccm_row_reason(array $row,array $index): string {
     foreach(['teacher_id','person_id','staff_id','teacher_code','person_code','staff_code'] as $key)if(trim((string)($row[$key]??''))!=='')return 'Mã/ID giáo viên không khớp duy nhất với giáo viên đang hoạt động trong CSDL (hoặc các mã mâu thuẫn).';
-    $name=si_name((string)($row['teacher']??$row['teacher_name']??''));$ids=$index['name']['v:'.$name]??[];
+    $name=si_staff_name((string)($row['teacher']??$row['teacher_name']??''));$ids=$index['name']['v:'.$name]??[];
     return count($ids)>1?'Trùng tên giáo viên trong CSDL; cần gán mã/ID để phân biệt.':($name===''?'PCCM chưa có tên hoặc mã giáo viên.':'Tên giáo viên PCCM không khớp CSDL hoặc giáo viên đã ngừng hoạt động.');
 }
 function ab_pccm_account_reason(array $u): string {

@@ -34,6 +34,19 @@ try{
  $put('assignments_v1.json',array_merge($rows,[['class'=>'6A','subject'=>'GDĐP','teacher'=>'Trần An','periods'=>0],['class'=>'','subject'=>'Toán','teacher'=>'Trần An']]));
  $zero=ab_pccm_source(PCCM_DATA_PATH);check(count($zero['rows'])===5&&count($zero['ignored'])===1,'Source retains zero hours and reports incomplete rows');$put('assignments_v1.json',$rows);
  ab_pccm_prepare($source,$teachers,'y',$ctx['classes'],$ctx['subjects']);
+ // Same full name with explicit V/T suffixes must remain two distinct teachers.
+ $hoaTeachers=[['id'=>'hoaV','code'=>'hv','name'=>'Nguyễn Thị Hoa (v)'],['id'=>'hoaT','code'=>'ht','name'=>'Nguyễn Thị Hoa (t)']];
+ $hoaSource=['available'=>true,'label'=>'Fixture Hoa','version'=>'v1','rows'=>[['teacher'=>'Nguyễn Thị Hoa V','class'=>'6A','subject'=>'Văn'],['teacher'=>'Nguyễn Thị Hoa T','class'=>'6B','subject'=>'Toán']]];
+ ab_pccm_prepare($hoaSource,$hoaTeachers,'y',$ctx['classes'],$ctx['subjects']);
+ $hoaV=['id'=>'uV','role'=>'teacher','teacher_id'=>'hoaV'];$hoaT=['id'=>'uT','role'=>'teacher','teacher_id'=>'hoaT'];
+ check(ab_pccm_pair($hoaV,'6A','Văn')&&!ab_pccm_pair($hoaV,'6B','Toán'),'Hoa V maps only to V despite parenthesis/case difference');
+ check(ab_pccm_pair($hoaT,'6B','Toán')&&!ab_pccm_pair($hoaT,'6A','Văn'),'Hoa T maps only to T despite parenthesis/case difference');
+ $hoaIndex=si_index($hoaTeachers);check(si_match(['teacher'=>'  Nguyễn Thị Hoa ( T ) '],'hoaT',$hoaIndex)!=='','Spacing inside suffix normalized');
+ check(si_match(['teacher'=>'Nguyễn Thị Hoa'],'hoaV',$hoaIndex)===''&&si_match(['teacher'=>'Nguyễn Thị Hoa'],'hoaT',$hoaIndex)==='','Missing suffix never guesses between V and T');
+ check(si_match(['teacher'=>'Nguyễn Thị Hoa V','teacher_id'=>'hoaT'],'hoaV',$hoaIndex)==='','Explicit conflicting identifier cannot fall back to suffix');
+ $hoaDuplicates=si_index(array_merge($hoaTeachers,[['id'=>'duplicateT','name'=>'Nguyễn Thị Hoa T']]));check(si_match(['teacher'=>'Nguyễn Thị Hoa (t)'],'hoaT',$hoaDuplicates)==='','Canonical duplicate suffix is rejected');
+ check(ab_pccm_account_teacher(['name'=>'Nguyễn Thị Hoa T','teacher_name'=>'Nguyễn Thị Hoa (t)'],$hoaIndex)===null,'Suffix aliases never grant permissions to an unlinked account');
+ ab_pccm_prepare($source,$teachers,'y',$ctx['classes'],$ctx['subjects']);
  $award=['action'=>'award','year'=>'y','class'=>'6A','criterion_id'=>'homework','date'=>$today,'students'=>['s1'],'csrf'=>ab_csrf(),'request_id'=>'math_reward_000001','subject'=>'Toán'];
  ab_save($award,$admin,$ctx);ab_save(array_merge($award,['students'=>['s2'],'criterion_id'=>'participate','request_id'=>'math_reward_000002']),$a,$ctx);
  ab_save(array_merge($award,['subject'=>'Văn','criterion_id'=>'missing','request_id'=>'lit_reward_000001']),$b,$ctx);ab_save(array_merge($award,['subject'=>'Văn','students'=>['s2'],'criterion_id'=>'progress','request_id'=>'lit_reward_000002']),$b,$ctx);
