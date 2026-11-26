@@ -64,8 +64,8 @@ function lhc_game_category(array $store,string $key): string {
 
 /** First-use placement for the new classroom tool; explicit category choices win. */
 function lhc_tools_category(array $store): array {
-    if(array_key_exists('achievement',$store['game_categories']))return $store;
+    if(!empty($store['achievement_category_initialized'])||array_key_exists('achievement',$store['game_categories'])){$store['achievement_category_initialized']=true;return $store;}
     $target='';foreach(lhc_categories($store,'games') as $id=>$row)if(mb_strtolower(trim($row['name']))==='công cụ'){$target=$id;break;}
     if($target===''){$n=0;do{$target='cat_'.substr(hash('sha256','cds.achievement.tools.'.$n++),0,16);}while(isset($store['categories'][$target]));$store['categories'][$target]=['section'=>'games','name'=>'Công cụ','description'=>'Công cụ hỗ trợ tổ chức lớp học và hoạt động giáo dục.','order'=>0];}
-    $store['game_categories']['achievement']=$target;return $store;
+    $store['game_categories']['achievement']=$target;$store['achievement_category_initialized']=true;return $store;
 }
