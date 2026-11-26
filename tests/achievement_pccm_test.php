@@ -61,10 +61,17 @@ try{
  $summary=ab_class_summary(ab_load(),$ctx,'y','6A',$today,$today);check($summary['total']===6,'Revision counted once in combined totals');
  ab_save(['action'=>'undo','year'=>'y','class'=>'6A','subject'=>'Toán','event_id'=>$edited['events'][2]['id'],'csrf'=>ab_csrf()],$a,$ctx);check(ab_class_summary(ab_load(),$ctx,'y','6A',$today,$today)['total']===2,'Deleting revised points updates combined totals');
  denied(fn()=>ab_save(array_merge($edit,['subject'=>'Văn','request_id'=>'forged_edit_000001']),$a,$ctx));
+ // Automatic animals are collision-free for a normal class and independent of ranking.
+ $animalRoster=[];for($i=0;$i<56;$i++)$animalRoster[]=['id'=>'student'.str_pad((string)$i,3,'0',STR_PAD_LEFT),'name'=>'Synthetic '.$i];
+ $autoArt=ab_art(ab_empty(),$animalRoster);$autoMap=(array)$autoArt['students'];check(count($autoMap)===56&&count(array_unique($autoMap))===56,'No duplicate animals in a class up to catalog capacity');
+ check($autoMap===(array)ab_art(ab_empty(),array_reverse($animalRoster))['students'],'Changing score/rank order cannot change default animals');
+ $withArchive=$animalRoster;for($i=0;$i<80;$i++)$withArchive[]=['id'=>'archived'.$i,'archived'=>true];check((array)ab_art(ab_empty(),$withArchive)['students']===$autoMap,'Archived students never consume current-class animal slots');
+ $reserved=ab_empty();$reserved['student_mascots']['student000']='animal-1-5';$reservedMap=(array)ab_art($reserved,$animalRoster)['students'];check($reservedMap['student000']==='animal-1-5'&&count(array_unique($reservedMap))===56,'Manual selections reserved before automatic allocation');
+ $largeRoster=$animalRoster;for($i=56;$i<70;$i++)$largeRoster[]=['id'=>'student'.$i];$large=ab_art(ab_empty(),$largeRoster);check(count((array)$large['students'])===70&&$large['assignment_stats']['duplicates']===14,'Oversized class reports unavoidable repeats without losing students');
  // Mascot additions and assignments use the same class/subject write scope.
  $artInput=['year'=>'y','class'=>'6A','subject'=>'Toán','csrf'=>ab_csrf(),'action'=>'mascot_save','mascot_id'=>'','name'=>'Bạn mới','image'=>'https://example.org/friend.webp'];
  ab_save($artInput,$a,$ctx);$artBoard=ab_load($key);$custom=end($artBoard['mascots']);
- check(count(ab_art($artBoard)['mascots'])===9,'Eight original presets plus a custom friend');
+ check(count(ab_art($artBoard)['mascots'])===57,'Fifty-six original presets plus a custom friend');
  ab_save(array_merge($artInput,['action'=>'mascot_assign','mascot_id'=>$custom['id'],'students'=>['s1']]),$a,$ctx);check(ab_load($key)['student_mascots']['s1']===$custom['id'],'Mascot selection persists per board');
  denied(fn()=>ab_save(array_merge($artInput,['subject'=>'Văn']),$a,$ctx));
  denied(fn()=>ab_save(array_merge($artInput,['image'=>'javascript:alert(1)']),$a,$ctx));
@@ -72,6 +79,10 @@ try{
  denied(fn()=>ab_save(array_merge($artInput,['image'=>'https://127.0.0.1/x.png']),$a,$ctx));
  denied(fn()=>ab_save(array_merge($artInput,['action'=>'mascot_assign','mascot_id'=>$custom['id'],'students'=>['s3']]),$a,$ctx));
  ab_save(array_merge($artInput,['action'=>'mascot_delete','mascot_id'=>$custom['id']]),$a,$ctx);check(empty(ab_load($key)['student_mascots']['s1']),'Deleting custom friend restores default without altering point history');
+ denied(fn()=>ab_save(['action'=>'mascot_distribute','mascot_id'=>'','year'=>'y','class'=>'6A','subject'=>'Toán','csrf'=>ab_csrf()],array_merge($a,['role'=>'viewer']),$ctx));
+ denied(fn()=>ab_save(['action'=>'mascot_distribute','mascot_id'=>'','year'=>'y','class'=>'6B','subject'=>'Toán','csrf'=>ab_csrf()],$a,$ctx));
+ $beforeArtRefresh=ab_load($key);ab_save(['action'=>'mascot_distribute','mascot_id'=>'','year'=>'y','class'=>'6A','subject'=>'Toán','csrf'=>ab_csrf()],$a,$ctx);$afterArtRefresh=ab_load($key);
+ check($afterArtRefresh['events']===$beforeArtRefresh['events']&&!empty($afterArtRefresh['mascot_seed'])&&$afterArtRefresh['student_mascots']===[],'Redistribute changes only artwork choices, preserves point history');
  $published=['version'=>'v2','name'=>'Bản chính thức','rows'=>[['class'=>'6A','subject'=>'Toán','teacher'=>'Lê Bình'],['class'=>'6B','subject'=>'Toán','teacher'=>'Trần An']],'manual'=>[],'configs'=>['6A'=>['subject'=>'GDĐP','ranges'=>[['teacher'=>'Trần An','from'=>1,'to'=>35]]]]];
  check(pccm_save_release_state(PCCM_DATA_PATH,['published'=>$published]),'Publish fixture');file_put_contents(PCCM_DATA_PATH.'/active_version.json','{broken draft');
  $next=ab_pccm_source(PCCM_DATA_PATH);ab_pccm_prepare($next,$teachers,'y',$ctx['classes'],$ctx['subjects']);

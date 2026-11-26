@@ -50,7 +50,14 @@ function ab_class_summary_allowed(array $s,array $u,string $class): bool {
     foreach($s['grants'] as $g)if($g['user_id']===ab_actor($u)&&$g['class']===$class)return true;
     return false;
 }
-function ab_mascot_presets(): array {return array_map(fn($id,$name)=>['id'=>$id,'name'=>$name,'image'=>'assets/achievement/mascot-'.$id.'.webp'],['mint','bunny','dragon','robot','cat','frog','chick','octopus'],['Mầm xanh','Thỏ mơ mộng','Rồng tinh nghịch','Robot vui vẻ','Mèo bông','Ếch tí hon','Gà năng động','Bạch tuộc ham học']);}
+function ab_mascot_presets(): array {
+    $sets=[
+        ['Cáo cầm cờ','Thỏ khăn đỏ','Ếch mũ vàng','Mèo kính ba lô','Gấu trúc khăn cầu vồng','Vịt thủy thủ','Voi đũa phép','Sóc khăn xanh','Sư tử vương miện','Rùa thám hiểm','Heo cầm cờ','Cún nơ xanh','Koala mũ cam','Gấu khăn đỏ','Cừu mũ hoa','Cánh cụt khăn sọc'],
+        ['Hà mã mũ xanh','Hổ cầm cờ tím','Hải cẩu nơ đỏ','Hươu vòng hoa','Hamster đeo túi','Gấu mèo khăn xanh','Cú mũ tốt nghiệp','Nhím khăn vàng','Cá sấu mũ rơm','Dê áo choàng','Cá voi thủy thủ','Lạc đà cờ trái tim','Tắc kè đeo kính','Gà vương miện','Hồng hạc nơ xanh','Chinchilla ba lô'],
+        ['Gấu trúc đỏ khăn xanh','Rái cá cờ cầu vồng','Thạch sùng mũ len','Gấu Bắc cực khăn cam','Tê giác mũ vàng','Ngựa vằn vòng hoa','Ngựa khăn đỏ','Dơi mũ tiệc','Ong phi công','Bướm nơ hồng','Bạch tuộc phù thủy','Thú mỏ vịt đeo túi','Sao biển vương miện','Cá mập khăn vàng','Ốc sên mũ đỏ','Kangaroo cầm cờ']
+    ];$out=[];foreach($sets as $sheet=>$names)foreach($names as $cell=>$name)$out[]=['id'=>'animal-'.($sheet+1).'-'.$cell,'name'=>$name,'image'=>'assets/achievement/animals-v2-'.($sheet+1).'.webp','cell'=>$cell];
+    return array_merge($out,array_map(fn($id,$name)=>['id'=>$id,'name'=>$name,'image'=>'assets/achievement/mascot-'.$id.'.webp'],['mint','bunny','dragon','robot','cat','frog','chick','octopus'],['Mầm xanh','Thỏ mơ mộng','Rồng tinh nghịch','Robot vui vẻ','Mèo bông','Ếch tí hon','Gà năng động','Bạch tuộc ham học']));
+}
 function ab_mascot_image(string $image): string {
     if(str_starts_with($image,'data:')){
         if(strlen($image)>500000||!preg_match('~^data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$~D',$image,$m))throw new RuntimeException('Ảnh PNG/JPG/WebP tối đa 350 KB.');
@@ -60,7 +67,19 @@ function ab_mascot_image(string $image): string {
     $url=parse_url($image);if(strlen($image)>2000||!filter_var($image,FILTER_VALIDATE_URL)||($url['scheme']??'')!=='https'||empty($url['host'])||isset($url['user'])||isset($url['pass'])||filter_var($url['host'],FILTER_VALIDATE_IP)||str_contains($url['host'],':')||!str_contains($url['host'],'.')||preg_match('/(?:^|\.)(localhost|local|internal)$/i',$url['host']))throw new RuntimeException('Dán liên kết ảnh HTTPS công khai hợp lệ.');
     return $image;
 }
-function ab_art(array $board): array {return ['mascots'=>array_merge(ab_mascot_presets(),array_values($board['mascots']??[])),'students'=>(object)($board['student_mascots']??[])];}
+/** Allocate by immutable roster ID, independent of score/rank, reserving manual choices. */
+function ab_art(array $board,array $students=[]): array {
+    $presets=ab_mascot_presets();$catalog=array_merge($presets,array_values($board['mascots']??[]));$valid=array_fill_keys(array_column($catalog,'id'),true);$choices=(array)($board['student_mascots']??[]);$ids=[];
+    foreach($students as $key=>$student){if(!empty($student['archived']))continue;$id=(string)($student['id']??$key);if($id!=='')$ids[$id]=true;}$ids=array_keys($ids);sort($ids,SORT_STRING);$mapped=[];$used=[];
+    foreach($ids as $id)if(isset($choices[$id],$valid[$choices[$id]])){$mapped[$id]=$choices[$id];$used[$choices[$id]]=($used[$choices[$id]]??0)+1;}
+    if(!empty($board['mascot_seed'])){ $seed=(string)$board['mascot_seed'];usort($presets,fn($a,$b)=>(isset($b['cell'])<=>isset($a['cell']))?:strcmp(hash('sha256',$seed.$a['id']),hash('sha256',$seed.$b['id'])));}
+    $pool=array_column($presets,'id');$cursor=0;
+    foreach($ids as $id){if(isset($mapped[$id]))continue;while($cursor<count($pool)&&isset($used[$pool[$cursor]]))$cursor++;
+        if($cursor<count($pool))$chosen=$pool[$cursor++];else{$counts=array_map(fn($p)=>$used[$p]??0,$pool);$chosen=$pool[array_search(min($counts),$counts,true)];}
+        $mapped[$id]=$chosen;$used[$chosen]=($used[$chosen]??0)+1;
+    }
+    return ['mascots'=>$catalog,'students'=>(object)$mapped,'assignment_stats'=>['students'=>count($ids),'unique'=>count(array_unique(array_values($mapped))),'duplicates'=>max(0,count($mapped)-count(array_unique(array_values($mapped)))),'capacity'=>count($presets)]];
+}
 function ab_presets(): array {return [
     ['id'=>'participate','name'=>'Tích cực phát biểu','points'=>1,'icon'=>'🙋'],['id'=>'homework','name'=>'Hoàn thành bài tập','points'=>2,'icon'=>'📚'],['id'=>'team','name'=>'Hợp tác tốt','points'=>2,'icon'=>'🤝'],['id'=>'progress','name'=>'Có tiến bộ','points'=>3,'icon'=>'🌱'],['id'=>'help','name'=>'Giúp đỡ bạn','points'=>2,'icon'=>'💛'],['id'=>'excellent','name'=>'Thành tích nổi bật','points'=>5,'icon'=>'🏆'],
     ['id'=>'late','name'=>'Đi học muộn','points'=>-1,'icon'=>'⏰'],['id'=>'missing','name'=>'Chưa hoàn thành bài','points'=>-2,'icon'=>'📝'],['id'=>'focus','name'=>'Cần tập trung hơn','points'=>-1,'icon'=>'🎯'],['id'=>'rules','name'=>'Chưa thực hiện nội quy','points'=>-2,'icon'=>'📌']];}
@@ -88,8 +107,9 @@ function ab_apply(array $s,array $in,array $u,array $ctx): array {
     $class=ab_text($in,'class',100);$subject=ab_text($in,'subject',150);$year=ab_text($in,'year',100);
     if(!isset($ctx['classes'][$class])||!in_array($subject,$ctx['subjects'],true)||!isset($ctx['years'][$year])||!ab_scope_allowed($s,$u,$class,$subject,'edit',$year))throw new RuntimeException('Bạn chưa có quyền tích điểm cho lớp hoặc môn này.');
     $key=ab_key($year,$class,$subject);
-    if(in_array($action,['mascot_save','mascot_assign','mascot_delete'],true)){
+    if(in_array($action,['mascot_save','mascot_assign','mascot_delete','mascot_distribute'],true)){
         $list=(array)($s['mascots']??[]);$id=ab_text($in,'mascot_id',80);
+        if($action==='mascot_distribute'){$s['student_mascots']=[];$s['mascot_seed']=bin2hex(random_bytes(12));return $s;}
         if($action==='mascot_save'){
             if(count($list)>=20)throw new RuntimeException('Mỗi bảng được thêm tối đa 20 nhân vật.');
             $name=ab_text($in,'name',180);if($name==='')throw new RuntimeException('Nhập tên nhân vật.');
