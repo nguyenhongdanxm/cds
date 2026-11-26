@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory(prefix='central-notice-dates-') as folder:
  with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
  server=subprocess.Popen([os.environ.get('PHP_BINARY','php'),'-d','session.save_path='+folder,'-S',f'127.0.0.1:{port}','-t',folder],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  base=f'http://127.0.0.1:{port}';url=base+'/notices.php'
- def request(path='/notices.php',values=None,role='admin'):
+ def request(path='/notices.php?archive=1',values=None,role='admin'):
   req=urllib.request.Request(base+path,None if values is None else urllib.parse.urlencode(values).encode(),headers={'Cookie':'test_role='+role})
   try:
    with urllib.request.urlopen(req) as response:return response.status,response.read().decode()
@@ -21,6 +21,11 @@ with tempfile.TemporaryDirectory(prefix='central-notice-dates-') as folder:
   for _ in range(50):
    try:status,html=request();break
    except (OSError,urllib.error.URLError):time.sleep(.1)
+  class NoRedirect(urllib.request.HTTPRedirectHandler):
+   def redirect_request(self,*args,**kwargs):return None
+  try:urllib.request.build_opener(NoRedirect).open(base+'/notices.php')
+  except urllib.error.HTTPError as response:
+   assert response.code==302 and response.headers['Location']=='/admin.php?view=weekly_schedule','Old management URL redirects to calendar editor'
   assert status==200
   for marker in ['id="n_event_date"','id="n_hide_date"','name="notice_timing_version"','Ngày ban hành','Ngày diễn ra / chính thức áp dụng','Ngày ẩn']:assert marker in html,marker
   assert 'Ngày ban hành / sự kiện' not in html and 'id="n_deadline"' not in html
