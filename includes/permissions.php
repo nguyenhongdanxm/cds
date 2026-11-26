@@ -12,6 +12,7 @@
 function permission_modules_catalog() {
     return [
         // Mỗi mục tương ứng đúng một trang/module trên hệ sinh thái.
+        'lichcongtac' => ['label'=>'Lịch công tác tuần','icon'=>'bi-calendar-week','page'=>'admin.php?view=weekly_schedule'],
         'chuyenmon' => ['label' => 'Chuyên môn', 'icon' => 'bi-journal-bookmark-fill', 'page' => 'chuyenmon.php'],
         'vanban'    => ['label' => 'Văn bản', 'icon' => 'bi-file-earmark-text', 'page' => 'vanban.php'],
         'thuvien'   => ['label' => 'Thư viện – Thiết bị', 'icon' => 'bi-book-half', 'page' => 'thuvien.php'],
@@ -26,6 +27,7 @@ function permission_modules_catalog() {
 /** Nhóm quyền chức năng – gắn module */
 function permission_features_catalog() {
     return [
+        'school.weekly_schedule' => ['module'=>'lichcongtac','label'=>'Lịch công tác tuần: nhập · sửa · xóa','group'=>'Lịch công tác'],
         // Chuyên môn
         'cm.tracuu'   => ['module' => 'chuyenmon', 'label' => 'Tra cứu phân công chuyên môn', 'group' => 'PCCM'],
         'cm.pccm'     => ['module' => 'chuyenmon', 'label' => 'Phân công · danh sách · đổi chéo · rà soát', 'group' => 'PCCM'],

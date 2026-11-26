@@ -6,11 +6,13 @@ require_once __DIR__ . '/includes/push_notifications.php';
 require_once __DIR__ . '/includes/account_profile.php';
 require_once __DIR__ . '/includes/dashboard_operation_store.php';
 require_once __DIR__ . '/includes/dashboard_attendance.php';
+require_once __DIR__ . '/includes/weekly_work_store.php';
 require_login();
 
 $user = current_user();
 $isAdmin = ($user['role'] ?? '') === 'admin';
 if (($_GET['view'] ?? '') === 'login_notice') { require __DIR__ . '/includes/login_notice_settings.php'; exit; }
+if (($_GET['view'] ?? '') === 'weekly_schedule') { require __DIR__ . '/includes/weekly_work_page.php'; exit; }
 if (($_GET['view'] ?? '') === 'profile') { require __DIR__ . '/includes/account_profile_view.php'; exit; }
 if(isset($_GET['drive_file'])){$driveId=(string)$_GET['drive_file'];$etag='"'.sha1($driveId).'"';header('Cache-Control: private, max-age=300');header('ETag: '.$etag);if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag){http_response_code(304);exit;}$file=cds_drive_download($driveId);if(empty($file['ok'])){http_response_code((int)($file['status']??404));exit;}header('Content-Type: '.$file['mime']);header('Content-Length: '.strlen($file['body']));$disposition=!empty($_GET['download'])?'attachment':'inline';header("Content-Disposition: $disposition; filename*=UTF-8''".rawurlencode($file['name']));echo $file['body'];exit;}
 if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['drive_api'])){
@@ -136,6 +138,7 @@ $pushUnread = cds_push_unread_count($user);
   <link href="<?= e(BASE_URL) ?>assets/admin-dashboard.css?v=20261012-2" rel="stylesheet">
   <link href="<?= e(BASE_URL) ?>assets/admin-theme.css?v=20261012-5" rel="stylesheet">
   <link href="<?= e(BASE_URL) ?>assets/admin-layout.css?v=20261105-5" rel="stylesheet">
+  <link href="<?= e(BASE_URL) ?>assets/weekly-work.css?v=1" rel="stylesheet">
 </head>
 <body class="admin-dashboard">
 <?php require_once __DIR__ . '/includes/module_switcher.php'; ?>
@@ -212,53 +215,7 @@ $pushUnread = cds_push_unread_count($user);
 
   <div class="content-grid">
     <div class="main-stack">
-    <section class="panel feed-panel">
-      <div class="panel-head"><div><span class="section-kicker">Thông báo</span></div><span class="count-pill"><?= count($feedItems) ?></span></div>
-      <div class="feed-list" id="professionalFeed" tabindex="0" role="region" aria-label="Thông báo">
-        <?php foreach ($feedItems as $feedIndex => $item):
-          $title = cds_dashboard_feed_title($item) ?: 'Nội dung Chuyên môn';
-          $url = $item['url'] ?? $item['link'] ?? '';
-          $nearestDate = $item['_dashboard_nearest'] ?? '';
-          $endDate = $item['_dashboard_end'] ?? '';
-          $state = $item['_dashboard_state'] ?? 'Đang diễn ra';
-          $badgeClass = $item['_dashboard_badge_class'] ?? ($state === 'Sắp diễn ra' ? 'upcoming' : 'active');
-          $deadlineLabel = $state;
-          $deadlineClass = $badgeClass;
-          $deadlineTimestamp = $nearestDate !== '' ? strtotime((string)$nearestDate) : false;
-          if ($deadlineTimestamp !== false && !str_starts_with((string)$nearestDate, '9999-')) {
-              $todayTimestamp = strtotime(date('Y-m-d'));
-              $targetTimestamp = strtotime(date('Y-m-d', $deadlineTimestamp));
-              $daysRemaining = (int)round(($targetTimestamp - $todayTimestamp) / 86400);
-              if ($daysRemaining < 0) {
-                  $deadlineLabel = 'Quá hạn ' . abs($daysRemaining) . ' ngày';
-                  $deadlineClass = 'overdue';
-              } elseif ($daysRemaining === 0) {
-                  $deadlineLabel = 'Hôm nay';
-                  $deadlineClass = 'due-today';
-              } else {
-                  $deadlineLabel = 'Còn ' . $daysRemaining . ' ngày';
-                  $deadlineClass = $daysRemaining <= 3 ? 'urgent' : ($daysRemaining <= 7 ? 'warning' : ($daysRemaining <= 30 ? 'notice-time' : 'future'));
-              }
-          }
-          if(isset($item['_dashboard_event_label'])){$deadlineLabel=$item['_dashboard_event_label'];$deadlineClass=$item['_dashboard_badge_class']??'active';}
-          $assigneeText = implode(', ', array_slice($item['_dashboard_assignees'] ?? [], 0, 3));
-          $kind = in_array(($item['kind'] ?? ''), ['notice','task','salary','seniority'], true) ? $item['kind'] : 'task';
-          $icons = ['notice'=>'bi-megaphone-fill','task'=>'bi-check2-square','salary'=>'bi-cash-coin','seniority'=>'bi-award-fill'];
-          $detail = $item['_dashboard_detail'] ?? ($assigneeText ? 'Giao cho ' . $assigneeText : 'Nội dung chuyên môn');
-        ?>
-          <?php if ($url): ?><a href="<?= e($url) ?>" class="feed-row<?= $feedIndex >= 5 ? ' feed-page-hidden' : '' ?>" data-feed-item data-feed-page="<?= intdiv($feedIndex, 5) + 1 ?>"><?php else: ?><div class="feed-row<?= $feedIndex >= 5 ? ' feed-page-hidden' : '' ?>" data-feed-item data-feed-page="<?= intdiv($feedIndex, 5) + 1 ?>"><?php endif; ?>
-            <span class="feed-icon <?= e($kind) ?>"><i class="bi <?= e($icons[$kind]) ?>"></i></span>
-            <span class="feed-copy">
-              <strong><?= e($title) ?></strong>
-              <small><?= e($detail) ?><?php if ($nearestDate): ?> · <i class="bi bi-calendar-event"></i> <?php if(!empty($item['_dashboard_publish_date'])):?>Ban hành <?=e(date('d/m/Y',strtotime($item['_dashboard_publish_date'])))?> · <?php endif;?><?= !empty($item['_dashboard_event_date'])?'Ngày diễn ra / áp dụng ':($endDate?'Hạn ':'') ?><?= e(date(str_contains((string)$nearestDate, ':') ? 'd/m/Y H:i' : 'd/m/Y', strtotime($nearestDate))) ?><?php endif; ?></small>
-            </span>
-            <span class="schedule-pill <?= e($deadlineClass) ?>" title="<?= e($state) ?>"><?= e($deadlineLabel) ?></span>
-          <?php if ($url): ?></a><?php else: ?></div><?php endif; ?>
-        <?php endforeach; ?>
-        <?php if (!$feedItems): ?><div class="empty-state"><i class="bi bi-inbox"></i><strong>Chưa có thông báo</strong><span>Thông báo chuyên môn chung, công việc được giao và mốc nhân sự cá nhân sẽ xuất hiện tại đây.</span></div><?php endif; ?>
-      </div>
-      <?php if (count($feedItems) > 5): ?><nav class="feed-pagination" aria-label="Trang thông báo"><?php for($feedPage=1,$feedPages=(int)ceil(count($feedItems)/5);$feedPage<=$feedPages;$feedPage++): ?><button type="button" class="<?= $feedPage===1?'active':'' ?>" data-feed-page-button="<?= $feedPage ?>" <?= $feedPage===1?'aria-current="page"':'' ?>><?= $feedPage ?></button><?php endfor; ?></nav><?php endif; ?>
-    </section>
+    <?php require __DIR__ . '/includes/weekly_work_dashboard.php'; ?>
 
     <section class="panel operation-panel">
       <div class="panel-head"><div><span class="section-kicker">Toàn trường</span><h2>Lịch trực hôm nay</h2></div><?php if($isAdmin && can_module('noitru','view')):?><a href="admin_operation_settings.php"><i class="bi bi-gear"></i> Cài đặt</a><?php endif;?></div>

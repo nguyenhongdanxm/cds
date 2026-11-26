@@ -1,0 +1,28 @@
+name: Weekly work calendar
+on:
+  pull_request:
+    paths: ['admin.php', 'includes/weekly_work*.php', 'assets/weekly-work.css', 'includes/permissions.php', 'includes/viewer_access.php', 'tests/weekly_work*', '.github/workflows/weekly-work.yml']
+  workflow_dispatch:
+jobs:
+  calendar:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '${{ matrix.php }}'
+      - run: |
+          php -l admin.php
+          php -l includes/weekly_work_store.php
+          php -l includes/weekly_work_view.php
+          php -l includes/weekly_work_page.php
+          php tests/weekly_work_test.php
+          php tests/viewer_access_test.php
+      - run: npm install --prefix "$RUNNER_TEMP/weekly-work" --no-package-lock playwright@1.58.2
+      - run: "$RUNNER_TEMP/weekly-work/node_modules/.bin/playwright install --only-shell chromium"
+      - run: node tests/weekly_work_browser.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/weekly-work/node_modules
