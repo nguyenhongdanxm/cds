@@ -1,7 +1,7 @@
 name: Classroom achievement board
 on:
   pull_request:
-    paths: ['hoclieu_thanhtich.php', 'includes/achievement_board.php', 'includes/achievement_pccm.php', 'includes/staff_identity.php', 'includes/pccm_release.php', 'assets/achievement-board.*', 'tests/achievement_board*', 'tests/achievement_pccm*', 'includes/permissions.php', 'includes/viewer_access.php', '.github/workflows/achievement-board.yml']
+    paths: ['hoclieu_thanhtich.php', 'includes/achievement_board.php', 'includes/achievement_pccm.php', 'includes/staff_identity.php', 'includes/pccm_release.php', 'assets/achievement-board.*', 'assets/achievement/**', 'tests/achievement_board*', 'tests/achievement_pccm*', 'includes/permissions.php', 'includes/viewer_access.php', '.github/workflows/achievement-board.yml']
   workflow_dispatch:
 jobs:
   board:

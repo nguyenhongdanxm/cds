@@ -50,6 +50,17 @@ function ab_class_summary_allowed(array $s,array $u,string $class): bool {
     foreach($s['grants'] as $g)if($g['user_id']===ab_actor($u)&&$g['class']===$class)return true;
     return false;
 }
+function ab_mascot_presets(): array {return array_map(fn($id,$name)=>['id'=>$id,'name'=>$name,'image'=>'assets/achievement/mascot-'.$id.'.webp'],['mint','bunny','dragon','robot','cat','frog','chick','octopus'],['Mầm xanh','Thỏ mơ mộng','Rồng tinh nghịch','Robot vui vẻ','Mèo bông','Ếch tí hon','Gà năng động','Bạch tuộc ham học']);}
+function ab_mascot_image(string $image): string {
+    if(str_starts_with($image,'data:')){
+        if(strlen($image)>500000||!preg_match('~^data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$~D',$image,$m))throw new RuntimeException('Ảnh PNG/JPG/WebP tối đa 350 KB.');
+        $bytes=base64_decode($m[2],true);$info=$bytes!==false?@getimagesizefromstring($bytes):false;
+        if(!$info||($info['mime']??'')!=='image/'.$m[1]||$info[0]>2048||$info[1]>2048||strlen($bytes)>350000)throw new RuntimeException('Ảnh không hợp lệ hoặc quá lớn (tối đa 2048 px, 350 KB).');return $image;
+    }
+    $url=parse_url($image);if(strlen($image)>2000||!filter_var($image,FILTER_VALIDATE_URL)||($url['scheme']??'')!=='https'||empty($url['host'])||isset($url['user'])||isset($url['pass'])||filter_var($url['host'],FILTER_VALIDATE_IP)||str_contains($url['host'],':')||!str_contains($url['host'],'.')||preg_match('/(?:^|\.)(localhost|local|internal)$/i',$url['host']))throw new RuntimeException('Dán liên kết ảnh HTTPS công khai hợp lệ.');
+    return $image;
+}
+function ab_art(array $board): array {return ['mascots'=>array_merge(ab_mascot_presets(),array_values($board['mascots']??[])),'students'=>(object)($board['student_mascots']??[])];}
 function ab_presets(): array {return [
     ['id'=>'participate','name'=>'Tích cực phát biểu','points'=>1,'icon'=>'🙋'],['id'=>'homework','name'=>'Hoàn thành bài tập','points'=>2,'icon'=>'📚'],['id'=>'team','name'=>'Hợp tác tốt','points'=>2,'icon'=>'🤝'],['id'=>'progress','name'=>'Có tiến bộ','points'=>3,'icon'=>'🌱'],['id'=>'help','name'=>'Giúp đỡ bạn','points'=>2,'icon'=>'💛'],['id'=>'excellent','name'=>'Thành tích nổi bật','points'=>5,'icon'=>'🏆'],
     ['id'=>'late','name'=>'Đi học muộn','points'=>-1,'icon'=>'⏰'],['id'=>'missing','name'=>'Chưa hoàn thành bài','points'=>-2,'icon'=>'📝'],['id'=>'focus','name'=>'Cần tập trung hơn','points'=>-1,'icon'=>'🎯'],['id'=>'rules','name'=>'Chưa thực hiện nội quy','points'=>-2,'icon'=>'📌']];}
@@ -77,6 +88,23 @@ function ab_apply(array $s,array $in,array $u,array $ctx): array {
     $class=ab_text($in,'class',100);$subject=ab_text($in,'subject',150);$year=ab_text($in,'year',100);
     if(!isset($ctx['classes'][$class])||!in_array($subject,$ctx['subjects'],true)||!isset($ctx['years'][$year])||!ab_scope_allowed($s,$u,$class,$subject,'edit',$year))throw new RuntimeException('Bạn chưa có quyền tích điểm cho lớp hoặc môn này.');
     $key=ab_key($year,$class,$subject);
+    if(in_array($action,['mascot_save','mascot_assign','mascot_delete'],true)){
+        $list=(array)($s['mascots']??[]);$id=ab_text($in,'mascot_id',80);
+        if($action==='mascot_save'){
+            if(count($list)>=20)throw new RuntimeException('Mỗi bảng được thêm tối đa 20 nhân vật.');
+            $name=ab_text($in,'name',180);if($name==='')throw new RuntimeException('Nhập tên nhân vật.');
+            $image=ab_mascot_image(ab_text($in,'image',500000));$id='custom_'.bin2hex(random_bytes(8));$list[]=['id'=>$id,'name'=>$name,'image'=>$image];$s['mascots']=$list;
+        }elseif($action==='mascot_delete'){
+            if(!in_array($id,array_column($list,'id'),true))throw new RuntimeException('Chỉ được xóa nhân vật tự thêm.');
+            $s['mascots']=array_values(array_filter($list,fn($r)=>$r['id']!==$id));foreach((array)($s['student_mascots']??[]) as $student=>$chosen)if($chosen===$id)unset($s['student_mascots'][$student]);
+        }else{
+            if($id!==''&&!in_array($id,array_column(ab_art($s)['mascots'],'id'),true))throw new RuntimeException('Nhân vật không tồn tại.');
+            $ids=$in['students']??[];if(!is_array($ids)||!count($ids)||count($ids)>100)throw new RuntimeException('Chọn từ 1 đến 100 học sinh.');
+            foreach($ids as $student)if(!is_string($student)||!isset($ctx['students'][$student])||$ctx['students'][$student]['class']!==$class)throw new RuntimeException('Học sinh không thuộc lớp được phân công.');
+            foreach($ids as $student){if($id==='')unset($s['student_mascots'][$student]);else $s['student_mascots'][$student]=$id;}
+        }
+        return $s;
+    }
     if($action==='criterion_save'||$action==='criterion_delete'){
         $id=ab_text($in,'criterion_id',80);$list=ab_criteria($s,$key);
         if($action==='criterion_save'){
