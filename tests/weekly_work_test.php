@@ -27,6 +27,9 @@ try{
  check(!cds_viewer_request_allowed('GET','admin.php',['view'=>'drive']),'Other admin settings still denied');
  ob_start();ww_render_week(ww_week(),[]);$todayHtml=ob_get_clean();check(substr_count($todayHtml,'aria-current="date"')===1&&str_contains($todayHtml,'Hôm nay'),'Today badge appears once even without work entries');
  ob_start();ww_render_week(ww_week('2000-01-03'),[]);$pastHtml=ob_get_clean();check(!str_contains($pastHtml,'aria-current="date"'),'No today badge in a past week');
+ $adminSource=file_get_contents(__DIR__.'/../admin.php');$menuStart=strpos($adminSource,'<div class="user-menu">');$menuEnd=strpos($adminSource,'</details>',$menuStart);$menuTemplate=substr($adminSource,$menuStart,$menuEnd-$menuStart);$isAdmin=false;$user=$teacher;
+ ob_start();eval('?>'.$menuTemplate);$editorMenu=ob_get_clean();check(str_contains($editorMenu,'data-work-calendar-menu')&&str_contains($editorMenu,'admin.php?view=weekly_schedule')&&!str_contains($editorMenu,'notices.php'),'Assigned editor opens matching calendar settings');
+ $user=$viewer;ob_start();eval('?>'.$menuTemplate);$readerMenu=ob_get_clean();check(!str_contains($readerMenu,'data-work-calendar-menu'),'Reader does not receive edit menu');
  $r=ww_change($input,$teacher,'save');check(count(ww_all())===1&&$r['updated_by']==='t','Authorized create');
  $edit=array_merge($input,['id'=>$r['id'],'version'=>$r['version'],'content'=>'Nội dung đã sửa']);$updated=ww_change($edit,$teacher,'save');
  check($updated['version']!==$r['version'],'Version changes');$before=file_get_contents(ww_path());

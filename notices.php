@@ -12,6 +12,18 @@ if ($publicNoticeId !== '') {
 /* Chỉ màn hình quản lý mới yêu cầu đăng nhập. */
 require_login();
 
+// Old management bookmarks open the same calendar editor as the homepage.
+// Historical notice links above continue to open their original public document.
+if (($_GET['archive'] ?? '') !== '1' && !isset($_GET['capability'])) {
+    $calendarUrl=BASE_URL.'admin.php?view=weekly_schedule';
+    if (in_array($_SERVER['REQUEST_METHOD']??'GET',['GET','HEAD'],true)) {
+        header('Location: '.$calendarUrl);exit;
+    }
+    http_response_code(409);
+    echo '<!doctype html><meta charset="utf-8"><p>Trang nhập liệu đã chuyển sang Lịch công tác. <a href="'.e($calendarUrl).'">Mở lịch công tác</a></p>';
+    exit;
+}
+
 function cds_notice_public_drive_url(string $path, string $title='', string $back='/'): string {
     if ($path === '' || !str_starts_with($path, 'gdrive:')) return '';
     $id = trim(substr($path, 7));

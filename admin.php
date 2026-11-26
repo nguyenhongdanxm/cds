@@ -179,7 +179,7 @@ $pushUnread = cds_push_unread_count($user);
     </details>
     <details class="user-picker">
       <summary><span class="avatar"><?= e($avatarUpper) ?></span><span class="user-copy"><strong><?= e($user['name'] ?? '') ?></strong><small><?= e($scopeText) ?></small></span><i class="bi bi-chevron-down"></i></summary>
-      <div class="user-menu"><a href="admin.php?view=profile"><i class="bi bi-person-vcard"></i>Thông tin cá nhân</a><?php if ($isAdmin): ?><a href="excel_schedules.php"><i class="bi bi-clock-history"></i>Đồng bộ báo cáo & hồ sơ → Drive</a><a href="initial_setup.php"><i class="bi bi-list-check"></i>Khởi tạo dữ liệu</a><a href="admin.php?view=login_notice"><i class="bi bi-megaphone"></i>Thông báo khi đăng nhập</a><a href="users.php"><i class="bi bi-person-gear"></i>Tài khoản và quyền</a><a href="admin.php?view=drive"><i class="bi bi-google"></i>Kho Google Drive</a><?php endif; ?><a href="logout.php" class="logout"><i class="bi bi-box-arrow-right"></i>Đăng xuất</a></div>
+      <div class="user-menu"><a href="admin.php?view=profile"><i class="bi bi-person-vcard"></i>Thông tin cá nhân</a><?php if ($isAdmin): ?><a href="excel_schedules.php"><i class="bi bi-clock-history"></i>Đồng bộ báo cáo & hồ sơ → Drive</a><a href="initial_setup.php"><i class="bi bi-list-check"></i>Khởi tạo dữ liệu</a><a href="admin.php?view=login_notice"><i class="bi bi-megaphone"></i>Thông báo khi đăng nhập</a><a href="users.php"><i class="bi bi-person-gear"></i>Tài khoản và quyền</a><a href="admin.php?view=drive"><i class="bi bi-google"></i>Kho Google Drive</a><?php endif; ?><?php if(ww_allowed($user)):?><a href="<?=e(BASE_URL)?>admin.php?view=weekly_schedule" data-work-calendar-menu><i class="bi bi-calendar-week"></i>Lịch công tác</a><?php endif;?><a href="logout.php" class="logout"><i class="bi bi-box-arrow-right"></i>Đăng xuất</a></div>
     </details>
   </div>
 </header>
@@ -271,7 +271,7 @@ $voiceTargets = array_map(static function (array $command): array {
   document.addEventListener('click',function(e){document.querySelectorAll('details[open]').forEach(function(d){if(!d.contains(e.target)&&!e.target.closest('#mobileModules'))d.open=false})});
 })();
 </script>
-<script src="<?= e(BASE_URL) ?>assets/pwa-push.js?v=20260813-3" defer></script>
+<script src="<?= e(BASE_URL) ?>assets/pwa-push.js?v=20261126-1" defer></script>
 <script src="<?= e(BASE_URL) ?>assets/voice-nav.js?v=20261012-4" defer></script>
 <style>.schedule-pill.past{background:#edf2f7;color:#52647a}</style>
 <?php require_once __DIR__.'/includes/login_notice_store.php'; $loginNotice=cds_ln_pending($user); $loginNoticeGate=false; require __DIR__.'/includes/login_notice_popup.php'; ?>
