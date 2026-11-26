@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 jobs:
   calendar:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         php: ['8.2', '8.3']
