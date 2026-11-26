@@ -1,6 +1,7 @@
 <?php
 /** Append-only, school-local classroom rewards; no student information leaves CDS. */
 require_once __DIR__.'/json_store.php';
+require_once __DIR__.'/achievement_pccm.php';
 function ab_path(): string {return DATA_PATH.'/achievement_board.json';}
 function ab_empty(): array {return ['grants'=>[],'criteria'=>[],'events'=>[],'requests'=>[]];}
 function ab_check(array $s): array {foreach(array_keys(ab_empty()) as $key)if(!is_array($s[$key]??null))throw new RuntimeException('Dữ liệu Bảng thành tích không hợp lệ; không ghi đè.');return $s;}
@@ -18,17 +19,35 @@ function ab_date(string $s): ?DateTimeImmutable {$d=DateTimeImmutable::createFro
 function ab_csrf(): string {if(empty($_SESSION['achievement_csrf']))$_SESSION['achievement_csrf']=bin2hex(random_bytes(24));return $_SESSION['achievement_csrf'];}
 function ab_text(array $in,string $key,int $limit=300): string {if(!is_string($in[$key]??''))throw new RuntimeException('Dữ liệu nhập không hợp lệ.');$v=trim($in[$key]??'');if(strlen($v)>$limit||!preg_match('//u',$v))throw new RuntimeException('Nội dung quá dài hoặc không hợp lệ.');return $v;}
 function ab_key(string $year,string $class,string $subject): string {return hash('sha256',json_encode([$year,$class,$subject],JSON_UNESCAPED_UNICODE));}
-function ab_feature(array $u,string $level): bool {if(($u['role']??'')==='viewer')return $level==='view';return level_rank(permission_access('hl.thanhtich',$u))>=level_rank($level);}
+function ab_feature(array $u,string $level): bool {
+    if(($u['role']??'')==='viewer')return $level==='view';
+    if(ab_admin($u))return true;
+    $override=$u['permission_overrides']['hl.thanhtich']??'inherit';
+    if(in_array($override,['none','view','edit','delete'],true))return level_rank($override)>=level_rank($level);
+    if(ab_pccm_pairs($u))return level_rank($level)<=level_rank('delete');
+    return level_rank(permission_access('hl.thanhtich',$u))>=level_rank($level);
+}
 function ab_class_allowed(array $u,string $class): bool {
     if(ab_admin($u)||($u['role']??'')==='viewer')return true;
     $classes=is_array($u['classes']??null)?$u['classes']:[];
     if(in_array('gvcn',$u['groups']??[],true))return in_array($class,array_merge($classes,(array)($u['homeroom_classes']??[])),true);
     return !$classes||in_array($class,$classes,true);
 }
-function ab_scope_allowed(array $store,array $u,string $class,string $subject,string $level='view'): bool {
-    if(!ab_feature($u,$level)||!ab_class_allowed($u,$class))return false;
+function ab_scope_allowed(array $store,array $u,string $class,string $subject,string $level='view',?string $year=null): bool {
+    if(!ab_feature($u,$level))return false;
     if(ab_admin($u)||(($u['role']??'')==='viewer'&&$level==='view'))return true;
+    $source=ab_pccm_context();
+    if($source['available'])return ab_pccm_pair($u,$class,$subject)&&($level==='view'||$year===null||$year===$source['year']);
+    if(!ab_class_allowed($u,$class))return false;
     foreach($store['grants'] as $g)if(($g['user_id']??'')===ab_actor($u)&&($g['class']??'')===$class&&($g['subject']??'')===$subject)return true;
+    return false;
+}
+function ab_class_summary_allowed(array $s,array $u,string $class): bool {
+    if(!ab_feature($u,'view'))return false;
+    if(ab_admin($u)||($u['role']??'')==='viewer')return true;
+    if(ab_pccm_context()['available'])return !empty(ab_pccm_pairs($u)[$class]);
+    if(!ab_class_allowed($u,$class))return false;
+    foreach($s['grants'] as $g)if($g['user_id']===ab_actor($u)&&$g['class']===$class)return true;
     return false;
 }
 function ab_presets(): array {return [
@@ -48,6 +67,7 @@ function ab_apply(array $s,array $in,array $u,array $ctx): array {
     ab_check($s);$action=ab_text($in,'action',30);
     if($action==='grant_save'||$action==='grant_delete'){
         if(!ab_admin($u))throw new RuntimeException('Chỉ quản trị viên được phân quyền lớp và môn.');
+        if(ab_pccm_context()['available'])throw new RuntimeException('Quyền lớp–môn đang đồng bộ từ PCCM. Hãy cập nhật phân công chuyên môn.');
         $id=ab_text($in,'user_id',100);$class=ab_text($in,'class',100);$subject=ab_text($in,'subject',150);
         if($action==='grant_save'&&(!isset($ctx['users'][$id])||!isset($ctx['classes'][$class])||!in_array($subject,$ctx['subjects'],true)))throw new RuntimeException('Chọn đúng tài khoản, lớp và môn trong danh mục.');
         $s['grants']=array_values(array_filter($s['grants'],fn($g)=>!($g['user_id']===$id&&$g['class']===$class&&$g['subject']===$subject)));
@@ -55,7 +75,7 @@ function ab_apply(array $s,array $in,array $u,array $ctx): array {
         return $s;
     }
     $class=ab_text($in,'class',100);$subject=ab_text($in,'subject',150);$year=ab_text($in,'year',100);
-    if(!isset($ctx['classes'][$class])||!in_array($subject,$ctx['subjects'],true)||!isset($ctx['years'][$year])||!ab_scope_allowed($s,$u,$class,$subject,'edit'))throw new RuntimeException('Bạn chưa có quyền tích điểm cho lớp hoặc môn này.');
+    if(!isset($ctx['classes'][$class])||!in_array($subject,$ctx['subjects'],true)||!isset($ctx['years'][$year])||!ab_scope_allowed($s,$u,$class,$subject,'edit',$year))throw new RuntimeException('Bạn chưa có quyền tích điểm cho lớp hoặc môn này.');
     $key=ab_key($year,$class,$subject);
     if($action==='criterion_save'||$action==='criterion_delete'){
         $id=ab_text($in,'criterion_id',80);$list=ab_criteria($s,$key);
@@ -68,6 +88,22 @@ function ab_apply(array $s,array $in,array $u,array $ctx): array {
             $list[]=['id'=>$id,'name'=>$name,'icon'=>$icon?:'⭐','points'=>$points];
         }else $list=array_values(array_filter($list,fn($r)=>$r['id']!==$id));
         $s['criteria'][$key]=$list;return $s;
+    }
+    if($action==='edit_event'){
+        $request=ab_text($in,'request_id',100);if(!preg_match('/^[a-zA-Z0-9_-]{16,100}$/D',$request))throw new RuntimeException('Mã lượt sửa không hợp lệ.');
+        $requestKey=hash('sha256',ab_actor($u).'|'.$request);if(isset($s['requests'][$requestKey]))return $s;
+        $id=ab_text($in,'event_id',100);$index=null;foreach($s['events'] as $i=>$e)if($e['id']===$id&&$e['board']===$key){$index=$i;break;}
+        if($index===null||!empty($s['events'][$index]['voided_at']))throw new RuntimeException('Lượt điểm đã thay đổi hoặc bị xóa. Hãy tải lại lịch sử.');
+        $old=$s['events'][$index];if(!ab_admin($u)&&$old['by']!==ab_actor($u)&&!ab_feature($u,'delete'))throw new RuntimeException('Bạn chưa có quyền sửa lượt điểm của giáo viên khác.');
+        $criterion=ab_text($in,'criterion_id',80);$skill=null;foreach(ab_criteria($s,$key) as $r)if($r['id']===$criterion)$skill=$r;
+        if(!$skill)throw new RuntimeException('Chọn một tiêu chí hiện có.');
+        $points=filter_var($in['points']??null,FILTER_VALIDATE_INT);$date=ab_text($in,'date',10);$y=$ctx['years'][$year];
+        if($points===false||$points===0||abs($points)>100)throw new RuntimeException('Điểm phải là số nguyên từ -100 đến 100, khác 0.');
+        if(!ab_date($date)||$date>ab_now()->format('Y-m-d')||(!empty($y['start'])&&$date<$y['start'])||(!empty($y['end'])&&$date>$y['end']))throw new RuntimeException('Ngày ghi điểm phải hợp lệ và thuộc năm học đã chọn.');
+        $note=ab_text($in,'note',1000);$now=ab_now()->format(DATE_ATOM);$newId='point_'.bin2hex(random_bytes(12));
+        $s['events'][$index]['voided_at']=$now;$s['events'][$index]['voided_by']=ab_actor($u);$s['events'][$index]['void_reason']='edited';
+        $next=array_merge($old,['id'=>$newId,'points'=>$points,'criterion_id'=>$skill['id'],'criterion'=>$skill['name'],'icon'=>$skill['icon'],'date'=>$date,'note'=>$note,'by'=>ab_actor($u),'by_name'=>(string)($u['name']??$u['username']??''),'at'=>$now,'replaces'=>$id]);
+        $s['events'][]=$next;$s['requests'][$requestKey]=$newId;return $s;
     }
     if($action==='undo'){
         $id=ab_text($in,'event_id',100);$found=false;
@@ -102,7 +138,7 @@ function ab_save(array $in,array $u,array $ctx): void {
         $board=ab_check(cds_json_load_for_update(ab_board_path($key),ab_empty()));$board['grants']=$meta['grants'];
         $next=ab_apply($board,$in,$u,$ctx);$next['grants']=[];
         if(!cds_json_save(ab_board_path($key),$next))throw new RuntimeException('Không lưu được bảng điểm. Hãy kiểm tra quyền ghi dữ liệu.');
-        return $meta;
+        $meta['boards'][$key]=['year'=>ab_text($in,'year',100),'class'=>ab_text($in,'class',100),'subject'=>ab_text($in,'subject',150)];return $meta;
     }catch(RuntimeException $e){$error=$e->getMessage();return false;}},ab_empty());
     if(!$ok)throw new RuntimeException($error);
 }
@@ -118,4 +154,21 @@ function ab_report(array $s,array $students,string $key,string $from,string $to)
     $prior=null;$rank=0;foreach($rows as $i=>&$row){$metric=[$row['total'],$row['reward']];if($metric!==$prior)$rank=$i+1;$row['rank']=$rank;$prior=$metric;}unset($row);
     usort($history,fn($a,$b)=>strcmp($b['at'],$a['at'])?:strcmp($b['id'],$a['id']));ksort($trend);
     return ['scores'=>$rows,'history'=>array_slice($history,0,200),'history_total'=>count($history),'trend'=>$trend,'reward'=>array_sum(array_column($rows,'reward')),'penalty'=>array_sum(array_column($rows,'penalty')),'total'=>array_sum(array_column($rows,'total'))];
+}
+
+function ab_class_summary(array $meta,array $ctx,string $year,string $class,string $from,string $to): array {
+    $subjects=[];
+    foreach(ab_pccm_context()['rows'] as $r)if($r['class']===$class)$subjects[$r['subject']]=true;
+    foreach((array)($meta['boards']??[]) as $b)if(is_array($b)&&($b['year']??'')===$year&&($b['class']??'')===$class)$subjects[(string)$b['subject']]=true;
+    foreach($ctx['subjects'] as $subject)if(is_file(ab_board_path(ab_key($year,$class,$subject))))$subjects[$subject]=true;
+    if(!$subjects)foreach($meta['grants'] as $g)if($g['class']===$class)$subjects[$g['subject']]=true;
+    $subjects=array_keys($subjects);usort($subjects,fn($a,$b)=>strcmp(si_name($a),si_name($b)));
+    $roster=array_filter($ctx['students'],fn($r)=>$r['class']===$class);$rows=[];$totals=array_fill_keys($subjects,0);
+    foreach($roster as $id=>$student)$rows[$id]=['id'=>$id,'name'=>$student['name'],'subjects'=>[],'reward'=>0,'penalty'=>0,'total'=>0];
+    foreach($subjects as $subject){$key=ab_key($year,$class,$subject);$board=ab_load($key);$report=ab_report($board,$roster,$key,$from,$to);
+        foreach($report['scores'] as $r){$id=$r['id'];if(!isset($rows[$id]))$rows[$id]=['id'=>$id,'name'=>$r['name'],'subjects'=>[],'reward'=>0,'penalty'=>0,'total'=>0,'archived'=>true];$rows[$id]['subjects'][$subject]=$r['total'];foreach(['reward','penalty','total'] as $k)$rows[$id][$k]+=$r[$k];$totals[$subject]+=$r['total'];}
+    }
+    $rows=array_values($rows);usort($rows,fn($a,$b)=>($b['total']<=>$a['total'])?:($b['reward']<=>$a['reward'])?:strcmp($a['name'],$b['name']));$prior=null;$rank=0;
+    foreach($rows as $i=>&$r){$metric=[$r['total'],$r['reward']];if($metric!==$prior)$rank=$i+1;$r['rank']=$rank;$prior=$metric;foreach($subjects as $subject)$r['subjects'][$subject]=$r['subjects'][$subject]??0;}unset($r);
+    return ['subjects'=>$subjects,'rows'=>$rows,'subject_totals'=>$totals,'reward'=>array_sum(array_column($rows,'reward')),'penalty'=>array_sum(array_column($rows,'penalty')),'total'=>array_sum(array_column($rows,'total'))];
 }

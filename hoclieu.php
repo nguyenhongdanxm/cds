@@ -9,11 +9,12 @@ require_once __DIR__ . '/includes/learning_thumbnail.php';
 require_once __DIR__ . '/includes/learning_game_catalog.php';
 require_once __DIR__ . '/includes/learning_dashboard.php';
 require_once __DIR__ . '/includes/learning_categories.php';
+require_once __DIR__.'/includes/achievement_pccm.php';
 
 $user = current_user() ?? [];
 $isAdmin = ($user['role'] ?? '') === 'admin';
 $canResourceView = $isAdmin || can_perm_level('hl.xem', 'view');
-$canUtilityView = $canResourceView || can_perm_level('hl.thanhtich','view');
+$canUtilityView = $canResourceView || can_perm_level('hl.thanhtich','view') || ab_pccm_navigation_hint($user);
 $canUtilityCatalog = $canResourceView ? lh_game_catalog() : array_values(array_filter(lh_game_catalog(),fn($g)=>$g['key']==='achievement'));
 $canResourceEdit = $isAdmin || can_perm_level('hl.xem', 'edit');
 $canResourceDelete = $isAdmin || can_perm_level('hl.xem', 'delete');
