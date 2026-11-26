@@ -1,7 +1,7 @@
 name: Classroom achievement board
 on:
   pull_request:
-    paths: ['hoclieu_thanhtich.php', 'includes/achievement_board.php', 'assets/achievement-board.*', 'tests/achievement_board*', 'includes/permissions.php', 'includes/viewer_access.php', '.github/workflows/achievement-board.yml']
+    paths: ['hoclieu_thanhtich.php', 'includes/achievement_board.php', 'includes/achievement_pccm.php', 'includes/staff_identity.php', 'includes/pccm_release.php', 'assets/achievement-board.*', 'tests/achievement_board*', 'tests/achievement_pccm*', 'includes/permissions.php', 'includes/viewer_access.php', '.github/workflows/achievement-board.yml']
   workflow_dispatch:
 jobs:
   board:
@@ -18,6 +18,8 @@ jobs:
           php -l hoclieu_thanhtich.php
           php -l includes/achievement_board.php
           php tests/achievement_board_test.php
+          php tests/achievement_pccm_test.php
+          php -l includes/achievement_pccm.php
           php tests/viewer_access_test.php
           node --check assets/achievement-board.js
       - run: npm install --prefix "$RUNNER_TEMP/achievement" --no-package-lock playwright@1.58.2
