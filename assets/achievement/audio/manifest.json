@@ -1,0 +1,34 @@
+[
+  {
+    "file": "carefree.mp3",
+    "source": "https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1400037",
+    "author": "Kevin MacLeod",
+    "license": "CC-BY-4.0",
+    "source_sha256": "8433b770a630d9b1594fd484442c677907ece899a4d149954cd2e74fd733e311",
+    "sha256": "298cfd61a19ddf4b41cbd542619fdf8a1d76a7539a7d1a6884f9fbe9aa36e8e1"
+  },
+  {
+    "file": "celebrate.mp3",
+    "source": "https://kenney.nl/assets/music-jingles",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source_sha256": "ac678f8435036f800f4b2244e6d6b929bfdd012640698ab9815b35b86bfbcd29",
+    "sha256": "97a0022d75e17c02dc2189521d36f150591dc9e7dc5adb304742429c3e2d3d8f"
+  },
+  {
+    "file": "reward.mp3",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source_sha256": "063564703b6094d70718a3e787a55cc9141611e4ecd6b6637f8828f79b4a8c3a",
+    "sha256": "0aeedb30cbcf892728d2d7cb9a94c74d70181c2d9fb339bc039e32151700e93c"
+  },
+  {
+    "file": "tap.mp3",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source_sha256": "ccfb7fa0cccdd9faec0eb16033c732b1e308d139d80f799161495d58f7adcdb9",
+    "sha256": "b4e6807d0be69ac7d2c35a739d65bcea0d6c6f989907a9eef6402c4e73ddcc03"
+  }
+]
