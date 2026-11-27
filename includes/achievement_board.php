@@ -142,7 +142,7 @@ function ab_apply(array $s,array $in,array $u,array $ctx): array {
         $requestKey=hash('sha256',ab_actor($u).'|'.$request);if(isset($s['requests'][$requestKey]))return $s;
         $id=ab_text($in,'event_id',100);$index=null;foreach($s['events'] as $i=>$e)if($e['id']===$id&&$e['board']===$key){$index=$i;break;}
         if($index===null||!empty($s['events'][$index]['voided_at']))throw new RuntimeException('Lượt điểm đã thay đổi hoặc bị xóa. Hãy tải lại lịch sử.');
-        $old=$s['events'][$index];if(!ab_admin($u)&&$old['by']!==ab_actor($u)&&!ab_feature($u,'delete'))throw new RuntimeException('Bạn chưa có quyền sửa lượt điểm của giáo viên khác.');
+        $old=$s['events'][$index]; // Exact class/subject edit scope was checked above; editing does not require delete rights.
         $criterion=ab_text($in,'criterion_id',80);$skill=null;foreach(ab_criteria($s,$key) as $r)if($r['id']===$criterion)$skill=$r;
         if(!$skill)throw new RuntimeException('Chọn một tiêu chí hiện có.');
         $points=filter_var($in['points']??null,FILTER_VALIDATE_INT);$date=ab_text($in,'date',10);$y=$ctx['years'][$year];
