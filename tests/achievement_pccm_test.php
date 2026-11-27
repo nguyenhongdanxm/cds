@@ -56,7 +56,9 @@ try{
  check(ab_class_summary_allowed(ab_load(),$a,'6A')&&!ab_class_summary_allowed(ab_load(),$a,'6B'),'Teacher aggregate read is confined to taught classes');
  check(!array_key_exists('history',$summary)&&!array_key_exists('note',$byId['s1']),'Aggregate does not disclose other-subject event notes');
  $key=ab_key('y','6A','Toán');$original=ab_load($key)['events'][0];$edit=['action'=>'edit_event','year'=>'y','class'=>'6A','subject'=>'Toán','event_id'=>$original['id'],'criterion_id'=>'homework','points'=>4,'date'=>$today,'note'=>'Đã sửa','request_id'=>'edit_request_000001','csrf'=>ab_csrf()];
- ab_save($edit,$a,$ctx);$edited=ab_load($key);check(count($edited['events'])===3&&$edited['events'][0]['points']===2&&$edited['events'][0]['void_reason']==='edited'&&$edited['events'][2]['replaces']===$original['id'],'Assigned teacher can revise an earlier teacher entry without erasing original');
+ $editOnly=array_merge($a,['permission_overrides'=>['hl.thanhtich'=>'edit']]);check(!ab_feature($editOnly,'delete'),'Edit-only account does not gain delete rights');
+ denied(fn()=>ab_save($edit,array_merge($a,['permission_overrides'=>['hl.thanhtich'=>'view']]),$ctx));denied(fn()=>ab_save($edit,array_merge($a,['role'=>'viewer']),$ctx));
+ ab_save($edit,$editOnly,$ctx);$edited=ab_load($key);check(count($edited['events'])===3&&$edited['events'][0]['points']===2&&$edited['events'][0]['void_reason']==='edited'&&$edited['events'][2]['replaces']===$original['id'],'Assigned teacher can revise an earlier teacher entry without erasing original');
  ab_save($edit,$a,$ctx);check(count(ab_load($key)['events'])===3,'Editing retry is idempotent');
  $summary=ab_class_summary(ab_load(),$ctx,'y','6A',$today,$today);check($summary['total']===6,'Revision counted once in combined totals');
  ab_save(['action'=>'undo','year'=>'y','class'=>'6A','subject'=>'Toán','event_id'=>$edited['events'][2]['id'],'csrf'=>ab_csrf()],$a,$ctx);check(ab_class_summary(ab_load(),$ctx,'y','6A',$today,$today)['total']===2,'Deleting revised points updates combined totals');

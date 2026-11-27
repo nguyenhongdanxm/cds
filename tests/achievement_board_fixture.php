@@ -8,7 +8,7 @@ $auth=<<<'PHP'
 <?php
 session_start();define('BASE_URL','/');define('DATA_PATH',dirname(__DIR__).'/data');define('USERS_FILE',DATA_PATH.'/users.json');define('CSDL_SUBJECTS',DATA_PATH.'/subjects.json');define('PCCM_DATA_PATH',dirname(__DIR__).'/pccm');
 require __ROOT__.'/includes/chuyenmon_permission_runtime.php';require __ROOT__.'/includes/permissions.php';
-function current_user(){return ['id'=>($_COOKIE['test_role']??'admin')==='admin'?'a':'t','role'=>$_COOKIE['test_role']??'admin','name'=>'Tài khoản kiểm thử','teacher_id'=>'gvA','teacher_name'=>'Giáo viên A','permission_model_version'=>2];}
+function current_user(){return ['id'=>($_COOKIE['test_role']??'admin')==='admin'?'a':'t','role'=>$_COOKIE['test_role']??'admin','name'=>'Tài khoản kiểm thử','teacher_id'=>'gvA','teacher_name'=>'Giáo viên A','permission_model_version'=>2,'permission_overrides'=>($_COOKIE['test_edit_cap']??'')==='1'?['hl.thanhtich'=>'edit']:[]];}
 function require_login(){if(($_COOKIE['test_role']??'')==='guest'){http_response_code(401);exit;}}function load_json($f,$d=[]){return is_file($f)?json_decode(file_get_contents($f),true):$d;}function e($s){return htmlspecialchars((string)$s,ENT_QUOTES,'UTF-8');}
 PHP;
 file_put_contents($dir.'/includes/auth.php',str_replace('__ROOT__',var_export($root,true),$auth));
