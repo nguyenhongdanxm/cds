@@ -52,9 +52,9 @@ function ab_class_summary_allowed(array $s,array $u,string $class): bool {
 }
 function ab_mascot_presets(): array {
     $sets=[
-        ['Cáo','Thỏ','Ếch','Mèo','Gấu trúc','Vịt','Voi','Sóc','Sư tử','Rùa','Heo','Cún','Koala','Gấu','Cừu','Cánh cụt'],
-        ['Hà mã','Hổ','Hải cẩu','Hươu','Hamster','Gấu mèo','Cú','Nhím','Cá sấu','Dê','Cá voi','Lạc đà','Tắc kè','Gà','Hồng hạc','Chinchilla'],
-        ['Gấu trúc đỏ','Rái cá','Thạch sùng','Gấu Bắc cực','Tê giác','Ngựa vằn','Ngựa','Dơi','Ong','Bướm','Bạch tuộc','Thú mỏ vịt','Sao biển','Cá mập','Ốc sên','Kangaroo']
+        ['Cáo cầm cờ','Thỏ khăn đỏ','Ếch mũ vàng','Mèo kính ba lô','Gấu trúc khăn cầu vồng','Vịt thủy thủ','Voi đũa phép','Sóc khăn xanh','Sư tử vương miện','Rùa thám hiểm','Heo cầm cờ','Cún nơ xanh','Koala mũ cam','Gấu khăn đỏ','Cừu mũ hoa','Cánh cụt khăn sọc'],
+        ['Hà mã mũ xanh','Hổ cầm cờ tím','Hải cẩu nơ đỏ','Hươu vòng hoa','Hamster đeo túi','Gấu mèo khăn xanh','Cú mũ tốt nghiệp','Nhím khăn vàng','Cá sấu mũ rơm','Dê áo choàng','Cá voi thủy thủ','Lạc đà cờ trái tim','Tắc kè đeo kính','Gà vương miện','Hồng hạc nơ xanh','Chinchilla ba lô'],
+        ['Gấu trúc đỏ khăn xanh','Rái cá cờ cầu vồng','Thạch sùng mũ len','Gấu Bắc cực khăn cam','Tê giác mũ vàng','Ngựa vằn vòng hoa','Ngựa khăn đỏ','Dơi mũ tiệc','Ong phi công','Bướm nơ hồng','Bạch tuộc phù thủy','Thú mỏ vịt đeo túi','Sao biển vương miện','Cá mập khăn vàng','Ốc sên mũ đỏ','Kangaroo cầm cờ']
     ];$out=[];foreach($sets as $sheet=>$names)foreach($names as $cell=>$name)$out[]=['id'=>'animal-'.($sheet+1).'-'.$cell,'name'=>$name,'image'=>'assets/achievement/animals-v2-'.($sheet+1).'.webp','cell'=>$cell];
     return array_merge($out,array_map(fn($id,$name)=>['id'=>$id,'name'=>$name,'image'=>'assets/achievement/mascot-'.$id.'.webp'],['mint','bunny','dragon','robot','cat','frog','chick','octopus'],['Mầm xanh','Thỏ mơ mộng','Rồng tinh nghịch','Robot vui vẻ','Mèo bông','Ếch tí hon','Gà năng động','Bạch tuộc ham học']));
 }
