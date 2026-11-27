@@ -32,3 +32,6 @@ Progression v7: positive thresholds default to 10-point steps (10/20/30/…), ne
 - Lên/tụt cấp hiện ở giữa màn hình trong 7 giây, có câu khen/động viên, cấp cũ → cấp mới và âm thanh tương ứng. Đóng bằng × hoặc Esc.
 - Thông báo gộp tên khi ghi điểm nhiều học sinh; tên hiển thị dưới dạng văn bản an toàn.
 - Sao có nền sáng và viền rõ; huy hiệu năng lượng, khiên, vương miện đặt quanh nhân vật, tránh vùng mặt. Cánh và hào quang nằm phía sau.
+
+### Nhân vật thay đổi cảm xúc theo điểm
+Bộ nhân vật mặc định giữ nguyên ID và cách phân chia không trùng, thay bằng hình nhiều lớp không có phụ kiện cố định. 0 điểm có nét mặt trung tính và đứng yên. Điểm dương dưới mốc đầu mỉm cười nhẹ; mỗi cấp tăng biểu cảm và mức chuyển động, tối đa bốn mức. Điểm giảm thì trạng thái được tính lại ngay, điểm âm có ba mức cần động viên. Các mốc phụ kiện, sao và màu vẫn theo cấu hình lớp–môn và kỳ đang chọn. Tắt chuyển động hoặc reduced-motion giữ nguyên biểu cảm nhưng ngừng nhún nhảy. Ảnh người dùng tự tải vẫn giữ hình gốc, dùng hiệu ứng chuyển động/màu theo điểm.
