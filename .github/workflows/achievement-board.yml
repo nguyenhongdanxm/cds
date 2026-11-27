@@ -1,7 +1,7 @@
 name: Classroom achievement board
 on:
   pull_request:
-    paths: ['hoclieu_thanhtich.php', 'includes/achievement_board.php', 'includes/achievement_pccm.php', 'includes/staff_identity.php', 'includes/pccm_release.php', 'assets/achievement-board.*', 'assets/achievement-audio.js', 'assets/achievement-animals.js', 'tests/achievement_animals_test.cjs', 'tests/achievement_audio_test.cjs', 'assets/achievement/**', 'tests/achievement_board*', 'tests/achievement_pccm*', 'tests/achievement_levels*', 'includes/permissions.php', 'includes/viewer_access.php', '.github/workflows/achievement-board.yml']
+    paths: ['hoclieu_thanhtich.php', 'includes/achievement_board.php', 'includes/achievement_pccm.php', 'includes/staff_identity.php', 'includes/pccm_release.php', 'assets/achievement-board.*', 'assets/achievement-audio.js', 'tests/achievement_audio_test.cjs', 'assets/achievement/**', 'tests/achievement_board*', 'tests/achievement_pccm*', 'tests/achievement_levels*', 'includes/permissions.php', 'includes/viewer_access.php', '.github/workflows/achievement-board.yml']
   workflow_dispatch:
 jobs:
   board:
@@ -25,7 +25,6 @@ jobs:
           node --check assets/achievement-board.js
           node --check assets/achievement-audio.js
           node tests/achievement_audio_test.cjs
-          node tests/achievement_animals_test.cjs
       - run: npm install --prefix "$RUNNER_TEMP/achievement" --no-package-lock playwright@1.58.2
       - run: "$RUNNER_TEMP/achievement/node_modules/.bin/playwright install --only-shell chromium"
       - run: |
