@@ -1,7 +1,7 @@
 name: Classroom achievement board
 on:
   pull_request:
-    paths: ['hoclieu_thanhtich.php', 'includes/achievement_board.php', 'includes/achievement_pccm.php', 'includes/staff_identity.php', 'includes/pccm_release.php', 'assets/achievement-board.*', 'assets/achievement-audio.js', 'tests/achievement_audio_test.cjs', 'assets/achievement/**', 'tests/achievement_board*', 'tests/achievement_pccm*', 'includes/permissions.php', 'includes/viewer_access.php', '.github/workflows/achievement-board.yml']
+    paths: ['hoclieu_thanhtich.php', 'includes/achievement_board.php', 'includes/achievement_pccm.php', 'includes/staff_identity.php', 'includes/pccm_release.php', 'assets/achievement-board.*', 'assets/achievement-audio.js', 'tests/achievement_audio_test.cjs', 'assets/achievement/**', 'tests/achievement_board*', 'tests/achievement_pccm*', 'tests/achievement_levels*', 'includes/permissions.php', 'includes/viewer_access.php', '.github/workflows/achievement-board.yml']
   workflow_dispatch:
 jobs:
   board:
@@ -19,6 +19,7 @@ jobs:
           php -l includes/achievement_board.php
           php tests/achievement_board_test.php
           php tests/achievement_pccm_test.php
+          php tests/achievement_levels_test.php
           php -l includes/achievement_pccm.php
           php tests/viewer_access_test.php
           node --check assets/achievement-board.js
@@ -26,7 +27,9 @@ jobs:
           node tests/achievement_audio_test.cjs
       - run: npm install --prefix "$RUNNER_TEMP/achievement" --no-package-lock playwright@1.58.2
       - run: "$RUNNER_TEMP/achievement/node_modules/.bin/playwright install --only-shell chromium"
-      - run: node tests/achievement_board_browser.cjs
+      - run: |
+          node tests/achievement_board_browser.cjs
+          node tests/achievement_levels_browser.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/achievement/node_modules
           SCREENSHOT_DIR: ${{ runner.temp }}/achievement-shots
