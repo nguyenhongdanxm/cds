@@ -80,6 +80,15 @@ function ab_art(array $board,array $students=[]): array {
     }
     return ['mascots'=>$catalog,'students'=>(object)$mapped,'assignment_stats'=>['students'=>count($ids),'unique'=>count(array_unique(array_values($mapped))),'duplicates'=>max(0,count($mapped)-count(array_unique(array_values($mapped)))),'capacity'=>count($presets)]];
 }
+function ab_progression_config(array $s): array {
+    $config=(array)($s['progression']??[]);$out=[];foreach(['positive_step'=>10,'negative_step'=>5] as $key=>$default){$n=filter_var($config[$key]??$default,FILTER_VALIDATE_INT);$out[$key]=$n!==false&&$n>=1&&$n<=100?$n:$default;}return $out;
+}
+/** Visual level always derives from the current net score, never from a historical maximum. */
+function ab_progression(int $points,array $config): array {
+    $step=$config['positive_step'];$negative=$config['negative_step'];$level=intdiv(max(0,$points),$step);$reminder=intdiv(max(0,-$points),$negative);$gifts=[];
+    foreach(['headband','shield','crown','wings','sparkles'] as $i=>$gift)if($level>$i)$gifts[]=$gift;
+    $next=($level+1)*$step;return ['level'=>$level,'stars'=>$level,'reminder'=>$reminder,'gifts'=>$gifts,'next_score'=>$next,'next_delta'=>$next-$points,'progress_percent'=>$points>=0?(int)(($points%$step)/$step*100):0,'recover_delta'=>$reminder>0?abs($points)-$reminder*$negative+1:max(0,-$points),'message'=>$reminder>0?'Mình cùng lấy lại năng lượng, từng bước nhỏ nhé!':($level>0?'Tuyệt vời! Em đã đạt cấp '.$level.'. Cùng giữ vững nỗ lực nhé!':'Mỗi cố gắng nhỏ đang đưa em gần hơn tới ngôi sao đầu tiên.')];
+}
 function ab_presets(): array {return [
     ['id'=>'participate','name'=>'Tích cực phát biểu','points'=>1,'icon'=>'🙋'],['id'=>'homework','name'=>'Hoàn thành bài tập','points'=>2,'icon'=>'📚'],['id'=>'team','name'=>'Hợp tác tốt','points'=>2,'icon'=>'🤝'],['id'=>'progress','name'=>'Có tiến bộ','points'=>3,'icon'=>'🌱'],['id'=>'help','name'=>'Giúp đỡ bạn','points'=>2,'icon'=>'💛'],['id'=>'excellent','name'=>'Thành tích nổi bật','points'=>5,'icon'=>'🏆'],
     ['id'=>'late','name'=>'Đi học muộn','points'=>-1,'icon'=>'⏰'],['id'=>'missing','name'=>'Chưa hoàn thành bài','points'=>-2,'icon'=>'📝'],['id'=>'focus','name'=>'Cần tập trung hơn','points'=>-1,'icon'=>'🎯'],['id'=>'rules','name'=>'Chưa thực hiện nội quy','points'=>-2,'icon'=>'📌']];}
@@ -107,6 +116,10 @@ function ab_apply(array $s,array $in,array $u,array $ctx): array {
     $class=ab_text($in,'class',100);$subject=ab_text($in,'subject',150);$year=ab_text($in,'year',100);
     if(!isset($ctx['classes'][$class])||!in_array($subject,$ctx['subjects'],true)||!isset($ctx['years'][$year])||!ab_scope_allowed($s,$u,$class,$subject,'edit',$year))throw new RuntimeException('Bạn chưa có quyền tích điểm cho lớp hoặc môn này.');
     $key=ab_key($year,$class,$subject);
+    if($action==='progression_save'){
+        $config=[];foreach(['positive_step','negative_step'] as $field){$n=filter_var($in[$field]??null,FILTER_VALIDATE_INT);if($n===false||$n<1||$n>100)throw new RuntimeException('Khoảng mốc phải là số nguyên từ 1 đến 100.');$config[$field]=$n;}
+        $s['progression']=$config;return $s;
+    }
     if(in_array($action,['mascot_save','mascot_assign','mascot_delete','mascot_distribute'],true)){
         $list=(array)($s['mascots']??[]);$id=ab_text($in,'mascot_id',80);
         if($action==='mascot_distribute'){$s['student_mascots']=[];$s['mascot_seed']=bin2hex(random_bytes(12));return $s;}
@@ -199,7 +212,7 @@ function ab_report(array $s,array $students,string $key,string $from,string $to)
         $trend[$e['date']]=($trend[$e['date']]??0)+$points;
     }
     $rows=array_values($scores);usort($rows,fn($a,$b)=>($b['total']<=>$a['total'])?:($b['reward']<=>$a['reward'])?:strcmp($a['name'],$b['name']));
-    $prior=null;$rank=0;foreach($rows as $i=>&$row){$metric=[$row['total'],$row['reward']];if($metric!==$prior)$rank=$i+1;$row['rank']=$rank;$prior=$metric;}unset($row);
+    $prior=null;$rank=0;foreach($rows as $i=>&$row){$metric=[$row['total'],$row['reward']];if($metric!==$prior)$rank=$i+1;$row['rank']=$rank;$row['progression']=ab_progression($row['total'],ab_progression_config($s));$prior=$metric;}unset($row);
     usort($history,fn($a,$b)=>strcmp($b['at'],$a['at'])?:strcmp($b['id'],$a['id']));ksort($trend);
     return ['scores'=>$rows,'history'=>array_slice($history,0,200),'history_total'=>count($history),'trend'=>$trend,'reward'=>array_sum(array_column($rows,'reward')),'penalty'=>array_sum(array_column($rows,'penalty')),'total'=>array_sum(array_column($rows,'total'))];
 }

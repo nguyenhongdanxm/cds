@@ -85,6 +85,10 @@ try{
  denied(fn()=>ab_save(['action'=>'mascot_distribute','mascot_id'=>'','year'=>'y','class'=>'6B','subject'=>'Toán','csrf'=>ab_csrf()],$a,$ctx));
  $beforeArtRefresh=ab_load($key);ab_save(['action'=>'mascot_distribute','mascot_id'=>'','year'=>'y','class'=>'6A','subject'=>'Toán','csrf'=>ab_csrf()],$a,$ctx);$afterArtRefresh=ab_load($key);
  check($afterArtRefresh['events']===$beforeArtRefresh['events']&&!empty($afterArtRefresh['mascot_seed'])&&$afterArtRefresh['student_mascots']===[],'Redistribute changes only artwork choices, preserves point history');
+ $beforeConfig=ab_load($key)['events'];$levelInput=['action'=>'progression_save','year'=>'y','class'=>'6A','subject'=>'Toán','positive_step'=>5,'negative_step'=>3,'csrf'=>ab_csrf()];
+ ab_save($levelInput,$editOnly,$ctx);check(ab_progression_config(ab_load($key))===['positive_step'=>5,'negative_step'=>3]&&ab_load($key)['events']===$beforeConfig,'Assigned edit-only teacher can configure visual thresholds without changing point history');
+ denied(fn()=>ab_save($levelInput,array_merge($a,['role'=>'viewer']),$ctx));denied(fn()=>ab_save(array_merge($levelInput,['subject'=>'Văn']),$a,$ctx));denied(fn()=>ab_save(array_merge($levelInput,['positive_step'=>0]),$a,$ctx));
+ ab_save(array_merge($levelInput,['positive_step'=>10,'negative_step'=>5]),$a,$ctx);
  $published=['version'=>'v2','name'=>'Bản chính thức','rows'=>[['class'=>'6A','subject'=>'Toán','teacher'=>'Lê Bình'],['class'=>'6B','subject'=>'Toán','teacher'=>'Trần An']],'manual'=>[],'configs'=>['6A'=>['subject'=>'GDĐP','ranges'=>[['teacher'=>'Trần An','from'=>1,'to'=>35]]]]];
  check(pccm_save_release_state(PCCM_DATA_PATH,['published'=>$published]),'Publish fixture');file_put_contents(PCCM_DATA_PATH.'/active_version.json','{broken draft');
  $next=ab_pccm_source(PCCM_DATA_PATH);ab_pccm_prepare($next,$teachers,'y',$ctx['classes'],$ctx['subjects']);
